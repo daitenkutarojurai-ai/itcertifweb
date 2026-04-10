@@ -84,6 +84,7 @@ export function getUnlockedAchievements() {
 }
 
 export function getSessionCombo() { return sessionCombo; }
+export function getSessionXP() { return sessionXpEarned; }
 
 // ─── Write ─────────────────────────────────────────────────────────────────────
 

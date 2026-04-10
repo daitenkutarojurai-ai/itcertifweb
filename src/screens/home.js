@@ -45,7 +45,7 @@ function buildHTML(brands, progress, streak) {
       <header class="home-header">
         <div class="app-logo">
           <div class="logo-bolt">⚡</div>
-          <span class="logo-text">CertQuest</span>
+          <span class="logo-text">CertQuests</span>
         </div>
         <div style="display:flex;gap:8px;align-items:center">
           <!-- Hearts -->
@@ -211,7 +211,7 @@ function attachListeners(container, navigate, brands) {
       btn.textContent = '...';
       btn.disabled    = true;
 
-      const data = await import('../engine/dataLoader.js').then(m => m.loadPack(pack.file));
+      const data = await loadPack(pack.file);
       btn.textContent = 'Start →';
       btn.disabled    = false;
 

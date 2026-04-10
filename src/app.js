@@ -6,6 +6,7 @@ import { render as renderHome }    from './screens/home.js';
 import { render as renderQuiz, cleanup as cleanupQuiz } from './screens/quiz.js';
 import { render as renderResults } from './screens/results.js';
 import { initNotifications }       from './engine/notifications.js';
+import { getHearts, refillHearts } from './engine/gamification.js';
 
 const renderers = {
   home:    renderHome,
@@ -109,19 +110,47 @@ export function showModePicker(pack, questions) {
 
   modal.querySelector('#modal-backdrop').addEventListener('click', close);
 
-  modal.querySelector('#mode-quick').addEventListener('click', () => {
+  const startQuiz = (mode, count) => {
+    if (mode !== 'study' && getHearts() <= 0) {
+      showNoHeartsModal(modal, () => startQuiz(mode, count));
+      return;
+    }
     close();
-    setTimeout(() => navigate('quiz', { pack, questions, mode: 'quick', count: QUICK_COUNT }), 300);
-  });
+    setTimeout(() => navigate('quiz', { pack, questions, mode, count }), 300);
+  };
 
-  modal.querySelector('#mode-full').addEventListener('click', () => {
-    close();
-    setTimeout(() => navigate('quiz', { pack, questions, mode: 'full', count: fullCount }), 300);
-  });
+  modal.querySelector('#mode-quick').addEventListener('click', () => startQuiz('quick', QUICK_COUNT));
+  modal.querySelector('#mode-full').addEventListener('click', () => startQuiz('full', fullCount));
+  modal.querySelector('#mode-study').addEventListener('click', () => startQuiz('study', STUDY_COUNT));
+}
 
-  modal.querySelector('#mode-study').addEventListener('click', () => {
-    close();
-    setTimeout(() => navigate('quiz', { pack, questions, mode: 'study', count: STUDY_COUNT }), 300);
+/**
+ * Show a blocking "out of hearts" modal inside the mode picker.
+ * @param {HTMLElement} parentModal - the mode picker modal element
+ * @param {Function} onRefill - callback to retry after refill
+ */
+function showNoHeartsModal(parentModal, onRefill) {
+  // Remove existing if any
+  parentModal.querySelector('.no-hearts-sheet')?.remove();
+
+  const sheet = document.createElement('div');
+  sheet.className = 'no-hearts-sheet';
+  sheet.innerHTML = `
+    <div style="text-align:center;padding:24px 20px">
+      <div style="font-size:40px;margin-bottom:8px">💔</div>
+      <div style="font-size:16px;font-weight:700;color:var(--text);margin-bottom:4px">Out of Hearts</div>
+      <div style="font-size:13px;color:var(--text-secondary);margin-bottom:20px">
+        Refill your hearts to start a quiz, or try Study Mode (no hearts needed).
+      </div>
+      <button class="btn-refill-hearts" id="btn-modal-refill">❤️ Refill Hearts</button>
+    </div>
+  `;
+  parentModal.querySelector('.modal-sheet').appendChild(sheet);
+
+  sheet.querySelector('#btn-modal-refill').addEventListener('click', () => {
+    refillHearts();
+    sheet.remove();
+    onRefill();
   });
 }
 

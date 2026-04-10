@@ -116,7 +116,7 @@ function scheduleCapacitorNotification(date) {
   // await LocalNotifications.schedule({
   //   notifications: [{
   //     id: 1,
-  //     title: "CertQuest 🎯",
+  //     title: "CertQuests 🎯",
   //     body: buildReminderBody(),
   //     schedule: { at: date, repeats: true, every: 'day' },
   //     channelId: 'reminders',
@@ -128,7 +128,7 @@ function fireReminder() {
   if (!isPermissionGranted()) return;
 
   const daysSince = getDaysSinceLastVisit();
-  const title     = 'CertQuest ⚡';
+  const title     = 'CertQuests ⚡';
   const body      = buildReminderBody(daysSince);
 
   if (CAPACITOR_ENABLED) {
@@ -167,7 +167,7 @@ export function schedulePostQuizReminder(packName, score, total) {
   // Browser: schedule for 24 hours later
   setTimeout(() => {
     if (!isPermissionGranted()) return;
-    new Notification('CertQuest ⚡', { body: message });
+    new Notification('CertQuests ⚡', { body: message });
   }, 24 * 60 * 60 * 1000);
 }
 

@@ -12,7 +12,8 @@ import { schedulePostQuizReminder } from '../engine/notifications.js';
 import { playCorrect, playWrong, playTick, playTimeout, playCombo, playLevelUp, isSoundEnabled, toggleSound } from '../engine/sounds.js';
 import {
   onCorrectAnswer, onWrongAnswer, resetSessionCombo, checkAchievements,
-  getHearts, loseHeart, getMaxHearts, addDailyXP, updatePackMastery,
+  getHearts, loseHeart, getMaxHearts, refillHearts, addDailyXP, updatePackMastery,
+  getSessionXP,
 } from '../engine/gamification.js';
 
 let quiz          = null;
@@ -360,7 +361,7 @@ function updateComboBadge(container, combo) {
 
 function showLevelUpOverlay(container, level) {
   const el = document.createElement('div');
-  el.className = 'levelup-overlay';
+  el.className = 'levelup-overlay levelup-transient';
   el.innerHTML = `<div class="levelup-card"><div class="levelup-icon">${level.icon}</div><div class="levelup-label">LEVEL UP!</div><div class="levelup-title">${level.title}</div></div>`;
   document.body.appendChild(el);
   setTimeout(() => el.remove(), 2200);
@@ -385,10 +386,40 @@ function animateLoseHeart(container) {
 
 function showNoHeartsOverlay() {
   const el = document.createElement('div');
-  el.className = 'levelup-overlay';
-  el.innerHTML = `<div class="levelup-card" style="border-color:var(--wrong)"><div class="levelup-icon">💔</div><div class="levelup-label" style="color:var(--wrong)">Out of Hearts</div><div class="levelup-title" style="font-size:15px;font-weight:500;color:var(--text-secondary)">Hearts refill over time</div></div>`;
+  el.className = 'levelup-overlay no-hearts-overlay';
+  el.innerHTML = `
+    <div class="levelup-card" style="border-color:var(--wrong)">
+      <div class="levelup-icon">💔</div>
+      <div class="levelup-label" style="color:var(--wrong)">Out of Hearts</div>
+      <div class="levelup-title" style="font-size:15px;font-weight:500;color:var(--text-secondary);margin-bottom:20px">
+        You've run out of hearts!<br>Refill to keep going or come back later.
+      </div>
+      <div style="display:flex;flex-direction:column;gap:10px;width:100%">
+        <button class="btn-refill-hearts" id="btn-refill">
+          ❤️ Refill Hearts
+        </button>
+        <button class="btn-quit-hearts" id="btn-quit-hearts">
+          Quit to Home
+        </button>
+      </div>
+    </div>
+  `;
   document.body.appendChild(el);
-  setTimeout(() => el.remove(), 2000);
+
+  el.querySelector('#btn-refill').addEventListener('click', () => {
+    refillHearts();
+    sessionHearts = getMaxHearts();
+    const row = document.querySelector('#hearts-row');
+    if (row) row.innerHTML = renderHearts(sessionHearts);
+    el.remove();
+  });
+
+  el.querySelector('#btn-quit-hearts').addEventListener('click', () => {
+    el.remove();
+    clearInterval(timerInterval);
+    MILESTONES_SHOWN.clear();
+    navigateFn('home');
+  });
 }
 
 function showMilestone(emoji, title, sub) {
@@ -438,8 +469,8 @@ function finishQuiz() {
   const results = getResults(quiz);
   saveQuizResult(packInfo.id, { score: results.score, total: results.total, totalTime: results.totalTime });
   updatePackMastery(packInfo.id, results.score, results.total);
-  const { justCompleted: goalJustCompleted } = addDailyXP(results.score * 2);
-  const totalSessionXP = results.score * 12; // approx
+  const { justCompleted: goalJustCompleted } = addDailyXP(getSessionXP());
+  const totalSessionXP = getSessionXP();
   const quizCount = getTotalQuizCount();
   const newAchievements = checkAchievements({
     score: results.score, total: results.total,
