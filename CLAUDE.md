@@ -40,7 +40,8 @@ CertQuests is a free IT certification practice quiz platform (PWA). Static site 
 ├── learning/               # Learning paths section (courses on certifications)
 │   └── index.html          # Main learning page — loads from data/courses.json
 ├── news/                   # Tech news section (DevOps/tech coverage)
-│   └── index.html          # Main news page — loads from data/news.json
+│   ├── index.html          # Main news page — loads from data/news.json
+│   └── <slug>/index.html   # Full article pages (one directory per article)
 └── .github/workflows/      # CI/CD
 ```
 
@@ -60,7 +61,40 @@ Each screen exports `render(container, navigate, params)` — builds HTML string
 ### Adding Content
 - **New certification:** Add to `data/index.json`, create question JSON in `data/free/`, optionally add SEO page in `certifications/`
 - **New course:** Add entry to `data/courses.json` — auto-rendered by learning page
-- **New news article:** Add entry to `data/news.json` — auto-rendered by news page
+- **New news article:** Create a new directory `news/<slug>/index.html` with full article HTML + Article JSON-LD, add a matching entry to `data/news.json` with `url: "/news/<slug>/"`, and add the URL to `sitemap.xml`. The news page auto-sorts articles by `date` descending and promotes the first `featured: true` entry.
+
+## News posting cycle
+
+The news section follows a **daily rotation**: publish one new article per day, pulling the topic from the catalog below. After posting, mark the topic as "used" in a commit note so the next day's session picks a fresh one. The rotation is intentionally eclectic to keep the feed interesting for DevOps / cert-prep readers.
+
+**Topic catalog (rotate through these in order, then loop):**
+
+1. Education / Quiz
+   - Question of the Day (quiz question with answer reveal)
+   - Did you know... (quick technical fact — AWS, Cisco, Fortinet, K8s)
+   - How to pass [cert] in 30 days (rapid tips)
+   - Exam countdown ("14 days before your exam...")
+2. Cheatsheets / Technical
+   - Cheat sheet of the day (hidden/lesser-known commands — K8s, Linux, AWS CLI, Git, Terraform)
+   - One-liner of the day (one powerful command that saves hours)
+   - Senior vs Junior (same task, two approaches)
+   - You didn't know this existed in [tool] (hidden features)
+   - 5 commands every [role] must know
+3. Clickbait / Crazy but True
+   - "The day AWS took down half the internet" (real outage stories)
+   - "AI deleted the production database"
+   - "$72,000 AWS bill overnight" (cloud cost horror)
+   - "One typo took down Facebook for 6 hours" (BGP 2021)
+   - **"11 lines of code broke the internet" (npm left-pad 2016)** — posted 2026-04-12
+   - "The dev who accidentally deleted his company" (GitLab 2017)
+
+**Next topic to post:** "One typo took down Facebook for 6 hours" (BGP 2021 incident) — pick the next unposted item on the rotation.
+
+**Article page conventions:**
+- Path: `/news/<kebab-slug>/index.html`
+- Must include: `og:type=article`, Twitter card, Article JSON-LD, BreadcrumbList JSON-LD, canonical link, breadcrumb nav, back-to-news footer link
+- Sections: TL;DR box, intro, body with h2/h3, takeaways, tie-in to a relevant certification
+- Reading time: 4–8 min (≈600–1500 words)
 
 ## Navigation
 All pages share a consistent header (`web-header` class) and footer (`web-footer` class) with links to:
