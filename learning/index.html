@@ -346,40 +346,108 @@
   (function() {
     var COURSES_URL = '/data/courses.json';
 
-    // Render a single course card
-    function renderCard(course) {
-      var diffClass = 'difficulty-' + (course.difficulty || 'beginner');
-      var statusClass = course.status === 'coming-soon' ? 'coming-soon' : '';
-      var statusLabel = course.status === 'coming-soon' ? '&#128260; Coming Soon' : '&#9989; Available';
-      var isAvailable = course.status === 'available' && course.url;
-      var tag = isAvailable ? 'a' : 'div';
-      var hrefAttr = isAvailable ? ' href="' + course.url + '"' : '';
-      var linkStyle = isAvailable ? ' style="text-decoration:none;color:inherit;display:flex;flex-direction:column"' : '';
+    // ─── Safe URL sanitizer — same pattern as the news page ──
+    function safeUrl(url) {
+      if (!url || typeof url !== 'string') return '';
+      var trimmed = url.trim();
+      if (trimmed === '') return '';
+      if (/[\u0000-\u001F\u007F]/.test(trimmed)) return '';
+      if (/^[/?#]/.test(trimmed)) return trimmed;
+      if (/^(https?:|mailto:|tel:)/i.test(trimmed)) return trimmed;
+      return '';
+    }
 
-      return '<' + tag + ' class="course-card" data-category="' + (course.category || '') + '"' + hrefAttr + linkStyle + '>'
-        + '<div class="course-vendor" style="color:' + (course.vendorColor || '#7c90ae') + '">'
-        + '<span class="course-vendor-dot" style="background:' + (course.vendorColor || '#7c90ae') + '"></span>'
-        + course.vendor
-        + '</div>'
-        + '<h3>' + course.title + '</h3>'
-        + '<p class="course-desc">' + course.description + '</p>'
-        + '<div class="course-meta">'
-        + '<span class="course-chip ' + diffClass + '">' + course.difficulty + '</span>'
-        + '<span class="course-chip">' + (course.modules || 0) + ' modules</span>'
-        + (course.duration ? '<span class="course-chip">' + course.duration + '</span>' : '')
-        + '</div>'
-        + '<div class="course-status ' + statusClass + '">' + statusLabel + '</div>'
-        + '</' + tag + '>';
+    // ─── Validate hex color strings to prevent CSS injection via inline style ──
+    function safeColor(c) {
+      return (typeof c === 'string' && /^#[0-9A-Fa-f]{3,8}$/.test(c)) ? c : '#7c90ae';
+    }
+
+    // ─── Allowlist difficulty / category to keep classNames deterministic ──
+    var ALLOWED_DIFFICULTY = { beginner: 1, intermediate: 1, advanced: 1 };
+    function safeDifficulty(d) {
+      return (typeof d === 'string' && ALLOWED_DIFFICULTY[d]) ? d : 'beginner';
+    }
+    function safeCategory(c) {
+      return (typeof c === 'string' && /^[a-z0-9-]{1,32}$/.test(c)) ? c : '';
+    }
+
+    // Render a single course card via DOM APIs (no innerHTML on user data)
+    function renderCard(grid, course) {
+      var isAvailable = course.status === 'available' && safeUrl(course.url);
+      var root = document.createElement(isAvailable ? 'a' : 'div');
+      root.className = 'course-card';
+      root.setAttribute('data-category', safeCategory(course.category));
+      if (isAvailable) {
+        root.href = safeUrl(course.url);
+        root.style.textDecoration = 'none';
+        root.style.color = 'inherit';
+        root.style.display = 'flex';
+        root.style.flexDirection = 'column';
+      }
+
+      var color = safeColor(course.vendorColor);
+      var vendor = document.createElement('div');
+      vendor.className = 'course-vendor';
+      vendor.style.color = color;
+
+      var dot = document.createElement('span');
+      dot.className = 'course-vendor-dot';
+      dot.style.background = color;
+      vendor.appendChild(dot);
+      vendor.appendChild(document.createTextNode(course.vendor || ''));
+      root.appendChild(vendor);
+
+      var h3 = document.createElement('h3');
+      h3.textContent = course.title || '';
+      root.appendChild(h3);
+
+      var desc = document.createElement('p');
+      desc.className = 'course-desc';
+      desc.textContent = course.description || '';
+      root.appendChild(desc);
+
+      var meta = document.createElement('div');
+      meta.className = 'course-meta';
+
+      var diff = safeDifficulty(course.difficulty);
+      var chipDiff = document.createElement('span');
+      chipDiff.className = 'course-chip difficulty-' + diff;
+      chipDiff.textContent = diff;
+      meta.appendChild(chipDiff);
+
+      var chipMods = document.createElement('span');
+      chipMods.className = 'course-chip';
+      var modsCount = (typeof course.modules === 'number' && course.modules >= 0) ? course.modules : 0;
+      chipMods.textContent = modsCount + ' modules';
+      meta.appendChild(chipMods);
+
+      if (typeof course.duration === 'string' && course.duration) {
+        var chipDur = document.createElement('span');
+        chipDur.className = 'course-chip';
+        chipDur.textContent = course.duration;
+        meta.appendChild(chipDur);
+      }
+      root.appendChild(meta);
+
+      var isComing = course.status === 'coming-soon';
+      var status = document.createElement('div');
+      status.className = 'course-status' + (isComing ? ' coming-soon' : '');
+      status.textContent = isComing ? '🔄 Coming Soon' : '✅ Available';
+      root.appendChild(status);
+
+      grid.appendChild(root);
     }
 
     // Load and render courses
-    fetch(COURSES_URL)
-      .then(function(r) { return r.json(); })
+    fetch(COURSES_URL, { credentials: 'omit', cache: 'no-cache' })
+      .then(function(r) {
+        if (!r.ok) throw new Error('HTTP ' + r.status);
+        return r.json();
+      })
       .then(function(data) {
         var grid = document.getElementById('courses-grid');
-        var html = '';
-        data.courses.forEach(function(c) { html += renderCard(c); });
-        grid.innerHTML = html;
+        var courses = (data && Array.isArray(data.courses)) ? data.courses : [];
+        courses.forEach(function(c) { renderCard(grid, c); });
 
         // Wire up filters
         var filters = document.querySelectorAll('.filter-btn');
@@ -401,8 +469,12 @@
         });
       })
       .catch(function() {
-        document.getElementById('courses-grid').innerHTML =
-          '<p style="text-align:center;color:#7c90ae;grid-column:1/-1;padding:32px 0">Courses are being prepared. Check back soon!</p>';
+        var grid = document.getElementById('courses-grid');
+        grid.textContent = 'Courses are being prepared. Check back soon!';
+        grid.style.textAlign = 'center';
+        grid.style.color = '#7c90ae';
+        grid.style.gridColumn = '1/-1';
+        grid.style.padding = '32px 0';
       });
   })();
   </script>

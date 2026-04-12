@@ -386,47 +386,126 @@
   (function() {
     var NEWS_URL = '/data/news.json';
 
-    // Render featured article
-    function renderFeatured(article) {
-      return '<a class="news-featured" href="' + (article.url || '#') + '">'
-        + '<span class="news-featured-badge">Featured</span>'
-        + '<h2>' + article.title + '</h2>'
-        + '<p class="news-excerpt">' + article.excerpt + '</p>'
-        + '</a>';
+    // ─── Safe URL sanitizer — blocks javascript:, data:, vbscript: schemes ──
+    // Allows relative, absolute-path, mailto, tel, http(s), or the "#" placeholder.
+    function safeUrl(url) {
+      if (!url || typeof url !== 'string') return '#';
+      var trimmed = url.trim();
+      if (trimmed === '#' || trimmed === '') return '#';
+      // Reject anything containing control characters
+      if (/[\u0000-\u001F\u007F]/.test(trimmed)) return '#';
+      // Relative path / fragment / query-only are safe
+      if (/^[/?#]/.test(trimmed)) return trimmed;
+      // Allow explicit safe schemes only
+      if (/^(https?:|mailto:|tel:)/i.test(trimmed)) return trimmed;
+      // Anything else (javascript:, data:, file:, vbscript:, etc.) is rejected
+      return '#';
     }
 
-    // Render a news card
-    function renderCard(article) {
-      return '<a class="news-card" href="' + (article.url || '#') + '" data-category="' + (article.category || '') + '">'
-        + '<div class="news-card-header">'
-        + '<span class="news-category-badge ' + (article.category || '') + '">' + (article.categoryLabel || article.category || '') + '</span>'
-        + '<span class="news-date">' + (article.date || '') + '</span>'
-        + '</div>'
-        + '<h3>' + article.title + '</h3>'
-        + '<p class="news-excerpt">' + article.excerpt + '</p>'
-        + '<span class="news-read-more">Read more &rarr;</span>'
-        + '</a>';
+    // ─── Allowlist categories so only predefined CSS classes are applied ──
+    var ALLOWED_CATEGORIES = {
+      devops: 1, cloud: 1, security: 1, certifications: 1, infrastructure: 1
+    };
+    function safeCategory(cat) {
+      return (typeof cat === 'string' && ALLOWED_CATEGORIES[cat]) ? cat : '';
+    }
+
+    // ─── Render featured article using safe DOM APIs ──
+    function renderFeatured(parent, article) {
+      parent.textContent = '';
+      var a = document.createElement('a');
+      a.className = 'news-featured';
+      a.href = safeUrl(article.url);
+
+      var badge = document.createElement('span');
+      badge.className = 'news-featured-badge';
+      badge.textContent = 'Featured';
+      a.appendChild(badge);
+
+      var h2 = document.createElement('h2');
+      h2.textContent = article.title || '';
+      a.appendChild(h2);
+
+      var p = document.createElement('p');
+      p.className = 'news-excerpt';
+      p.textContent = article.excerpt || '';
+      a.appendChild(p);
+
+      parent.appendChild(a);
+    }
+
+    // ─── Render a news card using safe DOM APIs ──
+    function renderCard(parent, article) {
+      var cat = safeCategory(article.category);
+      var a = document.createElement('a');
+      a.className = 'news-card';
+      a.href = safeUrl(article.url);
+      a.setAttribute('data-category', cat);
+
+      var header = document.createElement('div');
+      header.className = 'news-card-header';
+
+      var badge = document.createElement('span');
+      badge.className = 'news-category-badge' + (cat ? ' ' + cat : '');
+      badge.textContent = article.categoryLabel || cat || '';
+      header.appendChild(badge);
+
+      var date = document.createElement('span');
+      date.className = 'news-date';
+      date.textContent = article.date || '';
+      header.appendChild(date);
+
+      a.appendChild(header);
+
+      var h3 = document.createElement('h3');
+      h3.textContent = article.title || '';
+      a.appendChild(h3);
+
+      var excerpt = document.createElement('p');
+      excerpt.className = 'news-excerpt';
+      excerpt.textContent = article.excerpt || '';
+      a.appendChild(excerpt);
+
+      var readMore = document.createElement('span');
+      readMore.className = 'news-read-more';
+      readMore.textContent = 'Read more →';
+      a.appendChild(readMore);
+
+      parent.appendChild(a);
     }
 
     // Load and render news
-    fetch(NEWS_URL)
-      .then(function(r) { return r.json(); })
+    fetch(NEWS_URL, { credentials: 'omit', cache: 'no-cache' })
+      .then(function(r) {
+        if (!r.ok) throw new Error('HTTP ' + r.status);
+        return r.json();
+      })
       .then(function(data) {
         var featuredEl = document.getElementById('news-featured');
         var listEl = document.getElementById('news-list');
+        var articles = (data && Array.isArray(data.articles)) ? data.articles : [];
 
-        // Render featured article (first with featured flag, or first article)
-        var featured = data.articles.find(function(a) { return a.featured; }) || data.articles[0];
-        if (featured) {
-          featuredEl.innerHTML = renderFeatured(featured);
+        if (articles.length === 0) {
+          listEl.textContent = 'News articles are being prepared. Check back soon!';
+          listEl.style.textAlign = 'center';
+          listEl.style.color = '#7c90ae';
+          listEl.style.padding = '32px 0';
+          return;
         }
 
-        // Render remaining articles
-        var html = '';
-        data.articles.forEach(function(a) {
-          if (a !== featured) html += renderCard(a);
+        // Sort by date descending so newest articles appear first
+        articles.sort(function(a, b) {
+          return (b.date || '').localeCompare(a.date || '');
         });
-        listEl.innerHTML = html;
+
+        // Render featured article (first with featured flag, or newest)
+        var featured = articles.find(function(a) { return a.featured; }) || articles[0];
+        if (featured) renderFeatured(featuredEl, featured);
+
+        // Render remaining articles
+        articles.forEach(function(a) {
+          if (a !== featured) renderCard(listEl, a);
+        });
 
         // Wire up category tabs
         var tabs = document.querySelectorAll('.news-tab');
@@ -455,8 +534,11 @@
         });
       })
       .catch(function() {
-        document.getElementById('news-list').innerHTML =
-          '<p style="text-align:center;color:#7c90ae;padding:32px 0">News articles are being prepared. Check back soon!</p>';
+        var listEl = document.getElementById('news-list');
+        listEl.textContent = 'News articles are being prepared. Check back soon!';
+        listEl.style.textAlign = 'center';
+        listEl.style.color = '#7c90ae';
+        listEl.style.padding = '32px 0';
       });
   })();
   </script>
