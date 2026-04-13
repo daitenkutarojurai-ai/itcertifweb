@@ -119,6 +119,7 @@ Active question packs (`available: true` in `data/index.json`):
 | **aws-dva-c02** | free/aws-dva-c02.json | **60** (new 2026-04-13) |
 | **sc-900** | free/sc-900.json | **60** (new 2026-04-13) |
 | **ckad** | free/ckad.json | **60** (new 2026-04-13) |
+| **comptia-pentest** | free/comptia-pentest.json | **60** (new 2026-04-13) |
 
 ### CompTIA Linux+ XK0-005 (new 2026-04-13 batch 2)
 - Activated `comptia-linux` pack in `data/index.json` (available: true, 60 questions)
@@ -207,6 +208,19 @@ Active question packs (`available: true` in `data/index.json`):
 - Updated `data/courses.json`: improved `kubernetes-ckad` description with specific CKAD topic coverage
 - Updated `certifications/linux-devops.html`: CKAD tile now Live, hero → 5 live exams / 680+ questions, updated hero description, updated FAQ (CKA + CKAD both live)
 - Added `https://certquests.com/learning/kubernetes-ckad/` to `sitemap.xml`
+
+### CompTIA PenTest+ PT0-002 (new 2026-04-13)
+- Activated `comptia-pentest` pack in `data/index.json` (was coming-soon, now available: true, question_count: 60)
+- Created `data/free/comptia-pentest.json`: 60 scenario-based questions v1.0.0 across all 5 PT0-002 domains
+  - Domain 1 Planning & Scoping (14%, ~8q): ROE, engagement types (black/white/gray box), authorization letter, scoping, STRIDE, PTES, PCI DSS, passive vs active recon
+  - Domain 2 Information Gathering & Vulnerability Scanning (22%, ~13q): WHOIS, DNS zone transfer, Google dorking, Shodan, banner grabbing, Nmap (-sS/-sV/NSE), Nessus credentialed scans, enum4linux, LDAP, Nikto, theHarvester, certificate transparency
+  - Domain 3 Attacks & Exploits (30%, ~18q): Metasploit (check/sessions/Meterpreter), SQLi (auth bypass/UNION), stored XSS, CSRF, path traversal, command injection, SSRF (cloud metadata), buffer overflow NOP sled, Pass-the-Hash, Kerberoasting, ARP spoofing MitM, WPA2 handshake cracking, evil twin AP, SUID privilege escalation, spear phishing (Gophish), tailgating, public S3 bucket, Hydra
+  - Domain 4 Reporting & Communication (18%, ~11q): CVSS base score, executive summary, severity ratings, remediation recommendations, evidence handling, retesting, report structure, zero-day responsible disclosure, post-test cleanup
+  - Domain 5 Tools & Code Analysis (16%, ~10q): Nmap -A flags, Metasploit search command, Burp Suite SSL pinning, Wireshark display filters, Netcat reverse shell, Python TCP scanner, Bash ping sweep, PowerShell base64 obfuscation, Gobuster -x flag, Mimikatz + WDigest mitigation
+- Created course page: `learning/comptia-pentest-plus/index.html` (7 modules, ~35h, Spotify CTAs top/mid/bottom, exam snapshot table, domain weight bar chart, 2 concept callouts, 4-week study plan, top-3-mistakes box, related cert cards)
+- Added `comptia-pentest-plus` entry to `data/courses.json`
+- Updated `certifications/comptia.html`: PenTest+ tile now Live, hero → 6 live exams / 475+ questions, prose updated with PenTest+ domain weights, added PenTest+ FAQ item
+- Added `https://certquests.com/learning/comptia-pentest-plus/` to `sitemap.xml`
 
 **Article page conventions:**
 - Path: `/news/<kebab-slug>/index.html`
