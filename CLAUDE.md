@@ -120,6 +120,27 @@ Active question packs (`available: true` in `data/index.json`):
 | **sc-900** | free/sc-900.json | **60** (new 2026-04-13) |
 | **ckad** | free/ckad.json | **60** (new 2026-04-13) |
 | **comptia-pentest** | free/comptia-pentest.json | **60** (new 2026-04-13) |
+| **az-500** | free/az-500.json | **60** (new 2026-04-13 batch 3) |
+| **pcnsa** | free/pcnsa.json | **60** (reworked 2026-04-13 batch 3, v2.0.0 — proper MCQ format) |
+
+### AZ-500 — Azure Security Engineer Associate (new 2026-04-13 batch 3)
+- Activated `az-500` pack in `data/index.json` (was coming-soon, now available: true, question_count: 60)
+- Created `data/free/az-500.json`: 60 scenario-based questions v1.0.0 across all 4 AZ-500 domains
+  - Domain 1 (25-30%, 17q): Conditional Access, PIM (eligible/active assignments, access reviews), managed identities, RBAC custom roles, Identity Protection risk policies, B2B/B2C, Entra Connect, entitlement management, service principals
+  - Domain 2 (20-25%, 14q): Azure Firewall Standard vs Premium (IDPS, TLS inspection), NSG service tags + ASG, DDoS Protection Basic vs Standard, Azure Bastion, Private Endpoints vs Service Endpoints, WAF on App Gateway vs Front Door, forced tunneling + UDR, Network Watcher
+  - Domain 3 (20-25%, 14q): Azure Key Vault (soft-delete, purge protection, RBAC vs access policies, HSM), ADE vs SSE+CMK, SAS tokens, immutable storage, SQL TDE/DDM/Always Encrypted/Auditing/ATP, AKS security (RBAC, pod-managed identity, network policies), JIT VM access, container registry scanning
+  - Domain 4 (25-30%, 15q): Defender for Cloud (Secure Score, JIT, regulatory compliance, Defender for Servers/Storage/SQL/Containers), Microsoft Sentinel (data connectors, KQL analytics rules, incidents, SOAR playbooks, threat hunting, UEBA, workbooks), Azure Monitor
+- Created course page: `learning/az-500/index.html` (7 modules, ~40h, Spotify + quiz CTAs, exam snapshot table, domain weight bars, 3 concept callouts, 6-week study plan, top-4-mistakes box, related cert cards)
+- Added `az-500` entry to `data/courses.json`
+- Updated `certifications/microsoft.html`: AZ-500 tile now Live, hero → 4 live exams / 580+ questions, added AZ-500 domain weights to prose, added AZ-500 FAQ item
+- Added `https://certquests.com/learning/az-500/` to `sitemap.xml`
+
+### PCNSA — Palo Alto Networks Security Associate (reworked 2026-04-13 batch 3)
+- Reworked all 50 questions from flashcard-style to proper 4-option MCQ format (v2.0.0)
+- Fixed meta `question_count: 0` bug → now correctly 60
+- Expanded from 50 → 60 questions; added 10 new questions (pcnsa-051–060): Layer 2 deployment, IPsec path monitoring, IKEv2 vs IKEv1, Vulnerability Protection action types, Kerberos SSO, AV vs WildFire profile roles, Policy-Based Forwarding, SAML SP/IdP roles, HA preemption, NAT policy zone matching
+- All 13 PCNSA domain areas covered: App-ID, User-ID, Content-ID, zones, policy order, NAT, security profiles, WildFire, decryption, VPN/GlobalProtect, HA, Panorama, logging/certs/auth
+- Updated `data/index.json`: `question_count: 60`
 
 ### CompTIA Linux+ XK0-005 (new 2026-04-13 batch 2)
 - Activated `comptia-linux` pack in `data/index.json` (available: true, 60 questions)
