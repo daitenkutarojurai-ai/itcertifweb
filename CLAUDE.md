@@ -112,6 +112,23 @@ Active question packs (`available: true` in `data/index.json`):
 | **gcp-ace** | free/gcp-ace.json | **60** (new 2026-04-13) |
 | **docker-dca** | free/docker-dca.json | **60** (new 2026-04-13) |
 | **aws-saa-c03** | free/aws-saa-c03.json | **60** (new 2026-04-13) |
+| **cka** | free/cka.json | **60** (new 2026-04-13) |
+| **az-104** | free/az-104.json | **60** (reworked 2026-04-13, v2.0.0 — proper MCQ format) |
+
+### CKA — Certified Kubernetes Administrator (new 2026-04-13)
+- Activated `cka` pack in `data/index.json` (was coming-soon, now available: true)
+- Created `data/free/cka.json`: 60 scenario-based questions across all 5 CKA domains (cluster architecture, workloads, services/networking, storage, troubleshooting)
+- Created course page: `learning/kubernetes-cka/index.html` (7 modules, ~35h, Spotify CTA)
+- Added to `data/courses.json`
+- Updated `certifications/linux-devops.html`: CKA tile now Live, hero stat → 4 live exams, 620+ questions
+- Added to `sitemap.xml`
+
+### AZ-104 — Azure Administrator (reworked 2026-04-13)
+- Reworked all questions in `data/free/az-104.json` from 2-option flashcard to proper 4-option MCQ format (v2.0.0)
+- Expanded from 35 → 60 questions across all AZ-104 domains (identity, networking, compute, storage, monitoring, governance)
+- Activated `az-104` pack in `data/index.json` (was coming-soon, now available: true)
+- Updated `certifications/microsoft.html`: AZ-104 tile now Live, hero stat → 2 live exams, 460+ questions
+- Added `az-104-administrator` course entry to `data/courses.json`
 
 ### AWS SAA-C03 (new 2026-04-13)
 - Activated `aws-saa-c03` pack in `data/index.json` (was coming-soon, now available: true)
