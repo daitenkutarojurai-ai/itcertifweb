@@ -118,6 +118,7 @@ Active question packs (`available: true` in `data/index.json`):
 | **rhcsa** | free/rhcsa.json | **60** (reworked 2026-04-13, v2.0.0 — fixed meta + 10 new questions) |
 | **aws-dva-c02** | free/aws-dva-c02.json | **60** (new 2026-04-13) |
 | **sc-900** | free/sc-900.json | **60** (new 2026-04-13) |
+| **ckad** | free/ckad.json | **60** (new 2026-04-13) |
 
 ### CompTIA Linux+ XK0-005 (new 2026-04-13 batch 2)
 - Activated `comptia-linux` pack in `data/index.json` (available: true, 60 questions)
@@ -193,6 +194,19 @@ Active question packs (`available: true` in `data/index.json`):
 - Added `aws-dva-c02` entry to `data/courses.json`
 - Updated `certifications/aws.html`: DVA-C02 tile now Live, hero stat → 3 live exams / 220+ questions, updated prose with DVA-C02 domain weights, added DVA-C02 FAQ item
 - Added `https://certquests.com/learning/aws-dva-c02/` to `sitemap.xml`
+
+### CKAD — Certified Kubernetes Application Developer (new 2026-04-13)
+- Activated `ckad` pack in `data/index.json` (was coming-soon, now available: true, question_count: 60)
+- Created `data/free/ckad.json`: 60 scenario-based questions v1.0.0 across all 5 CKAD domains
+  - Application Design & Build (20%, ~12q): sidecar/ambassador/adapter patterns, init containers, Jobs/CronJobs, DaemonSets, StatefulSets, PVCs, emptyDir
+  - Application Deployment (20%, ~12q): rolling updates (maxSurge/maxUnavailable), Helm (repo add/install/rollback), Kustomize overlays, rollout history/undo/pause/resume
+  - Application Observability & Maintenance (15%, ~9q): liveness/readiness/startup probes, kubectl logs --previous, kubectl exec, OOMKilled debugging, kubectl top, Metrics Server
+  - Application Environment, Config & Security (25%, ~15q): ConfigMap envFrom/volumeMount, Secret base64/secretKeyRef, ServiceAccount, SecurityContext, resource requests/limits, LimitRange, RBAC Role/RoleBinding, dry-run -o yaml
+  - Services & Networking (20%, ~12q): ClusterIP/NodePort/LoadBalancer/ExternalName, Ingress path routing, NetworkPolicy, DNS naming, port-forward, kubectl cp, TLS secrets
+- Enhanced course page: `learning/kubernetes-ckad/index.html` — added Spotify top CTA + inline mid-CTA, fixed quiz link to `/train.html?pack=ckad`, added quiz+Spotify buttons to bottom CTA, added CSS for `mid-cta`/`cta-buttons`/`course-cta-link.spotify`, added `60 practice questions` chip
+- Updated `data/courses.json`: improved `kubernetes-ckad` description with specific CKAD topic coverage
+- Updated `certifications/linux-devops.html`: CKAD tile now Live, hero → 5 live exams / 680+ questions, updated hero description, updated FAQ (CKA + CKAD both live)
+- Added `https://certquests.com/learning/kubernetes-ckad/` to `sitemap.xml`
 
 **Article page conventions:**
 - Path: `/news/<kebab-slug>/index.html`
