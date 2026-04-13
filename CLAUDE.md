@@ -117,6 +117,7 @@ Active question packs (`available: true` in `data/index.json`):
 | **comptia-linux** | free/comptia-linux.json | **60** (new 2026-04-13) |
 | **rhcsa** | free/rhcsa.json | **60** (reworked 2026-04-13, v2.0.0 — fixed meta + 10 new questions) |
 | **aws-dva-c02** | free/aws-dva-c02.json | **60** (new 2026-04-13) |
+| **sc-900** | free/sc-900.json | **60** (new 2026-04-13) |
 
 ### CompTIA Linux+ XK0-005 (new 2026-04-13 batch 2)
 - Activated `comptia-linux` pack in `data/index.json` (available: true, 60 questions)
@@ -171,6 +172,18 @@ Active question packs (`available: true` in `data/index.json`):
 - Course page: `learning/docker-dca/index.html`
 - Updated `certifications/linux-devops.html`: DCA tile now Live, hero stat → 3 live exams
 - Splunk Core also reworked: 50 → 65 questions (version 2.0.0)
+
+### Microsoft SC-900 Security, Compliance & Identity Fundamentals (new 2026-04-13)
+- Activated `sc-900` pack in `data/index.json` (was coming-soon, now available: true, question_count: 60)
+- Created `data/free/sc-900.json`: 60 scenario-based questions v1.0.0 across all 4 SC-900 domains
+  - Domain 1 (10-15%): Zero Trust (verify explicitly, least privilege, assume breach), CIA triad, defense-in-depth, shared responsibility, threat types, encryption
+  - Domain 2 (25-30%): Entra ID, MFA, SSPR, passwordless (FIDO2/Windows Hello), SSO, managed identity, B2B/B2C, Conditional Access, PIM, Identity Protection, Access Reviews, Entra Connect, licensing P1/P2
+  - Domain 3 (35-40%): Defender for Cloud (CSPM/CWP/Secure Score/JIT), Defender for Endpoint, Defender for Office 365, Defender for Cloud Apps (CASB), Defender for Identity, Defender XDR, Sentinel (SIEM/SOAR/playbooks/hunting/data connectors), Azure Firewall, NSG, WAF, DDoS Protection, Azure Bastion, Azure Key Vault
+  - Domain 4 (25-30%): Purview Compliance Manager, compliance score, sensitivity labels, DLP, retention policies, Insider Risk Management, Purview Audit, eDiscovery, Communication Compliance, Information Barriers, Microsoft Priva, Intune MDM/MAM
+- Created course page: `learning/sc-900/index.html` (7 modules, ~20h, Spotify + quiz CTAs, domain weight table, product→function cheat sheet, 3 concept callouts, 2-week study plan, related cert cards)
+- Added `sc-900` entry to `data/courses.json`
+- Updated `certifications/microsoft.html`: SC-900 tile now Live, hero → 3 live exams / 520+ questions, updated prose with SC-900 domain weights + cert path, added SC-900 FAQ item
+- Added `https://certquests.com/learning/sc-900/` to `sitemap.xml`
 
 ### AWS Developer Associate DVA-C02 (new 2026-04-13)
 - Activated `aws-dva-c02` pack in `data/index.json` (was coming-soon, now available: true, question_count: 60)
