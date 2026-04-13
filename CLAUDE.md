@@ -34,9 +34,9 @@ CertQuests is a free IT certification practice quiz platform (PWA). Static site 
 │   ├── index.json          # Master certification catalog (brands + packs)
 │   ├── courses.json        # Learning paths course data
 │   ├── news.json           # Tech news articles data
-│   └── free/               # Question pack JSON files (18 certification packs)
+│   └── free/               # Question pack JSON files (20 certification packs)
 │
-├── certifications/         # Static SEO landing pages per vendor (10 HTML files)
+├── certifications/         # Static SEO landing pages per vendor (11 HTML files)
 ├── learning/               # Learning paths section (courses on certifications)
 │   └── index.html          # Main learning page — loads from data/courses.json
 ├── news/                   # Tech news section (DevOps/tech coverage)
@@ -89,6 +89,33 @@ The news section follows a **daily rotation**: publish one new article per day, 
    - "The dev who accidentally deleted his company" (GitLab 2017)
 
 **Next topic to post:** "One typo took down Facebook for 6 hours" (BGP 2021 incident) — pick the next unposted item on the rotation.
+
+## Certification Catalog (as of 2026-04-13)
+
+Active question packs (`available: true` in `data/index.json`):
+| Pack ID | File | Questions |
+|---|---|---|
+| ccna | free/ccna.json | 100 |
+| aws-clf-c02 | free/aws-cloud-practitioner.json | 100 |
+| az-900 | free/az-900.json | 100 |
+| comptia-a-plus | free/comptia-a-plus.json | 100 |
+| comptia-network-plus | free/comptia-network-plus.json | 100 |
+| comptia-security-plus | free/comptia-security-plus.json | 100 |
+| **comptia-cysa** | free/comptia-cysa.json | **55** (reworked 2026-04-13) |
+| terraform-003 | free/terraform-003.json | 150 |
+| vault-002 | free/vault-002.json | 50 |
+| nse4 | free/nse4.json | 170 |
+| pcnsa | free/pcnsa.json | 50 |
+| rhcsa | free/rhcsa.json | 50 |
+| servicenow-csa | free/servicenow-csa.json | 50 |
+| splunk-core | free/splunk-core.json | 50 |
+| **gcp-ace** | free/gcp-ace.json | **60** (new 2026-04-13) |
+
+### Google Cloud brand (new 2026-04-13)
+- Added `google-cloud` brand to `data/index.json` with accent `#4285F4`
+- SEO page: `certifications/google-cloud.html`
+- Course page: `learning/gcp-ace/index.html`
+- Coming-soon packs: gcp-pca, gcp-pde
 
 **Article page conventions:**
 - Path: `/news/<kebab-slug>/index.html`
