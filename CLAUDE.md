@@ -114,6 +114,22 @@ Active question packs (`available: true` in `data/index.json`):
 | **aws-saa-c03** | free/aws-saa-c03.json | **60** (new 2026-04-13) |
 | **cka** | free/cka.json | **60** (new 2026-04-13) |
 | **az-104** | free/az-104.json | **60** (reworked 2026-04-13, v2.0.0 — proper MCQ format) |
+| **comptia-linux** | free/comptia-linux.json | **60** (new 2026-04-13) |
+| **rhcsa** | free/rhcsa.json | **60** (reworked 2026-04-13, v2.0.0 — fixed meta + 10 new questions) |
+
+### CompTIA Linux+ XK0-005 (new 2026-04-13 batch 2)
+- Activated `comptia-linux` pack in `data/index.json` (available: true, 60 questions)
+- Created `data/free/comptia-linux.json`: 60 questions across all 4 Linux+ domains (system management, security, scripting/containers/automation, troubleshooting)
+- Created course page: `learning/comptia-linux/index.html` (7 modules, ~35h, Spotify + quiz CTAs)
+- Added to `data/courses.json`
+- Updated `certifications/comptia.html`: Linux+ tile Live, CySA+ tile corrected (was showing Coming Soon despite being active), hero → 5 live exams / 415+ questions
+- Added to `sitemap.xml`
+
+### RHCSA (reworked 2026-04-13 batch 2)
+- Fixed meta `question_count: 0` bug → now correctly 60
+- Bumped version to v2.0.0
+- Rewrote 15 questions that had one long explanation-style option — all 4 options now concise and plausible
+- Added 10 new questions (rhcsa-051–060): Stratis, VDO, Podman, tuned-adm, autofs, LUKS, network bond, Cockpit, dnf module streams, rsync
 
 ### CKA — Certified Kubernetes Administrator (new 2026-04-13)
 - Activated `cka` pack in `data/index.json` (was coming-soon, now available: true)
