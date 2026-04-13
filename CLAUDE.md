@@ -103,7 +103,7 @@ Active question packs (`available: true` in `data/index.json`):
 | comptia-security-plus | free/comptia-security-plus.json | 100 |
 | **comptia-cysa** | free/comptia-cysa.json | **55** (reworked 2026-04-13) |
 | terraform-003 | free/terraform-003.json | 150 |
-| vault-002 | free/vault-002.json | 50 |
+| **vault-002** | free/vault-002.json | **50** (reworked 2026-04-13, v2.0.0 — proper MCQ format) |
 | nse4 | free/nse4.json | 170 |
 | pcnsa | free/pcnsa.json | 50 |
 | rhcsa | free/rhcsa.json | 50 |
@@ -111,6 +111,20 @@ Active question packs (`available: true` in `data/index.json`):
 | **splunk-core** | free/splunk-core.json | **65** (reworked 2026-04-13) |
 | **gcp-ace** | free/gcp-ace.json | **60** (new 2026-04-13) |
 | **docker-dca** | free/docker-dca.json | **60** (new 2026-04-13) |
+| **aws-saa-c03** | free/aws-saa-c03.json | **60** (new 2026-04-13) |
+
+### AWS SAA-C03 (new 2026-04-13)
+- Activated `aws-saa-c03` pack in `data/index.json` (was coming-soon, now available: true)
+- Created `data/free/aws-saa-c03.json`: 60 scenario-based questions across all 4 SAA-C03 domains
+- Created course page: `learning/aws-saa-c03/index.html` (8 modules, ~40h)
+- Added to `data/courses.json`
+- Updated `certifications/aws.html`: SAA-C03 tile now Live, hero stat → 2 live exams, added SAA-C03 domain weights to prose
+- Added to `sitemap.xml`
+
+### Vault Associate v2.0.0 (reworked 2026-04-13)
+- Reworked all 50 questions in `data/free/vault-002.json` from flashcard-style to proper MCQ format
+- Fixed meta `question_count` (was 150, now correctly 50)
+- Questions now have 4 concise balanced options, realistic distractors, and exam-style scenarios
 
 ### Google Cloud brand (new 2026-04-13)
 - Added `google-cloud` brand to `data/index.json` with accent `#4285F4`
