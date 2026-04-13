@@ -116,6 +116,7 @@ Active question packs (`available: true` in `data/index.json`):
 | **az-104** | free/az-104.json | **60** (reworked 2026-04-13, v2.0.0 — proper MCQ format) |
 | **comptia-linux** | free/comptia-linux.json | **60** (new 2026-04-13) |
 | **rhcsa** | free/rhcsa.json | **60** (reworked 2026-04-13, v2.0.0 — fixed meta + 10 new questions) |
+| **aws-dva-c02** | free/aws-dva-c02.json | **60** (new 2026-04-13) |
 
 ### CompTIA Linux+ XK0-005 (new 2026-04-13 batch 2)
 - Activated `comptia-linux` pack in `data/index.json` (available: true, 60 questions)
@@ -170,6 +171,15 @@ Active question packs (`available: true` in `data/index.json`):
 - Course page: `learning/docker-dca/index.html`
 - Updated `certifications/linux-devops.html`: DCA tile now Live, hero stat → 3 live exams
 - Splunk Core also reworked: 50 → 65 questions (version 2.0.0)
+
+### AWS Developer Associate DVA-C02 (new 2026-04-13)
+- Activated `aws-dva-c02` pack in `data/index.json` (was coming-soon, now available: true, question_count: 60)
+- Created `data/free/aws-dva-c02.json`: 60 scenario-based questions v1.0.0 across all 4 DVA-C02 domains (Development 32%, Security 26%, Deployment 24%, Troubleshooting 18%)
+  - Questions cover: Lambda lifecycle/concurrency/layers/VPC/retries, API Gateway proxy/authorizers/caching/WebSocket, DynamoDB design/GSI/optimistic-locking/streams/DAX, SQS/SNS/Kinesis/EventBridge, Cognito User Pools/Identity Pools, KMS envelope encryption, Secrets Manager, SSM Parameter Store, CodeDeploy traffic shifting, CodePipeline, CodeBuild buildspec, Elastic Beanstalk, CloudFormation change sets/custom resources/DeletionPolicy, SAM, CDK, X-Ray annotations/metadata, CloudWatch custom metrics, Step Functions, RDS Proxy, AppConfig feature flags
+- Created course page: `learning/aws-dva-c02/index.html` (8 modules, ~35h, Spotify + quiz CTAs, domain weight table, 8 exam tip boxes, 6-week study plan, related cert cards)
+- Added `aws-dva-c02` entry to `data/courses.json`
+- Updated `certifications/aws.html`: DVA-C02 tile now Live, hero stat → 3 live exams / 220+ questions, updated prose with DVA-C02 domain weights, added DVA-C02 FAQ item
+- Added `https://certquests.com/learning/aws-dva-c02/` to `sitemap.xml`
 
 **Article page conventions:**
 - Path: `/news/<kebab-slug>/index.html`
