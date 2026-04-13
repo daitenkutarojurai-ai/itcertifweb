@@ -34,7 +34,7 @@ CertQuests is a free IT certification practice quiz platform (PWA). Static site 
 │   ├── index.json          # Master certification catalog (brands + packs)
 │   ├── courses.json        # Learning paths course data
 │   ├── news.json           # Tech news articles data
-│   └── free/               # Question pack JSON files (20 certification packs)
+│   └── free/               # Question pack JSON files (21 certification packs)
 │
 ├── certifications/         # Static SEO landing pages per vendor (11 HTML files)
 ├── learning/               # Learning paths section (courses on certifications)
@@ -108,14 +108,21 @@ Active question packs (`available: true` in `data/index.json`):
 | pcnsa | free/pcnsa.json | 50 |
 | rhcsa | free/rhcsa.json | 50 |
 | servicenow-csa | free/servicenow-csa.json | 50 |
-| splunk-core | free/splunk-core.json | 50 |
+| **splunk-core** | free/splunk-core.json | **65** (reworked 2026-04-13) |
 | **gcp-ace** | free/gcp-ace.json | **60** (new 2026-04-13) |
+| **docker-dca** | free/docker-dca.json | **60** (new 2026-04-13) |
 
 ### Google Cloud brand (new 2026-04-13)
 - Added `google-cloud` brand to `data/index.json` with accent `#4285F4`
 - SEO page: `certifications/google-cloud.html`
 - Course page: `learning/gcp-ace/index.html`
 - Coming-soon packs: gcp-pca, gcp-pde
+
+### Docker DCA (new 2026-04-13)
+- Added `docker-dca` pack to `linux-devops` brand in `data/index.json`
+- Course page: `learning/docker-dca/index.html`
+- Updated `certifications/linux-devops.html`: DCA tile now Live, hero stat → 3 live exams
+- Splunk Core also reworked: 50 → 65 questions (version 2.0.0)
 
 **Article page conventions:**
 - Path: `/news/<kebab-slug>/index.html`
