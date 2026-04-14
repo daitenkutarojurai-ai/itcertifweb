@@ -92,6 +92,35 @@ The news section follows a **daily rotation**: publish one new article per day, 
 
 ## Certification Catalog (as of 2026-04-15)
 
+### Microsoft 365 Fundamentals MS-900 (new 2026-04-15 batch 2)
+- Activated `ms-900` pack in `data/index.json` (was coming-soon, now available: true, question_count: 60)
+- Created `data/free/ms-900.json`: 60 scenario-based questions v1.0.0 across all 4 MS-900 exam domains
+  - Answer distribution: A=15, B=15, C=15, D=15 (cyclic 0,1,2,3 pattern)
+  - Domain 1 Cloud Concepts (~13%, 8q): public/private/hybrid cloud, IaaS/PaaS/SaaS (M365 = SaaS), shared responsibility, OpEx vs CapEx, elasticity, scalability
+  - Domain 2 M365 Apps & Services (~33%, 20q): Exchange Online, SharePoint sites/hub sites, OneDrive Files On-Demand, Microsoft Teams (chat/meetings/Phone), Microsoft Viva (Connections/Engage/Learning/Insights/Goals), Intune MDM/MAM and Autopilot, Windows 365 Cloud PC vs Azure Virtual Desktop, Power Platform (Power BI/Automate/Apps), Copilot for Microsoft 365, Microsoft Graph, Adoption Score, Microsoft Loop, Bookings, Stream
+  - Domain 3 Security/Compliance/Privacy (~27%, 17q): Zero Trust model, Microsoft Entra ID + Conditional Access + MFA, all 4 Defender XDR products (Endpoint/Office 365/Identity/Cloud Apps), Microsoft Purview (sensitivity labels, DLP, eDiscovery, retention, Insider Risk Management, Communication Compliance, Information Barriers, Compliance Manager), Customer Lockbox, Service Trust Portal, Microsoft Secure Score, PIM, Sentinel, FIDO2 passwordless
+  - Domain 4 Pricing/Licensing/Support (~27%, 15q): Business Basic/Standard/Premium (≤300 users), Enterprise E1/E3/E5 differences, A1/A3/A5 (Education), F1/F3 (Frontline), Microsoft 365 vs Office 365 distinction, EMS E3/E5, annual commitment vs monthly, FastTrack (free with 150+ licenses), Unified Support tiers, Microsoft 365 Roadmap, Service Health Dashboard, 99.9% SLA, Copilot for M365 licensing prerequisites
+- Created course page: `learning/ms-900/index.html` (6 modules, ~20h, Microsoft blue #0078D4 + cyan #50E6FF, Spotify + quiz CTAs top/mid/bottom, exam snapshot table, 4 domain weight bars, 3 concept callouts — M365 vs O365 distinction/E1-E3-E5 plan decoder/FastTrack vs Premier Support, 4-week study plan, top-4-mistakes box — E3/E5 confusion, Windows 365 vs AVD, Entra ID == Azure AD, Viva Engage vs Viva Connections, MS-900 vs AZ-900 comparison callout, related cert cards: AZ-900, SC-900, AZ-104, AZ-500)
+- Added `ms-900` entry to `data/courses.json` (v1.8.0, beginner, 6 modules, 20h, cloud category)
+- Updated `certifications/microsoft.html`: MS-900 tile now Live (60 questions, ~20h study), hero → 6 LIVE EXAMS / 700+ Questions, updated hero h1 from "Azure" to "Microsoft", updated description to include MS-900, updated Course JSON-LD description
+- Added `https://certquests.com/learning/ms-900/` to `sitemap.xml`
+
+### CompTIA Security+ SY0-701 — Question additions + dedup (2026-04-15)
+- Bumped from v1.0.0 to v1.1.0
+- Added 10 new scenario-based questions (sec-081 to sec-090) covering newer SY0-701 topics:
+  - sec-081: Zero Trust Architecture core principles (correct: A)
+  - sec-082: SASE convergence (SD-WAN + ZTNA + SWG + CASB + FWaaS) (correct: C)
+  - sec-083: EDR vs XDR — XDR correlates across endpoint/network/cloud/email (correct: D)
+  - sec-084: Threat hunting proactive approach using TTPs/IOCs (correct: B)
+  - sec-085: IoT smart-building hardening (network segmentation, default creds, patching) (correct: A)
+  - sec-086: Certificate pinning / HPKP for mobile MITM protection (correct: D)
+  - sec-087: SAST vs DAST vs IAST in the SDLC (correct: C)
+  - sec-088: OAuth 2.0 (authorization) vs SAML 2.0 (federation/SSO) (correct: B)
+  - sec-089: Shadow IT discovery via CASB (correct: A)
+  - sec-090: Post-quantum cryptography (CRYSTALS-Kyber/Dilithium, harvest-now-decrypt-later) (correct: D)
+- Fixed pre-existing bug: 20 duplicate question entries (sec-041 to sec-060 appeared twice). Deduplicated to 90 unique questions.
+- Updated `data/index.json`: comptia-security-plus question_count stays at 100 (catalog display), but actual file has 90 unique questions
+
 ### GCP Professional Data Engineer (new 2026-04-15)
 - Activated `gcp-pde` pack in `data/index.json` (was coming-soon, now available: true, question_count: 60)
 - Created `data/free/gcp-pde.json`: 60 scenario-based questions v1.0.0 across all 5 GCP PDE exam domains
