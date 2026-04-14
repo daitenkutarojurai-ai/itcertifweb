@@ -101,7 +101,7 @@ Active question packs (`available: true` in `data/index.json`):
 | comptia-a-plus | free/comptia-a-plus.json | 100 |
 | comptia-network-plus | free/comptia-network-plus.json | 100 |
 | comptia-security-plus | free/comptia-security-plus.json | 100 |
-| **comptia-cysa** | free/comptia-cysa.json | **55** (reworked 2026-04-13) |
+| **comptia-cysa** | free/comptia-cysa.json | **65** (reworked 2026-04-14, v3.0.0 — +10 new questions + 24 B-bias fixes, A=17/B=16/C=15/D=17) |
 | terraform-003 | free/terraform-003.json | 150 |
 | **vault-002** | free/vault-002.json | **50** (reworked 2026-04-13, v2.0.0 — proper MCQ format) |
 | nse4 | free/nse4.json | 170 |
@@ -124,6 +124,40 @@ Active question packs (`available: true` in `data/index.json`):
 | **pcnsa** | free/pcnsa.json | **60** (reworked 2026-04-13 batch 3, v2.0.0 — proper MCQ format) |
 | **aws-soa-c02** | free/aws-soa-c02.json | **60** (new 2026-04-14) |
 | **aws-scs-c02** | free/aws-scs-c02.json | **60** (new + reworked 2026-04-14, v2.0.0 — proper MCQ + balanced A/B/C/D distribution) |
+| **az-305** | free/az-305.json | **60** (new 2026-04-14, v1.0.0 — balanced A=15/B=15/C=15/D=15) |
+
+### AZ-305 — Microsoft Azure Solutions Architect Expert (new 2026-04-14)
+- Activated `az-305` pack in `data/index.json` (was coming-soon, now available: true, question_count: 60)
+- Created `data/free/az-305.json`: 60 scenario-based questions v1.0.0 across all 4 AZ-305 exam domains
+  - Answer distribution fixed during creation: A=15, B=15, C=15, D=15 (15 question option swaps applied)
+  - Domain 1 (Identity/Governance/Monitoring ~27%, 16q): Azure Policy Deny/Audit effects at MG scope, PTA hybrid identity (no password hash in cloud), Contributor RBAC least-privilege, Azure Monitor Agent + DCRs, management group hierarchy design, Azure Managed Applications self-service catalog, PIM eligible + approval workflow, Cost Management budget + action groups, resource locks CanNotDelete, Application Insights APM, dual-destination compliance logging, Budget action groups
+  - Domain 2 (Data Storage ~17%, 11q): Blob lifecycle tiering (Hot→Cool→Archive), SQL Serverless auto-pause, Cosmos DB global distribution multi-master, ADLS Gen2 hierarchical namespace, IoT Hub + Stream Analytics + Synapse pipeline, Azure Files Premium + SMB + AD auth, Azure Cache for Redis Standard/Premium
+  - Domain 3 (Business Continuity ~12%, 7q): Azure Site Recovery (VMware→Azure, RPO 5min), SQL Business Critical + Auto-Failover Groups, VMSS across 3 Availability Zones, SQL Auto-Failover Groups cross-region automatic, Azure Backup Center multi-subscription
+  - Domain 4 (Infrastructure ~27%, 17q): Azure Batch HPC scale-to-zero, AKS + KEDA + HPA, VM lift-and-shift for legacy .NET, Virtual WAN Secured Hub, ExpressRoute for financial services, Traffic Manager Performance routing, App Gateway end-to-end SSL, NSG + Service Endpoints, Azure Migrate Discovery & Assessment, DMS online migration SQL MI, Data Box 500TB offline transfer, App Service autoscale HttpQueueLength, API Management (rate limiting/JWT/dev portal), Service Bus Sessions + DLQ exactly-once ordered, Container Apps (scale-to-zero/sidecars), Front Door + Cosmos DB active-active, Key Vault Private Endpoint, Managed Identity zero-credential, Azure Blueprints subscription scaffolding
+- Created course page: `learning/az-305/index.html` (7 modules, ~40h, Spotify + quiz CTAs top/mid/bottom, exam snapshot table, 4 domain weight bars, 3 concept callouts — MG Policy cascade, Availability Zones vs Sets, Cosmos DB multi-master, 6-week study plan, top-4-mistakes box, AZ-305 vs AZ-104 comparison callout, related cert cards: AZ-104, AZ-500, SAA-C03, CKA)
+- Added `az-305` entry to `data/courses.json` (v1.4.0, advanced, 7 modules, 40h, cloud category)
+- Updated `certifications/microsoft.html`: AZ-305 tile now Live, hero → 5 live exams / 640+ questions, updated prose with AZ-305 domain weights, added AZ-305 FAQ item, removed "AZ-305 on the roadmap" from description
+- Added `https://certquests.com/learning/az-305/` to `sitemap.xml`
+
+### CompTIA CySA+ CS0-003 — Major rework (2026-04-14, v3.0.0)
+- Bumped from v2.0.0 to v3.0.0
+- Fixed severe B-answer bias that existed since v2.0.0: original 55 questions had A=3, B=40, C=12, D=0 (73% B!)
+  - Converted 14 questions B→D (swapped options[1] and options[3])
+  - Converted 10 questions B→A (swapped options[0] and options[1])
+  - Final distribution after fixes: A=13, B=16, C=12, D=14 (from 55 questions)
+- Added 10 new braindump-inspired scenario questions (cysa-056 to cysa-065):
+  - cysa-056: SOAR playbook automation for phishing response (correct: D)
+  - cysa-057: Volatility malfind RWX memory + PE headers = code injection (correct: A)
+  - cysa-058: Wireshark display filter for TCP SYN scan (`tcp.flags == 0x002`) (correct: C)
+  - cysa-059: CSPM for cloud misconfiguration detection across S3/EC2/IAM (correct: A)
+  - cysa-060: STIX + TAXII for machine-readable threat intel sharing (correct: D)
+  - cysa-061: Kubernetes Pod Security Admission 'restricted' profile (correct: C)
+  - cysa-062: JWT alg:none attack bypassing signature verification (correct: A)
+  - cysa-063: Purple team — real-time TTP sharing improves blue team detection (correct: D)
+  - cysa-064: SQL injection via string concatenation → parameterized queries fix (correct: C)
+  - cysa-065: EDR false positive triage — analyze patterns before tuning rules (correct: A)
+- Final distribution 65 questions: A=17, B=16, C=15, D=17 (well balanced ≈25% each)
+- Updated `data/index.json`: comptia-cysa question_count: 55 → 65
 
 ### AWS Security Specialty SCS-C02 (new + reworked 2026-04-14)
 - Activated `aws-scs-c02` pack in `data/index.json` (was coming-soon, now available: true, question_count: 60)
