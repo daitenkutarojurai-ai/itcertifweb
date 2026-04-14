@@ -123,6 +123,24 @@ Active question packs (`available: true` in `data/index.json`):
 | **az-500** | free/az-500.json | **60** (new 2026-04-13 batch 3) |
 | **pcnsa** | free/pcnsa.json | **60** (reworked 2026-04-13 batch 3, v2.0.0 — proper MCQ format) |
 | **aws-soa-c02** | free/aws-soa-c02.json | **60** (new 2026-04-14) |
+| **aws-scs-c02** | free/aws-scs-c02.json | **60** (new + reworked 2026-04-14, v2.0.0 — proper MCQ + balanced A/B/C/D distribution) |
+
+### AWS Security Specialty SCS-C02 (new + reworked 2026-04-14)
+- Activated `aws-scs-c02` pack in `data/index.json` (was coming-soon, now available: true, question_count: 60)
+- Reworked `data/free/aws-scs-c02.json` to v2.0.0:
+  - Fixed severe correct-answer bias: original had 58% B-answers (35/60); rebalanced to ~25% each (A=15, B=15, C=15, D=15)
+  - Added `last_updated: "2026-04-14"` to meta
+  - All 60 scenario-based questions across all 6 SCS-C02 domains validated and options reordered
+  - Domain 1 (14%, ~9q): GuardDuty EventBridge→Lambda isolation, Amazon Detective investigation, CloudTrail console login investigation, DDoS Shield Advanced DRT engagement, S3 GetObject bulk detection, incident response forensic containment
+  - Domain 2 (18%, ~11q): CloudTrail Lake SQL queries (18-month), S3 data events + CloudWatch metric filter, Config+StackSets+SecurityHub, EventBridge near-real-time SG detection, Config auto-remediation SSM, Audit Manager CIS framework, Security Hub FSBP scoring, IAM Access Analyzer continuous monitoring, VPC endpoint policy evaluation, CloudTrail HIPAA audit trail, IAM policy generation
+  - Domain 3 (20%, ~12q): VPC gateway endpoint (S3 private access), WAF geo-restriction priority rules, Firewall Manager org-wide WAF, NACL stateless ephemeral ports, PCI DSS VPC segmentation, EC2 quarantine containment, Gateway Load Balancer inline IDS/IPS, WAF + Shield Advanced DRT, Control Tower preventive guardrails, CloudTrail legal hold (S3 Object Lock)
+  - Domain 4 (16%, ~9q): SCP IP restriction (aws:ViaAWSService), Cross-account IAM role (both policies), IAM policy explicit deny, IAM Identity Center + SSO CLI, ABAC aws:PrincipalTag, STS credential revocation (TokenIssueTime), Cognito AdminUserGlobalSignOut, SCP disable-GuardDuty prevention, Permission boundary intersection
+  - Domain 5 (18%, ~11q): Secrets Manager rotation, S3 SSE-KMS bucket policy enforcement, ACM Private CA, KMS encrypt-only pattern, RDS TLS enforce, ECR Inspector v2 + Lambda gate, CloudHSM vs KMS, S3 Object Lock Compliance WORM, DynamoDB client-side encryption, Cross-account Secrets Manager + KMS, EBS encryption by default + Config rule
+  - Domain 6 (14%, ~8q): IAM Identity Center SSO CLI workflow, SCP organization trail protection, Audit Manager CIS evidence, SCP + S3 block public access org-level, IAM Access Analyzer policy generation, S3 Object Lock legal hold 5 years, KMS key policy Lambda addition, Control Tower guardrail types
+- Created course page: `learning/aws-scs-c02/index.html` (7 modules, ~40h, Spotify + quiz CTAs top/mid/bottom, exam snapshot table, domain weight bars, 3 concept callouts — KMS trap, SCP vs IAM, incident response contain-first, 6-week study plan, top-4-mistakes box, SCS-C02 vs SAA-C03 comparison callout, related cert cards)
+- Added `aws-scs-c02` entry to `data/courses.json` (v1.4.0)
+- Updated `certifications/aws.html`: SCS-C02 tile now Live, hero → 5 live exams / 340+ questions, updated prose to mention SCS-C02, added SCS-C02 domain weights section, added SCS-C02 FAQ item
+- Added `https://certquests.com/learning/aws-scs-c02/` to `sitemap.xml`
 
 ### AWS SysOps Administrator Associate SOA-C02 (new 2026-04-14)
 - Activated `aws-soa-c02` pack in `data/index.json` (was coming-soon, now available: true, question_count: 60)
