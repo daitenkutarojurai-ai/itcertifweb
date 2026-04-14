@@ -92,6 +92,37 @@ The news section follows a **daily rotation**: publish one new article per day, 
 
 ## Certification Catalog (as of 2026-04-15)
 
+### AWS Advanced Networking Specialty ANS-C01 (new 2026-04-15 batch 4)
+- Activated `aws-ans-c01` pack in `data/index.json` (was coming-soon, now available: true, question_count: 60)
+- Created `data/free/aws-ans-c01.json`: 60 advanced scenario-based questions v1.0.0 across all 4 ANS-C01 exam domains
+  - Answer distribution: A=15, B=15, C=15, D=15 (perfectly balanced cyclic pattern)
+  - Domain 1 Network Design (~30%, 18q): Cloud WAN segments, TGW + DXGW multi-region, GWLB centralized inspection, PrivateLink cross-account, hybrid DNS with Resolver endpoints, TGW propagation vs static routes, SiteLink, TGW appliance mode, S3 Gateway vs Interface Endpoints, VPC secondary CIDRs, TGW inter-region peering, NAT Gateway per-AZ HA, TGW Connect (GRE+BGP), VPC Endpoint Services backed by NLB
+  - Domain 2 Network Implementation (~26%, 16q): ALB vs NLB vs GWLB vs CLB selection, NLB preserve_client_ip, WAF IP sets + Bot Control, CloudFront OAC + signed URLs + geo restriction, CloudFront Functions vs Lambda@Edge, Origin Shield, Shield Advanced SRT, Network Firewall STRICT_ORDER + TLS inspection, Resolver DNS Firewall managed lists, Global Accelerator traffic dial, NAT Gateway EIPs for SaaS allowlisting, Client VPN auth rules, ACM auto-renewal
+  - Domain 3 Network Management (~20%, 12q): Reachability Analyzer, Network Access Analyzer, VPC Traffic Mirroring forensics, VPC Flow Logs S3 cross-account, VPC Lattice, CloudWatch Internet Monitor, Global Accelerator health checks, Route 53 latency routing troubleshooting, BGP route-selection order, asymmetric VPN routing
+  - Domain 4 Network Security/Compliance (~24%, 14q): GWLB + GENEVE for 3rd-party NGFW, centralized egress inspection pattern, east-west inspection with TGW appliance mode, TLS inspection, IPsec+BGP, VPC endpoint policies, aws:SourceVpce bucket policy condition, PrivateLink for SaaS, Route 53 private hosted zone cross-account, Firewall Manager scope, Organizations SCPs for endpoint governance, BGP local_preference
+- Created course page: `learning/aws-ans-c01/index.html` (7 modules, ~50h, AWS orange #FF9900 + dark #232F3E, Spotify + quiz CTAs top/mid/bottom, exam snapshot with $300/65 questions/170 min, 4 domain weight bars, 3 concept callouts — TGW vs Cloud WAN/GWLB GENEVE flow/VPC Endpoint decision matrix, 6-week study plan, top-4-mistakes box — VPC peering transitivity/DX VIF types/Gateway vs Interface endpoints/NLB client IP preservation, ANS-C01 vs SAA-C03 comparison, related cert cards: SAA-C03, SCS-C02, GCP PCA, CCNP Security SCOR)
+- Added `aws-ans-c01` entry to `data/courses.json` (v2.0.0, advanced, 7 modules, 50h, cloud category)
+- Updated `certifications/aws.html`: ANS-C01 tile now Live (60 questions, ~50h study), hero → 6 LIVE EXAMS / 400+ Questions, updated description to include ANS-C01, JSON-LD description updated
+- Added `https://certquests.com/learning/aws-ans-c01/` to `sitemap.xml`
+
+### Azure Fundamentals AZ-900 — Major rework (2026-04-15, v2.0.0)
+- Bumped from v1.0.0 to v2.0.0 (major rework)
+- Fixed severe 93% B-answer bias: deduped 100 → 80, then rebalanced via option swapping. 20 questions swapped B→A, 14 swapped B→C, 19 swapped B→D. 0 questions had positional references ("option A", "all of the above", etc.) so swaps were safe.
+- Fixed pre-existing duplicate bug: 20 duplicate question entries (az900-041 to az900-060) deduplicated to 80 unique.
+- Added 10 new scenario-based questions (az900-081 to az900-090) covering modern 2024-2026 Azure topics:
+  - az900-081: Microsoft Entra ID (formerly Azure AD rebrand) (correct: C)
+  - az900-082: Copilot in Azure for AI-powered resource management (correct: A)
+  - az900-083: Azure OpenAI Service / Azure AI Foundry (correct: D)
+  - az900-084: Azure Managed Grafana for observability (correct: B)
+  - az900-085: Cloud Adoption Framework + Azure Landing Zones (correct: C)
+  - az900-086: Microsoft Cost Management + Advisor FinOps (correct: A)
+  - az900-087: Azure Arc for hybrid/multi-cloud management (correct: D)
+  - az900-088: Azure Confidential Computing (TEEs for in-use encryption) (correct: B)
+  - az900-089: Microsoft Purview Data Governance (correct: C)
+  - az900-090: Application Insights with OpenTelemetry (correct: A)
+- Final state: 90 unique questions, correct distribution A=23/B=22/C=23/D=22 (well balanced, was 93% B before)
+- Updated `data/index.json`: az-900 question_count 100 → 90
+
 ### CCNP Security SCOR 350-701 (new 2026-04-15 batch 3)
 - Activated `ccnp-security` pack in `data/index.json` (was coming-soon, now available: true, question_count: 60)
 - Created `data/free/ccnp-security.json`: 60 advanced scenario-based questions v1.0.0 across all 6 CCNP Security SCOR 350-701 domains
