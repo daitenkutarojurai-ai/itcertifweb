@@ -104,7 +104,7 @@ Active question packs (`available: true` in `data/index.json`):
 | **comptia-cysa** | free/comptia-cysa.json | **65** (reworked 2026-04-14, v3.0.0 — +10 new questions + 24 B-bias fixes, A=17/B=16/C=15/D=17) |
 | terraform-003 | free/terraform-003.json | 150 |
 | **vault-002** | free/vault-002.json | **50** (reworked 2026-04-13, v2.0.0 — proper MCQ format) |
-| nse4 | free/nse4.json | 170 |
+| **nse4** | free/nse4.json | **60** (reworked 2026-04-14, v2.0.0 — proper MCQ format, balanced A=15/B=15/C=15/D=15) |
 | pcnsa | free/pcnsa.json | 50 |
 | rhcsa | free/rhcsa.json | 50 |
 | **servicenow-csa** | free/servicenow-csa.json | **60** (reworked 2026-04-14, v2.0.0 — proper MCQ, +10 new questions) |
@@ -125,6 +125,40 @@ Active question packs (`available: true` in `data/index.json`):
 | **aws-soa-c02** | free/aws-soa-c02.json | **60** (new 2026-04-14) |
 | **aws-scs-c02** | free/aws-scs-c02.json | **60** (new + reworked 2026-04-14, v2.0.0 — proper MCQ + balanced A/B/C/D distribution) |
 | **az-305** | free/az-305.json | **60** (new 2026-04-14, v1.0.0 — balanced A=15/B=15/C=15/D=15) |
+| **gcp-pca** | free/gcp-pca.json | **60** (new 2026-04-14, v1.0.0 — balanced A=15/B=15/C=15/D=15) |
+
+### GCP Professional Cloud Architect (new 2026-04-14)
+- Activated `gcp-pca` pack in `data/index.json` (was coming-soon, now available: true, question_count: 60)
+- Created `data/free/gcp-pca.json`: 60 scenario-based questions v1.0.0 across all 6 GCP PCA exam domains
+  - Answer distribution: A=15, B=15, C=15, D=15 (cyclic 0,1,2,3 pattern)
+  - Domain 1 (Designing and Planning ~24%, 14q): Shared VPC centralized egress, Cloud Spanner multi-region nam-eur-asia1, Global HTTPS LB anycast TLS, Pub/Sub fan-out pattern, Firestore Native mode offline, Cloud Storage lifecycle tiers, dual-subscription backlog, Dataproc ephemeral workflow, Anthos multi-cloud, Bigtable reverse-timestamp row key, App Engine Standard scale-to-zero, Spanner bit-reverse key, BigQuery partition+cluster, Dedicated Interconnect
+  - Domain 2 (Managing/Provisioning ~15%, 9q): Terraform GCS backend locking, GKE GPU node pool min=0+taints, Cloud Deployment Manager YAML, MIG autoscaling warmup+backend-service signal, GKE Autopilot pod-request billing, Binary Authorization multi-attestor policy, GKE regional cluster anti-affinity, Cloud Monitoring burn rate alert, Spot VMs + checkpointing
+  - Domain 3 (Security/Compliance ~18%, 11q): VPC Service Controls perimeter, Workload Identity KSA→GCP SA, Cloud Armor Managed Protection Plus OWASP, CMEK + Cloud HSM FIPS 140-2 L3, Organization Policy vmExternalIpAccess deny, Access Transparency + Access Approval, Binary Authorization requireAttestationsBy both attestors, Cloud KMS 90-day auto-rotation, Cloud IAP zero-trust, Secret Manager + Cloud Functions rotation, Security Command Center Premium
+  - Domain 4 (Analyzing/Optimizing ~18%, 11q): BigQuery Editions hybrid pricing, CUD 1-year stable + Spot seasonal, Global LB+CDN+Cloud Armor, Cloud Profiler <1% overhead, VPA Auto mode right-sizing, Eventarc unified event bus, Cloud SQL read replicas, BigQuery BI Engine in-memory, Cloud Trace waterfall view, Looker LookML semantic layer, GKE NetworkPolicy PCI DSS
+  - Domain 5 (Managing Implementation ~11%, 7q): Cloud Monitoring multi-region uptime, Cloud Deploy requireApproval, Artifact Registry Binary Authorization allowlist, Cloud Build cloudbuild.yaml trigger, Anthos Config Management Config Sync, kubectl rollout undo, Cloud Run 32GB+60min+Pub/Sub
+  - Domain 6 (Reliability ~14%, 8q): SLI = good_requests/total_requests, multi-window burn rate 1h@14.4x+6h@2x, Cloud SQL PITR binary log clone, chaos engineering deliberate failover, Cloud Logging exclusion filter, Pub/Sub EU message storage policy, error budget 42% remaining calculation, Production Readiness Review checklist
+- Created course page: `learning/gcp-pca/index.html` (7 modules, ~40h, Google blue accent #4285F4, Spotify + quiz CTAs top/mid/bottom, exam snapshot table, 6 domain weight bars, 3 concept callouts — Shared VPC vs Peering, VPC SC vs IAM, SLO burn rate alerting, 6-week study plan, top-4-mistakes box, GCP PCA vs ACE comparison callout, related cert cards: GCP ACE, AWS SAA-C03, AZ-305, CKA)
+- Added `gcp-pca` entry to `data/courses.json` (v1.5.0, advanced, 7 modules, 40h, cloud category)
+- Updated `certifications/google-cloud.html`: GCP PCA tile now Live (btn-disabled → btn-start + btn-learn), updated cert-card-desc with key topics
+- Added `https://certquests.com/learning/gcp-pca/` to `sitemap.xml`
+
+### Fortinet NSE4 — Major rework (2026-04-14, v2.0.0)
+- Reworked from flashcard format (170 questions, 98% B-answers) to proper 4-option MCQ format
+- Reduced to 60 high-quality scenario-based questions covering all NSE4 domains
+  - FortiGate deployment modes (transparent mode, NAT/Route) and architecture
+  - Security policies: NGFW mode vs profile-based, policy ordering (top-down first-match)
+  - FortiGuard subscriptions: web filtering, IPS, antivirus, IP reputation, botnet C&C
+  - UTM profiles: antivirus proxy-based vs flow-based, DLP, WAF, SSL deep inspection
+  - NAT: Virtual IPs (DNAT), Central SNAT policies
+  - Routing: SD-WAN multi-WAN failover, OSPF adjacency
+  - VPN: IPsec Phase 1/Phase 2, IKEv2, dialup user for remote access, SSL VPN tunnel mode
+  - Authentication: FSSO DC Agent, RADIUS with admin profiles, FortiToken 2FA, LDAP
+  - High Availability: active-passive session sync, active-active load balancing, preemption/override
+  - Administration: trusted hosts, admin profiles (read-only vs diagnose), conserve mode
+  - FortiAnalyzer: device authorization, analytics vs archive tier, log retention
+  - Logging: log all sessions vs security events, email alerts SMTP troubleshooting
+- Answer distribution: A=15, B=15, C=15, D=15 (cyclic pattern, perfectly balanced)
+- Updated `data/index.json`: nse4 question_count 170 → 60
 
 ### AZ-305 — Microsoft Azure Solutions Architect Expert (new 2026-04-14)
 - Activated `az-305` pack in `data/index.json` (was coming-soon, now available: true, question_count: 60)
