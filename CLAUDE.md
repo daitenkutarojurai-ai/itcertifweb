@@ -92,6 +92,38 @@ The news section follows a **daily rotation**: publish one new article per day, 
 
 ## Certification Catalog (as of 2026-04-15)
 
+### CCNP Security SCOR 350-701 (new 2026-04-15 batch 3)
+- Activated `ccnp-security` pack in `data/index.json` (was coming-soon, now available: true, question_count: 60)
+- Created `data/free/ccnp-security.json`: 60 advanced scenario-based questions v1.0.0 across all 6 CCNP Security SCOR 350-701 domains
+  - Answer distribution: A=15, B=15, C=15, D=15 (perfectly balanced)
+  - Domain 1 Security Concepts (~25%, 15q): AES-GCM vs CBC crypto modes, SHA-256/SHA-3, Perfect Forward Secrecy, OCSP vs CRL, PKI hierarchy, IPsec/IKEv2 negotiation, DMVPN/GETVPN/FlexVPN, remote access VPN, SASE architecture, Zero Trust, OAuth/API security, NetFlow visibility
+  - Domain 2 Network Security (~20%, 12q): ASA multi-context failover, Firepower FTD/FMC, Snort 3 intrusion policies, SSL decryption pass-through, Security Intelligence feeds, CoPP, uRPF, DHCP snooping + DAI, VLAN hopping mitigation, MAC flooding, OSPF HMAC-SHA authentication, NTP authentication, port-security, TACACS+
+  - Domain 3 Securing the Cloud (~15%, 9q): CASB (Cisco Cloudlock), AWS VPC PrivateLink, AWS SSE-KMS envelope encryption, Cisco Secure Workload microsegmentation, OPA/Kyverno admission controllers, DevSecOps SAST/SCA pipelines
+  - Domain 4 Content Security (~10%, 6q): WSA HTTPS decryption policies, ESA DMARC/DKIM/SPF alignment, Graymail + Safe Unsubscribe, AMP Retrospection, Umbrella SIG IKEv2 tunnels
+  - Domain 5 Endpoint Protection (~15%, 9q): Secure Endpoint Device/File Trajectory, Host Isolation, retrospective detection, SecureX Orchestration workflows, ISE posture remediation
+  - Domain 6 Secure Access/Visibility (~15%, 9q): ISE distributed PAN/PSN/MnT deployment, 802.1X EAP-TLS + MAB fallback, EAP chaining/TEAP, TrustSec SGT/SGACL, SXP protocol, CoA re-authorization, BYOD with SCEP, pxGrid integration, NetFlow v9/IPFIX, Stealthwatch ETA (Encrypted Traffic Analytics)
+- Created course page: `learning/ccnp-security/index.html` (7 modules, ~50h, Cisco blue #1D63ED + teal #00BCEB, Spotify + quiz CTAs top/mid/bottom, exam snapshot table with $400/CCIE core, 6 domain weight bars, 3 concept callouts — IKEv1 vs IKEv2/ASA vs Firepower FTD/TrustSec SGTs vs VLANs, 6-week study plan, top-4-mistakes box — DMVPN phases/ASA failover modes/ISE policy top-down eval/Umbrella vs WSA, SCOR vs CCNA Security comparison callout, related cert cards: CCNA, AZ-500, Security+, SCS-C02)
+- Added `ccnp-security` entry to `data/courses.json` (v1.9.0, advanced, 7 modules, 50h, security category)
+- Updated `certifications/cisco.html`: SCOR tile now Live (60 questions, ~50h study), hero → 2 LIVE EXAMS / 170+ Questions, updated hero description, updated JSON-LD and FAQ answer
+- Added `https://certquests.com/learning/ccnp-security/` to `sitemap.xml`
+
+### CompTIA Network+ N10-009 — Question additions + dedup (2026-04-15)
+- Bumped from v1.0.0 to v1.1.0
+- Renamed `"name"` from "CompTIA Network+ N10-008" to "CompTIA Network+ N10-009" (exam refreshed 2024)
+- Fixed pre-existing bug: 20 duplicate question entries (net-041 to net-060 appeared twice). Deduplicated from 100 → 80 unique.
+- Added 10 new scenario-based questions (net-081 to net-090) covering modern N10-009 topics:
+  - net-081: SASE convergence (SD-WAN + SWG + CASB + ZTNA + FWaaS) (correct: C)
+  - net-082: SDN control plane / data plane separation, northbound/southbound APIs (correct: A)
+  - net-083: SD-WAN transport-agnostic dynamic path selection by app SLA (correct: D)
+  - net-084: ZTNA replaces traditional VPN with identity-based app-level access (correct: B)
+  - net-085: VXLAN UDP 4789, 24-bit VNI vs 12-bit VLAN ID (correct: C)
+  - net-086: AWS Direct Connect (dedicated circuit) vs IPsec VPN (correct: A)
+  - net-087: IPv6 SLAAC vs DHCPv6 (stateless RA vs stateful) (correct: D)
+  - net-088: Wi-Fi 6 (802.11ax) OFDMA, TWT, BSS coloring (correct: B)
+  - net-089: DNSSEC signing (RRSIG/DNSKEY) prevents cache poisoning (correct: C)
+  - net-090: OTDR for fiber fault localization (correct: A)
+- Final state: 90 unique questions, question_count in meta and index.json both updated to 90
+
 ### Microsoft 365 Fundamentals MS-900 (new 2026-04-15 batch 2)
 - Activated `ms-900` pack in `data/index.json` (was coming-soon, now available: true, question_count: 60)
 - Created `data/free/ms-900.json`: 60 scenario-based questions v1.0.0 across all 4 MS-900 exam domains
