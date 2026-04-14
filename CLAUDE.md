@@ -102,7 +102,7 @@ Active question packs (`available: true` in `data/index.json`):
 | comptia-network-plus | free/comptia-network-plus.json | 100 |
 | comptia-security-plus | free/comptia-security-plus.json | 100 |
 | **comptia-cysa** | free/comptia-cysa.json | **65** (reworked 2026-04-14, v3.0.0 — +10 new questions + 24 B-bias fixes, A=17/B=16/C=15/D=17) |
-| terraform-003 | free/terraform-003.json | 150 |
+| terraform-003 | free/terraform-003.json | **160** (added 10 new scenario questions 2026-04-14, tf-151–tf-160, varied correct-answer distribution) |
 | **vault-002** | free/vault-002.json | **50** (reworked 2026-04-13, v2.0.0 — proper MCQ format) |
 | **nse4** | free/nse4.json | **60** (reworked 2026-04-14, v2.0.0 — proper MCQ format, balanced A=15/B=15/C=15/D=15) |
 | pcnsa | free/pcnsa.json | 50 |
@@ -126,6 +126,38 @@ Active question packs (`available: true` in `data/index.json`):
 | **aws-scs-c02** | free/aws-scs-c02.json | **60** (new + reworked 2026-04-14, v2.0.0 — proper MCQ + balanced A/B/C/D distribution) |
 | **az-305** | free/az-305.json | **60** (new 2026-04-14, v1.0.0 — balanced A=15/B=15/C=15/D=15) |
 | **gcp-pca** | free/gcp-pca.json | **60** (new 2026-04-14, v1.0.0 — balanced A=15/B=15/C=15/D=15) |
+| **cks** | free/cks.json | **60** (new 2026-04-14, v1.0.0 — balanced A=15/B=15/C=15/D=15) |
+
+### CKS — Certified Kubernetes Security Specialist (new 2026-04-14)
+- Activated `cks` pack in `data/index.json` (was coming-soon, now available: true, question_count: 60, accent: #326CE5)
+- Created `data/free/cks.json`: 60 scenario-based questions v1.0.0 across all 6 CKS exam domains
+  - Answer distribution: A=15, B=15, C=15, D=15 (cyclic 0,1,2,3 pattern)
+  - Domain 1 Cluster Setup (10%, 6q): NetworkPolicy namespace isolation, CIS benchmark kube-bench, metadata endpoint protection, kubeadm certSANs, Ingress TLS Secret type, anonymous-auth=false
+  - Domain 2 Cluster Hardening (15%, 9q): RBAC minimum privilege Role vs ClusterRole, SA automountServiceAccountToken=false, NodeRestriction admission controller, kubeadm upgrade order, least-privilege SA across namespaces, audit policy RequestResponse level, PodSecurity admission enforce, TokenRequest API bound tokens, anonymous-auth effects
+  - Domain 3 System Hardening (15%, 9q): AppArmor localhostProfile in container securityContext (Kubernetes 1.30+), seccomp RuntimeDefault, CIS node hardening (packages/modules), dccp kernel module blacklist, user namespaces hostUsers=false, Linux capabilities drop ALL + add NET_BIND_SERVICE, allowPrivilegeEscalation=false (no_new_privs), readOnlyRootFilesystem, privileged=true dangers
+  - Domain 4 Minimize Microservice Vulnerabilities (20%, 12q): Pod Security Admission enforce/warn/audit modes, OPA Gatekeeper ConstraintTemplate + Constraint pattern, Secrets as volume vs env var, RuntimeClass for gVisor/Kata, PSA namespace labels, Trivy CRITICAL --exit-code 1, RuntimeClass gVisor YAML (node.k8s.io/v1), PSA audit-first rollout, Secret rotation + Deployment rollout restart, Secrets encryption-at-rest EncryptionConfiguration, Vault Agent Injector (no K8s Secret), base64 encoding vs encryption
+  - Domain 5 Supply Chain Security (20%, 12q): Multi-stage distroless Dockerfile, kubesec scan advisory score, cosign verify --key, OPA image registry enforcement, distroless primary security advantage, Gatekeeper Rego violation[] pattern, admission webhook failurePolicy:Ignore, trivy k8s cluster scan, SBOM with --format cyclonedx, imagePullSecrets kubernetes.io/dockerconfigjson, CI pipeline scan-before-push, ImagePolicyWebhook defaultAllow:false fail-closed
+  - Domain 6 Monitoring/Logging/Runtime Security (20%, 12q): Falco open_read+container+fd.name rule, audit policy level:None suppression placement (first-match), immutable container readOnlyRootFilesystem+emptyDir, falcosidekick for Slack routing, webhook audit backend --audit-webhook-config-file, Falco shell detection spawned_process+container+proc.name, audit log forensic fields user.username+verb+objectRef, immutable container incident indicator, Falco /proc/1/environ detection, crictl node-level forensics, audit level:Metadata for Secrets without body, RuntimeClass MutatingWebhook auto-injection
+- Created course page: `learning/kubernetes-cks/index.html` (7 modules, ~40h, CNCF blue #326CE5, Spotify + quiz CTAs top/mid/bottom, exam snapshot table, 6 domain weight bars, 3 concept callouts — Defense in Depth, Falco vs Audit Logs, PSA enforce/warn/audit, 6-week study plan, top-4-mistakes box — DNS in NetworkPolicy/AppArmor node loading/audit rule order/Falco field names, CKS vs CKA comparison callout, related cert cards: CKA, CKAD, AZ-500, SCS-C02)
+- Added `kubernetes-cks` entry to `data/courses.json` (v1.6.0, advanced, 7 modules, 40h, security category)
+- Updated `certifications/linux-devops.html`: CKS tile now Live (60 questions), hero → 6 LIVE EXAMS / 740+ Questions / 6 Live exams, updated hero description to include CKS, updated FAQ about CKA/CKAD/CKS, updated study order recommendation
+- Added `https://certquests.com/learning/kubernetes-cks/` to `sitemap.xml`
+
+### Terraform Associate 003 — New questions (2026-04-14)
+- Added 10 new scenario-based questions (tf-151 to tf-160) to `data/free/terraform-003.json`
+  - Total questions: 150 → 160
+  - Topics added (inspired by common Terraform 003 exam scenarios):
+    - tf-151: count increment behavior (only new index created, no replacement)
+    - tf-152: `terraform import` command syntax and workflow
+    - tf-153: `lifecycle { prevent_destroy = true }` to protect critical resources
+    - tf-154: provider aliases passed to modules via `providers` meta-argument
+    - tf-155: `moved` blocks in Terraform 1.1+ for declarative refactoring (replaces `terraform state mv`)
+    - tf-156: `dynamic` blocks for generating variable number of nested blocks
+    - tf-157: `(known after apply)` behavior for values computed at apply time
+    - tf-158: `terraform apply -replace=<address>` (replaces deprecated `terraform taint`)
+    - tf-159: Terraform Cloud remote backend plan execution (runs in TFC, not locally)
+    - tf-160: `for_each` key removal behavior (only removes the specific key's resource)
+  - Correct answer distribution: A(0), B(1), C(2), D(3), A(0), B(1), C(2), D(3), A(0), B(1) — varied, not B-bias
 
 ### GCP Professional Cloud Architect (new 2026-04-14)
 - Activated `gcp-pca` pack in `data/index.json` (was coming-soon, now available: true, question_count: 60)
