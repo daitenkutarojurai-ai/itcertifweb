@@ -90,6 +90,39 @@ The news section follows a **daily rotation**: publish one new article per day, 
 
 **Next topic to post:** "One typo took down Facebook for 6 hours" (BGP 2021 incident) — pick the next unposted item on the rotation.
 
+## Certification Catalog (as of 2026-04-15)
+
+### GCP Professional Data Engineer (new 2026-04-15)
+- Activated `gcp-pde` pack in `data/index.json` (was coming-soon, now available: true, question_count: 60)
+- Created `data/free/gcp-pde.json`: 60 scenario-based questions v1.0.0 across all 5 GCP PDE exam domains
+  - Answer distribution: A=15, B=15, C=15, D=15 (cyclic 0,1,2,3 pattern)
+  - Domain 1 Designing (~22%, 13q): Bigtable row key design, BigQuery partitioning/clustering, Spanner interleaved tables, service selection (Bigtable vs BigQuery vs Spanner vs Cloud SQL), data lake architecture, Pub/Sub fan-out, Dataflow vs Dataproc selection
+  - Domain 2 Ingesting/Processing (~25%, 15q): Dataflow windowing (tumbling/sliding/session), watermarks and late data, side inputs, stateful DoFns, Pub/Sub ordering/dead-letter/exactly-once, Dataproc ephemeral clusters/autoscaling/Serverless/Metastore, Storage Transfer Service, Data Fusion Wrangler
+  - Domain 3 Storing (~20%, 12q): BigQuery slot reservations, BI Engine, materialized views, table snapshots/clones, external tables, column/row security, Cloud Storage lifecycle, Bigtable replication, Pub/Sub Lite
+  - Domain 4 Analysis/ML (~15%, 9q): BigQuery ML CREATE MODEL types, Vertex AI AutoML vs custom, Feature Store online/offline serving, Vertex AI Pipelines, Model Registry, Cloud DLP InfoTypes and de-identification methods
+  - Domain 5 Maintaining/Automating (~18%, 11q): Cloud Composer DAG patterns/retry/upgrade, Datastream CDC, Dataplex lakes/zones/data quality tasks, Cloud Data Catalog tag templates, Vertex AI Pipelines conditional deployment, Cloud Monitoring custom metrics
+- Created course page: `learning/gcp-pde/index.html` (7 modules, ~40h, Google blue #4285F4, Spotify + quiz CTAs top/mid/bottom, exam snapshot table, 5 domain weight bars, 3 concept callouts — Bigtable vs BigQuery trap/Dataflow windowing types/BigQuery ML model selection, 6-week study plan, top-4-mistakes box — row key hot spots/Dataproc vs Dataflow/partition pruning/DLP de-id methods, PDE vs PCA comparison callout, related cert cards: GCP PCA, GCP ACE, SAA-C03, CKA)
+- Added `gcp-pde` entry to `data/courses.json` (v1.7.0, advanced, 7 modules, 40h, cloud category)
+- Updated `certifications/google-cloud.html`: all 3 GCP certs now Live (ACE/PCA/PDE), hero → 3 LIVE EXAMS / 180+ Questions, restructured sections (no more Coming Soon), added GCP certification path info box, added 4 FAQ items about PDE exam
+- Added `https://certquests.com/learning/gcp-pde/` to `sitemap.xml`
+
+### CCNA 200-301 — New questions (2026-04-15)
+- Added 10 new scenario-based questions (ccna-101 to ccna-110) to `data/free/ccna.json`
+  - Total questions: 100 → 110
+  - Topics added (CCNA 200-301 braindump-inspired, original content):
+    - ccna-101: RSTP port roles — Alternate port discards frames but keeps alternate path (correct: A)
+    - ccna-102: EtherChannel — LACP for multi-vendor interoperability vs PAgP Cisco-only (correct: D)
+    - ccna-103: IPv6 address types — Global Unicast vs Link-Local (FE80::/10) vs ULA (FC00::/7) (correct: B)
+    - ccna-104: DHCP snooping — drops DHCP Offer on untrusted port to prevent rogue servers (correct: C)
+    - ccna-105: OSPF broadcast network type — DR/BDR election reduces adjacencies on multi-access networks (correct: A)
+    - ccna-106: Extended ACL placement — close to source, filters on source IP + destination port (correct: D)
+    - ccna-107: PAT/NAT overload — unique source port per session enables multiple hosts behind one IP (correct: B)
+    - ccna-108: LLDP vs CDP — LLDP is IEEE 802.1AB (multi-vendor), CDP is Cisco-proprietary (correct: C)
+    - ccna-109: WPA3 with SAE + mandatory PMF — forward secrecy and protection against deauth attacks (correct: A)
+    - ccna-110: SD-WAN vManage controller — overlay any transport, ZTP for 50-branch WAN (correct: D)
+  - Updated meta: version stays 2.0.0, question_count 100 → 110, last_updated 2026-04-15
+- Updated `data/index.json`: ccna question_count 100 → 110
+
 ## Certification Catalog (as of 2026-04-14)
 
 Active question packs (`available: true` in `data/index.json`):
