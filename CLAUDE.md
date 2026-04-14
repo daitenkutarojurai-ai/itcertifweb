@@ -90,7 +90,7 @@ The news section follows a **daily rotation**: publish one new article per day, 
 
 **Next topic to post:** "One typo took down Facebook for 6 hours" (BGP 2021 incident) — pick the next unposted item on the rotation.
 
-## Certification Catalog (as of 2026-04-13)
+## Certification Catalog (as of 2026-04-14)
 
 Active question packs (`available: true` in `data/index.json`):
 | Pack ID | File | Questions |
@@ -107,7 +107,7 @@ Active question packs (`available: true` in `data/index.json`):
 | nse4 | free/nse4.json | 170 |
 | pcnsa | free/pcnsa.json | 50 |
 | rhcsa | free/rhcsa.json | 50 |
-| servicenow-csa | free/servicenow-csa.json | 50 |
+| **servicenow-csa** | free/servicenow-csa.json | **60** (reworked 2026-04-14, v2.0.0 — proper MCQ, +10 new questions) |
 | **splunk-core** | free/splunk-core.json | **65** (reworked 2026-04-13) |
 | **gcp-ace** | free/gcp-ace.json | **60** (new 2026-04-13) |
 | **docker-dca** | free/docker-dca.json | **60** (new 2026-04-13) |
@@ -122,6 +122,29 @@ Active question packs (`available: true` in `data/index.json`):
 | **comptia-pentest** | free/comptia-pentest.json | **60** (new 2026-04-13) |
 | **az-500** | free/az-500.json | **60** (new 2026-04-13 batch 3) |
 | **pcnsa** | free/pcnsa.json | **60** (reworked 2026-04-13 batch 3, v2.0.0 — proper MCQ format) |
+| **aws-soa-c02** | free/aws-soa-c02.json | **60** (new 2026-04-14) |
+
+### AWS SysOps Administrator Associate SOA-C02 (new 2026-04-14)
+- Activated `aws-soa-c02` pack in `data/index.json` (was coming-soon, now available: true, question_count: 60)
+- Created `data/free/aws-soa-c02.json`: 60 scenario-based questions v1.0.0 across all 6 SOA-C02 domains
+  - Domain 1 (20%, 12q): CloudWatch alarms (M-of-N, composite), Logs metric filters, Logs Insights queries, AWS Config managed rules + aggregator, EventBridge rules, CloudTrail fields + log integrity, SNS + EC2 auto-recovery, VPC Flow Logs, CloudWatch log cost optimization
+  - Domain 2 (16%, 10q): Auto Scaling lifecycle hooks, Route 53 failover routing, RDS Multi-AZ failover + CNAME behavior, Aurora failover (hardcoded IP anti-pattern), AWS Backup cross-region, S3 CRR existing objects (Batch Operations), DR strategy RTO/RPO tradeoffs, ElastiCache TTL/eviction
+  - Domain 3 (18%, 10q): CloudFormation drift detection, SSM Run Command + State Manager + Patch Manager + Session Manager, CloudFormation StackSets (automatic deployment), EC2 Image Builder, Elastic Beanstalk immutable deployment, Service Catalog template constraints, Config rule + SSM auto-remediation
+  - Domain 4 (16%, 10q): GuardDuty EventBridge auto-remediation, Organizations SCPs for CloudTrail protection, Inspector v2 CVE scanning, Security Hub multi-account aggregation, KMS automatic rotation, Macie PII discovery, S3 Block Public Access account-level, IAM Access Analyzer findings, CloudTrail log integrity, WAF rate-based + geo rules
+  - Domain 5 (18%, 11q): VPC peering missing routes, Transit Gateway for N-VPC hub-and-spoke, NAT Gateway for private subnet internet, NLB for UDP, CloudFront Origin Shield, cross-account IAM role, VPN dual tunnels, SSM Session Manager, PrivateLink, Direct Connect + VPN BGP failover, CloudFront OAC for S3
+  - Domain 6 (12%, 7q): Standard RI 3-year all-upfront for max discount, Spot Instances with 2-min interruption notice, S3 Standard→IA→Glacier lifecycle, Cost Anomaly Detection ML-based alerts, Compute Optimizer right-sizing, inter-AZ data transfer cost, RDS Read Replicas for peak read traffic
+- Created course page: `learning/aws-soa-c02/index.html` (7 modules, ~35h, Spotify + quiz CTAs top/mid/bottom, exam snapshot table, domain weight bars, top-4-mistakes box, 5-week study plan, SOA vs SAA comparison callout, related cert cards)
+- Added `aws-soa-c02` entry to `data/courses.json` (v1.3.0)
+- Updated `certifications/aws.html`: SOA-C02 tile now Live, hero → 4 live exams / 280+ questions, updated prose with SOA-C02 domain weights, added SOA-C02 FAQ item
+- Added `https://certquests.com/learning/aws-soa-c02/` to `sitemap.xml`
+
+### ServiceNow CSA — Certified System Administrator (reworked 2026-04-14)
+- Reworked all 50 questions from flashcard format to proper 4-option MCQ (v2.0.0)
+  - Fixed: all questions previously had option B as a very long correct answer with explanation embedded, other options as minimal distractors
+  - Fixed meta `question_count: 0` → now correctly 60
+  - All 60 questions now have 4 concise, plausible options; correct answer varies across A/B/C/D; explanations are separate from options
+- Added 10 new questions (csa-051–060): field-level ACL security, performance debugging with Transaction Log, Software Asset Management, Flow Designer retry logic with Wait step, post-clone cleanup tasks, Virtual Agent NLU chatbot, Update Set conflict resolution, CI lifecycle/decommission best practice, gs.log() server-side scripting, HRSD onboarding playbooks
+- Revised existing questions to cover advanced topics: GlideRecord patterns, GlideAjax for client-server communication, OAuth 2.0 Application Registry, cross-scope access controls, Async Business Rules for performance, upgrade conflict resolution, SLA task_sla table reporting
 
 ### AZ-500 — Azure Security Engineer Associate (new 2026-04-13 batch 3)
 - Activated `az-500` pack in `data/index.json` (was coming-soon, now available: true, question_count: 60)
