@@ -84,13 +84,25 @@ The news section follows a **daily rotation**: publish one new article per day, 
    - "The day AWS took down half the internet" (real outage stories)
    - "AI deleted the production database"
    - "$72,000 AWS bill overnight" (cloud cost horror)
-   - "One typo took down Facebook for 6 hours" (BGP 2021)
+   - **"One typo took down Facebook for 6 hours" (BGP 2021)** — posted 2026-04-15
    - **"11 lines of code broke the internet" (npm left-pad 2016)** — posted 2026-04-12
    - "The dev who accidentally deleted his company" (GitLab 2017)
 
-**Next topic to post:** "One typo took down Facebook for 6 hours" (BGP 2021 incident) — pick the next unposted item on the rotation.
+**Next topic to post:** "The dev who accidentally deleted his company" (GitLab 2017 incident) — pick the next unposted item on the rotation.
 
 ## Certification Catalog (as of 2026-04-15)
+
+### News article: Facebook BGP Outage 2021 (new 2026-04-15)
+- Created `news/facebook-bgp-outage-2021/index.html`: "One Typo Took Down Facebook for 6 Hours — The 2021 BGP Outage" (~7 min read, Networking category)
+  - Full article: what happened (AS32934 BGP withdrawal, buggy audit tool), the DNS chain reaction (SERVFAIL cascade, 30× query retry storm), why recovery took 6 hours (badge readers + internal tools + OOB network all down), 5 networking lessons for CCNA/CCNP/ANS-C01 candidates (BGP fragility, DNS secondary design, OOB management, change management, hidden SPOFs), exam-style Q&A section, CTA to CCNA quiz
+  - Full SEO stack: canonical, OG, Twitter Card, NewsArticle JSON-LD, BreadcrumbList JSON-LD, keywords meta
+- Updated `data/news.json` → v1.2.0: added new article as featured, removed 4 placeholder dead-link articles (`placeholder-devops`, `placeholder-cloud`, `placeholder-security`, `placeholder-infra`) that had `url: "#"`
+- Added `https://certquests.com/news/facebook-bgp-outage-2021/` to `sitemap.xml`
+
+### Code audit + fixes (2026-04-15)
+- **Fixed XSS risk** in `src/screens/quiz.js`: question text, options, difficulty tags and category tags were interpolated directly into `innerHTML` via template literals. Added `escapeHtml()` helper and applied it to `q.question`, `q.options`, `q.difficulty`, `q.tags[0]`. Defense-in-depth — question JSON is authored in-house but should never be trusted directly into HTML.
+- **Added `llms.txt`** at repo root — modern AI/LLM discoverability standard listing all key pages, 30+ certifications, tech news articles, and content policy (AI crawlers welcome, attribution requested).
+- **Cleaned dead links**: removed 4 placeholder news articles from `data/news.json` that pointed to `#` (dead `<a href="#">` on the news grid).
 
 ### AWS Advanced Networking Specialty ANS-C01 (new 2026-04-15 batch 4)
 - Activated `aws-ans-c01` pack in `data/index.json` (was coming-soon, now available: true, question_count: 60)

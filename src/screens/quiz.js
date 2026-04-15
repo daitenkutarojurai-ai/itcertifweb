@@ -30,6 +30,18 @@ const TIMER_MAX   = 30;
 const isStudyMode = () => quizMode === 'study';
 const LETTERS     = ['A', 'B', 'C', 'D'];
 
+// Escape HTML to prevent XSS when question/option text is interpolated into innerHTML.
+// Question data is authored by us, but defense-in-depth: never trust string → innerHTML.
+function escapeHtml(str) {
+  if (str == null) return '';
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
 const CORRECT_MSG = [
   { title: 'Correct! 🎯',        sub: 'Great job!' },
   { title: 'Excellent! ⚡',       sub: 'Keep it up!' },
@@ -131,17 +143,17 @@ function renderQuestion(container) {
       <div class="question-area">
         <div class="question-meta-row">
           <span class="question-num-label">Q${idx + 1}</span>
-          <span class="badge badge-${q.difficulty}">${q.difficulty}</span>
-          ${q.tags?.length ? `<span class="badge badge-tag">${q.tags[0]}</span>` : ''}
+          <span class="badge badge-${escapeHtml(q.difficulty)}">${escapeHtml(q.difficulty)}</span>
+          ${q.tags?.length ? `<span class="badge badge-tag">${escapeHtml(q.tags[0])}</span>` : ''}
         </div>
-        <div class="question-text">${q.question}</div>
+        <div class="question-text">${escapeHtml(q.question)}</div>
       </div>
 
       <div class="options-area" id="options-area">
         ${q.options.map((opt, i) => `
           <div class="answer-option" data-index="${i}" role="button" tabindex="0">
             <span class="option-letter">${LETTERS[i]}</span>
-            <span class="option-text">${opt}</span>
+            <span class="option-text">${escapeHtml(opt)}</span>
             <span class="option-check" id="check-${i}" style="display:none"></span>
           </div>
         `).join('')}
