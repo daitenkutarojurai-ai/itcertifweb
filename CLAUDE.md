@@ -86,9 +86,18 @@ The news section follows a **daily rotation**: publish one new article per day, 
    - "$72,000 AWS bill overnight" (cloud cost horror)
    - **"One typo took down Facebook for 6 hours" (BGP 2021)** — posted 2026-04-15
    - **"11 lines of code broke the internet" (npm left-pad 2016)** — posted 2026-04-12
-   - "The dev who accidentally deleted his company" (GitLab 2017)
+   - **"The dev who accidentally deleted his company" (GitLab 2017)** — posted 2026-04-21
 
-**Next topic to post:** "The dev who accidentally deleted his company" (GitLab 2017 incident) — pick the next unposted item on the rotation.
+**Next topic to post:** Pick the next unposted item from the rotation — suggested: "Cheat sheet of the day" (hidden/lesser-known K8s or Linux commands) from the Cheatsheets/Technical category.
+
+## Certification Catalog (as of 2026-04-21)
+
+### News article: GitLab Database Deletion 2017 (new 2026-04-21)
+- Created `news/gitlab-database-deletion-2017/index.html`: "The Dev Who Accidentally Deleted His Company — The GitLab 2017 Database Incident" (~6 min read, DevOps category)
+  - Full article: what happened (SRE typed wrong hostname, ran `rm -rf` on primary db1 instead of replica db2), the five backup systems that all failed (S3 not run in 6 months, Azure snapshots disabled, pg_dump silently corrupt, replica behind on replication, only 6h-old LVM snapshot saved partial data), the legendary transparent public postmortem livestreamed on YouTube, 5 DR lessons (untested backup ≠ backup, silent failures, RTO/RPO commitments, multi-terminal fatigue, cost-cutting on safety infrastructure), exam tie-ins (AWS SOA-C02 Domain 2, AZ-305 Domain 3, CySA+, CKA), CTA to SOA-C02 and AZ-305 quizzes
+  - Full SEO stack: canonical, OG, Twitter Card, NewsArticle JSON-LD, BreadcrumbList JSON-LD, keywords meta, backup status table with inline CSS
+- Updated `data/news.json` → v1.3.0: new article as featured, previous featured (facebook-bgp) demoted to regular
+- Added `https://certquests.com/news/gitlab-database-deletion-2017/` to `sitemap.xml`
 
 ## Certification Catalog (as of 2026-04-15)
 
