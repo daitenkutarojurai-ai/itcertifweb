@@ -220,7 +220,9 @@ function attachListeners(container, navigate, brands) {
         return;
       }
 
-      showModePicker(pack, data.questions);
+      // Attach brand name so the mode-picker modal can show it as the header
+      const packWithBrand = { ...pack, brandName: brand?.name || pack.name };
+      showModePicker(packWithBrand, data.questions);
     });
   });
 

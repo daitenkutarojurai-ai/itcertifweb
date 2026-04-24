@@ -55,7 +55,7 @@ export function showModePicker(pack, questions) {
       <div class="modal-handle"></div>
 
       <div class="modal-header">
-        <div class="modal-pack-name">${pack.fullName || pack.name}</div>
+        <div class="modal-pack-name">${pack.brandName || pack.name}</div>
         <div class="modal-pack-sub">${pack.name}</div>
       </div>
 

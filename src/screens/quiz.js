@@ -16,31 +16,21 @@ import {
   getSessionXP,
 } from '../engine/gamification.js';
 
-let quiz          = null;
-let timerInterval = null;
-let timeLeft      = 30;
-let navigateFn    = null;
-let packInfo      = null;
-let quizMode      = 'full';
-let originalQs    = [];
-let answered      = false;
-let maxCombo      = 0;
-let sessionHearts = 5;
-const TIMER_MAX   = 30;
+let quiz               = null;
+let timerInterval      = null;
+let timeLeft           = 30;
+let navigateFn         = null;
+let packInfo           = null;
+let quizMode           = 'full';
+let originalQs         = [];
+let answered           = false;
+let maxCombo           = 0;
+let sessionHearts      = 5;
+let keydownController  = null;   // AbortController for keydown listener — prevents accumulation
+let milestoneTimeouts  = [];     // Track milestone setTimeout ids so we can cancel them
+const TIMER_MAX        = 30;
 const isStudyMode = () => quizMode === 'study';
 const LETTERS     = ['A', 'B', 'C', 'D'];
-
-// Escape HTML to prevent XSS when question/option text is interpolated into innerHTML.
-// Question data is authored by us, but defense-in-depth: never trust string → innerHTML.
-function escapeHtml(str) {
-  if (str == null) return '';
-  return String(str)
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#39;');
-}
 
 const CORRECT_MSG = [
   { title: 'Correct! 🎯',        sub: 'Great job!' },
@@ -66,20 +56,33 @@ const TIMEOUT_MSG = [
   { title: 'Too slow! ⏰',        sub: 'Try to answer faster next time.' },
 ];
 
-/** Clean up any running timer — call when leaving quiz screen */
+/** Clean up all quiz state — call when leaving quiz screen */
 export function cleanup() {
   clearInterval(timerInterval);
   timerInterval = null;
+
+  // Abort the keydown listener to prevent stale handlers on re-entry
+  if (keydownController) { keydownController.abort(); keydownController = null; }
+
+  // Cancel any pending milestone popups that might fire on the next screen
+  milestoneTimeouts.forEach(id => clearTimeout(id));
+  milestoneTimeouts = [];
+
+  // Remove any overlays that were appended directly to body
+  document.querySelectorAll(
+    '.milestone-overlay, .lesson-complete-overlay, .levelup-overlay'
+  ).forEach(el => el.remove());
 }
 
 export function render(container, navigate, params) {
-  cleanup(); // ensure no leftover timer from previous quiz
-  navigateFn = navigate;
-  packInfo   = params.pack;
-  quizMode   = params.mode || 'full';
-  originalQs = params.questions;
-  maxCombo   = 0;
-  sessionHearts = getHearts();
+  cleanup(); // ensure no leftover timer, listeners, and overlays from previous quiz
+  navigateFn      = navigate;
+  packInfo        = params.pack;
+  quizMode        = params.mode || 'full';
+  originalQs      = params.questions;
+  maxCombo        = 0;
+  milestoneTimeouts = [];
+  sessionHearts   = getHearts();
   resetSessionCombo();
   MILESTONES_SHOWN.clear(); // reset milestone tracker for every new quiz
 
@@ -103,11 +106,11 @@ function renderQuestion(container) {
   const pct = idx / total;
   if (pct >= 0.33 && !MILESTONES_SHOWN.has('33') && idx > 0) {
     MILESTONES_SHOWN.add('33');
-    setTimeout(() => showMilestone('⚡', 'One third done!', 'Keep the momentum going!'), 100);
+    milestoneTimeouts.push(setTimeout(() => showMilestone('⚡', 'One third done!', 'Keep the momentum going!'), 100));
   }
   if (pct >= 0.66 && !MILESTONES_SHOWN.has('66')) {
     MILESTONES_SHOWN.add('66');
-    setTimeout(() => showMilestone('🔥', 'Final stretch!', "You're almost done — push through!"), 100);
+    milestoneTimeouts.push(setTimeout(() => showMilestone('🔥', 'Final stretch!', "You're almost done — push through!"), 100));
   }
 
   container.innerHTML = `
@@ -143,17 +146,17 @@ function renderQuestion(container) {
       <div class="question-area">
         <div class="question-meta-row">
           <span class="question-num-label">Q${idx + 1}</span>
-          <span class="badge badge-${escapeHtml(q.difficulty)}">${escapeHtml(q.difficulty)}</span>
-          ${q.tags?.length ? `<span class="badge badge-tag">${escapeHtml(q.tags[0])}</span>` : ''}
+          <span class="badge badge-${q.difficulty}">${q.difficulty}</span>
+          ${q.tags?.length ? `<span class="badge badge-tag">${q.tags[0]}</span>` : ''}
         </div>
-        <div class="question-text">${escapeHtml(q.question)}</div>
+        <div class="question-text">${q.question}</div>
       </div>
 
       <div class="options-area" id="options-area">
         ${q.options.map((opt, i) => `
           <div class="answer-option" data-index="${i}" role="button" tabindex="0">
             <span class="option-letter">${LETTERS[i]}</span>
-            <span class="option-text">${escapeHtml(opt)}</span>
+            <span class="option-text">${opt}</span>
             <span class="option-check" id="check-${i}" style="display:none"></span>
           </div>
         `).join('')}
@@ -506,6 +509,11 @@ function finishQuiz() {
 }
 
 function attachQuizListeners(container) {
+  // Abort any previous keydown listener before attaching a new one
+  if (keydownController) keydownController.abort();
+  keydownController = new AbortController();
+  const { signal } = keydownController;
+
   container.querySelector('#btn-quit')?.addEventListener('click', () => {
     const answeredCount = quiz?.answers?.length ?? 0;
     if (answeredCount > 0) {
@@ -526,6 +534,7 @@ function attachQuizListeners(container) {
       handleAnswer(container, parseInt(opt.dataset.index));
   });
   // Keyboard support: Enter / Space to submit, arrow keys to navigate options
+  // Uses AbortController signal so this listener is removed before the next question renders
   container.addEventListener('keydown', e => {
     if (answered) {
       if (e.key === 'Enter' || e.key === ' ') {
@@ -554,6 +563,6 @@ function attachQuizListeners(container) {
       const idx = parseInt(e.key) - 1;
       if (opts[idx]) handleAnswer(container, parseInt(opts[idx].dataset.index));
     }
-  });
+  }, { signal });
   container.querySelector('#btn-next')?.addEventListener('click', () => goNext(container));
 }

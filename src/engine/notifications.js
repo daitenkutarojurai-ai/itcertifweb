@@ -136,8 +136,7 @@ function fireReminder() {
   } else {
     new Notification(title, {
       body,
-      icon: '/src/assets/icons/logo.png',
-      badge: '/src/assets/icons/badge.png',
+      icon: '/src/assets/icons/icon-192.png',
     });
   }
 }
