@@ -263,8 +263,8 @@
     </div>
 
     <div class="coming-soon">
-      <h3>More courses coming</h3>
-      <p>Azure Administrator (AZ-104), AWS Solutions Architect (SAA-C03), CompTIA Network+, Vault Associate and more are being written. Courses are authored in <code style="font-family:var(--font-mono);font-size:12px;color:var(--accent-train)">data/courses.json</code>.</p>
+      <h3>More courses added regularly</h3>
+      <p>Courses are authored in <code style="font-family:var(--font-mono);font-size:12px;color:var(--accent-train)">data/courses.json</code> with per-course content in <code style="font-family:var(--font-mono);font-size:12px;color:var(--accent-train)">data/learning/&lt;id&gt;.json</code>.</p>
     </div>
 
   </main>
@@ -290,22 +290,26 @@
       try {
         const res = await fetch('../data/courses.json', { cache: 'no-store' });
         const data = await res.json();
-        const cards = data.courses.map(c => {
-          const modules = (c.modules || []).length;
-          const safeId = String(c.id).replace(/[^a-z0-9-]/gi, '');
+        const visible = data.courses.filter(c => c.status !== 'coming_soon');
+        const cards = visible.map(c => {
+          const accent = c.vendorColor || c.vendor_color || '#3b82f6';
+          const modules = typeof c.modules === 'number' ? c.modules : (Array.isArray(c.modules) ? c.modules.length : 0);
+          const difficulty = c.difficulty || 'intermediate';
+          const duration = c.duration || (c.estimated_hours ? '~' + c.estimated_hours + 'h' : '');
+          const href = c.url ? c.url : ('/learning/' + encodeURIComponent(String(c.id)) + '/');
           return `
-            <a href="/courses/${safeId}.html" class="course-card" style="--course-accent:${c.accent};--course-glow:${c.accent}22">
+            <a href="${escapeAttr(href)}" class="course-card" style="--course-accent:${escapeAttr(accent)};--course-glow:${escapeAttr(accent)}22">
               <div class="course-vendor">
-                <span class="course-vendor-dot" style="background:${c.vendor_color}"></span>
-                ${escapeHtml(c.vendor)}
+                <span class="course-vendor-dot" style="background:${escapeAttr(accent)}"></span>
+                ${escapeHtml(c.vendor || '')}
               </div>
               <h2 class="course-title">${escapeHtml(c.title)}</h2>
-              <p class="course-desc">${escapeHtml(c.short_description || c.description)}</p>
+              <p class="course-desc">${escapeHtml(c.description || '')}</p>
               <div class="course-meta">
-                <span class="course-chip course-chip--${c.difficulty}">${escapeHtml(c.difficulty)}</span>
+                <span class="course-chip course-chip--${escapeAttr(difficulty)}">${escapeHtml(difficulty)}</span>
                 <span class="course-chip">${modules} modules</span>
-                <span class="course-chip">~${c.estimated_hours}h</span>
-                <span class="course-chip">${c.question_count} questions</span>
+                ${duration ? '<span class="course-chip">' + escapeHtml(duration) + '</span>' : ''}
+                ${c.category ? '<span class="course-chip">' + escapeHtml(c.category) + '</span>' : ''}
               </div>
               <span class="course-cta">Start course &rarr;</span>
             </a>
@@ -320,6 +324,7 @@
       function escapeHtml(s) {
         return String(s).replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
       }
+      function escapeAttr(s) { return escapeHtml(s); }
     })();
   </script>
 

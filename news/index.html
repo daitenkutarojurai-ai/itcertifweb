@@ -291,8 +291,18 @@
     (async () => {
       const listEl   = document.getElementById('news-list');
       const filterEl = document.getElementById('tag-filter');
-      let activeTag  = 'all';
+      let activeCat  = 'all';
       let data;
+
+      const CATEGORY_COLORS = {
+        devops:    '#a855f7',
+        security:  '#f43f5e',
+        cloud:     '#3b82f6',
+        networking:'#10b981',
+        ai:        '#22d3ee',
+        certs:     '#f59e0b',
+        other:     '#7c90ae',
+      };
 
       try {
         const res = await fetch('../data/news.json', { cache: 'no-store' });
@@ -303,44 +313,52 @@
         return;
       }
 
-      const tagMap = Object.fromEntries((data.tags || []).map(t => [t.id, t]));
       const articles = (data.articles || []).slice().sort((a, b) => (a.date < b.date ? 1 : -1));
 
+      // Derive categories from the article set itself
+      const categoryMap = new Map();
+      for (const a of articles) {
+        const id = (a.category || 'other').toLowerCase();
+        if (!categoryMap.has(id)) {
+          categoryMap.set(id, { id, label: a.categoryLabel || (id.charAt(0).toUpperCase() + id.slice(1)), color: CATEGORY_COLORS[id] || CATEGORY_COLORS.other });
+        }
+      }
+      const categories = Array.from(categoryMap.values());
+
       function renderFilters() {
-        const allBtn = `<button class="tag-btn ${activeTag === 'all' ? 'is-active' : ''}" data-tag="all">All</button>`;
-        const tagBtns = (data.tags || []).map(t =>
-          `<button class="tag-btn ${activeTag === t.id ? 'is-active' : ''}" data-tag="${escapeAttr(t.id)}" style="${activeTag === t.id ? `background:${t.color};border-color:${t.color};color:#fff` : `color:${t.color}`}">${escapeHtml(t.label)}</button>`
+        const allBtn = `<button class="tag-btn ${activeCat === 'all' ? 'is-active' : ''}" data-cat="all">All</button>`;
+        const catBtns = categories.map(c =>
+          `<button class="tag-btn ${activeCat === c.id ? 'is-active' : ''}" data-cat="${escapeAttr(c.id)}" style="${activeCat === c.id ? `background:${c.color};border-color:${c.color};color:#fff` : `color:${c.color}`}">${escapeHtml(c.label)}</button>`
         ).join('');
-        filterEl.innerHTML = allBtn + tagBtns;
+        filterEl.innerHTML = allBtn + catBtns;
       }
 
       function renderArticles() {
-        const visible = activeTag === 'all'
+        const visible = activeCat === 'all'
           ? articles
-          : articles.filter(a => (a.tags || []).includes(activeTag));
+          : articles.filter(a => (a.category || '').toLowerCase() === activeCat);
 
         if (!visible.length) {
-          listEl.innerHTML = '<div class="empty-state">No articles under this tag yet.</div>';
+          listEl.innerHTML = '<div class="empty-state">No articles in this category yet.</div>';
           return;
         }
 
         listEl.innerHTML = visible.map(a => {
-          const tags = (a.tags || []).map(id => {
-            const t = tagMap[id];
-            if (!t) return '';
-            return `<span class="news-tag" style="color:${t.color}">${escapeHtml(t.label)}</span>`;
-          }).join('');
-          const href = a.source_url || '#';
-          const ext  = a.source_url ? 'target="_blank" rel="noopener"' : '';
+          const cat = categoryMap.get((a.category || 'other').toLowerCase()) || { label: a.categoryLabel || 'Other', color: CATEGORY_COLORS.other };
+          const href = a.url || ('/news/' + encodeURIComponent(a.id) + '/');
+          const featured = a.featured ? '<span class="news-source" style="color:var(--accent-news);font-weight:700">★ Featured</span>' : '';
           return `
-            <a href="${escapeAttr(href)}" ${ext} class="news-item">
+            <a href="${escapeAttr(href)}" class="news-item">
               <div class="news-header">
                 <span class="news-date">${escapeHtml(formatDate(a.date))}</span>
-                <span class="news-source">${escapeHtml(a.source || '')}</span>
+                <span class="news-source">${escapeHtml(cat.label)}</span>
+                ${featured}
               </div>
               <h2>${escapeHtml(a.title)}</h2>
-              <p>${escapeHtml(a.excerpt)}</p>
-              <div class="news-tags">${tags}</div>
+              <p>${escapeHtml(a.excerpt || '')}</p>
+              <div class="news-tags">
+                <span class="news-tag" style="color:${escapeAttr(cat.color)}">${escapeHtml(cat.label)}</span>
+              </div>
             </a>
           `;
         }).join('');
@@ -349,7 +367,7 @@
       filterEl.addEventListener('click', (e) => {
         const btn = e.target.closest('.tag-btn');
         if (!btn) return;
-        activeTag = btn.dataset.tag;
+        activeCat = btn.dataset.cat;
         renderFilters();
         renderArticles();
       });
