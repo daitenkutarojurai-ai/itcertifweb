@@ -177,16 +177,65 @@ function buildPackCard(pack, packProgress) {
 // ─── Event listeners ───────────────────────────────────────────────────────────
 
 function attachListeners(container, navigate, brands) {
-  // Brand collapse toggle — expand first brand by default
   const brandHeaders = container.querySelectorAll('.brand-header');
-  const allPacks     = container.querySelectorAll('.brand-packs');
+  const brandSections = container.querySelectorAll('.brand-section');
 
-  // Start all collapsed except first available brand
-  allPacks.forEach((el, i) => {
-    if (i === 0) el.classList.add('expanded');
-    else el.classList.remove('expanded');
-  });
-  if (brandHeaders[0]) brandHeaders[0].querySelector('.brand-chevron')?.classList.add('open');
+  // ─── Decide which brand to expand on arrival ─────────────────────────────
+  // Priority: ?pack= → ?brand= → localStorage(last-opened) → none (all collapsed)
+  const params     = new URLSearchParams(location.search);
+  const packParam  = params.get('pack');
+  const brandParam = params.get('brand');
+  let targetBrandId = null;
+  let targetPackId  = null;
+
+  if (packParam) {
+    const b = brands.find(br => br.packs.some(p => p.id === packParam));
+    if (b) { targetBrandId = b.id; targetPackId = packParam; }
+  }
+  if (!targetBrandId && brandParam) {
+    const b = brands.find(br => br.id === brandParam);
+    if (b) targetBrandId = b.id;
+  }
+  if (!targetBrandId) {
+    try {
+      const saved = localStorage.getItem('itcertif_lastBrand');
+      if (saved && brands.some(b => b.id === saved)) targetBrandId = saved;
+    } catch { /* private mode / disabled storage */ }
+  }
+
+  if (targetBrandId) {
+    const packsEl = container.querySelector(`.brand-packs[data-brand-id="${targetBrandId}"]`);
+    const header  = container.querySelector(`.brand-header[data-brand-id="${targetBrandId}"]`);
+    packsEl?.classList.add('expanded');
+    header?.querySelector('.brand-chevron')?.classList.add('open');
+  }
+
+  // ─── Stagger-fade brand sections on first paint ──────────────────────────
+  if (!window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+    brandSections.forEach((el, i) => {
+      el.style.opacity = '0';
+      el.style.transform = 'translateY(6px)';
+      el.style.transition = 'opacity 0.28s ease, transform 0.28s cubic-bezier(0.22, 1, 0.36, 1)';
+      setTimeout(() => {
+        el.style.opacity = '1';
+        el.style.transform = 'translateY(0)';
+      }, 40 + i * 24);
+    });
+  }
+
+  // ─── If we arrived via ?pack=, scroll to it and flash the card ──────────
+  if (targetPackId) {
+    requestAnimationFrame(() => {
+      const card = container.querySelector(`.pack-card[data-pack-id="${targetPackId}"]`);
+      if (card) {
+        setTimeout(() => {
+          card.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          card.classList.add('pack-card-flash');
+          setTimeout(() => card.classList.remove('pack-card-flash'), 1400);
+        }, 320); // let the stagger settle first
+      }
+    });
+  }
 
   brandHeaders.forEach(header => {
     header.addEventListener('click', () => {
@@ -196,6 +245,10 @@ function attachListeners(container, navigate, brands) {
       const isOpen    = packsEl.classList.contains('expanded');
       packsEl.classList.toggle('expanded', !isOpen);
       chevron?.classList.toggle('open', !isOpen);
+      // Remember the last brand the user opened so they land on it next time.
+      if (!isOpen) {
+        try { localStorage.setItem('itcertif_lastBrand', brandId); } catch {}
+      }
     });
   });
 
