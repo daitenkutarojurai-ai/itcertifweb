@@ -62,9 +62,12 @@ async function networkFirst(request) {
   } catch (e) {
     const cached = await cache.match(request);
     if (cached) return cached;
-    // Last resort: serve any cached HTML
-    const fallback = await caches.match('/index.html');
-    if (fallback) return fallback;
+    // Only fall back to index.html for root-like navigations, not arbitrary paths
+    const url = new URL(request.url);
+    if (url.pathname === '/' || url.pathname === '/index.html') {
+      const fallback = await caches.match('/index.html');
+      if (fallback) return fallback;
+    }
     throw e;
   }
 }
