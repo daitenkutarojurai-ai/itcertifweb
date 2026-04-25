@@ -99,7 +99,7 @@ export function scheduleNextReminder() {
   if (next <= now) next.setDate(next.getDate() + 1); // Schedule for tomorrow if time passed
 
   const ms = next - now;
-  console.log(`[Notifications] Next reminder in ${Math.round(ms / 60000)}min`);
+  // [Notifications] Next reminder scheduled (logging removed in production)
 
   setTimeout(() => {
     fireReminder();

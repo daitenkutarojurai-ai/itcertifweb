@@ -492,8 +492,9 @@ function finishQuiz() {
     timeMs: results.totalTime, quizCount, maxCombo, mode: quizMode,
   });
   schedulePostQuizReminder(packInfo.name, results.score, results.total);
-  if (shouldShowAd())    console.log('[Ads] Would show interstitial');
-  if (shouldShowPopup()) console.log('[Premium] Would show popup');
+  // Stub gates — logging removed; wire to real ads/popup when implemented
+  shouldShowAd();
+  shouldShowPopup();
 
   const doNavigate = () => navigateFn('results', {
     pack: packInfo, results, mode: quizMode,
