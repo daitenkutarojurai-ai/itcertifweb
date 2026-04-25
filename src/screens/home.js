@@ -44,7 +44,7 @@ function buildHTML(brands, progress, streak) {
 
       <header class="home-header">
         <div class="app-logo">
-          <div class="logo-bolt">⚡</div>
+          <img src="/src/assets/icons/logopouple.png" alt="CertQuests" class="logo-bolt">
           <span class="logo-text">CertQuests</span>
         </div>
         <div style="display:flex;gap:8px;align-items:center">
