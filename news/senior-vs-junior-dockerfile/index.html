@@ -1,0 +1,571 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="theme-color" content="#06080f" />
+
+  <title>Senior vs Junior &mdash; The Same Dockerfile, Two Approaches | CertQuests</title>
+  <meta name="description" content="A junior and a senior engineer both write a Dockerfile for the same Node.js app. One ends up with a 1.2 GB root-running image. The other ships 85 MB, distroless, and non-root. Here's every decision that makes the difference." />
+  <meta name="keywords" content="Dockerfile best practices, multi-stage build, distroless, node alpine, docker security, senior vs junior, layer caching, npm ci, CKS supply chain, Docker DCA" />
+  <meta name="author" content="CertQuests" />
+  <meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large" />
+  <link rel="canonical" href="https://certquests.com/news/senior-vs-junior-dockerfile/" />
+
+  <!-- Open Graph -->
+  <meta property="og:type" content="article" />
+  <meta property="og:url" content="https://certquests.com/news/senior-vs-junior-dockerfile/" />
+  <meta property="og:title" content="Senior vs Junior &mdash; The Same Dockerfile, Two Approaches" />
+  <meta property="og:description" content="One Dockerfile is 1.2 GB and runs as root. The other is 85 MB, distroless, and non-root. Here's every decision that makes the difference." />
+  <meta property="og:image" content="https://certquests.com/src/assets/icons/icon-512.png" />
+  <meta property="og:site_name" content="CertQuests" />
+  <meta property="article:published_time" content="2026-04-22T08:00:00Z" />
+  <meta property="article:author" content="CertQuests" />
+  <meta property="article:section" content="Technical" />
+  <meta property="article:tag" content="Docker" />
+  <meta property="article:tag" content="DevOps" />
+  <meta property="article:tag" content="Kubernetes" />
+  <meta property="article:tag" content="Security" />
+
+  <!-- Twitter Card -->
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="Senior vs Junior — The Same Dockerfile, Two Approaches" />
+  <meta name="twitter:description" content="One Dockerfile is 1.2 GB and runs as root. The other is 85 MB, distroless, and non-root. Here's every decision that makes the difference." />
+  <meta name="twitter:image" content="https://certquests.com/src/assets/icons/icon-512.png" />
+
+  <!-- Icons -->
+  <link rel="icon" type="image/png" sizes="192x192" href="/src/assets/icons/logopouple.png" />
+  <link rel="icon" type="image/png" sizes="512x512" href="/src/assets/icons/logopouple.png" />
+  <link rel="apple-touch-icon" href="/src/assets/icons/logopouple.png" />
+
+  <!-- Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+
+  <!-- Styles -->
+  <link rel="stylesheet" href="/src/styles/main.css" />
+  <link rel="stylesheet" href="/src/styles/desktop.css" />
+
+  <!-- Structured Data: NewsArticle -->
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "NewsArticle",
+    "headline": "Senior vs Junior — The Same Dockerfile, Two Approaches",
+    "description": "A junior and a senior engineer both write a Dockerfile for the same Node.js app. One ends up with a 1.2 GB root-running image. The other ships 85 MB, distroless, and non-root.",
+    "image": "https://certquests.com/src/assets/icons/icon-512.png",
+    "datePublished": "2026-04-22T08:00:00Z",
+    "dateModified": "2026-04-22T08:00:00Z",
+    "author": {
+      "@type": "Organization",
+      "name": "CertQuests",
+      "url": "https://certquests.com/"
+    },
+    "publisher": {
+      "@type": "Organization",
+      "name": "CertQuests",
+      "logo": {
+        "@type": "ImageObject",
+        "url": "https://certquests.com/src/assets/icons/icon-512.png"
+      }
+    },
+    "mainEntityOfPage": {
+      "@type": "WebPage",
+      "@id": "https://certquests.com/news/senior-vs-junior-dockerfile/"
+    },
+    "articleSection": "Technical",
+    "keywords": "Dockerfile, Docker, multi-stage build, distroless, npm ci, layer caching, DevOps, security"
+  }
+  </script>
+
+  <!-- Structured Data: BreadcrumbList -->
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "BreadcrumbList",
+    "itemListElement": [
+      { "@type": "ListItem", "position": 1, "name": "Home", "item": "https://certquests.com/" },
+      { "@type": "ListItem", "position": 2, "name": "Tech News", "item": "https://certquests.com/news/" },
+      { "@type": "ListItem", "position": 3, "name": "Senior vs Junior — The Same Dockerfile", "item": "https://certquests.com/news/senior-vs-junior-dockerfile/" }
+    ]
+  }
+  </script>
+
+  <style>
+    .article-page {
+      max-width: 760px;
+      margin: 0 auto;
+      padding: 0 22px 80px;
+      font-family: 'Outfit', sans-serif;
+      position: relative;
+      z-index: 2;
+      color: #cfd6e6;
+    }
+    .article-crumbs {
+      max-width: 760px;
+      margin: 0 auto;
+      padding: 14px 22px 0;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px;
+      color: #3d4f6a;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+    }
+    .article-crumbs a { color: #7c90ae; text-decoration: none; }
+    .article-crumbs a:hover { color: #e8edf8; }
+    .article-crumbs span { margin: 0 8px; color: #3d4f6a; }
+
+    .article-header {
+      padding: 40px 0 28px;
+    }
+    .article-badge {
+      display: inline-block;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 10px;
+      font-weight: 600;
+      color: #3b82f6;
+      background: rgba(59, 130, 246, 0.12);
+      border: 1px solid rgba(59, 130, 246, 0.25);
+      padding: 4px 12px;
+      border-radius: 20px;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      margin-bottom: 16px;
+    }
+    .article-header h1 {
+      font-size: clamp(28px, 5vw, 44px);
+      font-weight: 800;
+      letter-spacing: -0.03em;
+      margin: 0 0 14px;
+      color: #e8edf8;
+      line-height: 1.15;
+    }
+    .article-meta {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 12px;
+      color: #7c90ae;
+      display: flex;
+      gap: 14px;
+      flex-wrap: wrap;
+    }
+    .article-meta span { color: #3d4f6a; }
+
+    .article-body p {
+      font-size: 16px;
+      line-height: 1.75;
+      color: #cfd6e6;
+      margin: 0 0 18px;
+    }
+    .article-body h2 {
+      font-size: 22px;
+      font-weight: 800;
+      color: #e8edf8;
+      margin: 36px 0 14px;
+      letter-spacing: -0.01em;
+    }
+    .article-body h3 {
+      font-size: 17px;
+      font-weight: 700;
+      color: #e8edf8;
+      margin: 26px 0 10px;
+    }
+    .article-body ul {
+      padding-left: 22px;
+      margin: 0 0 18px;
+    }
+    .article-body li {
+      font-size: 16px;
+      line-height: 1.75;
+      color: #cfd6e6;
+      margin-bottom: 6px;
+    }
+    .article-body strong { color: #e8edf8; }
+    .article-body code {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 13px;
+      background: rgba(59, 130, 246, 0.10);
+      color: #a5c2ff;
+      padding: 2px 7px;
+      border-radius: 5px;
+      border: 1px solid rgba(59, 130, 246, 0.18);
+    }
+    .article-body pre {
+      background: #0c1120;
+      border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 12px;
+      padding: 18px 20px;
+      overflow-x: auto;
+      margin: 18px 0 22px;
+    }
+    .article-body pre code {
+      background: transparent;
+      border: none;
+      padding: 0;
+      color: #d8e2f5;
+      font-size: 13px;
+      line-height: 1.65;
+      display: block;
+    }
+    .article-body blockquote {
+      border-left: 3px solid #3b82f6;
+      background: rgba(59, 130, 246, 0.06);
+      padding: 14px 20px;
+      margin: 22px 0;
+      color: #cfd6e6;
+      font-style: italic;
+      border-radius: 0 10px 10px 0;
+    }
+    .article-tldr {
+      background: linear-gradient(135deg, #0c1120 0%, #111d3a 100%);
+      border: 1px solid rgba(59, 130, 246, 0.22);
+      border-radius: 14px;
+      padding: 20px 22px;
+      margin: 24px 0 32px;
+    }
+    .article-tldr strong {
+      color: #3b82f6;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      display: block;
+      margin-bottom: 6px;
+    }
+    .article-tldr p { margin: 0; font-size: 15px; color: #cfd6e6; }
+
+    .article-footer {
+      margin-top: 48px;
+      padding-top: 28px;
+      border-top: 1px solid rgba(255,255,255,0.08);
+      text-align: center;
+    }
+    .article-footer a {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      color: #3b82f6;
+      font-weight: 700;
+      font-size: 14px;
+      text-decoration: none;
+      padding: 11px 22px;
+      border: 1px solid rgba(59, 130, 246, 0.3);
+      border-radius: 10px;
+      background: rgba(59, 130, 246, 0.06);
+    }
+    .article-footer a:hover {
+      background: rgba(59, 130, 246, 0.12);
+      border-color: rgba(59, 130, 246, 0.5);
+    }
+
+    /* Diff label styles for junior/senior blocks */
+    .df-label {
+      display: inline-block;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 10px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      padding: 3px 10px;
+      border-radius: 6px 6px 0 0;
+      margin-bottom: -1px;
+      position: relative;
+      z-index: 1;
+    }
+    .df-label.junior {
+      background: rgba(239, 68, 68, 0.15);
+      color: #f87171;
+      border: 1px solid rgba(239, 68, 68, 0.25);
+      border-bottom: none;
+    }
+    .df-label.senior {
+      background: rgba(34, 197, 94, 0.12);
+      color: #4ade80;
+      border: 1px solid rgba(34, 197, 94, 0.22);
+      border-bottom: none;
+    }
+    .article-body pre.junior-pre {
+      border-color: rgba(239, 68, 68, 0.25);
+      border-top-left-radius: 0;
+      margin-top: 0;
+    }
+    .article-body pre.senior-pre {
+      border-color: rgba(34, 197, 94, 0.22);
+      border-top-left-radius: 0;
+      margin-top: 0;
+    }
+    .article-body pre.junior-pre code { color: #fca5a5; }
+    .article-body pre.senior-pre code { color: #bbf7d0; }
+
+    .diff-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 0 0 22px;
+      font-size: 14px;
+    }
+    .diff-table th {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      padding: 10px 14px;
+      background: #0c1120;
+      color: #7c90ae;
+      border: 1px solid rgba(255,255,255,0.07);
+      text-align: left;
+    }
+    .diff-table td {
+      padding: 10px 14px;
+      border: 1px solid rgba(255,255,255,0.06);
+      vertical-align: top;
+      line-height: 1.6;
+      color: #cfd6e6;
+    }
+    .diff-table tr:nth-child(even) td { background: rgba(255,255,255,0.02); }
+    .diff-table td.bad { color: #f87171; }
+    .diff-table td.good { color: #4ade80; }
+  </style>
+</head>
+<body>
+
+  <!-- Web Header -->
+  <header class="web-header">
+    <a href="/" class="web-header-logo">
+      <img src="/src/assets/icons/logopouple.png" alt="CertQuests" class="web-header-logo-img" />
+    </a>
+    <nav class="web-header-links" aria-label="Main navigation">
+      <a href="/">Home</a>
+      <a href="/train.html">Training</a>
+      <a href="/learning/">Learning</a>
+      <a href="/news/">Tech News</a>
+      <a href="/#certifications">Certifications</a>
+      <a href="/stats.html">My Stats</a>
+      <a href="/contact.html">Contact</a>
+      <a href="https://play.google.com/store/apps/details?id=com.certquest.app" class="web-header-badge" target="_blank" rel="noopener">Google Play</a>
+    </nav>
+  </header>
+
+  <nav class="article-crumbs" aria-label="Breadcrumb">
+    <a href="/">Home</a><span>/</span><a href="/news/">Tech News</a><span>/</span>senior-vs-junior-dockerfile
+  </nav>
+
+  <article class="article-page">
+
+    <header class="article-header">
+      <span class="article-badge">Technical &middot; Senior vs Junior</span>
+      <h1>Senior vs Junior &mdash; The Same Dockerfile, Two Approaches</h1>
+      <div class="article-meta">
+        <span>Published 2026-04-22</span>
+        <span>&middot;</span>
+        <span>6 min read</span>
+        <span>&middot;</span>
+        <span>Category: Technical</span>
+      </div>
+    </header>
+
+    <div class="article-tldr">
+      <strong>TL;DR</strong>
+      <p>A junior engineer writes a valid Dockerfile that produces a 1.2 GB image, runs as root, and busts the layer cache on every tiny code change. A senior writes a multi-stage, distroless, non-root Dockerfile that produces an 85 MB image and finishes in seconds on repeat builds. Same app, same result, wildly different production story. Here's every decision that separates them.</p>
+    </div>
+
+    <div class="article-body">
+
+      <h2>The scenario</h2>
+      <p>You need to containerize a Node.js Express API. The app has a <code>package.json</code>, a handful of source files in <code>src/</code>, and a <code>node_modules</code> directory that weighs about 300 MB once installed. Both engineers get the same task: ship a working Docker image.</p>
+
+      <h2>The junior Dockerfile</h2>
+      <span class="df-label junior">Junior &mdash; works, but ships to prod like this</span>
+<pre class="junior-pre"><code>FROM node:latest
+
+WORKDIR /app
+
+COPY . .
+
+RUN npm install
+
+EXPOSE 3000
+
+CMD ["node", "src/index.js"]</code></pre>
+
+      <p>This file runs. The CI pipeline goes green. The app starts. But six things are silently wrong with it.</p>
+
+      <h2>The senior Dockerfile</h2>
+      <span class="df-label senior">Senior &mdash; production-ready from day one</span>
+<pre class="senior-pre"><code># ── Stage 1: install dependencies ──────────────────────────────────────────────
+FROM node:22-alpine AS builder
+
+WORKDIR /app
+
+# Copy manifests first — changes to src/ won't bust this layer
+COPY package*.json ./
+
+RUN npm ci --only=production
+
+# ── Stage 2: lean runtime image ────────────────────────────────────────────────
+FROM gcr.io/distroless/nodejs22-debian12
+
+WORKDIR /app
+
+COPY --from=builder /app/node_modules ./node_modules
+COPY src/ ./src/
+
+# Distroless ships with a built-in nonroot user (uid 65532)
+USER nonroot
+
+EXPOSE 3000
+
+HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
+  CMD ["/nodejs/bin/node", "-e", "require('http').get('http://localhost:3000/health', r => process.exit(r.statusCode === 200 ? 0 : 1))"]
+
+CMD ["/app/src/index.js"]</code></pre>
+
+      <p>The companion <code>.dockerignore</code> (which the senior always adds alongside the Dockerfile):</p>
+<pre class="senior-pre"><code>node_modules
+.git
+.gitignore
+*.md
+*.log
+.env
+.env.*
+coverage/
+.nyc_output/
+test/</code></pre>
+
+      <h2>Decision by decision: what actually changed</h2>
+
+      <table class="diff-table">
+        <thead>
+          <tr>
+            <th>Decision</th>
+            <th>Junior</th>
+            <th>Senior</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><strong>Base image</strong></td>
+            <td class="bad"><code>node:latest</code></td>
+            <td class="good"><code>node:22-alpine</code> + distroless runtime</td>
+          </tr>
+          <tr>
+            <td><strong>Image size</strong></td>
+            <td class="bad">~1.2 GB</td>
+            <td class="good">~85 MB</td>
+          </tr>
+          <tr>
+            <td><strong>Layer caching</strong></td>
+            <td class="bad">Busted on every source change</td>
+            <td class="good"><code>package*.json</code> copied first; deps layer only rebuilds when manifests change</td>
+          </tr>
+          <tr>
+            <td><strong>Install command</strong></td>
+            <td class="bad"><code>npm install</code></td>
+            <td class="good"><code>npm ci --only=production</code></td>
+          </tr>
+          <tr>
+            <td><strong>Multi-stage build</strong></td>
+            <td class="bad">No &mdash; build tools ship to prod</td>
+            <td class="good">Yes &mdash; only <code>node_modules</code> + source copied to runtime stage</td>
+          </tr>
+          <tr>
+            <td><strong>User</strong></td>
+            <td class="bad">root (uid 0)</td>
+            <td class="good"><code>nonroot</code> (uid 65532)</td>
+          </tr>
+          <tr>
+            <td><strong>.dockerignore</strong></td>
+            <td class="bad">None &mdash; <code>node_modules</code> and <code>.env</code> copied into build context</td>
+            <td class="good">Explicit ignore list; secrets and dev artefacts excluded</td>
+          </tr>
+          <tr>
+            <td><strong>HEALTHCHECK</strong></td>
+            <td class="bad">None</td>
+            <td class="good">HTTP probe on <code>/health</code></td>
+          </tr>
+          <tr>
+            <td><strong>Version pinning</strong></td>
+            <td class="bad"><code>:latest</code> changes silently</td>
+            <td class="good">Exact major version + OS variant pinned</td>
+          </tr>
+          <tr>
+            <td><strong>Reproducibility</strong></td>
+            <td class="bad">Different packages installed each run</td>
+            <td class="good"><code>npm ci</code> reads <code>package-lock.json</code> exactly</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <h2>Why each difference matters</h2>
+
+      <h3>1. <code>node:latest</code> vs a pinned version</h3>
+      <p><code>node:latest</code> is a moving tag. Today it might resolve to Node 22; next month it quietly becomes Node 23 the moment the Docker Hub maintainers update it. Your CI builds the same Dockerfile and produces a different runtime. A pinned tag like <code>node:22-alpine</code> makes the base image an explicit dependency, just like a package version. You control when you upgrade.</p>
+
+      <h3>2. Layer caching &mdash; copy manifests first</h3>
+      <p>Docker rebuilds every layer from the first changed line downward. <code>COPY . .</code> copies <em>everything</em>, so changing a single comment in <code>src/utils.js</code> invalidates the layer and triggers a full <code>npm install</code> all over again &mdash; potentially minutes of wasted CI time. The senior&rsquo;s pattern is deliberate: copy only <code>package.json</code> and <code>package-lock.json</code> first, install, then copy source. The 300 MB install layer now only rebuilds when dependencies actually change.</p>
+
+      <h3>3. <code>npm install</code> vs <code>npm ci --only=production</code></h3>
+      <p><code>npm install</code> reads <code>package.json</code> and may update <code>package-lock.json</code> to resolve ranges. Different runs can produce different packages. <code>npm ci</code> reads <code>package-lock.json</code> exactly, fails fast if it doesn&rsquo;t exist or is out of sync, and wipes <code>node_modules</code> before installing &mdash; guaranteeing a clean, reproducible result every time. The <code>--only=production</code> flag drops all <code>devDependencies</code> (jest, eslint, typescript, etc.) from the final install, shaving hundreds of megabytes.</p>
+
+      <h3>4. Multi-stage builds</h3>
+      <p>Without multi-stage, every tool used to <em>build</em> the app also ships to <em>production</em>: <code>npm</code>, build scripts, test harnesses, and the full Debian package tree that comes with <code>node:latest</code>. Multi-stage solves this cleanly. Stage 1 (<code>node:22-alpine</code>) installs dependencies in a throw-away environment. Stage 2 copies only the artefacts that actually need to run &mdash; <code>node_modules</code> and source &mdash; into a minimal base. The build toolchain never touches production.</p>
+
+      <h3>5. Distroless runtime image</h3>
+      <p>Google&rsquo;s <code>gcr.io/distroless/nodejs22-debian12</code> image contains exactly Node.js and its runtime libraries, nothing else. No <code>bash</code>, no <code>sh</code>, no <code>apt</code>, no package manager, no coreutils. The attack surface for a compromised container drops to near zero because there is no shell to execute and no tool to download further payloads. This is one of the supply-chain hardening techniques tested on the CKS exam.</p>
+
+      <h3>6. Running as non-root</h3>
+      <p>By default, Docker containers run as <code>uid 0</code> &mdash; root inside the container. If an attacker achieves remote code execution and the container escapes its namespace (possible without additional hardening), they land as root on the host. The distroless image ships a <code>nonroot</code> user with <code>uid 65532</code>. One <code>USER nonroot</code> instruction eliminates an entire class of privilege-escalation paths and satisfies every container security benchmark (CIS, NSA/CISA hardening guides, Kubernetes PSA restricted mode).</p>
+
+      <h3>7. .dockerignore</h3>
+      <p>Without a <code>.dockerignore</code>, <code>COPY . .</code> sends the entire build context to the Docker daemon: <code>node_modules</code> (300 MB of packages that will immediately be re-installed anyway), <code>.git</code> (your full commit history), <code>.env</code> files with secrets, and coverage reports. The build context transfer alone can add 30&ndash;60 seconds. The ignore file costs nothing to add and pays dividends on every build.</p>
+
+      <h3>8. HEALTHCHECK</h3>
+      <p>A <code>HEALTHCHECK</code> instruction tells Docker (and Kubernetes, via its liveness probe if you use the Docker health status) whether the container is actually serving traffic, not just whether the process is running. A Node.js app can hang in the event loop without crashing. Without a health check, the orchestrator has no way to know the difference and will keep routing traffic to a dead process.</p>
+
+      <h2>The numbers at a glance</h2>
+      <ul>
+        <li><strong>Image size:</strong> 1.2 GB &rarr; 85 MB (&minus;93%)</li>
+        <li><strong>Rebuild time after a source change:</strong> ~90 s &rarr; ~8 s (layer cache hit on deps)</li>
+        <li><strong>Packages shipped to production:</strong> ~1,200 (full Debian + devDeps) &rarr; ~180 (production deps only, distroless)</li>
+        <li><strong>Shell available in container:</strong> yes (attack surface) &rarr; no</li>
+        <li><strong>Running as root:</strong> yes &rarr; no</li>
+      </ul>
+
+      <h2>Why this matters for your certification</h2>
+      <p>If you&rsquo;re studying for the <strong>Docker DCA</strong>, the <strong>CKA</strong>, or the <strong>CKS</strong>, container image hygiene comes up in multiple domains:</p>
+      <ul>
+        <li><strong>Docker DCA:</strong> Expect questions on multi-stage builds, layer caching order, image size optimization, and <code>npm ci</code> vs <code>npm install</code> reproducibility.</li>
+        <li><strong>CKA:</strong> The HEALTHCHECK maps directly to Kubernetes liveness and readiness probes &mdash; understand what happens when neither is defined.</li>
+        <li><strong>CKS &mdash; Supply Chain Security (20%):</strong> Distroless images, non-root containers, image scanning with Trivy, and <code>cosign</code> verification are all first-class exam topics. The distroless pattern eliminates the shell that most post-exploit toolkits depend on, which is exactly the threat model CKS tests you on.</li>
+      </ul>
+      <p>A common exam question pattern: <em>&ldquo;A security scan flags that a container runs as root and ships with a full shell. Which two Dockerfile changes address both findings?&rdquo;</em> &mdash; answer: switch to a distroless base and add <code>USER nonroot</code>.</p>
+
+      <blockquote>The junior Dockerfile is not wrong &mdash; it&rsquo;s a valid starting point. The senior Dockerfile is what happens when you&rsquo;ve debugged a 3 AM production incident caused by a stale <code>:latest</code> image, waited six minutes for a rebuild after fixing a typo, or found a <code>.env</code> file baked into an image on Docker Hub.</blockquote>
+
+    </div>
+
+    <div class="article-footer">
+      <a href="/news/">&larr; Back to Tech News</a>
+    </div>
+
+  </article>
+
+  <!-- Web Footer -->
+  <footer class="web-footer">
+    <div class="web-footer-inner">
+      <div class="web-footer-links">
+        <a href="/">Home</a>
+        <a href="/train.html">Start Training</a>
+        <a href="/learning/">Learning</a>
+        <a href="/news/">Tech News</a>
+        <a href="/#certifications">Certifications</a>
+        <a href="/stats.html">My Stats</a>
+        <a href="/contact.html">Contact</a>
+        <a href="/privacy-policy.html">Privacy Policy</a>
+        <a href="https://play.google.com/store/apps/details?id=com.certquest.app" target="_blank" rel="noopener">Android App</a>
+      </div>
+      <div class="web-footer-text">CertQuests &mdash; Free IT certification practice tests for CCNA, AWS, Azure, CompTIA and more</div>
+    </div>
+  </footer>
+
+</body>
+</html>

@@ -1,0 +1,435 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="theme-color" content="#06080f" />
+
+  <title>Did You Know&hellip; Every Kubernetes Pod Gets Its Own DNS Entry? | CertQuests</title>
+  <meta name="description" content="CoreDNS in Kubernetes automatically creates DNS records for every Service AND every Pod. Learn how Kubernetes DNS works internally, headless services, ndots:5 and how to debug DNS with kubectl." />
+  <meta name="keywords" content="Kubernetes DNS, CoreDNS, Pod DNS, headless service, ClusterFirst, ndots, kubectl dnsutils, CKA, CKAD, CKS, Kubernetes networking" />
+  <meta name="author" content="CertQuests" />
+  <meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large" />
+  <link rel="canonical" href="https://certquests.com/news/did-you-know-kubernetes-dns/" />
+
+  <!-- Open Graph -->
+  <meta property="og:type" content="article" />
+  <meta property="og:url" content="https://certquests.com/news/did-you-know-kubernetes-dns/" />
+  <meta property="og:title" content="Did You Know&hellip; Every Kubernetes Pod Gets Its Own DNS Entry?" />
+  <meta property="og:description" content="CoreDNS automatically creates a DNS record for every Kubernetes Pod AND Service. Here's how it works, why ndots:5 causes 5x DNS lookups, and how to debug it." />
+  <meta property="og:image" content="https://certquests.com/src/assets/icons/icon-512.png" />
+  <meta property="og:site_name" content="CertQuests" />
+  <meta property="article:published_time" content="2026-04-19T08:00:00Z" />
+  <meta property="article:author" content="CertQuests" />
+  <meta property="article:section" content="Education" />
+  <meta property="article:tag" content="Kubernetes" />
+  <meta property="article:tag" content="DNS" />
+  <meta property="article:tag" content="CoreDNS" />
+  <meta property="article:tag" content="CKA" />
+
+  <!-- Twitter Card -->
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="Did You Know&hellip; Every Kubernetes Pod Gets Its Own DNS Entry?" />
+  <meta name="twitter:description" content="CoreDNS automatically creates a DNS record for every Kubernetes Pod AND Service. Here's how it works, why ndots:5 causes 5x DNS lookups, and how to debug it." />
+  <meta name="twitter:image" content="https://certquests.com/src/assets/icons/icon-512.png" />
+
+  <!-- Icons -->
+  <link rel="icon" type="image/png" sizes="192x192" href="/src/assets/icons/logopouple.png" />
+  <link rel="icon" type="image/png" sizes="512x512" href="/src/assets/icons/logopouple.png" />
+  <link rel="apple-touch-icon" href="/src/assets/icons/logopouple.png" />
+
+  <!-- Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+
+  <!-- Styles -->
+  <link rel="stylesheet" href="/src/styles/main.css" />
+  <link rel="stylesheet" href="/src/styles/desktop.css" />
+
+  <!-- Structured Data: NewsArticle -->
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "NewsArticle",
+    "headline": "Did You Know\u2026 Every Kubernetes Pod Gets Its Own DNS Entry?",
+    "description": "CoreDNS in Kubernetes automatically creates DNS records for every Service AND every Pod. Learn how Kubernetes DNS works internally, headless services, ndots:5 and how to debug DNS with kubectl.",
+    "image": "https://certquests.com/src/assets/icons/icon-512.png",
+    "datePublished": "2026-04-19T08:00:00Z",
+    "dateModified": "2026-04-19T08:00:00Z",
+    "author": {
+      "@type": "Organization",
+      "name": "CertQuests",
+      "url": "https://certquests.com/"
+    },
+    "publisher": {
+      "@type": "Organization",
+      "name": "CertQuests",
+      "logo": {
+        "@type": "ImageObject",
+        "url": "https://certquests.com/src/assets/icons/icon-512.png"
+      }
+    },
+    "mainEntityOfPage": {
+      "@type": "WebPage",
+      "@id": "https://certquests.com/news/did-you-know-kubernetes-dns/"
+    },
+    "articleSection": "Education",
+    "keywords": "Kubernetes, DNS, CoreDNS, headless service, ndots, CKA, CKAD, CKS"
+  }
+  </script>
+
+  <!-- Structured Data: BreadcrumbList -->
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "BreadcrumbList",
+    "itemListElement": [
+      { "@type": "ListItem", "position": 1, "name": "Home", "item": "https://certquests.com/" },
+      { "@type": "ListItem", "position": 2, "name": "Tech News", "item": "https://certquests.com/news/" },
+      { "@type": "ListItem", "position": 3, "name": "Did You Know\u2026 Every Kubernetes Pod Gets Its Own DNS Entry?", "item": "https://certquests.com/news/did-you-know-kubernetes-dns/" }
+    ]
+  }
+  </script>
+
+  <style>
+    .article-page {
+      max-width: 760px;
+      margin: 0 auto;
+      padding: 0 22px 80px;
+      font-family: 'Outfit', sans-serif;
+      position: relative;
+      z-index: 2;
+      color: #cfd6e6;
+    }
+    .article-crumbs {
+      max-width: 760px;
+      margin: 0 auto;
+      padding: 14px 22px 0;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px;
+      color: #3d4f6a;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+    }
+    .article-crumbs a { color: #7c90ae; text-decoration: none; }
+    .article-crumbs a:hover { color: #e8edf8; }
+    .article-crumbs span { margin: 0 8px; color: #3d4f6a; }
+
+    .article-header {
+      padding: 40px 0 28px;
+    }
+    .article-badge {
+      display: inline-block;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 10px;
+      font-weight: 600;
+      color: #3b82f6;
+      background: rgba(59, 130, 246, 0.12);
+      border: 1px solid rgba(59, 130, 246, 0.25);
+      padding: 4px 12px;
+      border-radius: 20px;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      margin-bottom: 16px;
+    }
+    .article-header h1 {
+      font-size: clamp(28px, 5vw, 44px);
+      font-weight: 800;
+      letter-spacing: -0.03em;
+      margin: 0 0 14px;
+      color: #e8edf8;
+      line-height: 1.15;
+    }
+    .article-meta {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 12px;
+      color: #7c90ae;
+      display: flex;
+      gap: 14px;
+      flex-wrap: wrap;
+    }
+    .article-meta span { color: #3d4f6a; }
+
+    .article-body p {
+      font-size: 16px;
+      line-height: 1.75;
+      color: #cfd6e6;
+      margin: 0 0 18px;
+    }
+    .article-body h2 {
+      font-size: 22px;
+      font-weight: 800;
+      color: #e8edf8;
+      margin: 36px 0 14px;
+      letter-spacing: -0.01em;
+    }
+    .article-body h3 {
+      font-size: 17px;
+      font-weight: 700;
+      color: #e8edf8;
+      margin: 26px 0 10px;
+    }
+    .article-body ul {
+      padding-left: 22px;
+      margin: 0 0 18px;
+    }
+    .article-body li {
+      font-size: 16px;
+      line-height: 1.75;
+      color: #cfd6e6;
+      margin-bottom: 6px;
+    }
+    .article-body strong { color: #e8edf8; }
+    .article-body code {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 13px;
+      background: rgba(59, 130, 246, 0.10);
+      color: #a5c2ff;
+      padding: 2px 7px;
+      border-radius: 5px;
+      border: 1px solid rgba(59, 130, 246, 0.18);
+    }
+    .article-body pre {
+      background: #0c1120;
+      border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 12px;
+      padding: 18px 20px;
+      overflow-x: auto;
+      margin: 18px 0 22px;
+    }
+    .article-body pre code {
+      background: transparent;
+      border: none;
+      padding: 0;
+      color: #d8e2f5;
+      font-size: 13px;
+      line-height: 1.65;
+      display: block;
+    }
+    .article-body blockquote {
+      border-left: 3px solid #3b82f6;
+      background: rgba(59, 130, 246, 0.06);
+      padding: 14px 20px;
+      margin: 22px 0;
+      color: #cfd6e6;
+      font-style: italic;
+      border-radius: 0 10px 10px 0;
+    }
+    .article-tldr {
+      background: linear-gradient(135deg, #0c1120 0%, #111d3a 100%);
+      border: 1px solid rgba(59, 130, 246, 0.22);
+      border-radius: 14px;
+      padding: 20px 22px;
+      margin: 24px 0 32px;
+    }
+    .article-tldr strong {
+      color: #3b82f6;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      display: block;
+      margin-bottom: 6px;
+    }
+    .article-tldr p { margin: 0; font-size: 15px; color: #cfd6e6; }
+
+    .article-footer {
+      margin-top: 48px;
+      padding-top: 28px;
+      border-top: 1px solid rgba(255,255,255,0.08);
+      text-align: center;
+    }
+    .article-footer a {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      color: #3b82f6;
+      font-weight: 700;
+      font-size: 14px;
+      text-decoration: none;
+      padding: 11px 22px;
+      border: 1px solid rgba(59, 130, 246, 0.3);
+      border-radius: 10px;
+      background: rgba(59, 130, 246, 0.06);
+    }
+    .article-footer a:hover {
+      background: rgba(59, 130, 246, 0.12);
+      border-color: rgba(59, 130, 246, 0.5);
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Web Header -->
+  <header class="web-header">
+    <a href="/" class="web-header-logo">
+      <img src="/src/assets/icons/logopouple.png" alt="CertQuests" class="web-header-logo-img" />
+    </a>
+    <nav class="web-header-links" aria-label="Main navigation">
+      <a href="/">Home</a>
+      <a href="/train.html">Training</a>
+      <a href="/learning/">Learning</a>
+      <a href="/news/">Tech News</a>
+      <a href="/#certifications">Certifications</a>
+      <a href="/stats.html">My Stats</a>
+      <a href="/contact.html">Contact</a>
+      <a href="https://play.google.com/store/apps/details?id=com.certquest.app" class="web-header-badge" target="_blank" rel="noopener">Google Play</a>
+    </nav>
+  </header>
+
+  <nav class="article-crumbs" aria-label="Breadcrumb">
+    <a href="/">Home</a><span>/</span><a href="/news/">Tech News</a><span>/</span>Kubernetes DNS
+  </nav>
+
+  <article class="article-page">
+
+    <header class="article-header">
+      <span class="article-badge">Education &middot; Did You Know</span>
+      <h1>Did You Know&hellip; Every Kubernetes Pod Gets Its Own DNS Entry?</h1>
+      <div class="article-meta">
+        <span>Published 2026-04-19</span>
+        <span>&middot;</span>
+        <span>5 min read</span>
+        <span>&middot;</span>
+        <span>Category: Education</span>
+      </div>
+    </header>
+
+    <div class="article-tldr">
+      <strong>TL;DR</strong>
+      <p>CoreDNS in Kubernetes automatically creates a DNS record for <em>every Service</em> in the format <code>my-svc.my-namespace.svc.cluster.local</code> &mdash; but it also creates one for <em>every Pod</em> in the format <code>10-0-0-5.my-namespace.pod.cluster.local</code>. Most engineers know the Service record. Almost nobody thinks about the Pod record until something breaks at 2&nbsp;AM.</p>
+    </div>
+
+    <div class="article-body">
+
+      <h2>How Kubernetes DNS works internally</h2>
+      <p>Every Kubernetes cluster runs a DNS add-on &mdash; almost universally <strong>CoreDNS</strong> since Kubernetes 1.13. CoreDNS is deployed as a Deployment in the <code>kube-system</code> namespace, fronted by a Service named <code>kube-dns</code> (kept for backwards compatibility). The cluster CIDR assigns it a predictable IP &mdash; usually <code>10.96.0.10</code> &mdash; and every Pod&rsquo;s <code>/etc/resolv.conf</code> is automatically configured to point at it.</p>
+      <p>CoreDNS watches the Kubernetes API via a plugin called <code>kubernetes</code>. Every time a Service or Pod is created, updated, or deleted, CoreDNS updates its in-memory zone data accordingly &mdash; no static zone files, no reload signals, no downtime.</p>
+
+      <h2>Service DNS: the record everyone knows</h2>
+      <p>For a Service named <code>payments</code> in the <code>billing</code> namespace, CoreDNS creates an A record:</p>
+
+<pre><code>payments.billing.svc.cluster.local  &rarr;  10.96.45.12  (ClusterIP)</code></pre>
+
+      <p>From any Pod in the same cluster you can reach it at the short name <code>payments</code> (within the same namespace), <code>payments.billing</code>, or the fully-qualified <code>payments.billing.svc.cluster.local</code>. Kubernetes also creates SRV records for named ports, enabling service-discovery patterns where the port itself is resolved by name.</p>
+
+      <h2>Pod DNS: the record almost nobody knows</h2>
+      <p>Here&rsquo;s the part that surprises most engineers: CoreDNS creates an A record for <strong>every running Pod</strong>, using the Pod&rsquo;s IP address with dashes instead of dots:</p>
+
+<pre><code># Pod with IP 10.244.2.17 in namespace "billing"
+10-244-2-17.billing.pod.cluster.local  &rarr;  10.244.2.17</code></pre>
+
+      <p>This exists primarily so that Pods can be addressed by name over TLS &mdash; useful when you need a stable hostname in a certificate SAN. It&rsquo;s also the mechanism that StatefulSets expose: a StatefulSet named <code>db</code> with three replicas gives you predictable Pod DNS names like <code>db-0.db.billing.svc.cluster.local</code>, <code>db-1.db.billing.svc.cluster.local</code>, and <code>db-2.db.billing.svc.cluster.local</code>. Databases love this &mdash; it&rsquo;s how Cassandra, Kafka, and etcd bootstrap cluster membership inside Kubernetes.</p>
+
+      <h2>Headless Services: skipping the virtual IP</h2>
+      <p>A normal Service has a ClusterIP &mdash; a virtual IP managed by kube-proxy or eBPF. A <strong>headless Service</strong> sets <code>clusterIP: None</code>, which tells Kubernetes: &ldquo;don&rsquo;t allocate a VIP; instead return the actual Pod IPs directly in DNS.&rdquo;</p>
+
+<pre><code>apiVersion: v1
+kind: Service
+metadata:
+  name: db
+  namespace: billing
+spec:
+  clusterIP: None          # &larr; headless
+  selector:
+    app: db</code></pre>
+
+      <p>With a headless Service, a DNS query for <code>db.billing.svc.cluster.local</code> returns <em>multiple A records</em> &mdash; one per matching Pod. The client receives all of them and can implement its own load-balancing or connect directly to a specific replica by Pod hostname. StatefulSets require a headless Service for exactly this reason.</p>
+
+      <h2>DNS policies: four flavours</h2>
+      <p>Each Pod can declare a <code>dnsPolicy</code> field in its spec. The four options are:</p>
+      <ul>
+        <li><strong>ClusterFirst</strong> (default) &mdash; queries go to CoreDNS first; anything that doesn&rsquo;t match the cluster domain is forwarded upstream to the node&rsquo;s resolver.</li>
+        <li><strong>Default</strong> &mdash; the Pod inherits the DNS configuration of the node it runs on. CoreDNS is not used. Despite the name, this is <em>not</em> the default for Pods.</li>
+        <li><strong>None</strong> &mdash; all DNS configuration must be supplied explicitly via the <code>dnsConfig</code> field. Used when you need full control (e.g., pointing at a private corporate resolver).</li>
+        <li><strong>ClusterFirstWithHostNet</strong> &mdash; like ClusterFirst but for Pods that use <code>hostNetwork: true</code>, which would otherwise fall back to the node resolver.</li>
+      </ul>
+
+      <h2>ndots:5 &mdash; why your app makes five DNS queries for one hostname</h2>
+      <p>Open <code>/etc/resolv.conf</code> inside any Kubernetes Pod and you&rsquo;ll see something like this:</p>
+
+<pre><code>nameserver 10.96.0.10
+search billing.svc.cluster.local svc.cluster.local cluster.local
+options ndots:5</code></pre>
+
+      <p>The <code>ndots:5</code> option means: &ldquo;if the hostname has fewer than 5 dots, treat it as a relative name and try each search domain before attempting it as absolute.&rdquo; That produces up to five DNS queries for a single lookup of, say, <code>api.example.com</code> (3 dots &lt; 5):</p>
+      <ol style="padding-left:22px;margin:0 0 18px;">
+        <li style="font-size:16px;line-height:1.75;color:#cfd6e6;margin-bottom:6px;"><code>api.example.com.billing.svc.cluster.local</code> &rarr; NXDOMAIN</li>
+        <li style="font-size:16px;line-height:1.75;color:#cfd6e6;margin-bottom:6px;"><code>api.example.com.svc.cluster.local</code> &rarr; NXDOMAIN</li>
+        <li style="font-size:16px;line-height:1.75;color:#cfd6e6;margin-bottom:6px;"><code>api.example.com.cluster.local</code> &rarr; NXDOMAIN</li>
+        <li style="font-size:16px;line-height:1.75;color:#cfd6e6;margin-bottom:6px;"><code>api.example.com.</code> &rarr; answer returned</li>
+      </ol>
+      <p>That&rsquo;s four round-trips to CoreDNS before your app gets an IP. On a high-throughput microservice making thousands of external calls per second, this is measurable latency. The fix is simple: use a trailing dot to signal an absolute name (<code>api.example.com.</code>), or set <code>dnsConfig.options: [{name: ndots, value: "1"}]</code> for Pods that only call external services.</p>
+
+      <h2>How to debug DNS inside a cluster</h2>
+      <p>The canonical tool is a throwaway Pod running the <code>dnsutils</code> image, which ships <code>nslookup</code>, <code>dig</code>, and <code>host</code>:</p>
+
+<pre><code>kubectl run dnsutils \
+  --image=registry.k8s.io/e2e-test-images/jessie-dnsutils:1.3 \
+  --restart=Never -it --rm \
+  -- /bin/sh</code></pre>
+
+      <p>Inside the shell you can validate Service resolution, Pod resolution, and external forwarding in seconds:</p>
+
+<pre><code># Resolve a Service
+nslookup payments.billing.svc.cluster.local
+
+# Resolve a Pod by its dashed IP
+nslookup 10-244-2-17.billing.pod.cluster.local
+
+# Check CoreDNS is reachable
+nslookup kubernetes.default
+
+# Diagnose ndots with dig
+dig +search api.example.com</code></pre>
+
+      <blockquote>Pro tip: if CoreDNS is timing out, check its logs with <code>kubectl logs -n kube-system -l k8s-app=kube-dns</code> and look for <code>SERVFAIL</code> or <code>i/o timeout</code> entries pointing at the upstream forwarder.</blockquote>
+
+      <h2>Why this matters for your certification</h2>
+      <p>Kubernetes DNS is a favourite topic across all three CNCF practitioner exams. If you&rsquo;re studying for <strong>CKA</strong>, <strong>CKAD</strong>, or <strong>CKS</strong>, expect hands-on tasks like:</p>
+      <ul>
+        <li>Troubleshoot a Pod that cannot resolve a Service &mdash; check <code>dnsPolicy</code>, inspect <code>/etc/resolv.conf</code>, verify CoreDNS is running.</li>
+        <li>Create a headless Service for a StatefulSet and confirm Pod DNS names resolve correctly.</li>
+        <li>Modify a Pod&rsquo;s <code>dnsConfig</code> to override <code>ndots</code> or add a custom search domain.</li>
+        <li>Apply a NetworkPolicy that allows DNS traffic on UDP/TCP port 53 to <code>kube-system</code> &mdash; a common CKS pitfall when locking down namespaces.</li>
+      </ul>
+      <p>The <code>dnsutils</code> technique above is explicitly mentioned in the official Kubernetes documentation and regularly appears as the expected debugging approach in exam scenarios. Know it cold.</p>
+
+      <h2>Key takeaways</h2>
+      <ul>
+        <li>CoreDNS creates A records for <strong>every Service</strong> (<code>svc.cluster.local</code>) and <strong>every Pod</strong> (<code>pod.cluster.local</code>).</li>
+        <li>Headless Services (<code>clusterIP: None</code>) return all matching Pod IPs directly &mdash; essential for StatefulSets.</li>
+        <li><code>ndots:5</code> can cause up to five DNS round-trips per external hostname lookup; mitigate with a trailing dot or lower <code>ndots</code>.</li>
+        <li>Use <code>kubectl run dnsutils</code> as your first DNS debugging reflex inside any cluster.</li>
+        <li>CKA, CKAD, and CKS all test DNS troubleshooting &mdash; practice it with a real cluster, not just theory.</li>
+      </ul>
+
+    </div>
+
+    <div class="article-footer">
+      <a href="/news/">&larr; Back to Tech News</a>
+    </div>
+
+  </article>
+
+  <!-- Web Footer -->
+  <footer class="web-footer">
+    <div class="web-footer-inner">
+      <div class="web-footer-links">
+        <a href="/">Home</a>
+        <a href="/train.html">Start Training</a>
+        <a href="/learning/">Learning</a>
+        <a href="/news/">Tech News</a>
+        <a href="/#certifications">Certifications</a>
+        <a href="/stats.html">My Stats</a>
+        <a href="/contact.html">Contact</a>
+        <a href="/privacy-policy.html">Privacy Policy</a>
+        <a href="https://play.google.com/store/apps/details?id=com.certquest.app" target="_blank" rel="noopener">Android App</a>
+      </div>
+      <div class="web-footer-text">CertQuests &mdash; Free IT certification practice tests for CCNA, AWS, Azure, CompTIA and more</div>
+    </div>
+  </footer>
+
+</body>
+</html>

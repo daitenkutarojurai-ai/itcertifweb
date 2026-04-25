@@ -1,0 +1,410 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="theme-color" content="#06080f" />
+
+  <title>The Dev Who Accidentally Deleted His Company&rsquo;s Database &mdash; The GitLab Incident 2017 | CertQuests</title>
+  <meta name="description" content="In January 2017, a tired GitLab engineer ran rm -rf on the wrong directory and wiped 300 GB of live production data. Five backup systems failed. Here's the full story and what every SysOps engineer must learn from it." />
+  <meta name="keywords" content="GitLab database deletion 2017, rm -rf production, PostgreSQL disaster recovery, backup failure, incident response, DevOps postmortem, SysOps, disaster recovery, cloud backup" />
+  <meta name="author" content="CertQuests" />
+  <meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large" />
+  <link rel="canonical" href="https://certquests.com/news/gitlab-database-deletion/" />
+
+  <!-- Open Graph -->
+  <meta property="og:type" content="article" />
+  <meta property="og:url" content="https://certquests.com/news/gitlab-database-deletion/" />
+  <meta property="og:title" content="The Dev Who Accidentally Deleted His Company&rsquo;s Database &mdash; The GitLab Incident 2017" />
+  <meta property="og:description" content="A tired engineer, one wrong rm -rf, 300 GB of production data gone. Five backup methods failed. A DevOps disaster recovery cautionary tale." />
+  <meta property="og:image" content="https://certquests.com/src/assets/icons/icon-512.png" />
+  <meta property="og:site_name" content="CertQuests" />
+  <meta property="article:published_time" content="2026-04-14T08:00:00Z" />
+  <meta property="article:author" content="CertQuests" />
+  <meta property="article:section" content="DevOps" />
+  <meta property="article:tag" content="GitLab" />
+  <meta property="article:tag" content="DevOps" />
+  <meta property="article:tag" content="Disaster Recovery" />
+  <meta property="article:tag" content="Backup" />
+
+  <!-- Twitter Card -->
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="The Dev Who Accidentally Deleted His Company's Database — The GitLab Incident 2017" />
+  <meta name="twitter:description" content="A tired engineer, one wrong rm -rf, 300 GB of production data gone. Five backup methods failed. A DevOps disaster recovery cautionary tale." />
+  <meta name="twitter:image" content="https://certquests.com/src/assets/icons/icon-512.png" />
+
+  <!-- Icons -->
+  <link rel="icon" type="image/png" sizes="192x192" href="/src/assets/icons/logopouple.png" />
+  <link rel="icon" type="image/png" sizes="512x512" href="/src/assets/icons/logopouple.png" />
+  <link rel="apple-touch-icon" href="/src/assets/icons/logopouple.png" />
+
+  <!-- Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+
+  <!-- Styles -->
+  <link rel="stylesheet" href="/src/styles/main.css" />
+  <link rel="stylesheet" href="/src/styles/desktop.css" />
+
+  <!-- Structured Data: NewsArticle -->
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "NewsArticle",
+    "headline": "The Dev Who Accidentally Deleted His Company's Database — The GitLab Incident 2017",
+    "description": "In January 2017, a tired GitLab engineer ran rm -rf on the wrong directory and wiped 300 GB of live production data. Five backup systems failed.",
+    "image": "https://certquests.com/src/assets/icons/icon-512.png",
+    "datePublished": "2026-04-14T08:00:00Z",
+    "dateModified": "2026-04-14T08:00:00Z",
+    "author": {
+      "@type": "Organization",
+      "name": "CertQuests",
+      "url": "https://certquests.com/"
+    },
+    "publisher": {
+      "@type": "Organization",
+      "name": "CertQuests",
+      "logo": {
+        "@type": "ImageObject",
+        "url": "https://certquests.com/src/assets/icons/icon-512.png"
+      }
+    },
+    "mainEntityOfPage": {
+      "@type": "WebPage",
+      "@id": "https://certquests.com/news/gitlab-database-deletion/"
+    },
+    "articleSection": "DevOps",
+    "keywords": "GitLab, rm -rf, disaster recovery, backup failure, PostgreSQL, incident response, DevOps"
+  }
+  </script>
+
+  <!-- Structured Data: BreadcrumbList -->
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "BreadcrumbList",
+    "itemListElement": [
+      { "@type": "ListItem", "position": 1, "name": "Home", "item": "https://certquests.com/" },
+      { "@type": "ListItem", "position": 2, "name": "Tech News", "item": "https://certquests.com/news/" },
+      { "@type": "ListItem", "position": 3, "name": "The Dev Who Accidentally Deleted His Company's Database", "item": "https://certquests.com/news/gitlab-database-deletion/" }
+    ]
+  }
+  </script>
+
+  <style>
+    .article-page {
+      max-width: 760px;
+      margin: 0 auto;
+      padding: 0 22px 80px;
+      font-family: 'Outfit', sans-serif;
+      position: relative;
+      z-index: 2;
+      color: #cfd6e6;
+    }
+    .article-crumbs {
+      max-width: 760px;
+      margin: 0 auto;
+      padding: 14px 22px 0;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px;
+      color: #3d4f6a;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+    }
+    .article-crumbs a { color: #7c90ae; text-decoration: none; }
+    .article-crumbs a:hover { color: #e8edf8; }
+    .article-crumbs span { margin: 0 8px; color: #3d4f6a; }
+
+    .article-header {
+      padding: 40px 0 28px;
+    }
+    .article-badge {
+      display: inline-block;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 10px;
+      font-weight: 600;
+      color: #3b82f6;
+      background: rgba(59, 130, 246, 0.12);
+      border: 1px solid rgba(59, 130, 246, 0.25);
+      padding: 4px 12px;
+      border-radius: 20px;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      margin-bottom: 16px;
+    }
+    .article-header h1 {
+      font-size: clamp(28px, 5vw, 44px);
+      font-weight: 800;
+      letter-spacing: -0.03em;
+      margin: 0 0 14px;
+      color: #e8edf8;
+      line-height: 1.15;
+    }
+    .article-meta {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 12px;
+      color: #7c90ae;
+      display: flex;
+      gap: 14px;
+      flex-wrap: wrap;
+    }
+    .article-meta span { color: #3d4f6a; }
+
+    .article-body p {
+      font-size: 16px;
+      line-height: 1.75;
+      color: #cfd6e6;
+      margin: 0 0 18px;
+    }
+    .article-body h2 {
+      font-size: 22px;
+      font-weight: 800;
+      color: #e8edf8;
+      margin: 36px 0 14px;
+      letter-spacing: -0.01em;
+    }
+    .article-body h3 {
+      font-size: 17px;
+      font-weight: 700;
+      color: #e8edf8;
+      margin: 26px 0 10px;
+    }
+    .article-body ul {
+      padding-left: 22px;
+      margin: 0 0 18px;
+    }
+    .article-body li {
+      font-size: 16px;
+      line-height: 1.75;
+      color: #cfd6e6;
+      margin-bottom: 6px;
+    }
+    .article-body strong { color: #e8edf8; }
+    .article-body code {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 13px;
+      background: rgba(59, 130, 246, 0.10);
+      color: #a5c2ff;
+      padding: 2px 7px;
+      border-radius: 5px;
+      border: 1px solid rgba(59, 130, 246, 0.18);
+    }
+    .article-body pre {
+      background: #0c1120;
+      border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 12px;
+      padding: 18px 20px;
+      overflow-x: auto;
+      margin: 18px 0 22px;
+    }
+    .article-body pre code {
+      background: transparent;
+      border: none;
+      padding: 0;
+      color: #d8e2f5;
+      font-size: 13px;
+      line-height: 1.65;
+      display: block;
+    }
+    .article-body blockquote {
+      border-left: 3px solid #3b82f6;
+      background: rgba(59, 130, 246, 0.06);
+      padding: 14px 20px;
+      margin: 22px 0;
+      color: #cfd6e6;
+      font-style: italic;
+      border-radius: 0 10px 10px 0;
+    }
+    .article-tldr {
+      background: linear-gradient(135deg, #0c1120 0%, #111d3a 100%);
+      border: 1px solid rgba(59, 130, 246, 0.22);
+      border-radius: 14px;
+      padding: 20px 22px;
+      margin: 24px 0 32px;
+    }
+    .article-tldr strong {
+      color: #3b82f6;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      display: block;
+      margin-bottom: 6px;
+    }
+    .article-tldr p { margin: 0; font-size: 15px; color: #cfd6e6; }
+
+    .article-footer {
+      margin-top: 48px;
+      padding-top: 28px;
+      border-top: 1px solid rgba(255,255,255,0.08);
+      text-align: center;
+    }
+    .article-footer a {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      color: #3b82f6;
+      font-weight: 700;
+      font-size: 14px;
+      text-decoration: none;
+      padding: 11px 22px;
+      border: 1px solid rgba(59, 130, 246, 0.3);
+      border-radius: 10px;
+      background: rgba(59, 130, 246, 0.06);
+    }
+    .article-footer a:hover {
+      background: rgba(59, 130, 246, 0.12);
+      border-color: rgba(59, 130, 246, 0.5);
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Web Header -->
+  <header class="web-header">
+    <a href="/" class="web-header-logo">
+      <img src="/src/assets/icons/logopouple.png" alt="CertQuests" class="web-header-logo-img" />
+    </a>
+    <nav class="web-header-links" aria-label="Main navigation">
+      <a href="/">Home</a>
+      <a href="/train.html">Training</a>
+      <a href="/learning/">Learning</a>
+      <a href="/news/">Tech News</a>
+      <a href="/#certifications">Certifications</a>
+      <a href="/stats.html">My Stats</a>
+      <a href="/contact.html">Contact</a>
+      <a href="https://play.google.com/store/apps/details?id=com.certquest.app" class="web-header-badge" target="_blank" rel="noopener">Google Play</a>
+    </nav>
+  </header>
+
+  <nav class="article-crumbs" aria-label="Breadcrumb">
+    <a href="/">Home</a><span>/</span><a href="/news/">Tech News</a><span>/</span>gitlab-database-deletion
+  </nav>
+
+  <article class="article-page">
+
+    <header class="article-header">
+      <span class="article-badge">DevOps &middot; Crazy but True</span>
+      <h1>The Dev Who Accidentally Deleted His Company&rsquo;s Database</h1>
+      <div class="article-meta">
+        <span>Published 2026-04-14</span>
+        <span>&middot;</span>
+        <span>7 min read</span>
+        <span>&middot;</span>
+        <span>Category: DevOps</span>
+      </div>
+    </header>
+
+    <div class="article-tldr">
+      <strong>TL;DR</strong>
+      <p>On January 31, 2017, a GitLab.com engineer ran <code>rm -rf</code> on the wrong directory during a late-night maintenance operation and wiped 300 GB of live production PostgreSQL data. Of five backup and recovery systems in place, not one could fully restore the database. GitLab live-streamed the entire recovery on YouTube, lost approximately 18 hours of user data, and published a postmortem so thorough it became a gold standard for incident transparency.</p>
+    </div>
+
+    <div class="article-body">
+
+      <h2>The night everything went wrong</h2>
+      <p>It was approaching midnight UTC on January 31, 2017. A GitLab.com site reliability engineer &mdash; identified in the company's own postmortem as YP &mdash; was in the middle of a routine maintenance task: clearing replication lag on a secondary PostgreSQL database node. The primary database had fallen hours behind on replication, and the fix was straightforward: remove the stale data directory on the replica and let it re-sync from the primary.</p>
+      <p>Tired after a long shift that had already included dealing with a spam attack on GitLab.com, YP ran the delete command. Except the terminal he was working in wasn't connected to the replica. It was connected to <strong>db1.cluster.gitlab.com</strong> &mdash; the primary production database. The command was:</p>
+
+<pre><code>rm -rf /var/opt/gitlab/postgresql/data</code></pre>
+
+      <p>By the time he realized the mistake and hit Ctrl+C, roughly 300 GB of PostgreSQL data had been deleted. The primary database &mdash; the one serving every GitLab.com user, repository, issue, merge request, and CI pipeline &mdash; was gone.</p>
+
+      <h2>Five backup systems. Zero successful restores.</h2>
+      <p>What happened next was the part that turned a bad incident into a legendary one. GitLab had backup and recovery systems in place. Multiple systems. All of them failed for different reasons, in a chain of failures that reads like a disaster movie script:</p>
+
+      <h3>1. Regular database backups</h3>
+      <p>GitLab ran nightly <code>pg_dump</code> backups. The problem: the backup process had been broken for months and nobody had noticed, because <strong>nobody was regularly testing restores</strong>. The backups were there; they just didn't work. The most recent verified restore was far too old to be useful.</p>
+
+      <h3>2. LVM snapshots</h3>
+      <p>The database server used LVM (Logical Volume Manager) for disk management, and LVM supports point-in-time snapshots. However, LVM snapshots had never been configured on <code>db1</code>. The feature existed in the infrastructure stack but hadn't been enabled for the production database host.</p>
+
+      <h3>3. Azure disk snapshots</h3>
+      <p>GitLab.com ran on Azure. Azure supports managed disk snapshots at the VM level. Snapshots had been enabled &mdash; but they had been <strong>disabled five hours earlier</strong> as part of an unrelated cost-optimization effort. The last Azure snapshot was taken just before it was turned off, but it was already hours old by the time of the incident.</p>
+
+      <h3>4. S3 backups</h3>
+      <p>A separate backup pipeline was configured to stream data to S3. Investigation revealed this pipeline had also been broken and was not actually uploading data. Again, no one had verified it end-to-end.</p>
+
+      <h3>5. pg_dump on a staging server</h3>
+      <p>The team found one survivor: a <code>pg_dump</code> snapshot that had been taken automatically on a staging environment. It was approximately <strong>six hours old</strong>. It was the only option. GitLab chose to restore from it.</p>
+
+      <blockquote>We restored from a staging snapshot that was roughly 6 hours old. Approximately 5,000 projects, 700 users, 4,500 comments and 700 webhooks created in those 6 hours were permanently lost.</blockquote>
+
+      <h2>The live-stream that shocked the industry</h2>
+      <p>While the engineering team worked through the night to restore the database, GitLab made an extraordinary decision: they <strong>live-streamed the entire recovery attempt on YouTube</strong>. Engineers narrated what they were trying, what was failing, and what the current status was &mdash; in real time, to anyone who wanted to watch.</p>
+      <p>This was radical transparency at a scale the industry had never seen. Most companies in that situation would have issued a brief status page update every hour and said nothing until service was restored. GitLab let the world watch the sausage being made, including all the moments where a recovery method was tried, failed, and abandoned.</p>
+      <p>The recovery took approximately 18 hours from the moment the data was deleted to GitLab.com being fully restored. About 18 hours' worth of user data &mdash; everything created between the staging snapshot and the incident &mdash; was permanently gone.</p>
+
+      <h2>The postmortem that became a template</h2>
+      <p>GitLab published their full postmortem publicly on their blog. It listed every backup method, why each one failed, and the corrective actions they committed to. The document was not written by a PR team. It was written by the engineers involved, in plain language, with a detailed timeline and no corporate hedging.</p>
+      <p>The corrective actions they committed to included:</p>
+      <ul>
+        <li>Run <code>pg_dump</code> backups to S3 every 24 hours <strong>and test restores every week</strong></li>
+        <li>Enable and verify LVM snapshots on all production database hosts</li>
+        <li>Re-enable and verify Azure disk snapshots</li>
+        <li>Set up a secondary replica in a separate geographic region</li>
+        <li>Add a runbook for every critical maintenance operation requiring a second engineer to verify the target host before execution</li>
+        <li>Introduce a backup monitoring dashboard with explicit alerts when a backup job fails or hasn't run recently</li>
+      </ul>
+      <p>The list is notable not because it's surprising, but because every item on it represents something that was already understood to be a best practice &mdash; and hadn't been done. This is the uncomfortable truth the postmortem made undeniable: GitLab didn't fail because they lacked knowledge. They failed because knowledge and implementation are not the same thing.</p>
+
+      <h2>What every SysOps engineer must take from this</h2>
+      <p>The GitLab incident is examined in cloud certification courses for a reason. It illustrates, with brutal clarity, the difference between having a backup strategy and having a <em>tested</em> backup strategy.</p>
+
+      <h3>The 3-2-1 rule exists for exactly this reason</h3>
+      <p>The gold standard for backups is three copies of data, on two different media types, with one copy off-site. GitLab nominally met parts of this on paper. The problem is the rule implicitly assumes all three copies are <em>verified to be restorable</em>. A backup that has never been restored is a hypothesis, not a backup.</p>
+
+      <h3>Human error is a systems problem, not a people problem</h3>
+      <p>YP made a mistake. But he made it in a system where a single tired engineer could delete a production database with one command and no confirmation prompt. Modern runbooks for destructive operations on production systems require a second pair of eyes &mdash; not because engineers are careless, but because fatigue and context-switching are real and documented causes of accidents. The solution is procedural and technical, not individual.</p>
+
+      <h3>Never run destructive commands on production without verifying the host</h3>
+      <p>The immediate technical lesson is simple: before running any command that deletes or overwrites data, confirm <em>twice</em> which host you are connected to. Many teams now use shell prompt customization or <code>/etc/motd</code> banners to make the environment visually unmistakable when you connect to production.</p>
+
+<pre><code># A simple safeguard: put this in your .bashrc on production hosts
+export PS1="\[\e[1;31m\][PRODUCTION: \h]\[\e[0m\] \w \$ "</code></pre>
+
+      <h3>Test your backups. Then test them again.</h3>
+      <p>Backup testing should be a scheduled, monitored, mandatory task &mdash; not something that happens when someone remembers to do it. The correct answer to "when was the last time we restored from backup in a staging environment?" should never be "I'm not sure."</p>
+
+      <h2>How this shows up in your certification exam</h2>
+      <p>The GitLab incident maps directly to exam objectives across several certifications. If you're studying for AWS SysOps Administrator (SOA-C02), Azure Administrator (AZ-104), Azure Solutions Architect (AZ-305), or CompTIA Security+, expect scenarios that test whether you understand:</p>
+      <ul>
+        <li><strong>RTO and RPO:</strong> GitLab's effective RPO was 6 hours (the age of the last good backup). Their RTO was 18 hours. Exam questions frequently ask you to design architectures that meet specific RTO/RPO targets &mdash; and the answer always involves tested, automated, geographically redundant backups.</li>
+        <li><strong>Backup verification:</strong> AWS Backup, Azure Backup Center, and similar services include restore testing features. Knowing that a backup job completing successfully is not the same as the backup being restorable is a common exam distinction.</li>
+        <li><strong>Snapshot strategies:</strong> Azure disk snapshots, AWS EBS snapshots, RDS automated backups &mdash; all of these have retention policies, and all of them must be tested. Disabling snapshots for cost reasons without a compensating control is the kind of decision the GitLab incident warns against.</li>
+        <li><strong>Change management for destructive operations:</strong> CompTIA Security+ covers change management processes specifically because human error during maintenance is one of the leading causes of availability incidents.</li>
+      </ul>
+
+      <h2>One last thought</h2>
+      <p>The engineer who ran the command didn't lose his job. GitLab were explicit about this. They understood that blaming an individual for a systemic failure creates a culture where people hide mistakes rather than report them immediately &mdash; which makes the next incident worse. YP hit Ctrl+C the moment he realized the error and immediately told his team. That response, in the 20 seconds after the mistake, is the reason the recovery went as well as it did.</p>
+      <p>The real lesson isn't about <code>rm -rf</code>. It's about the gap between the systems you think you have and the systems you actually have. GitLab closed that gap the hard way. Your job as an infrastructure professional &mdash; and as someone studying for a cloud or operations certification &mdash; is to close it before the incident, not after.</p>
+
+    </div>
+
+    <div class="article-footer">
+      <a href="/news/">&larr; Back to Tech News</a>
+    </div>
+
+  </article>
+
+  <!-- Web Footer -->
+  <footer class="web-footer">
+    <div class="web-footer-inner">
+      <div class="web-footer-links">
+        <a href="/">Home</a>
+        <a href="/train.html">Start Training</a>
+        <a href="/learning/">Learning</a>
+        <a href="/news/">Tech News</a>
+        <a href="/#certifications">Certifications</a>
+        <a href="/stats.html">My Stats</a>
+        <a href="/contact.html">Contact</a>
+        <a href="/privacy-policy.html">Privacy Policy</a>
+        <a href="https://play.google.com/store/apps/details?id=com.certquest.app" target="_blank" rel="noopener">Android App</a>
+      </div>
+      <div class="web-footer-text">CertQuests &mdash; Free IT certification practice tests for CCNA, AWS, Azure, CompTIA and more</div>
+    </div>
+  </footer>
+
+</body>
+</html>
