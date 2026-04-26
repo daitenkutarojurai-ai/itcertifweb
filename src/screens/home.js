@@ -9,8 +9,6 @@ import { showModePicker }            from '../app.js';
 import { isEnabled, requestPermission, scheduleNextReminder } from '../engine/notifications.js';
 import { getDailyXP, getDailyGoal, getHearts, getMaxHearts, getMasteryPct, getNextHeartRegenMs } from '../engine/gamification.js';
 
-const AUTOSTART_COUNTS = { quick: 5, study: 10 };
-
 export async function render(container, navigate) {
   container.innerHTML = `
     <div class="screen home-screen">
@@ -187,8 +185,7 @@ function attachListeners(container, navigate, brands) {
   const params       = new URLSearchParams(location.search);
   const packParam    = params.get('pack');
   const brandParam   = params.get('brand');
-  const autostartRaw = (params.get('autostart') || '').toLowerCase();
-  const autostart    = ['quick', 'full', 'study'].includes(autostartRaw) ? autostartRaw : null;
+  const autostart    = !!params.get('autostart'); // any value triggers the mode picker
   let targetBrandId = null;
   let targetPackId  = null;
 
@@ -201,15 +198,17 @@ function attachListeners(container, navigate, brands) {
     if (b) targetBrandId = b.id;
   }
 
-  // ─── Autostart: deep-link straight into a quiz (skip mode picker) ────────
+  // ─── Autostart: deep-link auto-opens the mode picker (Quick / Full / Study)
+  // The user still chooses the mode — we just skip the "scroll to pack and click"
+  // step. Falls through to the regular home render so the picker overlays it.
   if (autostart && targetPackId) {
     const brand = brands.find(br => br.packs.some(p => p.id === targetPackId));
     const pack  = brand?.packs.find(p => p.id === targetPackId);
     if (pack?.available) {
-      // Strip query so a refresh on the quiz screen goes back to plain Home
+      // Strip query so a refresh lands on plain Home, not the autostart loop
       try { history.replaceState(null, '', location.pathname); } catch {}
-      autostartQuiz(navigate, brand, pack, autostart);
-      return;
+      // Defer until after this render cycle so the home screen is the backdrop
+      setTimeout(() => autostartPicker(brand, pack), 50);
     }
   }
   if (!targetBrandId) {
@@ -328,26 +327,11 @@ function attachListeners(container, navigate, brands) {
 }
 
 // ─── Autostart helper ────────────────────────────────────────────────────────
-// Bypasses the mode picker when the user arrives via a deep-link from the
-// homepage (`?pack=<id>&autostart=quick|full|study`). Loads the pack and
-// hands directly to the quiz screen.
-async function autostartQuiz(navigate, brand, pack, mode) {
-  // Hearts gate — Quick/Full need a heart, Study mode is always allowed.
-  if (mode !== 'study' && getHearts() <= 0) {
-    const data = await loadPack(pack.file);
-    if (data?.questions?.length) {
-      showModePicker({ ...pack, brandName: brand.name }, data.questions);
-    }
-    return;
-  }
+// Loads the pack referenced by `?pack=<id>&autostart=...` and opens the mode
+// picker (Quick / Full / Study). The user still chooses the mode — we skip
+// only the "scroll to pack and click Start" step on the home screen.
+async function autostartPicker(brand, pack) {
   const data = await loadPack(pack.file);
   if (!data?.questions?.length) return;
-  const fullCount = Math.min(data.questions.length, pack.full_count || data.questions.length);
-  const count = mode === 'full' ? fullCount : (AUTOSTART_COUNTS[mode] || 5);
-  navigate('quiz', {
-    pack: { ...pack, brandName: brand.name },
-    questions: data.questions,
-    mode,
-    count,
-  });
+  showModePicker({ ...pack, brandName: brand.name }, data.questions);
 }
