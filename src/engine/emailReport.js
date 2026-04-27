@@ -12,9 +12,9 @@
  * See docs/EMAIL_SETUP.md for the click-by-click setup.
  */
 
-// Set to '' to keep the email card disabled (e.g. while finishing worker setup).
-// Worker lives in the separate `IT-certif` repo, deployed to itcertifweb.workers.dev.
-export const REPORT_API_URL = ''; // 'https://itcertifweb.daitenkutarojurai.workers.dev/quiz-report'
+// Set to '' to disable the email card (worker offline / maintenance).
+// Worker source: github.com/daitenkutarojurai-ai/IT-certif (worker/src/index.js).
+export const REPORT_API_URL = 'https://itcertifweb.daitenkutarojurai.workers.dev/quiz-report';
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
 
