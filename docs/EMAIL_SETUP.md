@@ -17,6 +17,17 @@ deployed to `https://itcertifweb.daitenkutarojurai.workers.dev`.
 > Reconnecting GitHub auto-deploy is also fine — Cloudflare dashboard →
 > Workers → `itcertifweb` → Settings → Build → "Connect to Git".
 
+## Email templates
+
+The actual HTML templates the worker renders live in
+[`docs/email-templates/`](email-templates/README.md):
+
+- [`cheatsheet-report.html`](email-templates/cheatsheet-report.html) — post-quiz cheatsheet
+- [`newsletter-weekly.html`](email-templates/newsletter-weekly.html) — Sunday brief
+
+Both are self-contained: open them in a browser to preview with sample
+data. The worker just runs a `{{var}}` replace at send time.
+
 ## Where the signup is wired
 
 The same `/quiz-report` endpoint handles both flows:

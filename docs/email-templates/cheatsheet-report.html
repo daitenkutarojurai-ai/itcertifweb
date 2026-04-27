@@ -1,0 +1,394 @@
+<!--
+  cheatsheet-report.html — post-quiz feedback email
+
+  Sent right after a user submits their email on the results screen of a
+  quiz where they got ≥ 1 question wrong. The goal is two-fold:
+    (1) Genuinely useful — recap the misses with the right answer + a tip,
+        so the email is worth saving;
+    (2) Bring them back — a 7-day retry loop, a single big CTA, and a soft
+        newsletter pitch at the bottom.
+
+  Email-client constraints respected here:
+    - Tables for layout (Outlook desktop ignores flex/grid)
+    - Inline CSS on every visual element
+    - Max 600px wide, 20px gutters on mobile
+    - Mobile media query inside <style> (works in Gmail/Apple/iOS)
+    - No external CSS, no JS, no remote images other than the inlined logo
+      idea (kept as text mark for now to skip image hosting)
+
+  Worker placeholders (Mustache-style {{var}} so a simple .replace works):
+    {{firstName}}      first name (or 'there' fallback)
+    {{packName}}       e.g. "AWS Solutions Architect Associate (SAA-C03)"
+    {{score}}          number correct
+    {{total}}          number of questions
+    {{percentage}}     0-100 integer
+    {{gradeLabel}}     "Excellent" | "Pass" | "Almost there" | "Keep studying"
+    {{gradeColor}}     hex color for the grade pill (#10b981 / #3b82f6 / #f59e0b / #f43f5e)
+    {{wrongCount}}     number of misses (>= 1)
+    {{wrongCards}}     server-rendered HTML for each missed question (see CARD TEMPLATE below)
+    {{retryUrl}}       deep link → https://certquests.com/?pack=<id>&autostart=1
+    {{packPageUrl}}    optional landing page for that cert
+    {{nextRetryDate}}  e.g. "Sunday, May 5"
+    {{siteUrl}}        https://certquests.com
+    {{unsubscribeUrl}} Brevo unsubscribe link
+    {{currentYear}}    YYYY
+
+  CARD TEMPLATE (worker iterates over wrong[] and renders one of these):
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"
+           class="card" style="background:#ffffff;border:1px solid #e5e7eb;border-radius:12px;margin:0 0 14px;">
+      <tr>
+        <td class="px-pad" style="padding:18px 22px;">
+          <div style="font-size:11px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:#94a3b8;margin-bottom:8px;">
+            Question {{i}} · {{difficulty}}
+          </div>
+          <div style="font-size:15px;line-height:1.55;color:#0f172a;font-weight:600;margin-bottom:14px;">
+            {{question}}
+          </div>
+          <!-- options: 1 row each, color-coded -->
+          {{optionsHtml}}
+          <div style="margin-top:14px;padding:12px 14px;background:#f8fafc;border-left:3px solid #3b82f6;border-radius:6px;">
+            <div style="font-size:11px;font-weight:700;letter-spacing:0.06em;text-transform:uppercase;color:#3b82f6;margin-bottom:4px;">Why</div>
+            <div style="font-size:13.5px;line-height:1.55;color:#334155;">{{explanation}}</div>
+          </div>
+          {{tagChips}}
+        </td>
+      </tr>
+    </table>
+
+  OPTION ROW (one per option, A-D):
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
+      <tr>
+        <td style="padding:8px 11px;background:{{bg}};border:1px solid {{borderC}};border-radius:8px;
+                   font-size:13.5px;line-height:1.5;color:{{textC}};margin-bottom:6px;">
+          <span style="display:inline-block;width:18px;color:{{labelC}};font-weight:700;">{{letter}}.</span>
+          <span>{{text}}</span> {{rightOrWrongMark}}
+        </td>
+      </tr>
+    </table>
+    Color rules:
+      correct option   → bg #ecfdf5, border #10b981, mark "✓ Correct answer"
+      user's wrong pick → bg #fef2f2, border #f43f5e, mark "✗ Your answer"
+      neutral          → bg #ffffff, border #e5e7eb, no mark
+
+  TAG CHIPS (joined with 6px gaps, max 3 tags):
+    <span style="display:inline-block;padding:3px 10px;background:#eef2ff;color:#4338ca;
+                 border-radius:999px;font-size:11px;font-weight:600;letter-spacing:0.02em;
+                 margin:10px 6px 0 0;">{{tag}}</span>
+
+  ────────────────────────────────────────────────────────────────────────
+  This file is also a working preview: open it in a browser to see the
+  layout. The placeholders below are pre-filled with realistic sample
+  data; the worker overwrites them at send time.
+-->
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+  <meta name="x-apple-disable-message-reformatting" />
+  <meta name="color-scheme" content="light" />
+  <meta name="supported-color-schemes" content="light" />
+  <title>Your CertQuests cheatsheet</title>
+  <style>
+    /* Reset for stubborn clients */
+    body, table, td, a { -webkit-text-size-adjust: 100%; -ms-text-size-adjust: 100%; }
+    table, td { mso-table-lspace: 0pt; mso-table-rspace: 0pt; }
+    img { -ms-interpolation-mode: bicubic; border: 0; outline: none; text-decoration: none; }
+    a { text-decoration: none; }
+
+    /* Mobile */
+    @media only screen and (max-width: 600px) {
+      .container  { width: 100% !important; max-width: 100% !important; }
+      .px-pad     { padding-left: 22px !important; padding-right: 22px !important; }
+      .hero-pad   { padding: 28px 22px 24px !important; }
+      .score-num  { font-size: 56px !important; }
+      .stat-cell  { display: block !important; width: 100% !important; padding: 12px 0 !important; border: 0 !important; }
+      .cta-btn    { display: block !important; width: 100% !important; }
+    }
+  </style>
+</head>
+<body style="margin:0;padding:0;background:#f4f6fb;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Oxygen,Ubuntu,sans-serif;color:#0f172a;">
+
+  <!-- Preheader: shown in inbox preview, not in the email body -->
+  <div style="display:none;font-size:1px;line-height:1px;max-height:0;max-width:0;opacity:0;overflow:hidden;mso-hide:all;">
+    Your {{percentage}}% on {{packName}} — here are the {{wrongCount}} questions to lock in before you take it again.
+  </div>
+
+  <!-- Outer wrapper -->
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background:#f4f6fb;">
+    <tr>
+      <td align="center" style="padding:32px 12px;">
+
+        <!-- ── Email body container (600px) ───────────────────────────── -->
+        <table role="presentation" class="container" width="600" cellpadding="0" cellspacing="0" border="0"
+               style="width:600px;max-width:600px;background:#ffffff;border-radius:18px;overflow:hidden;
+                      box-shadow:0 12px 40px rgba(15,23,42,0.07);">
+
+          <!-- ── Hero ─────────────────────────────────────────────────── -->
+          <tr>
+            <td class="hero-pad"
+                style="background:linear-gradient(135deg,#0f172a 0%,#1e1b4b 55%,#312e81 100%);
+                       padding:36px 36px 32px;color:#ffffff;">
+
+              <!-- Logo / brand mark -->
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
+                <tr>
+                  <td>
+                    <span style="display:inline-block;background:rgba(255,255,255,0.10);
+                                 padding:6px 12px;border-radius:8px;font-size:12px;font-weight:700;
+                                 letter-spacing:0.08em;text-transform:uppercase;color:#c7d2fe;">
+                      ⚡ CertQuests
+                    </span>
+                  </td>
+                  <td align="right" style="font-size:11px;color:rgba(255,255,255,0.55);letter-spacing:0.04em;text-transform:uppercase;font-weight:600;">
+                    Your cheatsheet
+                  </td>
+                </tr>
+              </table>
+
+              <!-- Big score -->
+              <div style="margin-top:28px;">
+                <div style="font-size:12px;color:rgba(255,255,255,0.65);font-weight:600;letter-spacing:0.06em;text-transform:uppercase;margin-bottom:6px;">
+                  {{packName}}
+                </div>
+                <div style="display:flex;align-items:baseline;flex-wrap:wrap;">
+                  <span class="score-num" style="font-size:64px;font-weight:800;line-height:1;letter-spacing:-0.03em;color:#ffffff;">
+                    {{percentage}}%
+                  </span>
+                  <span style="font-size:18px;color:rgba(255,255,255,0.65);margin-left:14px;">
+                    {{score}} of {{total}} correct
+                  </span>
+                </div>
+                <div style="margin-top:14px;">
+                  <span style="display:inline-block;padding:5px 12px;background:{{gradeColor}};
+                               color:#ffffff;border-radius:999px;font-size:12px;font-weight:700;
+                               letter-spacing:0.04em;text-transform:uppercase;">
+                    {{gradeLabel}}
+                  </span>
+                </div>
+              </div>
+
+              <!-- Score bar -->
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-top:24px;">
+                <tr>
+                  <td style="background:rgba(255,255,255,0.08);height:8px;border-radius:99px;overflow:hidden;">
+                    <table role="presentation" width="{{percentage}}%" cellpadding="0" cellspacing="0" border="0">
+                      <tr>
+                        <td style="background:linear-gradient(90deg,#60a5fa,#a78bfa);height:8px;border-radius:99px;line-height:8px;font-size:1px;">&nbsp;</td>
+                      </tr>
+                    </table>
+                  </td>
+                </tr>
+              </table>
+
+            </td>
+          </tr>
+
+          <!-- ── Greeting + intro ─────────────────────────────────────── -->
+          <tr>
+            <td class="px-pad" style="padding:30px 36px 8px;">
+              <div style="font-size:18px;font-weight:700;color:#0f172a;letter-spacing:-0.01em;margin-bottom:10px;">
+                Hey {{firstName}} 👋
+              </div>
+              <div style="font-size:15px;line-height:1.65;color:#334155;">
+                You missed <strong style="color:#0f172a;">{{wrongCount}} question{{wrongCountPlural}}</strong>.
+                That&rsquo;s where the next 10 minutes of study will pay back the hardest. Below is the right
+                answer for each one and a short explanation — save this email and come back to it before
+                you retake the pack.
+              </div>
+            </td>
+          </tr>
+
+          <!-- ── Stats strip ───────────────────────────────────────────── -->
+          <tr>
+            <td class="px-pad" style="padding:18px 36px 4px;">
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"
+                     style="background:#f8fafc;border:1px solid #e5e7eb;border-radius:12px;">
+                <tr>
+                  <td class="stat-cell" align="center" style="padding:14px 8px;border-right:1px solid #e5e7eb;width:33.33%;">
+                    <div style="font-size:22px;font-weight:800;color:#10b981;line-height:1;">{{score}}</div>
+                    <div style="font-size:11px;color:#64748b;font-weight:600;letter-spacing:0.04em;text-transform:uppercase;margin-top:4px;">Correct</div>
+                  </td>
+                  <td class="stat-cell" align="center" style="padding:14px 8px;border-right:1px solid #e5e7eb;width:33.33%;">
+                    <div style="font-size:22px;font-weight:800;color:#f43f5e;line-height:1;">{{wrongCount}}</div>
+                    <div style="font-size:11px;color:#64748b;font-weight:600;letter-spacing:0.04em;text-transform:uppercase;margin-top:4px;">To lock in</div>
+                  </td>
+                  <td class="stat-cell" align="center" style="padding:14px 8px;width:33.34%;">
+                    <div style="font-size:22px;font-weight:800;color:#3b82f6;line-height:1;">~5 min</div>
+                    <div style="font-size:11px;color:#64748b;font-weight:600;letter-spacing:0.04em;text-transform:uppercase;margin-top:4px;">To retry</div>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+
+          <!-- ── Section title ─────────────────────────────────────────── -->
+          <tr>
+            <td class="px-pad" style="padding:30px 36px 8px;">
+              <div style="font-size:11px;font-weight:700;letter-spacing:0.10em;text-transform:uppercase;color:#3b82f6;margin-bottom:6px;">
+                Your study list
+              </div>
+              <div style="font-size:20px;font-weight:800;color:#0f172a;letter-spacing:-0.01em;">
+                The questions to lock in
+              </div>
+            </td>
+          </tr>
+
+          <!-- ── Wrong-answer cards (worker iterates here) ───────────── -->
+          <tr>
+            <td class="px-pad" style="padding:14px 36px 6px;">
+              {{wrongCards}}
+
+              <!-- ─── BEGIN sample card (preview only — worker replaces) ─── -->
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"
+                     style="background:#ffffff;border:1px solid #e5e7eb;border-radius:12px;margin:0 0 14px;">
+                <tr>
+                  <td style="padding:18px 22px;">
+                    <div style="font-size:11px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:#94a3b8;margin-bottom:8px;">
+                      Question 1 · Medium
+                    </div>
+                    <div style="font-size:15px;line-height:1.55;color:#0f172a;font-weight:600;margin-bottom:14px;">
+                      A company runs a stateless web app on EC2 behind an Application Load Balancer. Traffic doubles every Friday at 6 PM and drops by Monday. Which scaling strategy is the most cost-effective?
+                    </div>
+
+                    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
+                      <tr><td style="padding:9px 12px;background:#ffffff;border:1px solid #e5e7eb;border-radius:8px;font-size:13.5px;color:#475569;line-height:1.5;">
+                        <span style="display:inline-block;width:18px;font-weight:700;color:#94a3b8;">A.</span>
+                        Provision for peak Friday traffic 24/7.
+                      </td></tr>
+                      <tr><td style="height:6px;font-size:1px;line-height:1px;">&nbsp;</td></tr>
+
+                      <tr><td style="padding:9px 12px;background:#fef2f2;border:1px solid #f43f5e;border-radius:8px;font-size:13.5px;color:#7f1d1d;line-height:1.5;">
+                        <span style="display:inline-block;width:18px;font-weight:700;color:#dc2626;">B.</span>
+                        Use a Spot fleet for all instances.
+                        <span style="display:inline-block;margin-left:8px;font-size:11px;font-weight:700;color:#dc2626;">✗ Your answer</span>
+                      </td></tr>
+                      <tr><td style="height:6px;font-size:1px;line-height:1px;">&nbsp;</td></tr>
+
+                      <tr><td style="padding:9px 12px;background:#ecfdf5;border:1px solid #10b981;border-radius:8px;font-size:13.5px;color:#065f46;line-height:1.5;">
+                        <span style="display:inline-block;width:18px;font-weight:700;color:#059669;">C.</span>
+                        Use a scheduled scaling action that ramps capacity Friday at 5 PM and ramps down Monday at 9 AM.
+                        <span style="display:inline-block;margin-left:8px;font-size:11px;font-weight:700;color:#059669;">✓ Correct</span>
+                      </td></tr>
+                      <tr><td style="height:6px;font-size:1px;line-height:1px;">&nbsp;</td></tr>
+
+                      <tr><td style="padding:9px 12px;background:#ffffff;border:1px solid #e5e7eb;border-radius:8px;font-size:13.5px;color:#475569;line-height:1.5;">
+                        <span style="display:inline-block;width:18px;font-weight:700;color:#94a3b8;">D.</span>
+                        Switch to a single very large instance type.
+                      </td></tr>
+                    </table>
+
+                    <div style="margin-top:14px;padding:12px 14px;background:#f8fafc;border-left:3px solid #3b82f6;border-radius:6px;">
+                      <div style="font-size:11px;font-weight:700;letter-spacing:0.06em;text-transform:uppercase;color:#3b82f6;margin-bottom:4px;">Why</div>
+                      <div style="font-size:13.5px;line-height:1.55;color:#334155;">
+                        Scheduled scaling fits a known, recurring traffic pattern. Spot fleets save money but can be reclaimed mid-event. Provisioning for peak 24/7 is the most expensive option. The trick: the question gives you the timing — that&rsquo;s the cue for <em>scheduled</em>, not <em>target tracking</em>.
+                      </div>
+                    </div>
+
+                    <div style="margin-top:10px;">
+                      <span style="display:inline-block;padding:3px 10px;background:#eef2ff;color:#4338ca;border-radius:999px;font-size:11px;font-weight:600;margin-right:6px;">EC2 Auto Scaling</span>
+                      <span style="display:inline-block;padding:3px 10px;background:#eef2ff;color:#4338ca;border-radius:999px;font-size:11px;font-weight:600;margin-right:6px;">Cost optimization</span>
+                    </div>
+                  </td>
+                </tr>
+              </table>
+              <!-- ─── END sample card ─── -->
+
+            </td>
+          </tr>
+
+          <!-- ── Big retry CTA box ─────────────────────────────────────── -->
+          <tr>
+            <td class="px-pad" style="padding:18px 36px 8px;">
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"
+                     style="background:linear-gradient(135deg,#eef2ff 0%,#ddd6fe 100%);border:1px solid #c7d2fe;border-radius:14px;">
+                <tr>
+                  <td style="padding:22px 24px;">
+                    <div style="font-size:11px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:#4338ca;margin-bottom:6px;">
+                      Beat your score
+                    </div>
+                    <div style="font-size:18px;font-weight:800;color:#0f172a;letter-spacing:-0.01em;line-height:1.35;margin-bottom:14px;">
+                      Retake {{packName}} — five fresh questions, ~5 minutes.
+                    </div>
+                    <a href="{{retryUrl}}" class="cta-btn"
+                       style="display:inline-block;padding:13px 26px;background:#4f46e5;color:#ffffff;
+                              border-radius:10px;font-size:14.5px;font-weight:700;letter-spacing:0.01em;">
+                      Retry the pack →
+                    </a>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+
+          <!-- ── 7-day retry suggestion (engagement loop) ─────────────── -->
+          <tr>
+            <td class="px-pad" style="padding:14px 36px 4px;">
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
+                <tr>
+                  <td style="padding:14px 18px;background:#fffbeb;border:1px dashed #fbbf24;border-radius:10px;">
+                    <div style="font-size:13.5px;color:#78350f;line-height:1.55;">
+                      <strong style="color:#92400e;">📅 Spaced-repetition tip:</strong>
+                      we&rsquo;ll resurface these questions in your next quiz around <strong>{{nextRetryDate}}</strong>.
+                      Studies show recalling at 7 days is when forgetting kicks in — beat the curve.
+                    </div>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+
+          <!-- ── Newsletter pitch (soft) ──────────────────────────────── -->
+          <tr>
+            <td class="px-pad" style="padding:24px 36px 4px;">
+              <div style="border-top:1px solid #e5e7eb;padding-top:24px;">
+                <div style="font-size:11px;font-weight:700;letter-spacing:0.10em;text-transform:uppercase;color:#3b82f6;margin-bottom:6px;">
+                  One more thing
+                </div>
+                <div style="font-size:16px;font-weight:700;color:#0f172a;letter-spacing:-0.01em;margin-bottom:8px;">
+                  Get a tricky question every Sunday
+                </div>
+                <div style="font-size:13.5px;line-height:1.6;color:#475569;margin-bottom:14px;">
+                  Our weekly brief is one cert tip + one tricky exam question + any new pack we shipped.
+                  Four-minute read, zero spam, unsubscribe in one click.
+                </div>
+                <a href="{{siteUrl}}/?newsletter=1"
+                   style="display:inline-block;padding:11px 20px;background:#ffffff;border:1.5px solid #3b82f6;color:#3b82f6;border-radius:9px;font-size:13.5px;font-weight:700;">
+                  Subscribe in 10 seconds →
+                </a>
+              </div>
+            </td>
+          </tr>
+
+          <!-- ── Footer ────────────────────────────────────────────────── -->
+          <tr>
+            <td class="px-pad" style="padding:32px 36px 28px;">
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
+                <tr>
+                  <td style="padding-top:18px;border-top:1px solid #e5e7eb;font-size:11.5px;color:#94a3b8;line-height:1.7;">
+                    You&rsquo;re receiving this because you asked us to email your cheatsheet from
+                    <a href="{{siteUrl}}" style="color:#3b82f6;">certquests.com</a>.
+                    Free certification practice questions, built by certified IT engineers.<br />
+                    <a href="{{unsubscribeUrl}}" style="color:#94a3b8;text-decoration:underline;">Unsubscribe</a>
+                    &nbsp;·&nbsp;
+                    <a href="{{siteUrl}}/privacy-policy.html" style="color:#94a3b8;text-decoration:underline;">Privacy</a>
+                    &nbsp;·&nbsp;
+                    <a href="{{siteUrl}}/contact.html" style="color:#94a3b8;text-decoration:underline;">Contact</a>
+                    <br /><br />
+                    © {{currentYear}} CertQuests · Built by certified IT engineers
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+
+        </table>
+        <!-- /container -->
+
+      </td>
+    </tr>
+  </table>
+
+</body>
+</html>
