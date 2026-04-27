@@ -71,6 +71,9 @@ export async function submitReport(input) {
     return { ok: false, message: 'Please enter a valid email address.' };
   }
 
+  const wrongCount = (input.results?.answers || []).filter(a => !a.isCorrect).length;
+  const cheatsheetSent = wrongCount > 0;
+
   try {
     const res = await fetch(REPORT_API_URL, {
       method: 'POST',
@@ -84,9 +87,53 @@ export async function submitReport(input) {
         message: text && text.length < 200 ? text : 'Could not send the report. Please try again later.',
       };
     }
-    return { ok: true, message: input.subscribe
-      ? 'Cheatsheet sent — and you\'re on the newsletter. Check your inbox!'
-      : 'Cheatsheet sent — check your inbox!' };
+    let okMsg;
+    if (cheatsheetSent && input.subscribe) okMsg = 'Cheatsheet sent — and you\'re on the newsletter. Check your inbox!';
+    else if (cheatsheetSent)               okMsg = 'Cheatsheet sent — check your inbox!';
+    else if (input.subscribe)              okMsg = 'You\'re on the newsletter — welcome aboard!';
+    else                                   okMsg = 'Done — check your inbox!';
+    return { ok: true, message: okMsg };
+  } catch (_err) {
+    return { ok: false, message: 'Network error. Please try again.' };
+  }
+}
+
+/**
+ * Newsletter-only signup. Posts the same /quiz-report endpoint with no
+ * cheatsheet payload (worker reads `wrong:[]` → skip cheatsheet email,
+ * `subscribe:true` → add to Brevo list).
+ *
+ * Used outside the quiz results screen (home, marketing pages) where there
+ * is no cheatsheet to send — just a list signup.
+ */
+export async function submitNewsletter(email) {
+  if (!isApiConfigured()) {
+    return { ok: false, message: 'Newsletter signup not configured yet.' };
+  }
+  if (!isValidEmail(email)) {
+    return { ok: false, message: 'Please enter a valid email address.' };
+  }
+  try {
+    const res = await fetch(REPORT_API_URL, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        email: email.trim().toLowerCase(),
+        subscribe: true,
+        packId: '', packName: '', mode: '',
+        score: 0, total: 0, percentage: 0,
+        wrong: [],
+        _hp: '',
+      }),
+    });
+    if (!res.ok) {
+      const text = await res.text().catch(() => '');
+      return {
+        ok: false,
+        message: text && text.length < 200 ? text : 'Could not subscribe. Please try again later.',
+      };
+    }
+    return { ok: true, message: 'You\'re subscribed — welcome!' };
   } catch (_err) {
     return { ok: false, message: 'Network error. Please try again.' };
   }

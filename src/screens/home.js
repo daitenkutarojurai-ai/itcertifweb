@@ -8,6 +8,7 @@ import { getProgress, getStreak, hasQuizzedToday } from '../engine/progress.js';
 import { showModePicker }            from '../app.js';
 import { isEnabled, requestPermission, scheduleNextReminder } from '../engine/notifications.js';
 import { getDailyXP, getDailyGoal, getHearts, getMaxHearts, getMasteryPct, getNextHeartRegenMs } from '../engine/gamification.js';
+import { submitNewsletter, isApiConfigured } from '../engine/emailReport.js';
 
 export async function render(container, navigate) {
   container.innerHTML = `
@@ -97,6 +98,8 @@ function buildHTML(brands, progress, streak) {
         ${brands.map(brand => buildBrandSection(brand, progress)).join('')}
       </div>
 
+      ${buildNewsletterCardHTML()}
+
       ${!isEnabled() ? `
         <div class="notif-banner" id="notif-banner">
           <span>🔔 Enable daily reminders to stay on track</span>
@@ -172,6 +175,74 @@ function buildPackCard(pack, packProgress) {
       </div>
     </div>
   `;
+}
+
+// ─── Newsletter card ───────────────────────────────────────────────────────────
+// Suppressed once the user subscribes or dismisses, so it doesn't nag.
+const NEWSLETTER_FLAG = 'itcertif_newsletterStatus'; // 'subscribed' | 'dismissed'
+
+function getNewsletterStatus() {
+  try { return localStorage.getItem(NEWSLETTER_FLAG); } catch { return null; }
+}
+function setNewsletterStatus(v) {
+  try { localStorage.setItem(NEWSLETTER_FLAG, v); } catch {}
+}
+
+function buildNewsletterCardHTML() {
+  if (!isApiConfigured()) return '';
+  if (getNewsletterStatus()) return '';
+  return `
+    <div class="newsletter-card" id="newsletter-card">
+      <button class="newsletter-close" id="newsletter-close" aria-label="Dismiss">✕</button>
+      <div class="newsletter-icon">📨</div>
+      <div class="newsletter-title">Free weekly cheatsheet</div>
+      <div class="newsletter-sub">One short email a Sunday: a tricky exam question, a tip, and any new pack we ship that week. No spam.</div>
+      <form class="newsletter-form" id="newsletter-form" novalidate>
+        <input type="email" class="newsletter-input" id="newsletter-input"
+          placeholder="you@example.com" autocomplete="email" required />
+        <button type="submit" class="btn-primary newsletter-submit" id="newsletter-submit">Subscribe</button>
+      </form>
+      <div class="newsletter-status" id="newsletter-status" role="status" aria-live="polite"></div>
+    </div>
+  `;
+}
+
+function attachNewsletterCardListener(container) {
+  const card = container.querySelector('#newsletter-card');
+  if (!card) return;
+  const form  = card.querySelector('#newsletter-form');
+  const input = card.querySelector('#newsletter-input');
+  const btn   = card.querySelector('#newsletter-submit');
+  const status = card.querySelector('#newsletter-status');
+  const closeBtn = card.querySelector('#newsletter-close');
+
+  closeBtn.addEventListener('click', () => {
+    setNewsletterStatus('dismissed');
+    card.remove();
+  });
+
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    if (btn.disabled) return;
+    btn.disabled = true;
+    const originalLabel = btn.textContent;
+    btn.textContent = 'Subscribing…';
+    status.textContent = '';
+    status.className = 'newsletter-status';
+
+    const result = await submitNewsletter(input.value);
+    status.textContent = result.message;
+    status.className = `newsletter-status ${result.ok ? 'ok' : 'err'}`;
+
+    if (result.ok) {
+      setNewsletterStatus('subscribed');
+      input.disabled = true;
+      btn.textContent = '✓ Subscribed';
+    } else {
+      btn.disabled = false;
+      btn.textContent = originalLabel;
+    }
+  });
 }
 
 // ─── Event listeners ───────────────────────────────────────────────────────────
@@ -317,6 +388,8 @@ function attachListeners(container, navigate, brands) {
       if (granted) scheduleNextReminder();
     }
   });
+
+  attachNewsletterCardListener(container);
 
   // Sound toggle
   container.querySelector('#btn-sound')?.addEventListener('click', () => {

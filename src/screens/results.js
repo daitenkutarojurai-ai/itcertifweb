@@ -4,7 +4,7 @@
 
 import { playComplete } from '../engine/sounds.js';
 import { getCurrentLevel, getNextLevel, getLevelProgress } from '../engine/gamification.js';
-import { submitReport, isApiConfigured } from '../engine/emailReport.js';
+import { submitReport, submitNewsletter, isApiConfigured } from '../engine/emailReport.js';
 
 const CIRCUMFERENCE = 2 * Math.PI * 52;
 const LETTERS = ['A', 'B', 'C', 'D'];
@@ -249,26 +249,52 @@ function escapeTag(s) {
 // ─── Email cheatsheet card (shared by standard + diagnostic flows) ─────────────
 
 /**
- * Returns the card HTML when there's something useful to email (≥1 wrong
- * answer). Returns '' when the user got everything right — no point sending
- * a "cheatsheet" of zero items.
+ * Email card shown on every results screen. Adapts to the score:
+ *   - ≥ 1 wrong  → primary CTA is a personalized cheatsheet of the misses,
+ *                  newsletter is the smart upsell (pre-checked).
+ *   - perfect     → no cheatsheet to send; primary CTA flips to newsletter
+ *                  signup so we don't lose the high-intent moment.
  */
 function buildEmailCardHTML(results) {
   const wrongCount = (results.answers || []).filter(a => !a.isCorrect).length;
-  if (wrongCount === 0) return '';
+  const hasWrong = wrongCount > 0;
   const apiReady = isApiConfigured();
   const disabled = apiReady ? '' : 'disabled';
-  const note = apiReady
-    ? `We'll email a personalized cheatsheet for the ${wrongCount} question${wrongCount === 1 ? '' : 's'} you missed, with the right answer and a short tip for each.`
-    : 'Email reports are coming soon — the form is disabled for now.';
+
+  const title = hasWrong
+    ? 'Email me my cheatsheet'
+    : 'Get next-pack alerts by email';
+  const sub = !apiReady
+    ? 'Email reports are coming soon — the form is disabled for now.'
+    : hasWrong
+      ? `We'll email a personalized cheatsheet for the ${wrongCount} question${wrongCount === 1 ? '' : 's'} you missed, with the right answer and a short tip for each.`
+      : 'You aced it 🎉 Want a heads-up when we ship a harder pack or a new cert? Drop your email — one short message a week, no spam.';
+
+  const cta = hasWrong ? 'Send my cheatsheet' : 'Subscribe';
+  // For perfect scores, the newsletter IS the action — pre-check & hide the
+  // checkbox so submitting the form means "subscribe me". For mistakes, the
+  // checkbox is the upsell (default checked, smart-nudge copy).
+  const subscribePreChecked = 'checked';
+  const checkboxBlock = hasWrong ? `
+        <label class="email-report-checkbox">
+          <input type="checkbox" id="email-report-subscribe" ${subscribePreChecked} ${disabled} />
+          <span><strong>Free weekly cheatsheet</strong> · 1 cert tip + 1 tricky question every Sunday. Unsubscribe in one click.</span>
+        </label>` : `
+        <input type="hidden" id="email-report-subscribe-hidden" value="1" />`;
+
+  const privacyLine = !apiReady
+    ? 'We use your email only for this report. No spam — unsubscribe any time.'
+    : hasWrong
+      ? 'We use your email only for this report (and the newsletter, if you opt in). No spam — unsubscribe any time.'
+      : 'No spam — one short email a week, unsubscribe any time.';
 
   return `
-    <div class="email-report-card" id="email-report-card">
+    <div class="email-report-card" id="email-report-card" data-mode="${hasWrong ? 'cheatsheet' : 'newsletter'}">
       <div class="email-report-header">
-        <div class="email-report-icon">📬</div>
+        <div class="email-report-icon">${hasWrong ? '📬' : '🎯'}</div>
         <div>
-          <div class="email-report-title">Email me my cheatsheet</div>
-          <div class="email-report-sub">${note}</div>
+          <div class="email-report-title">${title}</div>
+          <div class="email-report-sub">${sub}</div>
         </div>
       </div>
       <form class="email-report-form" id="email-report-form" novalidate>
@@ -282,47 +308,46 @@ function buildEmailCardHTML(results) {
           required
           ${disabled}
         />
-        <label class="email-report-checkbox">
-          <input type="checkbox" id="email-report-subscribe" ${disabled} />
-          <span>Also send me weekly study tips &amp; new question packs</span>
-        </label>
+        ${checkboxBlock}
         <button type="submit" class="btn-primary email-report-submit" id="email-report-submit" ${disabled}>
-          Send my cheatsheet
+          ${cta}
         </button>
         <div class="email-report-status" id="email-report-status" role="status" aria-live="polite"></div>
-        <p class="email-report-privacy">
-          We use your email only for this report${apiReady ? ' (and the newsletter, if you opt in)' : ''}. No spam — unsubscribe any time.
-        </p>
+        <p class="email-report-privacy">${privacyLine}</p>
       </form>
     </div>
   `;
 }
 
 function attachEmailCardListener(container, params) {
+  const card = container.querySelector('#email-report-card');
   const form = container.querySelector('#email-report-form');
   if (!form) return;
   const input = container.querySelector('#email-report-input');
   const sub   = container.querySelector('#email-report-subscribe');
   const btn   = container.querySelector('#email-report-submit');
   const status = container.querySelector('#email-report-status');
+  const newsletterOnly = card?.dataset.mode === 'newsletter';
 
   form.addEventListener('submit', async (e) => {
     e.preventDefault();
     if (btn.disabled) return;
     btn.disabled = true;
     const originalLabel = btn.textContent;
-    btn.textContent = 'Sending…';
+    btn.textContent = newsletterOnly ? 'Subscribing…' : 'Sending…';
     status.textContent = '';
     status.className = 'email-report-status';
 
-    const result = await submitReport({
-      email: input.value,
-      subscribe: !!(sub && sub.checked),
-      results: params.results,
-      packId: params.pack?.id ?? '',
-      packName: params.pack?.name ?? '',
-      mode: params.mode ?? '',
-    });
+    const result = newsletterOnly
+      ? await submitNewsletter(input.value)
+      : await submitReport({
+          email: input.value,
+          subscribe: !!(sub && sub.checked),
+          results: params.results,
+          packId: params.pack?.id ?? '',
+          packName: params.pack?.name ?? '',
+          mode: params.mode ?? '',
+        });
 
     status.textContent = result.message;
     status.className = `email-report-status ${result.ok ? 'ok' : 'err'}`;
@@ -331,7 +356,7 @@ function attachEmailCardListener(container, params) {
       // Lock the form so the user can't double-send.
       input.disabled = true;
       if (sub) sub.disabled = true;
-      btn.textContent = '✓ Sent';
+      btn.textContent = newsletterOnly ? '✓ Subscribed' : '✓ Sent';
     } else {
       btn.disabled = false;
       btn.textContent = originalLabel;

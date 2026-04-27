@@ -829,6 +829,78 @@
       .feedback-cta-icon { margin: 0 auto; }
     }
 
+    /* Newsletter CTA — same vibe as feedback-cta, used before the footer */
+    .newsletter-cta { position: relative; z-index: 2; padding: 0 20px 24px; }
+    .newsletter-cta-inner {
+      max-width: 860px;
+      margin: 0 auto;
+      background: linear-gradient(135deg, rgba(59,130,246,0.10) 0%, rgba(16,185,129,0.08) 100%);
+      border: 1px solid rgba(59,130,246,0.22);
+      border-radius: 20px;
+      padding: 28px 32px;
+      display: flex; align-items: center; gap: 24px;
+    }
+    .newsletter-cta-icon {
+      flex-shrink: 0;
+      width: 56px; height: 56px;
+      border-radius: 14px;
+      background: rgba(16,185,129,0.14);
+      border: 1px solid rgba(16,185,129,0.28);
+      display: flex; align-items: center; justify-content: center;
+      color: #34d399; font-size: 24px;
+    }
+    .newsletter-cta-copy { flex: 1; min-width: 0; }
+    .newsletter-cta-copy h2 {
+      font-size: 20px; font-weight: 800; color: #e8edf8;
+      margin: 0 0 4px; letter-spacing: -0.02em;
+    }
+    .newsletter-cta-copy p {
+      font-size: 14px; color: #7c90ae; margin: 0 0 12px; line-height: 1.5;
+    }
+    .newsletter-cta-form { display: flex; gap: 8px; flex-wrap: wrap; }
+    .newsletter-cta-input {
+      flex: 1 1 220px; min-width: 0;
+      padding: 11px 14px;
+      background: rgba(8,11,18,0.6);
+      border: 1.5px solid rgba(59,130,246,0.25);
+      border-radius: 10px;
+      color: #e8edf8; font-size: 14px;
+      transition: border-color 0.15s;
+    }
+    .newsletter-cta-input::placeholder { color: #5a6a85; }
+    .newsletter-cta-input:focus { outline: none; border-color: #60a5fa; }
+    .newsletter-cta-input:disabled { opacity: 0.55; cursor: not-allowed; }
+    .newsletter-cta-btn {
+      flex: 0 0 auto;
+      background: #3b82f6;
+      color: #fff;
+      font-weight: 700; font-size: 14px;
+      padding: 11px 22px;
+      border: none; border-radius: 10px;
+      cursor: pointer;
+      transition: background 0.15s, transform 0.1s;
+      white-space: nowrap;
+    }
+    .newsletter-cta-btn:hover:not(:disabled) { background: #2563eb; transform: translateY(-1px); }
+    .newsletter-cta-btn:disabled { opacity: 0.55; cursor: not-allowed; }
+    .newsletter-cta-status {
+      font-size: 13px; line-height: 1.4; margin-top: 8px; min-height: 1px;
+    }
+    .newsletter-cta-status.ok  { color: #34d399; }
+    .newsletter-cta-status.err { color: #f87171; }
+    .newsletter-cta-status:empty { display: none; }
+    .newsletter-cta-fineprint { font-size: 11px; color: #5a6a85; margin: 8px 0 0; }
+    .visually-hidden {
+      position: absolute !important; width: 1px; height: 1px;
+      padding: 0; margin: -1px; overflow: hidden; clip: rect(0,0,0,0);
+      white-space: nowrap; border: 0;
+    }
+    @media (max-width: 720px) {
+      .newsletter-cta-inner { flex-direction: column; text-align: center; gap: 16px; padding: 24px; }
+      .newsletter-cta-icon { margin: 0 auto; }
+      .newsletter-cta-form { justify-content: center; }
+    }
+
     /* ─── Footer social + author ─── */
     .web-footer { max-width: 720px; }
     .web-footer-social {
@@ -3146,6 +3218,25 @@
     </div>
   </section>
 
+  <!-- Newsletter CTA -->
+  <section class="newsletter-cta" aria-label="Subscribe to the newsletter" id="newsletter-section">
+    <div class="newsletter-cta-inner">
+      <div class="newsletter-cta-icon" aria-hidden="true">📨</div>
+      <div class="newsletter-cta-copy">
+        <h2>Free weekly cheatsheet</h2>
+        <p>One short Sunday email: a tricky exam question, a study tip, and any new pack we ship. No spam — unsubscribe in one click.</p>
+        <form class="newsletter-cta-form" id="newsletter-cta-form" novalidate>
+          <label class="visually-hidden" for="newsletter-cta-email">Email address</label>
+          <input type="email" id="newsletter-cta-email" class="newsletter-cta-input"
+            placeholder="you@example.com" autocomplete="email" required />
+          <button type="submit" class="newsletter-cta-btn" id="newsletter-cta-btn">Subscribe</button>
+        </form>
+        <div class="newsletter-cta-status" id="newsletter-cta-status" role="status" aria-live="polite"></div>
+        <p class="newsletter-cta-fineprint">We use Brevo to send the newsletter. Your email is stored only for that purpose.</p>
+      </div>
+    </div>
+  </section>
+
   <!-- Feedback CTA -->
   <section class="feedback-cta" aria-label="Send feedback">
     <div class="feedback-cta-inner">
@@ -3744,6 +3835,82 @@
 
   <!-- ═══ Onboarding: goal picker / resume banner / streak pill / Q-of-the-day ═══ -->
   <script type="module" src="/src/onboarding.js"></script>
+
+  <!-- ═══ Newsletter signup (Brevo via Cloudflare Worker) ═══ -->
+  <script>
+  (function () {
+    'use strict';
+    var WORKER_URL = 'https://itcertifweb.daitenkutarojurai.workers.dev/quiz-report';
+    var FLAG = 'itcertif_newsletterStatus'; // 'subscribed' | 'dismissed'
+    var EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
+
+    var section = document.getElementById('newsletter-section');
+    if (!section) return;
+
+    // Already subscribed elsewhere → hide the section (no nag).
+    try {
+      if (localStorage.getItem(FLAG) === 'subscribed') {
+        section.style.display = 'none';
+        return;
+      }
+    } catch (_) {}
+
+    var form   = document.getElementById('newsletter-cta-form');
+    var input  = document.getElementById('newsletter-cta-email');
+    var btn    = document.getElementById('newsletter-cta-btn');
+    var status = document.getElementById('newsletter-cta-status');
+    if (!form || !input || !btn || !status) return;
+
+    form.addEventListener('submit', function (e) {
+      e.preventDefault();
+      if (btn.disabled) return;
+      var email = (input.value || '').trim().toLowerCase();
+      if (!EMAIL_RE.test(email)) {
+        status.textContent = 'Please enter a valid email address.';
+        status.className = 'newsletter-cta-status err';
+        return;
+      }
+      btn.disabled = true;
+      var originalLabel = btn.textContent;
+      btn.textContent = 'Subscribing…';
+      status.textContent = '';
+      status.className = 'newsletter-cta-status';
+
+      fetch(WORKER_URL, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          email: email,
+          subscribe: true,
+          packId: '', packName: '', mode: '',
+          score: 0, total: 0, percentage: 0,
+          wrong: [],
+          _hp: ''
+        })
+      }).then(function (res) {
+        if (res.ok) {
+          status.textContent = 'You\'re subscribed — check your inbox!';
+          status.className = 'newsletter-cta-status ok';
+          input.disabled = true;
+          btn.textContent = '✓ Subscribed';
+          try { localStorage.setItem(FLAG, 'subscribed'); } catch (_) {}
+        } else {
+          return res.text().then(function (txt) {
+            status.textContent = txt && txt.length < 200 ? txt : 'Could not subscribe. Please try again later.';
+            status.className = 'newsletter-cta-status err';
+            btn.disabled = false;
+            btn.textContent = originalLabel;
+          });
+        }
+      }).catch(function () {
+        status.textContent = 'Network error. Please try again.';
+        status.className = 'newsletter-cta-status err';
+        btn.disabled = false;
+        btn.textContent = originalLabel;
+      });
+    });
+  })();
+  </script>
 
 </body>
 </html>

@@ -1,9 +1,35 @@
 # Email cheatsheet + newsletter — setup
 
 The post-quiz cheatsheet email and newsletter signup go through a separate
-Cloudflare Worker living in the **`daitenkutarojurai-ai/IT-certif`** repo
-(deployed via wrangler + GitHub Actions to
-`https://itcertifweb.daitenkutarojurai.workers.dev`).
+Cloudflare Worker living in the **`daitenkutarojurai-ai/IT-certif`** repo,
+deployed to `https://itcertifweb.daitenkutarojurai.workers.dev`.
+
+> ⚠️ **The Cloudflare ↔ GitHub auto-deploy was disconnected** (April 2026).
+> Pushing to `main` no longer redeploys the worker. After any worker change,
+> deploy manually:
+>
+> ```bash
+> cd ~/path/to/IT-certif
+> npx wrangler login           # one-time
+> npx wrangler deploy          # ships the worker live
+> ```
+>
+> Reconnecting GitHub auto-deploy is also fine — Cloudflare dashboard →
+> Workers → `itcertifweb` → Settings → Build → "Connect to Git".
+
+## Where the signup is wired
+
+The same `/quiz-report` endpoint handles both flows:
+
+| Flow | Where | Payload |
+|---|---|---|
+| Cheatsheet (post-quiz, ≥1 wrong) | `src/screens/results.js` | `{email, subscribe, wrong:[…], …}` |
+| Newsletter-only on perfect score | `src/screens/results.js` (form flips to "Subscribe") | `{email, subscribe:true, wrong:[]}` |
+| Home-screen newsletter card | `src/screens/home.js` (dismissible, hides once subscribed) | `{email, subscribe:true, wrong:[]}` |
+| Marketing page footer signup | `index.html` (inline `<script>`) | `{email, subscribe:true, wrong:[]}` |
+
+Newsletter-only signups send `wrong:[]`; the worker treats an empty
+`wrong[]` as "skip the cheatsheet email" and only adds the contact to Brevo.
 
 This doc lists what to do **in this repo** (`itcertifweb`) and **in that
 repo** (`IT-certif`) to get the feature live.
@@ -24,7 +50,17 @@ this doc, or copy from the canonical version pinned alongside this commit):
 - `src/index.js` — the worker (POST `/quiz-report`)
 - `wrangler.toml` — wrangler config
 
-Push to `main`. The Cloudflare ↔ GitHub integration auto-deploys.
+Then run `npx wrangler deploy` from inside the `IT-certif` repo. (The
+GitHub auto-deploy is currently disconnected — see the box at the top.)
+
+**Worker contract:**
+- Accepts `POST /quiz-report` with JSON body containing
+  `{email, subscribe, wrong:[…]}` plus a few quiz-context fields.
+- If `wrong.length > 0` → renders + sends a cheatsheet email via Brevo.
+- If `subscribe === true` → adds the email to the Brevo list `BREVO_LIST_ID`.
+- If `wrong:[]` AND `subscribe:true` → newsletter-only signup, no cheatsheet.
+- 1 request / minute / IP rate limit (Cloudflare KV).
+- CORS: only origins listed in `ALLOWED_ORIGIN` may POST.
 
 ### 2. Set environment variables on the worker
 
