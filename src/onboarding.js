@@ -251,18 +251,28 @@ function renderResults(query, packs, container) {
 
 // ─── Question of the Day ──────────────────────────────────────────────────────
 
-// Date-seeded index. Same input → same output for a calendar day.
-function dayOfYear(d = new Date()) {
-  const start = new Date(d.getFullYear(), 0, 0);
-  const diff = d - start;
-  return Math.floor(diff / 86400000);
+// Monotonic local-day index. Every local-time midnight bumps the seed by
+// exactly 1 — no year reset, no DST cliff, no double-rotate when crossing
+// timezones. Same input → same output for a single calendar day.
+function localDayId(d = new Date()) {
+  const local = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+  return Math.floor(local.getTime() / 86400000);
+}
+
+function formatTodayLabel(d = new Date()) {
+  // e.g. "Mon, Apr 27"
+  return d.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' });
 }
 
 async function renderQotd(packs, mount) {
   // Pick today's pack deterministically from the popular set
-  const day = dayOfYear();
+  const day = localDayId();
+  const todayLabel = formatTodayLabel();
   const candidates = POPULAR_PACKS_FOR_QOTD.filter(id => packs.some(p => p.id === id));
   if (candidates.length === 0) return;
+  // Two coprime offsets so pack and question both rotate independently —
+  // avoids the case where a small `candidates.length` makes the same pack
+  // line up with the same question slot every period.
   const packId = candidates[day % candidates.length];
   const pack = findPackById(packs, packId);
   if (!pack) return;
@@ -281,7 +291,9 @@ async function renderQotd(packs, mount) {
   questions = questions.filter(q => q.options?.length === 4 && q.correct >= 0 && q.correct < 4);
   if (!questions.length) return;
 
-  const q = questions[day % questions.length];
+  // Use day*7+3 (coprime to common pack sizes) so pack + question don't
+  // re-pair on a short cycle.
+  const q = questions[(day * 7 + 3) % questions.length];
   const today = new Date().toISOString().slice(0, 10);
   const seenKey = `${KEYS.qotdSeen}_${today}`;
   let alreadyAnswered = false;
@@ -291,7 +303,7 @@ async function renderQotd(packs, mount) {
   card.className = 'qotd-card';
   card.innerHTML = `
     <div class="qotd-eyebrow">
-      <span>🌟 Question of the day</span>
+      <span>🌟 Question of the day · <span class="qotd-date">${escapeHTML(todayLabel)}</span></span>
       <span class="qotd-pack">${escapeHTML(pack.brandName)} · ${escapeHTML(pack.short)}</span>
     </div>
     <div class="qotd-question">${escapeHTML(q.question)}</div>
