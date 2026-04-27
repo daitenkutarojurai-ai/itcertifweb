@@ -264,7 +264,7 @@ function formatTodayLabel(d = new Date()) {
   return d.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' });
 }
 
-async function renderQotd(packs, mount) {
+async function renderQotd(packs, mount, section) {
   // Pick today's pack deterministically from the popular set
   const day = localDayId();
   const todayLabel = formatTodayLabel();
@@ -324,6 +324,7 @@ async function renderQotd(packs, mount) {
     </a>
   `;
   mount.appendChild(card);
+  if (section) section.hidden = false;
 
   const buttons = card.querySelectorAll('.qotd-option');
   const explanation = card.querySelector('.qotd-explanation');
@@ -386,8 +387,12 @@ async function boot() {
   }
 
   // Question of the Day always appears (unless on a tiny page).
-  // Run async — don't block first paint.
-  renderQotd(packs, mount).catch(() => { /* ignore QotD failures */ });
+  // Prefer the dedicated post-hero slot (#qotd-mount, hidden by default) so a
+  // real question replaces the old static "Live preview" mockup. Falls back to
+  // the onboarding zone if the page predates that slot.
+  const qotdSection = document.getElementById('qotd-section');
+  const qotdMount   = document.getElementById('qotd-mount') || mount;
+  renderQotd(packs, qotdMount, qotdSection).catch(() => { /* ignore QotD failures */ });
 }
 
 if (document.readyState === 'loading') {
