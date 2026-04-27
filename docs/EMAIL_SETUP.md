@@ -17,6 +17,41 @@ deployed to `https://itcertifweb.daitenkutarojurai.workers.dev`.
 > Reconnecting GitHub auto-deploy is also fine — Cloudflare dashboard →
 > Workers → `itcertifweb` → Settings → Build → "Connect to Git".
 
+## Sunday newsletter automation (cron)
+
+The worker now runs a Cloudflare Cron Trigger every **Sunday 08:00 UTC**
+(09:00 Paris winter / 10:00 Paris summer). It picks the rotation slot for
+the current ISO week from `worker/content/newsletter-slots.json` (8 themed
+issues), renders the `newsletter-weekly.html` template, and creates +
+sends a Brevo campaign to `BREVO_LIST_ID`.
+
+To extend or replace content: edit
+`IT-certif/worker/content/newsletter-slots.json`, add or remove slots, then
+`wrangler deploy`. Each slot fills the same template — tip + tricky
+question + what-we-shipped — but the **subject line, lead theme, and
+content rotate per week** (tactical-tip → tricky deep-dive → cert spotlight
+→ vendor news → career path → exam pitfall → cert comparison → free
+resources → loops back).
+
+### Manual trigger (testing)
+
+```bash
+# Render slot 0 in the browser without sending
+curl "https://itcertifweb.daitenkutarojurai.workers.dev/admin/send-newsletter?key=$ADMIN_KEY&slot=0&dry=1" \
+     -X POST -o newsletter-preview.html
+xdg-open newsletter-preview.html
+
+# Actually send slot 3 to BREVO_LIST_ID right now
+curl "https://itcertifweb.daitenkutarojurai.workers.dev/admin/send-newsletter?key=$ADMIN_KEY&slot=3" -X POST
+
+# Send whatever slot the current ISO week resolves to (= what the cron would do)
+curl "https://itcertifweb.daitenkutarojurai.workers.dev/admin/send-newsletter?key=$ADMIN_KEY" -X POST
+```
+
+`ADMIN_KEY` is a worker secret. Rotate it with
+`echo <new-key> | npx wrangler secret put ADMIN_KEY` from the IT-certif
+repo.
+
 ## Email templates
 
 The actual HTML templates the worker renders live in
