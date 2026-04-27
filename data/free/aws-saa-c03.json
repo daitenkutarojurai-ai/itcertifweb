@@ -10,17 +10,18 @@
   "questions": [
     {
       "id": "saa-001",
-      "question": "A company runs a web application on EC2 instances behind an ALB. Traffic spikes unpredictably during business hours. Which solution provides the MOST cost-effective way to handle variable load while maintaining high availability?",
+      "question": "A retail website runs on EC2 instances behind an ALB. Server load surges without warning during flash sales and sits nearly idle overnight. The operations team wants to eliminate overnight idle costs while absorbing unpredictable sales spikes without manual intervention. Which compute strategy achieves this?",
       "options": [
-        "Provision a fixed large EC2 instance to handle peak traffic",
-        "Use an Auto Scaling Group with a target tracking policy based on CPU utilization",
-        "Use Reserved Instances sized for peak load",
-        "Deploy multiple regions with Route 53 failover routing"
+        "Run a fixed fleet at peak size using Reserved Instances to lower hourly cost",
+        "Configure an Auto Scaling Group with a CPU target tracking policy at 60%",
+        "Pre-scale with Scheduled Scaling set to business hours on weekdays",
+        "Migrate to Spot Instances across the fleet to reduce baseline cost"
       ],
       "correct": 1,
-      "explanation": "An Auto Scaling Group with target tracking policy automatically adds/removes instances based on actual demand. This is the most cost-effective approach — you only pay for capacity when needed. Target tracking keeps a metric (CPU, request count) near a desired value, scaling in and out automatically.",
-      "tags": ["ec2", "auto-scaling", "cost-optimization"],
-      "difficulty": "easy"
+      "explanation": "Target tracking auto-scaling dynamically adjusts fleet size to keep average CPU near the target, shrinking the fleet overnight to cut idle spend and adding instances as sales traffic surges — no manual intervention required. Option C (Scheduled Scaling) fires on a calendar trigger; flash sales that arrive outside the configured window will overwhelm an under-provisioned fleet, so it does not handle genuinely unpredictable spikes. Spot Instances reduce per-hour pricing but can be reclaimed by AWS with two minutes' notice at peak demand, creating unacceptable availability risk for a customer-facing retail site.",
+      "tags": ["auto-scaling", "cost-optimization", "ec2", "scaling-policies"],
+      "difficulty": "medium",
+      "rewritten": true
     },
     {
       "id": "saa-002",
@@ -40,29 +41,31 @@
       "id": "saa-003",
       "question": "An application stores user-uploaded files in S3. Files are frequently accessed for the first 30 days, rarely accessed for the next 60 days, then never needed again. Which S3 lifecycle configuration minimizes storage cost?",
       "options": [
-        "Store all objects in S3 Standard indefinitely",
-        "Transition to S3 Standard-IA after 30 days, then delete after 90 days",
-        "Immediately store in S3 Glacier Flexible Retrieval",
-        "Use S3 Intelligent-Tiering for all objects"
+        "S3 Standard with no lifecycle policy, retaining objects indefinitely",
+        "Transition to S3 Standard-IA at day 30; expire at 90 days total",
+        "Store all objects in S3 Glacier Deep Archive from day 1 of upload",
+        "Apply S3 Intelligent-Tiering to manage storage class automatically"
       ],
       "correct": 1,
-      "explanation": "S3 Standard-IA (Infrequent Access) charges lower storage rates but higher retrieval fees — ideal for rarely accessed data that still needs quick retrieval. Transitioning after 30 days and deleting after 90 days (30+60) matches the access pattern exactly. S3 Glacier would add retrieval delays. Intelligent-Tiering has monitoring fees on every object.",
+      "explanation": "S3 Standard-IA charges lower per-GB storage rates than Standard but adds a per-GB retrieval fee — an ideal trade-off once objects transition from frequent to infrequent access after day 30. Expiring objects at day 90 (30 active + 60 infrequent = 90 total) eliminates any ongoing cost for data that will never be needed again. Option C (Glacier Deep Archive from day 1) imposes up to 12-hour retrieval delays during the first 30 days when files are frequently accessed, making retrieval fees and latency far worse than the storage savings during that initial window.",
       "tags": ["s3", "storage-classes", "lifecycle", "cost-optimization"],
-      "difficulty": "easy"
+      "difficulty": "easy",
+      "rewritten": true
     },
     {
       "id": "saa-004",
-      "question": "A company wants to ensure its application remains available even if an entire AWS Availability Zone fails. Which architecture pattern achieves this?",
+      "question": "An e-commerce site runs EC2 instances behind an ALB, with all instances in a single subnet in us-east-1a. During an AWS maintenance event affecting that Availability Zone, the application returns 503 errors for 40 minutes. The architecture team must ensure no future single-AZ event causes a full outage. What change addresses the root cause?",
       "options": [
-        "Deploy all EC2 instances in a single AZ with snapshots enabled",
-        "Use CloudFront with S3 as origin",
-        "Distribute instances across at least two AZs behind an ALB with health checks",
-        "Enable EC2 Auto Recovery for all instances"
+        "Reduce the ALB health check interval to 5 s and enable EC2 Auto Recovery on each instance",
+        "Enable a second AZ on the ALB and deploy instances in us-east-1b",
+        "Schedule AMI snapshots hourly and restore into us-east-1b when outages occur",
+        "Create a second Region failover stack in us-west-2 using Route 53 health checks"
       ],
-      "correct": 2,
-      "explanation": "Distributing instances across multiple Availability Zones ensures that an AZ failure only affects a portion of the fleet. The ALB with health checks automatically routes traffic to healthy instances. EC2 Auto Recovery only restarts the same instance in the same AZ. CloudFront+S3 is for static content. Single-AZ is a single point of failure.",
-      "tags": ["high-availability", "ec2", "alb", "multi-az"],
-      "difficulty": "easy"
+      "correct": 1,
+      "explanation": "Deploying instances across two Availability Zones and enabling both AZs on the ALB ensures the load balancer continues routing traffic to healthy instances in the surviving AZ when the other AZ is impaired — the minimum change to remove the single-AZ dependency. Option A (EC2 Auto Recovery) restarts a failed instance on healthy hardware within the same Availability Zone; it protects against individual hardware failure but cannot mitigate an event that impairs the entire AZ. Option C (AMI snapshots with manual restore) requires operator action during the outage window, making recovery time unpredictable and far longer than an automated multi-AZ design.",
+      "tags": ["high-availability", "ec2", "multi-az", "alb"],
+      "difficulty": "medium",
+      "rewritten": true
     },
     {
       "id": "saa-005",
@@ -197,17 +200,18 @@
     },
     {
       "id": "saa-014",
-      "question": "A web application needs to store user session state in a highly available, low-latency datastore that survives EC2 instance failures. Which service is MOST appropriate?",
+      "question": "A horizontally scaled web tier runs across multiple EC2 instances behind an ALB. Users intermittently report being logged out when the ALB routes them to a different instance. Investigation reveals each instance stores session data in local process memory. What is the most operationally simple fix that also survives instance replacement?",
       "options": [
-        "EC2 instance store",
-        "EBS volume attached to each EC2 instance",
-        "Amazon ElastiCache for Redis with Multi-AZ enabled",
-        "Amazon RDS with read replicas"
+        "Enable sticky sessions on the ALB to route each user to the same instance",
+        "Move session storage to a shared ElastiCache Redis cluster",
+        "Persist each instance's session data to its local EBS volume",
+        "Store sessions in DynamoDB and query the session table on each request"
       ],
-      "correct": 2,
-      "explanation": "ElastiCache for Redis provides sub-millisecond latency session storage external to EC2 instances, so sessions survive instance failures. With Multi-AZ, Redis automatically fails over to a replica if the primary fails. Instance store and EBS are instance-local — when the instance dies, the session is lost. RDS is a relational database suited for persistent structured data, not low-latency session caching.",
+      "correct": 1,
+      "explanation": "Storing sessions in an external ElastiCache Redis cluster makes session data accessible from any instance in the fleet — a new or replacement instance can immediately retrieve any user's session without interruption, and Multi-AZ mode keeps Redis available even during a primary node failure. Option A (sticky sessions) stops the immediate routing problem but does not fix durability: when the pinned instance is replaced during a deployment or failure, every user session bound to that instance is lost simultaneously, producing a worse batch-logout event than the original complaint.",
       "tags": ["elasticache", "redis", "session-management", "high-availability"],
-      "difficulty": "medium"
+      "difficulty": "medium",
+      "rewritten": true
     },
     {
       "id": "saa-015",
@@ -239,17 +243,18 @@
     },
     {
       "id": "saa-017",
-      "question": "A company needs to allow users to upload files directly to S3 from a browser without routing traffic through application servers. The upload URL must expire after 15 minutes. Which approach should be used?",
+      "question": "A media sharing platform lets users upload large video files from a browser. Currently all uploads pass through the application server tier before being written to S3, creating bandwidth bottlenecks and high EC2 costs during peak hours. The security team requires that upload credentials expire no more than 15 minutes after issuance. Which solution removes the application server from the upload data path while meeting the security requirement?",
       "options": [
-        "Make the S3 bucket publicly writable",
-        "Generate a presigned URL on the server and return it to the client for direct upload",
-        "Use API Gateway with a Lambda proxy to forward uploads to S3",
-        "Enable CORS on the S3 bucket and use the bucket's public endpoint"
+        "Open the S3 bucket for public PUT access and have the browser upload directly",
+        "Generate a presigned S3 PUT URL (15-minute TTL) in the application server",
+        "Route uploads through an API Gateway integration that proxies the data to S3",
+        "Deploy AWS Transfer Family with SFTP to accept browser-based file uploads"
       ],
       "correct": 1,
-      "explanation": "S3 presigned URLs allow temporary, time-limited access to perform specific S3 operations (including PUT for uploads) using the generating identity's permissions. The server generates the URL with an expiration (up to 7 days) and returns it to the client. The browser uploads directly to S3, bypassing application servers entirely. This reduces load on app servers and eliminates double-transfer overhead.",
-      "tags": ["s3", "presigned-urls", "security"],
-      "difficulty": "medium"
+      "explanation": "A presigned PUT URL embeds the uploader's identity and an expiry timestamp into a cryptographically signed request URL. The application server generates the URL without touching any file data, then returns it to the browser; the browser PUTs the file directly to S3 — no upload data flows through EC2. Setting the expiry to 15 minutes satisfies the credential lifetime requirement. Option C (API Gateway proxy) replaces the EC2 bottleneck with an API Gateway bottleneck — the full file still transits a server, and API Gateway's 10 MB request body limit makes it unsuitable for large video files.",
+      "tags": ["s3", "presigned-urls", "security", "cost-optimization"],
+      "difficulty": "medium",
+      "rewritten": true
     },
     {
       "id": "saa-018",
