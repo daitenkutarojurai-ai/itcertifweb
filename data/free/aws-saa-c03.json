@@ -307,7 +307,8 @@
         "data-migration",
         "s3"
       ],
-      "difficulty": "medium"
+      "difficulty": "medium",
+      "rewritten": true
     },
     {
       "id": "saa-016",
@@ -450,79 +451,83 @@
     },
     {
       "id": "saa-023",
-      "question": "A company needs to encrypt data in S3 with keys they fully control and audit all key usage. Which S3 encryption option meets these requirements?",
+      "question": "A healthcare startup stores de-identified patient records in S3. A new compliance framework requires (1) a verifiable log of every encryption key use, and (2) the ability to immediately revoke read access to all stored records during a security incident. The startup uses AWS KMS for key management. Which S3 server-side encryption configuration satisfies both requirements?",
       "options": [
-        "SSE-S3 (Server-Side Encryption with S3-managed keys)",
-        "SSE-KMS using an AWS-managed key (aws/s3)",
-        "SSE-KMS using a Customer Managed Key (CMK) in AWS KMS",
-        "Client-side encryption with a locally stored key"
+        "SSE-S3 using the Amazon-managed S3 key (no KMS dependency)",
+        "SSE-KMS with the aws/s3 AWS-managed KMS key for the account",
+        "SSE-KMS with a dedicated company-owned KMS key and key policy",
+        "Client-side encryption using a key fetched from AWS Secrets Manager"
       ],
       "correct": 2,
-      "explanation": "SSE-KMS with a Customer Managed Key (CMK) lets you define key policies, rotate keys, audit all usage in CloudTrail, and enable/disable the key. SSE-S3 uses AWS-managed keys with no customer control or visibility. The AWS-managed KMS key (aws/s3) provides some audit trail but you cannot manage the key policy or disable it. Client-side encryption requires customers to manage the entire encryption lifecycle.",
+      "explanation": "SSE-KMS with a company-owned KMS key records every GenerateDataKey and Decrypt call in CloudTrail, providing the verifiable key-usage log required by the compliance framework. Disabling the KMS key immediately prevents all future decrypts of every object encrypted with it, satisfying the instant-revoke requirement. Option B (aws/s3 key) also logs KMS events in CloudTrail but is fully managed by AWS — the company cannot disable it, so instant revocation of all read access is not possible.",
       "tags": [
         "s3",
         "encryption",
         "kms",
         "security"
       ],
-      "difficulty": "medium"
+      "difficulty": "medium",
+      "rewritten": true
     },
     {
       "id": "saa-024",
-      "question": "An application tier running on EC2 receives traffic from an ALB. The EC2 instances need to talk to a backend RDS database. Which security group configuration CORRECTLY applies least privilege?",
+      "question": "A security audit at a three-tier e-commerce company reveals that the RDS MySQL database security group permits inbound traffic on port 3306 from the entire VPC CIDR (10.0.0.0/16). The auditors require access scoped to only the application EC2 instances. An ALB forwards HTTP to an EC2 app tier, which queries the database. Which security group change satisfies least privilege with no application impact?",
       "options": [
-        "Allow all inbound on the EC2 SG; allow all inbound on the RDS SG",
-        "EC2 SG: allow inbound on app port from ALB SG; RDS SG: allow inbound on DB port from EC2 SG",
-        "EC2 SG: allow inbound from 0.0.0.0/0; RDS SG: allow inbound from VPC CIDR",
-        "Configure both SGs to allow traffic from the entire VPC CIDR block"
+        "EC2 SG: inbound 80 from 0.0.0.0/0; RDS SG: inbound 3306 from any VPC instance",
+        "EC2 SG: inbound 80 from ALB SG; RDS SG: inbound 3306 from EC2 SG",
+        "EC2 SG: inbound 80 from ALB SG; RDS SG: inbound 3306 from 0.0.0.0/0",
+        "EC2 SG: inbound all from VPC CIDR; RDS SG: inbound all from VPC CIDR"
       ],
       "correct": 1,
-      "explanation": "Referencing security groups rather than IP ranges is the AWS best practice. The EC2 SG allows inbound on the app port only from the ALB's SG. The RDS SG allows inbound on the DB port only from the EC2 SG. This is least privilege: each tier only accepts traffic from the specific upstream tier, and rules update automatically as instances scale.",
+      "explanation": "Referencing a security group ID in an inbound rule restricts access to exactly those instances carrying that group, updating automatically as instances scale without any IP management. EC2 SG allowing port 80 from the ALB SG accepts traffic only from the load balancer; RDS SG allowing 3306 from the EC2 SG accepts connections only from app instances, not the entire VPC CIDR that the audit flagged. Option A's RDS rule 'from any VPC instance' is functionally equivalent to the original 10.0.0.0/16 CIDR — it still exposes the database to every EC2 instance in the VPC, including developer workstations and unrelated services.",
       "tags": [
         "security-groups",
         "vpc",
         "security",
         "least-privilege"
       ],
-      "difficulty": "medium"
+      "difficulty": "medium",
+      "rewritten": true
     },
     {
       "id": "saa-025",
-      "question": "A company wants to build a serverless REST API that calls Lambda functions. The API must handle authentication using JWT tokens. Which AWS service combination is CORRECT?",
+      "question": "A mobile app startup has an existing Cognito User Pool for authentication. The development team is building HTTP endpoints that invoke Lambda functions for business logic — all without maintaining EC2 instances or patching servers. The team wants token validation to happen before Lambda is invoked, with no custom authorizer code to maintain. Which AWS service combination satisfies all three constraints?",
       "options": [
-        "ALB + Lambda Target Group + Cognito User Pool",
-        "API Gateway + Lambda + Cognito Authorizer (or Lambda Authorizer)",
-        "CloudFront + Lambda@Edge + IAM authentication",
-        "Elastic Beanstalk + Lambda + DynamoDB"
+        "CloudFront distribution → Lambda@Edge → custom header inspection per edge location",
+        "AWS AppSync GraphQL endpoint → Lambda resolvers → Cognito auth provider",
+        "API Gateway REST API → Lambda function → Cognito User Pool Authorizer",
+        "Application Load Balancer → Lambda target group → Cognito hosted-UI redirect"
       ],
-      "correct": 1,
-      "explanation": "API Gateway integrates natively with Lambda as a backend and supports authorizers for authentication. A Cognito User Pool Authorizer validates JWT tokens from Cognito. A Lambda Authorizer provides custom JWT validation logic. API Gateway handles routing, throttling, and caching. Lambda@Edge is for CDN edge logic, not REST API hosting.",
+      "correct": 2,
+      "explanation": "API Gateway's native Cognito User Pool Authorizer validates the JWT Bearer token in the Authorization header before routing the request to Lambda — no Lambda Authorizer code to write or maintain. Option D (ALB with Cognito) uses a hosted-UI redirect flow designed for browser OAuth, not a mobile API token flow; the ALB Cognito integration cannot validate pre-issued Bearer tokens inline and instead initiates a browser redirect, which breaks mobile API clients. Option B (AppSync) uses a GraphQL protocol, not the HTTP endpoints the team specified.",
       "tags": [
         "api-gateway",
         "lambda",
         "cognito",
         "serverless"
       ],
-      "difficulty": "medium"
+      "difficulty": "medium",
+      "rewritten": true
     },
     {
       "id": "saa-026",
-      "question": "A company needs its RDS database to be available even if hardware fails in the primary Availability Zone, with automatic failover and minimal application changes. Which feature provides this?",
+      "question": "An operations team at a regional bank runs a critical MySQL database on Amazon RDS in a single Availability Zone. During a DR test, they simulate a hardware failure in the primary AZ — recovery requires a manual restore from a daily snapshot, which takes 45 minutes and requires updating the database connection string in the application. The team's SLA mandates a 5-minute RTO with no application code changes. Which RDS configuration change achieves both requirements?",
       "options": [
-        "RDS Read Replica in a different AZ",
-        "RDS Multi-AZ deployment with synchronous standby replication",
-        "Manual snapshot restore to a new instance in another AZ",
-        "RDS Cross-Region Replication"
+        "RDS Read Replica promoted manually when the primary instance fails",
+        "RDS Multi-AZ with a synchronous standby replica in a second AZ",
+        "RDS automated backup with point-in-time recovery to a new instance",
+        "RDS Cross-Region Replica with CloudWatch alarm-triggered promotion"
       ],
       "correct": 1,
-      "explanation": "RDS Multi-AZ maintains a synchronous standby replica in a different AZ. If the primary fails, RDS automatically promotes the standby with failover typically completing in 60-120 seconds. The application uses the same DNS endpoint — no code changes needed. Read Replicas are asynchronous and not automatic failover targets. Snapshots require manual intervention.",
+      "explanation": "RDS Multi-AZ maintains a synchronous standby that mirrors every committed write from the primary. When the primary AZ becomes unavailable, RDS automatically promotes the standby and updates the DNS CNAME within 60–120 seconds — the application reconnects using the same endpoint with no code changes. Option A (Read Replica) requires a manual promotion step, extending recovery time beyond the 5-minute RTO, and after promotion the application must be updated to use the new endpoint.",
       "tags": [
         "rds",
         "multi-az",
         "high-availability",
         "failover"
       ],
-      "difficulty": "easy"
+      "difficulty": "medium",
+      "rewritten": true
     },
     {
       "id": "saa-027",
