@@ -1,114 +1,123 @@
-# Email cheatsheet + newsletter — setup checklist
+# Email cheatsheet + newsletter — setup
 
-This wires the **post-quiz cheatsheet email** and the **newsletter signup** to
-Brevo. Total time: **~10 minutes** of clicking. No CLI needed.
+The post-quiz cheatsheet email and newsletter signup go through a separate
+Cloudflare Worker living in the **`daitenkutarojurai-ai/IT-certif`** repo
+(deployed via wrangler + GitHub Actions to
+`https://itcertifweb.daitenkutarojurai.workers.dev`).
 
-> ⚠️ **Before anything else:** the SMTP key you previously shared in chat is
-> **compromised** and must be revoked. Step 1 below covers it.
+This doc lists what to do **in this repo** (`itcertifweb`) and **in that
+repo** (`IT-certif`) to get the feature live.
+
+> ⚠️ **Reminder:** the SMTP key once shared in chat (`xsmtpsib-1b7431b1…`) is
+> compromised. Revoke it in **Brevo → SMTP & API → SMTP keys**. This worker
+> uses the **HTTP API** (different key), so the SMTP key isn't needed at all.
 
 ---
 
-## 1. Brevo — revoke leaked credentials & generate fresh ones
+## In `IT-certif` (the worker repo)
 
-1. Log into [Brevo](https://app.brevo.com).
-2. Go to **SMTP & API** (top-right menu → your name → SMTP & API).
-3. **SMTP keys tab** → find the key starting with `xsmtpsib-1b7431b1…` →
-   click the trash / revoke icon. *(SMTP isn't used by this integration; we
-   call the HTTP API instead. But the leaked key must die.)*
-4. Switch to the **API keys tab** → **Generate a new API key** →
-   name it `certquests-worker` → **Copy** the value (`xkeysib-…`). You'll
-   paste it once, in the Cloudflare dashboard.
+### 1. Drop in the worker source
 
-## 2. Brevo — verify a sender email
+Create / replace these two files (contents printed in the chat that produced
+this doc, or copy from the canonical version pinned alongside this commit):
 
-Brevo refuses to send from unverified addresses.
+- `src/index.js` — the worker (POST `/quiz-report`)
+- `wrangler.toml` — wrangler config
 
-1. **Senders, Domains & Dedicated IPs** → **Senders** tab → **Add a sender**.
-2. Enter a real address you control (e.g. `hello@certquests.com`) and your
-   display name (`CertQuests`).
-3. Open the verification email Brevo sends and click the link.
+Push to `main`. The Cloudflare ↔ GitHub integration auto-deploys.
 
-## 3. Brevo — create the newsletter list
+### 2. Set environment variables on the worker
 
-1. **Contacts** → **Lists** → **Add a new list**.
-2. Name it (e.g. `CertQuests Newsletter`) → save.
-3. Open the list → its **numeric ID** appears in the URL
-   (`…/contact/list/123` → ID is `123`). Note it down.
-
-## 4. Cloudflare — deploy the worker (web UI, no CLI)
-
-1. Sign in to [Cloudflare dashboard](https://dash.cloudflare.com). If you
-   don't have an account, free signup takes a minute.
-2. Left sidebar → **Workers & Pages** → **Create** → **Hello World** template
-   → name it `certquests-mail` → **Deploy**.
-3. On the worker page → **Edit code** (top-right).
-4. Open `worker/quiz-report-worker.js` from this repo, copy its full contents,
-   paste over the default `worker.js` in the editor → **Deploy** (top-right).
-5. Copy the worker URL shown at the top of the deploy panel
-   (looks like `https://certquests-mail.<your-subdomain>.workers.dev`).
-
-## 5. Cloudflare — set the 5 environment variables
-
-Still on the worker page → **Settings** tab → **Variables and Secrets** →
-**Add variable**. Add each of these:
+Cloudflare dashboard → **Workers & Pages → itcertifweb → Settings →
+Variables and Secrets**:
 
 | Name | Type | Value |
 |---|---|---|
-| `BREVO_API_KEY` | **Secret** (encrypt) | the `xkeysib-…` value from step 1.4 |
-| `BREVO_LIST_ID` | Text | the numeric list ID from step 3.3 |
-| `BREVO_SENDER_EMAIL` | Text | the address you verified in step 2 |
+| `BREVO_API_KEY` | **Secret** | already set ✅ |
+| `BREVO_SENDER_EMAIL` | Text | verified sender, e.g. `hello@certquests.com` |
 | `BREVO_SENDER_NAME` | Text | `CertQuests` |
-| `ALLOWED_ORIGIN` | Text | `https://certquests.com` |
+| `BREVO_LIST_ID` | Text | numeric newsletter list ID |
+| `ALLOWED_ORIGIN` | Text | comma-separated origins — see below |
 
-Click **Deploy** at the bottom so the new variables take effect.
+**`ALLOWED_ORIGIN` for a Capacitor app needs multiple origins.** Recommended:
 
-## 6. Connect the site to the worker
-
-Open `src/engine/emailReport.js` in this repo and set `REPORT_API_URL` to your
-worker URL **with `/quiz-report` appended**:
-
-```js
-export const REPORT_API_URL = 'https://certquests-mail.<your-subdomain>.workers.dev/quiz-report';
+```
+https://certquests.com,https://www.certquests.com,capacitor://localhost,https://localhost,http://localhost
 ```
 
-Commit + push. GitHub Pages will redeploy automatically.
+(`capacitor://localhost` = iOS, `https://localhost` / `http://localhost` =
+Android, the rest are the web build.)
 
-## 7. Smoke test
-
-1. Open the site → take a 5-question quiz → finish on a question you answer
-   wrong on purpose.
-2. On the results screen, the **"Email me my cheatsheet"** card should
-   appear. Enter your address, tick the newsletter checkbox, submit.
-3. Within ~30 s you should receive the cheatsheet email.
-4. In Brevo → **Contacts** → your list should show your address.
-5. In Cloudflare → worker → **Logs** tab → should show a `200` for
-   `/quiz-report`.
+Re-deploy from the dashboard so the new vars take effect.
 
 ---
+
+## In Brevo
+
+### 3. Verify a sender
+
+**Senders, Domains & Dedicated IPs → Senders → Add a sender** → enter the
+address you'll use as `BREVO_SENDER_EMAIL` → click the verification link
+Brevo emails you. Brevo refuses to send from unverified addresses.
+
+(Optional but recommended for deliverability: also authenticate the *domain*
+under **Domains** → adds SPF + DKIM, keeps your emails out of spam.)
+
+### 4. Create the newsletter list
+
+**Contacts → Lists → Add a new list** → name it (e.g. `CertQuests
+Newsletter`) → save. The numeric ID appears in the URL
+(`/contact/list/123` → ID is `123`). That's `BREVO_LIST_ID`.
+
+---
+
+## In this repo (`itcertifweb`)
+
+### 5. Wire the frontend to the worker
+
+Open `src/engine/emailReport.js` and set `REPORT_API_URL`:
+
+```js
+export const REPORT_API_URL = 'https://itcertifweb.daitenkutarojurai.workers.dev/quiz-report';
+```
+
+Commit + push. GitHub Pages redeploys automatically. The disabled email card
+on the results screen flips to active.
+
+---
+
+## Smoke test
+
+1. Open the site → take a 5-question quiz → answer at least one wrong on
+   purpose.
+2. On the results screen, the **"Email me my cheatsheet"** card appears.
+3. Submit with your address + newsletter checkbox ticked.
+4. Within ~30 s, the cheatsheet email arrives.
+5. Brevo → **Contacts → CertQuests Newsletter** → your address is listed.
+6. Cloudflare → **itcertifweb → Logs** → `200` for `POST /quiz-report`.
 
 ## Troubleshooting
 
 | Symptom | Likely cause | Fix |
 |---|---|---|
-| Form is greyed out / "feature not configured" | `REPORT_API_URL` is still empty in `emailReport.js` | Step 6 |
-| Worker returns 502 / "could not send" | Sender not verified, or wrong API key | Re-check steps 1.4 + 2 |
-| Email never arrives | Check spam; check Brevo → Logs → Email events | Add `noreply@` SPF/DKIM via Brevo's domain authentication if landing in spam |
-| Newsletter signup silently skipped | `BREVO_LIST_ID` missing or wrong | Step 5 |
-| 429 "too many requests" | Built-in 1/min/IP rate limit | Wait 60 s — this is intentional |
-| CORS error in browser console | `ALLOWED_ORIGIN` doesn't match the site origin (incl. scheme + no trailing slash) | Step 5, fix `ALLOWED_ORIGIN` |
+| Form is greyed out | `REPORT_API_URL` empty | Step 5 |
+| 502 / "could not send" + Brevo status in body | Sender unverified or wrong API key | Step 3 + check secret |
+| Email lands in spam | Domain not authenticated | Step 3 — add SPF/DKIM via Brevo's domain auth |
+| Newsletter signup silently failed | `BREVO_LIST_ID` missing/wrong | Step 2 |
+| 429 from worker | Built-in 1/min/IP rate limit | Wait 60 s |
+| CORS error in browser console | `ALLOWED_ORIGIN` doesn't include the request origin (note: scheme + host, no trailing slash, no path) | Step 2 |
+| Capacitor app fails CORS but web works | `capacitor://localhost` / `https://localhost` not in `ALLOWED_ORIGIN` | Step 2 |
 
 ## Costs
 
-- **Brevo free tier:** 300 transactional emails/day + unlimited contacts. Far
-  beyond CertQuests' current traffic.
-- **Cloudflare Workers free tier:** 100,000 requests/day. Same — no concern.
+- **Brevo free tier:** 300 transactional emails/day + unlimited contacts.
+- **Cloudflare Workers free tier:** 100,000 requests/day.
 
-## Maintenance notes
+Well within current traffic.
 
-- The worker file is kept in `worker/quiz-report-worker.js` — version
-  controlled, but **not auto-deployed**. After editing, repeat step 4.4
-  (paste over the editor → Deploy).
-- The Brevo API key lives **only** in the Cloudflare dashboard. Never commit
-  it. Never paste it in chat.
-- If you rotate the Brevo key, update only the Cloudflare secret — no code
-  change needed.
+## Why two repos?
+
+The site (`itcertifweb`, this repo) ships to GitHub Pages — pure static.
+The worker (`IT-certif`) is server-side code with secrets, which can't live
+in a static repo. Keeping them separate also means the worker can be reused
+later (mobile push, SMS, etc.) without entangling it with the site build.

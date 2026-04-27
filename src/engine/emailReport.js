@@ -12,7 +12,9 @@
  * See docs/EMAIL_SETUP.md for the click-by-click setup.
  */
 
-export const REPORT_API_URL = ''; // e.g. 'https://certquests-mail.<your-account>.workers.dev/quiz-report'
+// Set to '' to keep the email card disabled (e.g. while finishing worker setup).
+// Worker lives in the separate `IT-certif` repo, deployed to itcertifweb.workers.dev.
+export const REPORT_API_URL = ''; // 'https://itcertifweb.daitenkutarojurai.workers.dev/quiz-report'
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
 
