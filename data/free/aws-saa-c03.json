@@ -66,17 +66,18 @@
     },
     {
       "id": "saa-005",
-      "question": "A solutions architect needs to allow an EC2 instance to read objects from an S3 bucket. What is the MOST secure way to grant this permission?",
+      "question": "A DevOps engineer discovers that an EC2 web application is calling S3 using access keys stored in a plaintext configuration file on the instance. The security team requires these long-lived credentials to be removed immediately while preserving S3 read access. What should the solutions architect recommend?",
       "options": [
-        "Embed AWS access keys directly in the application code",
-        "Store access keys in an environment variable on the EC2 instance",
-        "Attach an IAM role to the EC2 instance with the required S3 permissions",
-        "Create an IAM user and put the credentials in /etc/aws/credentials"
+        "Rotate the access keys and redeploy the application with updated credential values",
+        "Store the credentials as SecureString parameters in AWS Systems Manager",
+        "Attach an IAM role to the instance and remove all hard-coded access keys",
+        "Create a dedicated IAM user and reference credentials through environment variables"
       ],
       "correct": 2,
-      "explanation": "IAM roles attached to EC2 instances provide temporary credentials that are automatically rotated — no long-term keys to manage or accidentally expose. The application uses the instance metadata service (IMDS) to retrieve short-lived credentials. Hardcoding or storing access keys in any form is a security anti-pattern.",
+      "explanation": "Attaching an IAM role to an EC2 instance causes the instance metadata service (IMDS) to vend temporary, automatically-rotated credentials — no static keys exist to be stolen or leaked. The application calls S3 using the same SDK calls with no code changes required. Option D still uses long-lived IAM user credentials stored on disk, which carries the same fundamental risk as the original config file; it improves secret discoverability but does not eliminate the static-credential exposure.",
       "tags": ["iam", "ec2", "security", "roles"],
-      "difficulty": "easy"
+      "difficulty": "medium",
+      "rewritten": true
     },
     {
       "id": "saa-006",
@@ -94,17 +95,18 @@
     },
     {
       "id": "saa-007",
-      "question": "An application in a private subnet needs to download software packages from the internet. No inbound connections from the internet should be allowed. What is the CORRECT solution?",
+      "question": "A startup's production environment has web servers in public subnets and application servers in private subnets. After migrating to a newly created VPC, the application servers can no longer download software patches from the internet, although they receive no inbound connections. What change should the solutions architect make?",
       "options": [
-        "Attach an Internet Gateway directly to the private subnet",
-        "Create a NAT Gateway in a public subnet and update the private subnet route table to point 0.0.0.0/0 to the NAT Gateway",
-        "Assign an Elastic IP to each EC2 instance in the private subnet",
-        "Create a VPC peering connection to another VPC with internet access"
+        "Update the private subnet route table to forward all 0.0.0.0/0 traffic to the existing Internet Gateway",
+        "Deploy a NAT Gateway in the public subnet and update the private subnet route table",
+        "Allocate an Elastic IP to each application server in the private subnet",
+        "Add a VPC peering connection to a transit VPC that has internet access"
       ],
       "correct": 1,
-      "explanation": "A NAT Gateway in a public subnet allows instances in private subnets to initiate outbound internet connections while blocking all inbound connections. The route table in the private subnet directs internet-bound traffic (0.0.0.0/0) to the NAT Gateway, which translates addresses and forwards the traffic through the Internet Gateway in the public subnet.",
+      "explanation": "A NAT Gateway placed in a public subnet uses the subnet's Internet Gateway to make outbound connections on behalf of private-subnet resources, translating source addresses so replies route back correctly. Private instances initiate the connection but remain unreachable from the internet because they have no public IP and no inbound route. Option A would fail because private-subnet instances lack public IPs — routing their traffic directly to the Internet Gateway causes packets to be dropped since there is no valid public-to-private address mapping.",
       "tags": ["vpc", "nat-gateway", "networking", "security"],
-      "difficulty": "medium"
+      "difficulty": "medium",
+      "rewritten": true
     },
     {
       "id": "saa-008",
@@ -122,31 +124,33 @@
     },
     {
       "id": "saa-009",
-      "question": "A Lambda function needs to access a private RDS database without exposing the database to the public internet. Which configuration achieves this?",
+      "question": "A security audit finds that a Lambda function processing payment records connects to an RDS PostgreSQL database using the publicly accessible endpoint. The security team requires the database to be unreachable from the internet while Lambda retains the ability to execute queries. What configuration achieves this?",
       "options": [
-        "Enable RDS public accessibility and whitelist the Lambda IP address",
-        "Deploy the Lambda function inside the same VPC as RDS, in a private subnet, with appropriate security group rules",
-        "Use Lambda@Edge to access RDS through CloudFront",
-        "Create a VPC endpoint for RDS and configure Lambda to use it"
+        "Deploy Lambda inside the VPC and configure the RDS security group to allow access from the Lambda SG",
+        "Remove RDS public access and restrict connections via RDS resource-based policies scoped to Lambda's execution role",
+        "Keep RDS publicly accessible and rotate database credentials hourly using Secrets Manager",
+        "Create a VPC peering connection to route Lambda traffic into the private RDS subnet"
       ],
-      "correct": 1,
-      "explanation": "Deploying Lambda in the same VPC as RDS (with VPC configuration on the Lambda function) allows private communication. The Lambda function gets an ENI in the VPC subnet, and security groups control access. RDS stays private with no public endpoint needed. Note: There is no VPC Gateway Endpoint for RDS — Interface endpoints exist for specific APIs, not RDS TCP access.",
+      "correct": 0,
+      "explanation": "Configuring Lambda with VPC settings creates an ENI in the specified subnets, allowing Lambda to reach RDS over private IP addresses — no public endpoint required. Disabling RDS public accessibility ensures no internet-originating connection can reach the database. Option B is incorrect because RDS does not support resource-based policies that restrict TCP-level connectivity; network access is controlled by security groups, not by a role-scoped policy attached to the RDS resource itself.",
       "tags": ["lambda", "rds", "vpc", "security"],
-      "difficulty": "medium"
+      "difficulty": "medium",
+      "rewritten": true
     },
     {
       "id": "saa-010",
-      "question": "An e-commerce application needs to process orders asynchronously. When an order is written, multiple downstream services (inventory, shipping, email) must each receive a copy. Which AWS architecture handles this BEST?",
+      "question": "An e-commerce platform's order service publishes completed orders to three independent downstream systems — inventory management, shipping fulfillment, and customer email — each of which must process every order event. The engineering team requires that adding a new consumer needs no changes to the order service. Which AWS pattern achieves this?",
       "options": [
-        "Write directly to each downstream service's SQS queue from the order service",
-        "Use SNS to publish to a topic; each downstream service subscribes with its own SQS queue (fan-out pattern)",
-        "Store orders in DynamoDB and have each service poll for new records",
-        "Use Kinesis Data Streams with a single consumer"
+        "Publish to an SNS topic; each service subscribes via its own SQS queue",
+        "Route orders to a Kinesis Data Stream; each downstream service reads from a dedicated shard",
+        "Write directly to each downstream service's individual SQS queue from the order service",
+        "Store orders in DynamoDB Streams and configure each consumer to react to item changes"
       ],
-      "correct": 1,
-      "explanation": "The SNS fan-out pattern publishes a single message to an SNS topic, which delivers it to multiple SQS queues (one per subscriber). Each downstream service reads from its own queue independently, decoupling producers from consumers. Writing to each queue directly creates tight coupling. DynamoDB polling is inefficient. Kinesis supports fan-out but is designed for streaming data, not simple message queuing.",
+      "correct": 0,
+      "explanation": "The SNS fan-out pattern decouples the producer from consumers completely — the order service publishes once to a topic, and each SQS-subscribed service receives an independent copy automatically. Adding a new consumer requires only a new SNS subscription, with zero changes to the order service. Option C (writing directly to each SQS queue) creates N point-to-point dependencies — when a new consumer is added, the order service code must be updated to write to the additional queue, violating the decoupling requirement.",
       "tags": ["sns", "sqs", "messaging", "fan-out", "decoupling"],
-      "difficulty": "medium"
+      "difficulty": "medium",
+      "rewritten": true
     },
     {
       "id": "saa-011",
@@ -178,17 +182,18 @@
     },
     {
       "id": "saa-013",
-      "question": "An application uses SQS to process tasks. Some messages are consistently failing to process and causing delays. The architecture must prevent bad messages from blocking valid ones while preserving failed messages for investigation. What should be implemented?",
+      "question": "A financial application processes wire transfer instructions from an SQS queue using a Lambda function. After a code deployment, certain message formats cause the Lambda function to throw an unhandled exception. These messages are returned to the queue, immediately retried, and continue failing — consuming Lambda invocations while delaying valid messages. What should the solutions architect implement?",
       "options": [
-        "Increase the SQS message retention period to 14 days",
-        "Configure a Dead Letter Queue (DLQ) with a maxReceiveCount, and set up an alarm on the DLQ depth",
-        "Enable SQS FIFO ordering to process messages in order",
-        "Increase the visibility timeout to give more processing time"
+        "Configure a Dead Letter Queue with maxReceiveCount=3 and a depth alarm",
+        "Increase the visibility timeout to 5 minutes so Lambda has sufficient time to process each message",
+        "Enable FIFO ordering so wire transfers are processed in strict first-in, first-out order",
+        "Extend the message retention period to 14 days so failed messages are not permanently deleted"
       ],
-      "correct": 1,
-      "explanation": "A Dead Letter Queue (DLQ) receives messages that fail processing after maxReceiveCount attempts. This prevents a 'poison pill' message from blocking other processing. The DLQ allows developers to inspect failed messages without losing them. Setting a CloudWatch alarm on DLQ depth provides operational visibility. FIFO ordering and visibility timeout don't handle persistently failing messages.",
+      "correct": 0,
+      "explanation": "A Dead Letter Queue (DLQ) receives messages that have exceeded maxReceiveCount processing attempts, permanently removing them from the main queue so they stop consuming Lambda invocations and blocking valid messages. A CloudWatch alarm on DLQ depth alerts the team when failures accumulate, enabling rapid root-cause investigation. Option B (increasing visibility timeout) only delays retries — it does not prevent a 'poison pill' message from cycling through the queue indefinitely once the timeout expires.",
       "tags": ["sqs", "dlq", "messaging", "fault-tolerance"],
-      "difficulty": "medium"
+      "difficulty": "medium",
+      "rewritten": true
     },
     {
       "id": "saa-014",
