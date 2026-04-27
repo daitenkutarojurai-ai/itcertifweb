@@ -136,44 +136,100 @@ export function showModePicker(pack, questions) {
   modal.querySelector('#mode-full').addEventListener('click', () => startQuiz('full', fullCount));
   modal.querySelector('#mode-study').addEventListener('click', () => startQuiz('study', STUDY_COUNT));
   modal.querySelector('#mode-diag').addEventListener('click', () => {
-    const sample = stratifiedSample(questions, DIAG_COUNT);
-    startQuiz('diagnostic', sample.length, sample);
+    showDiagnosticIntro(modal, pack, () => {
+      const sample = stratifiedSample(questions, DIAG_COUNT);
+      startQuiz('diagnostic', sample.length, sample);
+    });
   });
 }
 
 /**
- * Pick `count` questions stratified by primary tag — at most one per tag first,
- * then fill remaining slots randomly. This gives the diagnostic broad domain
- * coverage instead of clustering on whichever tag the shuffle happened to pick.
+ * Replace the mode-picker body with a diagnostic-intro framing screen.
+ * Confirms the user actually wants the assessment experience (not just
+ * a longer quiz) before sampling questions. Click "Start" → onConfirm().
+ */
+function showDiagnosticIntro(modal, pack, onConfirm) {
+  const body = modal.querySelector('.modal-body');
+  const header = modal.querySelector('.modal-header');
+  if (!body || !header) { onConfirm(); return; }
+
+  // Swap modal content; keep close-on-backdrop wiring intact.
+  header.innerHTML = `
+    <div class="modal-pack-name">🧪 Diagnostic test</div>
+    <div class="modal-pack-sub">${pack.name}</div>
+  `;
+  body.innerHTML = `
+    <div class="diag-intro">
+      <p class="diag-intro-lede">This isn't a quiz — it's a placement test. We'll use your answers to build a personalized study plan.</p>
+      <ul class="diag-intro-list">
+        <li><strong>10 questions</strong> stratified across topics and difficulty</li>
+        <li><strong>No time pressure</strong> — answer at your own pace</li>
+        <li><strong>No hearts lost</strong> — wrong answers cost nothing</li>
+        <li><strong>Be honest</strong> — guessing inflates the readiness signal</li>
+      </ul>
+      <p class="diag-intro-outro">Takes about 5–8 minutes. You'll get a per-topic breakdown, a readiness flag, and a recommended next step.</p>
+      <div class="diag-intro-actions">
+        <button class="diag-intro-back" type="button" id="diag-intro-back">← Pick another mode</button>
+        <button class="diag-intro-start" type="button" id="diag-intro-start">Start diagnostic →</button>
+      </div>
+    </div>
+  `;
+  body.querySelector('#diag-intro-start').addEventListener('click', onConfirm);
+  body.querySelector('#diag-intro-back').addEventListener('click', () => {
+    // Re-rendering the picker would be heavy; the cheap fix is to close the
+    // modal and let the user re-click their pack. Keeps app.js simple.
+    modal.querySelector('#modal-backdrop')?.click();
+  });
+}
+
+/**
+ * Stratified sample for the diagnostic — balanced by both primary tag AND
+ * difficulty (easy/medium/hard). Ensures the 10-question slice surfaces a
+ * sharper readiness signal than a random or tag-only sample.
+ *
+ * Algorithm:
+ *  1. Pass A: pick one (tag, difficulty) cell per pass; cycle until full.
+ *     This gives broad coverage when a pack has many tags/difficulties.
+ *  2. Pass B: backfill any remaining slots from leftovers.
  */
 function stratifiedSample(questions, count) {
   const valid = questions.filter(q => q.options?.length === 4 && q.correct >= 0 && q.correct < 4);
   if (valid.length <= count) return shuffle(valid);
 
-  // Group by primary tag (first tag in array), shuffle inside each bucket.
+  // Bucket by composite key "<primaryTag>::<difficulty>"
   const buckets = new Map();
   for (const q of valid) {
-    const tag = (q.tags && q.tags[0]) || '_untagged';
-    if (!buckets.has(tag)) buckets.set(tag, []);
-    buckets.get(tag).push(q);
+    const tag  = (q.tags && q.tags[0]) || '_untagged';
+    const diff = q.difficulty || 'medium';
+    const key  = `${tag}::${diff}`;
+    if (!buckets.has(key)) buckets.set(key, []);
+    buckets.get(key).push(q);
   }
   for (const arr of buckets.values()) shuffle(arr);
 
   const result = [];
   const used = new Set();
+  const keys = shuffle([...buckets.keys()]);
 
-  // First pass: one per tag (random order over tag keys)
-  const tagKeys = shuffle([...buckets.keys()]);
-  for (const tag of tagKeys) {
-    if (result.length >= count) break;
-    const pick = buckets.get(tag).shift();
-    if (pick) {
-      result.push(pick);
-      used.add(pick.id);
+  // Pass A: round-robin across (tag, difficulty) buckets until we have `count`.
+  // Each pass takes at most one question per bucket — keeps tags and
+  // difficulties spread out instead of clustered.
+  let madeProgress = true;
+  while (result.length < count && madeProgress) {
+    madeProgress = false;
+    for (const key of keys) {
+      if (result.length >= count) break;
+      const bucket = buckets.get(key);
+      const pick = bucket.shift();
+      if (pick) {
+        result.push(pick);
+        used.add(pick.id);
+        madeProgress = true;
+      }
     }
   }
 
-  // Second pass: fill from leftovers
+  // Pass B: backfill (only triggers if total valid < count, but kept for safety)
   if (result.length < count) {
     const leftovers = valid.filter(q => !used.has(q.id));
     shuffle(leftovers);

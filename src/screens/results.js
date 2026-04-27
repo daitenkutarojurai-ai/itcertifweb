@@ -34,10 +34,6 @@ export function render(container, navigate, params) {
 function renderDiagnostic(container, navigate, params) {
   const { pack, results, originalQuestions } = params;
   const pct = results.percentage;
-  const readiness = pct >= 75 ? 'green' : pct >= 50 ? 'yellow' : 'red';
-  const readinessLabel = readiness === 'green' ? 'Green · close to ready'
-    : readiness === 'yellow' ? 'Yellow · build the foundation'
-    : 'Red · start from the basics';
 
   // Per-tag accuracy. Use ALL tags on each question (not just primary), so a
   // question covering "iam" and "encryption" contributes to both buckets.
@@ -47,20 +43,52 @@ function renderDiagnostic(container, navigate, params) {
                            .slice(0, 3);
   const weakest1 = weakest[0];
 
-  // Estimate weeks-to-ready based on percentage gap. Crude but useful: aim for
-  // ~80% on a fresh quiz; assume +5 percentage points per study week (10h/wk).
-  const gap = Math.max(0, 80 - pct);
+  // Per-difficulty accuracy.
+  const diffStats = computeDifficultyStats(results.answers);
+
+  // Weighted readiness: hard questions count 3x, medium 2x, easy 1x. Gives a
+  // sharper signal than a flat percentage. A user who aces easy/medium but
+  // misses every hard one should *not* read as "75% ready" — they're at ~50%.
+  const weighted = computeWeightedScore(diffStats);
+  const readiness = weighted.pct >= 75 ? 'green' : weighted.pct >= 50 ? 'yellow' : 'red';
+  const readinessLabel = readiness === 'green' ? 'Green · close to ready'
+    : readiness === 'yellow' ? 'Yellow · build the foundation'
+    : 'Red · start from the basics';
+
+  // Weeks-to-ready uses the weighted gap, not flat percentage.
+  // Aim for ~80 weighted; assume +5 weighted points per study week.
+  const gap = Math.max(0, 80 - weighted.pct);
   const weeks = Math.max(1, Math.round(gap / 5));
 
-  const planTitle = readiness === 'green'
-    ? `You're nearly there. ${weeks} week${weeks === 1 ? '' : 's'} of focused practice should close the gap.`
-    : readiness === 'yellow'
-    ? `Solid foundation, but uneven. ~${weeks} weeks at 30 min/day to hit exam-ready.`
-    : `Start from the basics. ~${weeks}+ weeks before this cert is in reach — build core knowledge first.`;
+  // Derive a smarter recommendation by looking at the difficulty *shape*.
+  // Three useful patterns:
+  //   - "easy-only" → user knows surface-level concepts, struggles with depth
+  //   - "uneven by tag" → has knowledge gaps in specific domains
+  //   - "even" → just needs more volume
+  const easyPct = diffStats.easy.total > 0 ? diffStats.easy.pct : null;
+  const hardPct = diffStats.hard.total > 0 ? diffStats.hard.pct : null;
+  const easyOnly = easyPct != null && hardPct != null && easyPct >= 75 && hardPct <= 33;
 
-  const planBody = weakest1
-    ? `Your weakest area is <strong>${escapeTag(weakest1.tag)}</strong> (${weakest1.score}/${weakest1.total}). That's where the next 30 minutes should go.`
-    : `Practice the full pack — your accuracy is even across topics, so volume is the lever.`;
+  let planTitle, planBody;
+  if (readiness === 'green') {
+    planTitle = `You're nearly there. ${weeks} week${weeks === 1 ? '' : 's'} of focused practice should close the gap.`;
+    planBody = weakest1
+      ? `Last weak spot: <strong>${escapeTag(weakest1.tag)}</strong> (${weakest1.score}/${weakest1.total}). 30 minutes there closes most of the remaining gap.`
+      : `Your accuracy is even across topics — keep practicing the full pack to lock it in.`;
+  } else if (easyOnly) {
+    planTitle = `Surface knowledge, thin depth. ~${weeks} weeks of harder questions to push you over the top.`;
+    planBody = `You handled easy questions (${diffStats.easy.score}/${diffStats.easy.total}) but struggled with hard ones (${diffStats.hard.score}/${diffStats.hard.total}). The gap is depth, not breadth — focus on advanced practice, not more flashcards.`;
+  } else if (readiness === 'yellow') {
+    planTitle = `Solid foundation, but uneven. ~${weeks} weeks at 30 min/day to hit exam-ready.`;
+    planBody = weakest1
+      ? `Your weakest area is <strong>${escapeTag(weakest1.tag)}</strong> (${weakest1.score}/${weakest1.total}). That's where the next 30 minutes should go.`
+      : `Practice the full pack — your accuracy is even across topics, so volume is the lever.`;
+  } else {
+    planTitle = `Start from the basics. ~${weeks}+ weeks before this cert is in reach — build core knowledge first.`;
+    planBody = weakest1
+      ? `Across the board you're below 50%, with <strong>${escapeTag(weakest1.tag)}</strong> the weakest. Work through the course modules before more practice — practice without foundation is memorization.`
+      : `Across the board you're below 50%. Work through the course modules first — practice without foundation is memorization.`;
+  }
 
   container.innerHTML = `
     <div class="screen results-screen">
@@ -80,7 +108,7 @@ function renderDiagnostic(container, navigate, params) {
       <div class="diag-results">
         <div class="diag-results-header">
           <div class="diag-results-eyebrow">Your starting point</div>
-          <h2 class="diag-results-headline">You scored <em>${pct}%</em> on a stratified sample.</h2>
+          <h2 class="diag-results-headline">You scored <em>${pct}%</em>${weighted.pct !== pct ? ` · weighted <em>${weighted.pct}%</em>` : ''}.</h2>
           <span class="diag-readiness ${readiness}">${readinessLabel}</span>
         </div>
 
@@ -90,9 +118,25 @@ function renderDiagnostic(container, navigate, params) {
           <div class="diag-summary-cell"><strong>~${weeks} wk</strong><span>To exam-ready</span></div>
         </div>
 
+        ${(diffStats.easy.total + diffStats.medium.total + diffStats.hard.total) > 0 ? `
+        <div class="diag-tags-section">
+          <div class="diag-tags-title">By difficulty</div>
+          ${['easy','medium','hard'].filter(d => diffStats[d].total > 0).map(d => {
+            const s = diffStats[d];
+            const cls = s.pct >= 75 ? 'strong' : s.pct >= 50 ? 'medium' : 'weak';
+            return `
+              <div class="diag-tag-row diag-diff-row">
+                <span class="diag-tag-name diag-diff-name diag-diff-${d}">${d.charAt(0).toUpperCase() + d.slice(1)}</span>
+                <div class="diag-tag-bar"><div class="diag-tag-fill ${cls}" style="width:${s.pct}%"></div></div>
+                <span class="diag-tag-pct">${s.score}/${s.total} · ${s.pct}%</span>
+              </div>
+            `;
+          }).join('')}
+        </div>` : ''}
+
         ${tagStats.length > 0 ? `
         <div class="diag-tags-section">
-          <div class="diag-tags-title">Per-domain breakdown</div>
+          <div class="diag-tags-title">By topic</div>
           ${tagStats.map(t => {
             const cls = t.pct >= 75 ? 'strong' : t.pct >= 50 ? 'medium' : 'weak';
             return `
@@ -124,6 +168,48 @@ function renderDiagnostic(container, navigate, params) {
   container.querySelector('#btn-diag-practice').addEventListener('click', () => {
     navigate('quiz', { pack, questions: originalQuestions, mode: 'quick', count: 5 });
   });
+}
+
+/**
+ * Compute per-difficulty accuracy. Returns { easy, medium, hard } each
+ * carrying { score, total, pct }. Difficulty defaults to 'medium' if missing.
+ */
+function computeDifficultyStats(answers) {
+  const out = {
+    easy:   { score: 0, total: 0, pct: 0 },
+    medium: { score: 0, total: 0, pct: 0 },
+    hard:   { score: 0, total: 0, pct: 0 },
+  };
+  for (const a of answers) {
+    const d = (a.question?.difficulty || 'medium').toLowerCase();
+    const bucket = out[d] || out.medium;
+    bucket.total++;
+    if (a.isCorrect) bucket.score++;
+  }
+  for (const k of Object.keys(out)) {
+    const b = out[k];
+    b.pct = b.total > 0 ? Math.round((b.score / b.total) * 100) : 0;
+  }
+  return out;
+}
+
+/**
+ * Difficulty-weighted readiness percentage. A correct hard answer counts 3x;
+ * medium 2x; easy 1x. Aces-easy-misses-hard reads as a much weaker signal
+ * than the flat percentage suggests.
+ */
+function computeWeightedScore(diffStats) {
+  const w = { easy: 1, medium: 2, hard: 3 };
+  let earned = 0, possible = 0;
+  for (const k of ['easy', 'medium', 'hard']) {
+    earned   += diffStats[k].score * w[k];
+    possible += diffStats[k].total * w[k];
+  }
+  return {
+    earned,
+    possible,
+    pct: possible > 0 ? Math.round((earned / possible) * 100) : 0,
+  };
 }
 
 /**
