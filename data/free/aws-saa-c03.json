@@ -25,17 +25,18 @@
     },
     {
       "id": "saa-002",
-      "question": "A company needs a database that can scale to handle millions of requests per second with single-digit millisecond latency. The data is key-value structured with no complex joins required. Which AWS service is BEST suited?",
+      "question": "An online gaming platform stores a real-time leaderboard mapping player IDs to scores and ranks. During peak tournament events, the service handles 600,000 read operations per minute and every lookup is by a single player ID — no aggregations or joins are required. Response latency must stay under 5 milliseconds as player count is expected to triple over the next year. Which AWS database service is the best fit?",
       "options": [
-        "Amazon RDS Aurora",
-        "Amazon Redshift",
-        "Amazon DynamoDB",
-        "Amazon ElastiCache for Redis"
+        "Amazon Aurora MySQL with a Multi-AZ standby and provisioned IOPS",
+        "Amazon DynamoDB with on-demand capacity mode",
+        "Amazon Redshift with result-set caching enabled for repeated queries",
+        "Amazon ElastiCache for Memcached used as the authoritative data store"
       ],
-      "correct": 2,
-      "explanation": "DynamoDB is a fully managed NoSQL database that delivers single-digit millisecond performance at any scale. It's purpose-built for key-value and document workloads requiring massive throughput. ElastiCache is in-memory only (no persistence), while RDS and Redshift are relational databases not suited for millions of RPS at this latency.",
-      "tags": ["dynamodb", "databases", "performance"],
-      "difficulty": "easy"
+      "correct": 1,
+      "explanation": "DynamoDB is purpose-built for high-throughput, low-latency key lookups at any scale — on-demand capacity automatically adjusts to handle unpredictable peak volumes without manual provisioning, and single-digit millisecond performance is maintained regardless of table size. Aurora MySQL is a relational engine optimized for transactional workloads with complex queries; matching DynamoDB's sub-5ms key-lookup latency at 600k requests/minute requires significant tuning overhead and dedicated read replicas, making it a poor fit for this simple, high-volume access pattern. Memcached (option D) is an in-memory cache without durability — all data is lost on node restart or eviction, making it unsuitable as the authoritative store for a leaderboard that must persist through failures.",
+      "tags": ["dynamodb", "databases", "key-value", "performance", "scaling"],
+      "difficulty": "medium",
+      "rewritten": true
     },
     {
       "id": "saa-003",
@@ -84,17 +85,18 @@
     },
     {
       "id": "saa-006",
-      "question": "A company runs an RDS MySQL database and wants to improve read performance for a reporting application without impacting the primary database. What should the solutions architect recommend?",
+      "question": "A SaaS company's CRM application uses Amazon RDS MySQL as its primary database. A newly deployed analytics dashboard runs complex GROUP BY queries across three years of interaction records, pushing primary instance CPU to 90% during business hours and causing response time degradation for transactional users. Writes must continue on the primary without interruption. Which solution isolates the analytics workload without affecting transactional performance?",
       "options": [
-        "Enable Multi-AZ deployment",
-        "Create a Read Replica of the RDS instance",
-        "Scale up the primary RDS instance to a larger type",
-        "Enable RDS automatic backups with a longer retention period"
+        "Route analytics queries to the Multi-AZ standby via its read-only endpoint and connection string",
+        "Add an RDS Read Replica and direct the analytics dashboard to its endpoint",
+        "Enable RDS Performance Insights and configure automatic query termination for slow statements",
+        "Upgrade the primary instance to the next larger size tier to absorb both workloads"
       ],
       "correct": 1,
-      "explanation": "RDS Read Replicas create an asynchronous copy of the primary database that serves read traffic. The reporting application connects to the replica endpoint, offloading queries from the primary. Multi-AZ is for failover/HA, not read scaling. Scaling up the primary helps writes but doesn't distribute reads. Backups are for recovery, not performance.",
-      "tags": ["rds", "read-replicas", "databases", "performance"],
-      "difficulty": "easy"
+      "explanation": "An RDS Read Replica receives asynchronous replication from the primary and exposes a separate endpoint — heavy analytics queries run against the replica, leaving primary CPU available for transactional writes. The Multi-AZ standby in option A is a synchronous failover replica maintained solely for high availability; it does not accept query traffic and has no addressable read endpoint, so routing analytics connections to it is not supported by RDS. Upgrading the primary instance class (option D) reduces per-query CPU headroom but does not isolate the workloads — a 40-second analytics scan still competes with transactional queries for shared CPU and I/O, and the benefit erodes as data volume grows.",
+      "tags": ["rds", "read-replicas", "performance", "high-availability"],
+      "difficulty": "medium",
+      "rewritten": true
     },
     {
       "id": "saa-007",
@@ -113,17 +115,18 @@
     },
     {
       "id": "saa-008",
-      "question": "A company wants to serve static website content globally with low latency. The content changes infrequently. Which combination provides the MOST cost-effective solution?",
+      "question": "A global software vendor needs to publish product documentation, images, and downloadable PDFs for a product launch microsite. The 3 GB file set is updated roughly once per month and must load quickly for visitors across North America, Europe, and Asia-Pacific. The team has no dedicated server administrators and must minimize both cost and ongoing operational effort. Which architecture meets these requirements?",
       "options": [
-        "Multiple EC2 instances in different regions with Route 53 latency routing",
-        "An S3 bucket configured for static website hosting with CloudFront distribution in front",
-        "ALB with multiple EC2 instances across AZs",
-        "AWS Global Accelerator with an S3 origin"
+        "Deploy file-serving EC2 instances in three regions behind Route 53 latency-based routing with Auto Scaling",
+        "Host the assets in S3 and distribute them through a CloudFront distribution with edge caching",
+        "Use Elastic Beanstalk to run a Node.js server that reads assets from an Amazon EFS volume",
+        "Place files in S3 and expose them through an Application Load Balancer with cross-zone load balancing enabled"
       ],
       "correct": 1,
-      "explanation": "S3 static website hosting with CloudFront is the canonical low-cost, globally distributed static content solution. CloudFront caches content at edge locations worldwide for ultra-low latency. S3 storage is cheap and highly durable. No servers to manage. Global Accelerator is designed for dynamic content, not static asset caching.",
-      "tags": ["s3", "cloudfront", "static-website", "cost-optimization"],
-      "difficulty": "easy"
+      "explanation": "S3 provides durable, serverless object storage with no servers to patch or scale, and CloudFront distributes content from 400+ edge locations so visitors worldwide receive files from the nearest point of presence — achieving sub-100ms load times with no compute to operate. Multi-region EC2 in option A achieves geographic proximity but requires capacity planning, OS patching, Auto Scaling configuration, and 24/7 operations in each region, directly violating the 'no dedicated administrators' constraint. An Application Load Balancer (option D) cannot use S3 as a native origin, does not perform edge caching, and would still require backend compute to serve the files.",
+      "tags": ["s3", "cloudfront", "cdn", "cost-optimization", "static-content"],
+      "difficulty": "easy",
+      "rewritten": true
     },
     {
       "id": "saa-009",
@@ -157,17 +160,18 @@
     },
     {
       "id": "saa-011",
-      "question": "A company needs to connect its on-premises data center to AWS with consistent, dedicated bandwidth and low latency for transferring large amounts of data. Which service should they use?",
+      "question": "A financial services firm transfers 4 TB of market-data feeds per day from its co-located on-premises data center to Amazon S3 in us-east-1. The architecture team requires consistent, predictable throughput of at least 1 Gbps. Compliance policy mandates that data must not traverse the public internet. The firm already has a cross-connect available at a colocation facility. Which connectivity solution satisfies all three requirements?",
       "options": [
-        "AWS Site-to-Site VPN over the public internet",
-        "AWS Direct Connect",
-        "AWS Transit Gateway with VPN attachments",
-        "AWS Client VPN"
+        "AWS Site-to-Site VPN with BGP routing over the corporate internet connection and an AWS-provided certificate",
+        "AWS Direct Connect with a 1 Gbps circuit terminating at the colocation cross-connect",
+        "AWS Client VPN with split tunneling configured for S3-bound traffic only",
+        "S3 Transfer Acceleration routing uploads through CloudFront edge nodes to the target region"
       ],
       "correct": 1,
-      "explanation": "AWS Direct Connect provides a dedicated private network connection between on-premises and AWS, bypassing the public internet. This delivers consistent bandwidth, lower latency, and reduced data transfer costs for large volumes. Site-to-Site VPN runs over the public internet and has variable latency. Transit Gateway aggregates multiple connections but doesn't provide a dedicated physical link.",
-      "tags": ["direct-connect", "hybrid-cloud", "networking"],
-      "difficulty": "easy"
+      "explanation": "Direct Connect provisions a private physical circuit between the on-premises data center and AWS over the colocation cross-connect, providing guaranteed bandwidth entirely outside the public internet — the only option that simultaneously satisfies the throughput, predictability, and no-public-internet requirements. Site-to-Site VPN is an IPsec tunnel that terminates on public AWS endpoints; even with BGP routing, traffic crosses the public internet, violating the compliance mandate. S3 Transfer Acceleration routes uploads through CloudFront edge locations over the public internet, failing the same requirement and offering no throughput guarantee.",
+      "tags": ["direct-connect", "hybrid-cloud", "networking", "connectivity"],
+      "difficulty": "medium",
+      "rewritten": true
     },
     {
       "id": "saa-012",
@@ -300,17 +304,18 @@
     },
     {
       "id": "saa-021",
-      "question": "An EC2 instance in a public subnet needs to be accessible via SSH from the internet, but only from a specific corporate IP range (203.0.113.0/24). Where should this restriction be configured?",
+      "question": "A security engineer is hardening an EC2 web server in a public subnet that requires SSH administration from the corporate network only (CIDR 203.0.113.0/24). All other inbound connections on port 22 must be rejected. The engineer wants the most operationally appropriate AWS-native control. Which configuration achieves this?",
       "options": [
-        "In the S3 bucket policy controlling the SSH key file",
-        "In the EC2 instance's Security Group as an inbound rule allowing port 22 from 203.0.113.0/24",
-        "In the VPC's Internet Gateway route table",
-        "Using AWS WAF to block all other IPs"
+        "Add a Network ACL inbound allow rule for TCP 22 from 203.0.113.0/24 with a matching stateless outbound return rule on ephemeral ports",
+        "Add an inbound security group rule allowing TCP 22 from source CIDR 203.0.113.0/24",
+        "Add iptables rules on the EC2 instance to drop all TCP 22 packets sourced outside 203.0.113.0/24",
+        "Use AWS Systems Manager Session Manager with an IAM policy restricting access by source IP condition"
       ],
       "correct": 1,
-      "explanation": "Security Groups are stateful firewalls at the instance level. Adding an inbound rule allowing TCP port 22 from source 203.0.113.0/24 restricts SSH to only that IP range. Security Groups default to deny all inbound, so only explicitly allowed traffic reaches the instance. WAF operates at layer 7 HTTP, not SSH. Route tables control IP routing, not access control.",
-      "tags": ["security-groups", "vpc", "security", "ec2"],
-      "difficulty": "easy"
+      "explanation": "Security groups are stateful instance-level firewalls: an inbound allow rule for TCP 22 from 203.0.113.0/24 automatically permits the return traffic without a separate outbound rule, and the rule applies only to the specific instance — the simplest and most targeted control. Network ACLs (option A) are stateless subnet-level firewalls; an inbound allow rule alone is insufficient because a separate explicit outbound rule allowing ephemeral-port return traffic (1024–65535 to 203.0.113.0/24) is also required, and any misconfiguration breaks SSH for all instances in the subnet. iptables (option C) achieves the same result at the OS level but operates outside the AWS control plane, requiring per-instance management with no visibility in VPC flow logs or security group audit trails.",
+      "tags": ["security-groups", "vpc", "security", "nacl"],
+      "difficulty": "medium",
+      "rewritten": true
     },
     {
       "id": "saa-022",
