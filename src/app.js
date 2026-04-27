@@ -45,6 +45,7 @@ export function showModePicker(pack, questions) {
 
   const QUICK_COUNT = 5;
   const STUDY_COUNT = 10;
+  const DIAG_COUNT  = 10;
   const fullCount   = Math.min(questions.length, pack.full_count || questions.length);
 
   const modal = document.createElement('div');
@@ -60,6 +61,15 @@ export function showModePicker(pack, questions) {
       </div>
 
       <div class="modal-body">
+
+        <button class="mode-card mode-card-diag" id="mode-diag">
+          <div class="mode-icon">🧪</div>
+          <div class="mode-info">
+            <div class="mode-title">Diagnostic <span class="mode-badge-new">New · for first-timers</span></div>
+            <div class="mode-desc">${DIAG_COUNT} questions across all topics · Get a personalized study plan</div>
+          </div>
+          <div class="mode-chevron">→</div>
+        </button>
 
         <button class="mode-card" id="mode-quick">
           <div class="mode-icon">⚡</div>
@@ -110,18 +120,78 @@ export function showModePicker(pack, questions) {
 
   modal.querySelector('#modal-backdrop').addEventListener('click', close);
 
-  const startQuiz = (mode, count) => {
-    if (mode !== 'study' && getHearts() <= 0) {
-      showNoHeartsModal(modal, () => startQuiz(mode, count));
+  const startQuiz = (mode, count, customQuestions) => {
+    // Diagnostic and study modes don't consume hearts (study currently doesn't either).
+    const heartFreeMode = mode === 'study' || mode === 'diagnostic';
+    if (!heartFreeMode && getHearts() <= 0) {
+      showNoHeartsModal(modal, () => startQuiz(mode, count, customQuestions));
       return;
     }
     close();
-    setTimeout(() => navigate('quiz', { pack, questions, mode, count }), 300);
+    const qs = customQuestions || questions;
+    setTimeout(() => navigate('quiz', { pack, questions: qs, mode, count }), 300);
   };
 
   modal.querySelector('#mode-quick').addEventListener('click', () => startQuiz('quick', QUICK_COUNT));
   modal.querySelector('#mode-full').addEventListener('click', () => startQuiz('full', fullCount));
   modal.querySelector('#mode-study').addEventListener('click', () => startQuiz('study', STUDY_COUNT));
+  modal.querySelector('#mode-diag').addEventListener('click', () => {
+    const sample = stratifiedSample(questions, DIAG_COUNT);
+    startQuiz('diagnostic', sample.length, sample);
+  });
+}
+
+/**
+ * Pick `count` questions stratified by primary tag — at most one per tag first,
+ * then fill remaining slots randomly. This gives the diagnostic broad domain
+ * coverage instead of clustering on whichever tag the shuffle happened to pick.
+ */
+function stratifiedSample(questions, count) {
+  const valid = questions.filter(q => q.options?.length === 4 && q.correct >= 0 && q.correct < 4);
+  if (valid.length <= count) return shuffle(valid);
+
+  // Group by primary tag (first tag in array), shuffle inside each bucket.
+  const buckets = new Map();
+  for (const q of valid) {
+    const tag = (q.tags && q.tags[0]) || '_untagged';
+    if (!buckets.has(tag)) buckets.set(tag, []);
+    buckets.get(tag).push(q);
+  }
+  for (const arr of buckets.values()) shuffle(arr);
+
+  const result = [];
+  const used = new Set();
+
+  // First pass: one per tag (random order over tag keys)
+  const tagKeys = shuffle([...buckets.keys()]);
+  for (const tag of tagKeys) {
+    if (result.length >= count) break;
+    const pick = buckets.get(tag).shift();
+    if (pick) {
+      result.push(pick);
+      used.add(pick.id);
+    }
+  }
+
+  // Second pass: fill from leftovers
+  if (result.length < count) {
+    const leftovers = valid.filter(q => !used.has(q.id));
+    shuffle(leftovers);
+    for (const q of leftovers) {
+      if (result.length >= count) break;
+      result.push(q);
+    }
+  }
+
+  return result;
+}
+
+function shuffle(arr) {
+  for (let i = arr.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [arr[i], arr[j]] = [arr[j], arr[i]];
+  }
+  return arr;
 }
 
 /**

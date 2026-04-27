@@ -11,6 +11,12 @@ const LETTERS = ['A', 'B', 'C', 'D'];
 export function render(container, navigate, params) {
   const { pack, results, mode, originalQuestions, newAchievements = [], goalJustCompleted = false } = params;
 
+  // Diagnostic mode gets the "plan-not-score" results screen instead of the gamified one.
+  if (mode === 'diagnostic') {
+    renderDiagnostic(container, navigate, params);
+    return;
+  }
+
   container.innerHTML = buildHTML(pack, results, mode, newAchievements);
   attachListeners(container, navigate, params);
 
@@ -21,6 +27,133 @@ export function render(container, navigate, params) {
     if (newAchievements.length > 0) showAchievements(newAchievements);
     if (goalJustCompleted) showGoalCompleteToast();
   }, 250);
+}
+
+// ─── Diagnostic results: plan-not-score view ───────────────────────────────────
+
+function renderDiagnostic(container, navigate, params) {
+  const { pack, results, originalQuestions } = params;
+  const pct = results.percentage;
+  const readiness = pct >= 75 ? 'green' : pct >= 50 ? 'yellow' : 'red';
+  const readinessLabel = readiness === 'green' ? 'Green · close to ready'
+    : readiness === 'yellow' ? 'Yellow · build the foundation'
+    : 'Red · start from the basics';
+
+  // Per-tag accuracy. Use ALL tags on each question (not just primary), so a
+  // question covering "iam" and "encryption" contributes to both buckets.
+  const tagStats = computeTagStats(results.answers);
+  const weakest  = tagStats.filter(t => t.total >= 1)
+                           .sort((a, b) => a.pct - b.pct)
+                           .slice(0, 3);
+  const weakest1 = weakest[0];
+
+  // Estimate weeks-to-ready based on percentage gap. Crude but useful: aim for
+  // ~80% on a fresh quiz; assume +5 percentage points per study week (10h/wk).
+  const gap = Math.max(0, 80 - pct);
+  const weeks = Math.max(1, Math.round(gap / 5));
+
+  const planTitle = readiness === 'green'
+    ? `You're nearly there. ${weeks} week${weeks === 1 ? '' : 's'} of focused practice should close the gap.`
+    : readiness === 'yellow'
+    ? `Solid foundation, but uneven. ~${weeks} weeks at 30 min/day to hit exam-ready.`
+    : `Start from the basics. ~${weeks}+ weeks before this cert is in reach — build core knowledge first.`;
+
+  const planBody = weakest1
+    ? `Your weakest area is <strong>${escapeTag(weakest1.tag)}</strong> (${weakest1.score}/${weakest1.total}). That's where the next 30 minutes should go.`
+    : `Practice the full pack — your accuracy is even across topics, so volume is the lever.`;
+
+  container.innerHTML = `
+    <div class="screen results-screen">
+      <div class="results-topbar">
+        <button class="btn-icon" id="btn-home-top" aria-label="Home">
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+            <path d="M10 12L6 8l4-4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </button>
+        <div style="display:flex;flex-direction:column;align-items:center;flex:1">
+          <span class="results-pack-label">${escapeTag(pack.name)}</span>
+          <span class="quiz-mode-tag">🧪 Diagnostic · ${results.total} questions</span>
+        </div>
+        <div style="width:40px"></div>
+      </div>
+
+      <div class="diag-results">
+        <div class="diag-results-header">
+          <div class="diag-results-eyebrow">Your starting point</div>
+          <h2 class="diag-results-headline">You scored <em>${pct}%</em> on a stratified sample.</h2>
+          <span class="diag-readiness ${readiness}">${readinessLabel}</span>
+        </div>
+
+        <div class="diag-summary">
+          <div class="diag-summary-cell"><strong>${results.score}/${results.total}</strong><span>Correct</span></div>
+          <div class="diag-summary-cell"><strong>${tagStats.length}</strong><span>Domains tested</span></div>
+          <div class="diag-summary-cell"><strong>~${weeks} wk</strong><span>To exam-ready</span></div>
+        </div>
+
+        ${tagStats.length > 0 ? `
+        <div class="diag-tags-section">
+          <div class="diag-tags-title">Per-domain breakdown</div>
+          ${tagStats.map(t => {
+            const cls = t.pct >= 75 ? 'strong' : t.pct >= 50 ? 'medium' : 'weak';
+            return `
+              <div class="diag-tag-row">
+                <span class="diag-tag-name">${escapeTag(t.tag)}</span>
+                <div class="diag-tag-bar"><div class="diag-tag-fill ${cls}" style="width:${t.pct}%"></div></div>
+                <span class="diag-tag-pct">${t.score}/${t.total} · ${t.pct}%</span>
+              </div>
+            `;
+          }).join('')}
+        </div>` : ''}
+
+        <div class="diag-plan">
+          <div class="diag-plan-eyebrow">Recommended next step</div>
+          <div class="diag-plan-title">${planTitle}</div>
+          <div class="diag-plan-body">${planBody}</div>
+          <button class="diag-plan-cta" id="btn-diag-practice">Practice ${escapeTag(pack.short || pack.name)} — 5 questions</button>
+          <a class="diag-plan-secondary" id="btn-diag-home" href="#">Back to home</a>
+        </div>
+      </div>
+    </div>
+  `;
+
+  container.querySelector('#btn-home-top').addEventListener('click', () => navigate('home'));
+  container.querySelector('#btn-diag-home').addEventListener('click', e => {
+    e.preventDefault();
+    navigate('home');
+  });
+  container.querySelector('#btn-diag-practice').addEventListener('click', () => {
+    navigate('quiz', { pack, questions: originalQuestions, mode: 'quick', count: 5 });
+  });
+}
+
+/**
+ * Compute per-tag accuracy across all answered questions.
+ * A question is counted in every tag it carries (not just its primary tag).
+ */
+function computeTagStats(answers) {
+  const buckets = new Map(); // tag -> { score, total }
+  for (const a of answers) {
+    const tags = a.question?.tags || [];
+    for (const tag of tags) {
+      if (!buckets.has(tag)) buckets.set(tag, { score: 0, total: 0 });
+      const b = buckets.get(tag);
+      b.total++;
+      if (a.isCorrect) b.score++;
+    }
+  }
+  const out = [];
+  for (const [tag, { score, total }] of buckets) {
+    out.push({ tag, score, total, pct: total > 0 ? Math.round((score / total) * 100) : 0 });
+  }
+  // Sort: weakest first so the eye lands on what needs work
+  out.sort((a, b) => a.pct - b.pct);
+  return out;
+}
+
+function escapeTag(s) {
+  return String(s ?? '').replace(/[&<>"']/g, c => ({
+    '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
+  }[c]));
 }
 
 // ─── HTML ──────────────────────────────────────────────────────────────────────
