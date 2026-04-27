@@ -4,6 +4,7 @@
 
 import { playComplete } from '../engine/sounds.js';
 import { getCurrentLevel, getNextLevel, getLevelProgress } from '../engine/gamification.js';
+import { submitReport, isApiConfigured } from '../engine/emailReport.js';
 
 const CIRCUMFERENCE = 2 * Math.PI * 52;
 const LETTERS = ['A', 'B', 'C', 'D'];
@@ -149,6 +150,8 @@ function renderDiagnostic(container, navigate, params) {
           }).join('')}
         </div>` : ''}
 
+        ${buildEmailCardHTML(results)}
+
         <div class="diag-plan">
           <div class="diag-plan-eyebrow">Recommended next step</div>
           <div class="diag-plan-title">${planTitle}</div>
@@ -168,6 +171,7 @@ function renderDiagnostic(container, navigate, params) {
   container.querySelector('#btn-diag-practice').addEventListener('click', () => {
     navigate('quiz', { pack, questions: originalQuestions, mode: 'quick', count: 5 });
   });
+  attachEmailCardListener(container, params);
 }
 
 /**
@@ -240,6 +244,99 @@ function escapeTag(s) {
   return String(s ?? '').replace(/[&<>"']/g, c => ({
     '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
   }[c]));
+}
+
+// ─── Email cheatsheet card (shared by standard + diagnostic flows) ─────────────
+
+/**
+ * Returns the card HTML when there's something useful to email (≥1 wrong
+ * answer). Returns '' when the user got everything right — no point sending
+ * a "cheatsheet" of zero items.
+ */
+function buildEmailCardHTML(results) {
+  const wrongCount = (results.answers || []).filter(a => !a.isCorrect).length;
+  if (wrongCount === 0) return '';
+  const apiReady = isApiConfigured();
+  const disabled = apiReady ? '' : 'disabled';
+  const note = apiReady
+    ? `We'll email a personalized cheatsheet for the ${wrongCount} question${wrongCount === 1 ? '' : 's'} you missed, with the right answer and a short tip for each.`
+    : 'Email reports are coming soon — the form is disabled for now.';
+
+  return `
+    <div class="email-report-card" id="email-report-card">
+      <div class="email-report-header">
+        <div class="email-report-icon">📬</div>
+        <div>
+          <div class="email-report-title">Email me my cheatsheet</div>
+          <div class="email-report-sub">${note}</div>
+        </div>
+      </div>
+      <form class="email-report-form" id="email-report-form" novalidate>
+        <input
+          type="email"
+          class="email-report-input"
+          id="email-report-input"
+          name="email"
+          placeholder="you@example.com"
+          autocomplete="email"
+          required
+          ${disabled}
+        />
+        <label class="email-report-checkbox">
+          <input type="checkbox" id="email-report-subscribe" ${disabled} />
+          <span>Also send me weekly study tips &amp; new question packs</span>
+        </label>
+        <button type="submit" class="btn-primary email-report-submit" id="email-report-submit" ${disabled}>
+          Send my cheatsheet
+        </button>
+        <div class="email-report-status" id="email-report-status" role="status" aria-live="polite"></div>
+        <p class="email-report-privacy">
+          We use your email only for this report${apiReady ? ' (and the newsletter, if you opt in)' : ''}. No spam — unsubscribe any time.
+        </p>
+      </form>
+    </div>
+  `;
+}
+
+function attachEmailCardListener(container, params) {
+  const form = container.querySelector('#email-report-form');
+  if (!form) return;
+  const input = container.querySelector('#email-report-input');
+  const sub   = container.querySelector('#email-report-subscribe');
+  const btn   = container.querySelector('#email-report-submit');
+  const status = container.querySelector('#email-report-status');
+
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    if (btn.disabled) return;
+    btn.disabled = true;
+    const originalLabel = btn.textContent;
+    btn.textContent = 'Sending…';
+    status.textContent = '';
+    status.className = 'email-report-status';
+
+    const result = await submitReport({
+      email: input.value,
+      subscribe: !!(sub && sub.checked),
+      results: params.results,
+      packId: params.pack?.id ?? '',
+      packName: params.pack?.name ?? '',
+      mode: params.mode ?? '',
+    });
+
+    status.textContent = result.message;
+    status.className = `email-report-status ${result.ok ? 'ok' : 'err'}`;
+
+    if (result.ok) {
+      // Lock the form so the user can't double-send.
+      input.disabled = true;
+      if (sub) sub.disabled = true;
+      btn.textContent = '✓ Sent';
+    } else {
+      btn.disabled = false;
+      btn.textContent = originalLabel;
+    }
+  });
 }
 
 // ─── HTML ──────────────────────────────────────────────────────────────────────
@@ -334,6 +431,8 @@ function buildHTML(pack, results, mode, newAchievements) {
       <div class="review-list">
         ${results.answers.map(a => buildReviewItem(a)).join('')}
       </div>
+
+      ${buildEmailCardHTML(results)}
 
       <div class="results-actions">
         <button class="btn-secondary" id="btn-home-bottom">Home</button>
@@ -476,4 +575,6 @@ function attachListeners(container, navigate, params) {
   container.querySelector('#btn-study-again')?.addEventListener('click', () => {
     navigate('quiz', { pack, questions: originalQuestions, mode: 'study', count: 10 });
   });
+
+  attachEmailCardListener(container, params);
 }
