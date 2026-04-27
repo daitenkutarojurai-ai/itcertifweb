@@ -29,7 +29,8 @@ let sessionHearts      = 5;
 let keydownController  = null;   // AbortController for keydown listener — prevents accumulation
 let milestoneTimeouts  = [];     // Track milestone setTimeout ids so we can cancel them
 const TIMER_MAX        = 30;
-const isStudyMode = () => quizMode === 'study';
+// True for any "no-pressure" mode — hides timer, skips heart loss, lets the user see explanations.
+const isStudyMode = () => quizMode === 'study' || quizMode === 'diagnostic';
 const LETTERS     = ['A', 'B', 'C', 'D'];
 
 const CORRECT_MSG = [
@@ -100,7 +101,7 @@ function renderQuestion(container) {
   const q     = quiz.questions[quiz.current];
   const total = quiz.questions.length;
   const idx   = quiz.current;
-  const modeLabel = quizMode === 'quick' ? '⚡ Quick' : quizMode === 'study' ? '📖 Study' : '📋 Exam';
+  const modeLabel = quizMode === 'quick' ? '⚡ Quick' : quizMode === 'study' ? '📖 Study' : quizMode === 'diagnostic' ? '🧪 Diagnostic' : '📋 Exam';
 
   // Milestone check — 33% and 66% of questions answered
   const pct = idx / total;
@@ -174,7 +175,7 @@ function renderQuestion(container) {
         </div>
         <div class="feedback-explanation" id="feedback-explanation" style="display:none"></div>
         <button class="btn-feedback-next" id="btn-next">
-          ${idx + 1 === total ? (quizMode === 'quick' ? 'See Score' : quizMode === 'study' ? 'Done' : 'See Results') : 'Continue'} →
+          ${idx + 1 === total ? (quizMode === 'quick' ? 'See Score' : quizMode === 'study' ? 'Done' : quizMode === 'diagnostic' ? 'See your plan' : 'See Results') : 'Continue'} →
         </button>
       </div>
 
