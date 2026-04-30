@@ -10,7 +10,7 @@
  * Bump CACHE_VERSION to invalidate clients on next visit.
  */
 
-const CACHE_VERSION = 'v5-2026-04-30-global-mobile-css';
+const CACHE_VERSION = 'v6-2026-04-30-qotd-mobile-no-cursor-halo';
 const RUNTIME_CACHE = `cq-runtime-${CACHE_VERSION}`;
 const PRECACHE      = `cq-precache-${CACHE_VERSION}`;
 
@@ -19,7 +19,7 @@ const PRECACHE_URLS = [
   '/',
   '/index.html',
   '/src/styles/main.css',
-  '/src/styles/desktop.css?v=5',
+  '/src/styles/desktop.css?v=6',
   '/src/assets/icons/favicon-96.png?v=4',
   '/src/assets/icons/favicon-32.png?v=4',
   '/src/assets/icons/favicon-192.png?v=4',
