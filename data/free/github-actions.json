@@ -1,0 +1,162 @@
+{
+  "meta": {
+    "id": "github-actions",
+    "name": "GitHub Actions Certification",
+    "vendor": "GitHub",
+    "version": "1.0.0",
+    "question_count": 10,
+    "last_updated": "2026-05-02"
+  },
+  "questions": [
+    {
+      "id": "github-actions-001",
+      "question": "A platform team needs a single workflow file that runs on pull requests targeting `main` and on a nightly schedule. Which statement correctly describes this configuration?",
+      "options": [
+        "A workflow file supports only one trigger; a separate file is required for the nightly schedule to run independently of the pull-request event",
+        "Both `pull_request` and `schedule` can coexist in one `on:` block with independent filters; `github.event_name` identifies which event fired the run",
+        "The `schedule` trigger inherits the branch filter from any `pull_request` trigger declared alongside it in the same workflow file's `on:` block",
+        "Combining `pull_request` and `schedule` in one `on:` block is valid YAML but forces both triggers to share a single merged event payload at runtime"
+      ],
+      "correct": 1,
+      "explanation": "GitHub Actions supports multiple event triggers in a single `on:` block. `pull_request` can be scoped with `branches:` filters independently of `schedule`, which takes its own `cron:` entries. The two events are entirely independent — inside the workflow, `github.event_name` equals `pull_request` or `schedule` so steps can branch accordingly. There is no one-trigger-per-file restriction.",
+      "tags": ["triggers", "schedule", "pull_request", "workflow-authoring"],
+      "difficulty": "easy",
+      "domain": "Author and Maintain Workflows"
+    },
+    {
+      "id": "github-actions-002",
+      "question": "A CI workflow has three jobs: `build`, `unit-test`, and `deploy`. `unit-test` must start only after `build` succeeds, and `deploy` must start only after both complete. Which approach correctly models this dependency graph?",
+      "options": [
+        "Listing jobs in top-to-bottom order in the YAML file, since GitHub Actions executes jobs sequentially based on their declaration order by default",
+        "Setting `concurrency: sequential` at the workflow level, which disables parallel execution and runs all jobs in the order they appear in the file",
+        "Declaring `needs: build` on `unit-test` and `needs: [build, unit-test]` on `deploy`, which GitHub Actions uses to build an explicit dependency graph",
+        "Assigning each job to a named stage with the `stage:` keyword, where stages execute in alphabetical order and jobs within a stage run in parallel"
+      ],
+      "correct": 2,
+      "explanation": "The `needs:` keyword declares explicit job dependencies. When `unit-test` specifies `needs: build`, it waits for `build` to succeed before starting. When `deploy` specifies `needs: [build, unit-test]`, it waits for both. Without `needs:`, all jobs run in parallel. Declaration order has no effect on execution order. There is no `concurrency: sequential` option or `stage:` keyword in GitHub Actions; `concurrency:` manages concurrent workflow runs, not inter-job sequencing.",
+      "tags": ["jobs", "needs", "dependencies", "workflow-authoring"],
+      "difficulty": "easy",
+      "domain": "Author and Maintain Workflows"
+    },
+    {
+      "id": "github-actions-003",
+      "question": "A workflow step must authenticate to an external API using a sensitive token stored as a repository secret named `API_TOKEN`. Which statement accurately describes usage and protection of the secret?",
+      "options": [
+        "The token is automatically injected as a plain-text OS environment variable at runner startup, readable by any process without additional YAML configuration",
+        "The token is referenced with `${{ secrets.API_TOKEN }}` and passed via `env:` or `with:`; GitHub automatically redacts its value from all workflow log output",
+        "Secrets must be base64-encoded before storage and decoded inside each consuming step using a shell command before the value is usable by the target tool",
+        "The secret is accessible only in the first job of the workflow and must be declared in that job's `outputs:` block before any downstream job can reference it"
+      ],
+      "correct": 1,
+      "explanation": "Secrets are referenced with `${{ secrets.SECRET_NAME }}` and commonly mapped to step environment variables via `env:` or passed as action inputs via `with:`. GitHub Actions automatically redacts the secret value from log output wherever it appears. Secrets are available to all jobs without special propagation. They require no base64 encoding and are not pre-exposed as OS environment variables — they must be explicitly assigned in `env:` or `with:` blocks.",
+      "tags": ["secrets", "security", "expressions", "workflow-authoring"],
+      "difficulty": "easy",
+      "domain": "Author and Maintain Workflows"
+    },
+    {
+      "id": "github-actions-004",
+      "question": "A `build` job produces a compiled binary that a downstream `integration-test` job in the same workflow must execute. Both jobs run on separate, isolated runners. What is the correct method for transferring the file?",
+      "options": [
+        "Configure a shared NFS mount in the runner environment so all jobs in the workflow can access the same filesystem path simultaneously without additional steps",
+        "Use `actions/upload-artifact` at the end of the build job and `actions/download-artifact` at the start of the test job to transfer files across isolated runner environments",
+        "Declare the compiled binary path in the build job's `outputs:` block so the test job can reference the actual file using `${{ needs.build.outputs.binary-path }}`",
+        "Enable the `artifact-sharing: true` workflow-level property, which automatically copies files produced during a job to every subsequent job that declares a `needs:` on it"
+      ],
+      "correct": 1,
+      "explanation": "Each GitHub Actions job runs on a fresh, isolated runner with its own filesystem. Files do not persist between jobs automatically. `actions/upload-artifact` stores the file in GitHub's artifact storage, and `actions/download-artifact` retrieves it in the consuming job. Job `outputs:` transmits scalar strings such as version tags, not binary files. There is no shared NFS filesystem or `artifact-sharing:` workflow-level property in GitHub Actions.",
+      "tags": ["artifacts", "upload-artifact", "download-artifact", "consume-workflows"],
+      "difficulty": "medium",
+      "domain": "Consume Workflows"
+    },
+    {
+      "id": "github-actions-005",
+      "question": "A DevOps team wants multiple product teams across the organization to invoke a shared, centrally maintained deployment workflow without copying the YAML into each repository. Which GitHub Actions feature is purpose-built for this?",
+      "options": [
+        "Composite actions stored in a `.github/actions/` directory and referenced with `uses:` in steps, which let teams share individual step logic across jobs in different repositories",
+        "Workflow templates placed in the `.github` organization repository that teams browse and copy into their own repositories as a starting point for new pipelines",
+        "Reusable workflows declared with `on: workflow_call:` and invoked using `uses:` at the job level, allowing one workflow to call another defined in any allowed repository",
+        "Required status checks on branch protection rules that enforce a centrally managed workflow must pass before any pull request can be merged in any repository"
+      ],
+      "correct": 2,
+      "explanation": "Reusable workflows (declared with `on: workflow_call:`) are called from another workflow using `uses: org/repo/.github/workflows/deploy.yml@main` at the job level. This enables shared, versioned pipeline logic without copying YAML. Composite actions share step logic within a single job, not entire multi-job workflows. Workflow templates create starting-point copies that each team still owns independently. Required status checks gate merges but do not share pipeline logic across repositories.",
+      "tags": ["reusable-workflows", "workflow_call", "consume-workflows", "organization"],
+      "difficulty": "medium",
+      "domain": "Consume Workflows"
+    },
+    {
+      "id": "github-actions-006",
+      "question": "A developer wants to create a GitHub Action that runs a Node.js script to post a comment on a pull request using the GitHub REST API. Which action type is the most direct fit?",
+      "options": [
+        "A Docker container action, which packages the Node.js runtime and script into a container image and specifies the image with `runs.image:` in `action.yml`",
+        "A JavaScript action, which runs on the runner's pre-installed Node.js, defined with `runs.using: node20` and `runs.main: index.js` in `action.yml`",
+        "A composite action, which chains multiple `run:` shell steps including one that calls `node script.js`, requiring no `runs.using:` type field in `action.yml`",
+        "A workflow action, a dedicated type designed for GitHub API interactions, defined with `runs.using: github-api` and a permissions block in `action.yml`"
+      ],
+      "correct": 1,
+      "explanation": "JavaScript actions execute directly on the runner's pre-installed Node.js. They are defined in `action.yml` with `runs.using: node20` and `runs.main: index.js`. The `@actions/github` and `@actions/core` npm packages provide typed GitHub API access. Docker container actions are a valid but heavier alternative that adds image pull overhead. Composite actions chain shell steps but do not bundle npm packages natively. There is no `github-api` action type in GitHub Actions.",
+      "tags": ["javascript-action", "action-types", "node", "author-actions"],
+      "difficulty": "medium",
+      "domain": "Author and Maintain Actions"
+    },
+    {
+      "id": "github-actions-007",
+      "question": "A custom composite action accepts a `target-environment` string from callers and must expose a `deployment-url` string that downstream steps can reference. Which `action.yml` structure is correct?",
+      "options": [
+        "A `parameters:` section listing `target-environment` with `type: string`, and a `return:` section listing `deployment-url` with the computed expression as its value",
+        "An `inputs:` section with a `target-environment` entry containing `description:` and `required:` fields, and an `outputs:` section with a `deployment-url` entry containing a `value:` expression",
+        "An `env:` section mapping the caller's value to an environment variable, and an `artifacts:` section listing the output keys the action exposes after it completes",
+        "A `with:` section in `action.yml` declaring accepted parameter names, and echo commands writing `::set-output name=deployment-url::` to stdout to expose the computed result"
+      ],
+      "correct": 1,
+      "explanation": "In `action.yml`, `inputs:` defines parameters callers supply via `with:`, with optional `description:`, `required:`, and `default:` fields. `outputs:` defines values exposed to callers; each output uses a `value:` expression like `${{ steps.deploy.outputs.url }}`. The `::set-output::` workflow command is deprecated in favor of writing to `$GITHUB_OUTPUT`. There are no `parameters:`, `return:`, `artifacts:`, or caller-facing `with:` sections inside `action.yml` itself.",
+      "tags": ["action-inputs", "action-outputs", "action.yml", "author-actions"],
+      "difficulty": "medium",
+      "domain": "Author and Maintain Actions"
+    },
+    {
+      "id": "github-actions-008",
+      "question": "An enterprise needs production workflows to run on company-owned servers inside a private datacenter to access internal services not reachable from GitHub-hosted runners. Which statement about self-hosted runners is accurate?",
+      "options": [
+        "Self-hosted runners must be registered at the individual repository level and cannot be shared across repositories within the same GitHub organization or enterprise",
+        "The runner application polls GitHub for queued jobs over outbound HTTPS, so no inbound firewall rules are required on the self-hosted runner host machine",
+        "GitHub automatically applies OS patches and runner application version updates to self-hosted runners on a weekly schedule managed from the GitHub Actions settings UI",
+        "Workflows targeting self-hosted runners must specify `runs-on: self-hosted` as the only label and cannot combine additional labels to match specific runner capabilities"
+      ],
+      "correct": 1,
+      "explanation": "The self-hosted runner application establishes outbound connections to GitHub to poll for work. Only outbound HTTPS (port 443) to GitHub's endpoints is needed — no inbound ports are required on the runner host. Runners can be registered at repository, organization, or enterprise scope and shared accordingly. OS patches and runner application updates are the operator's responsibility. Multiple labels can be combined on `runs-on:` (e.g., `[self-hosted, linux, gpu]`) to route jobs to runners with specific capabilities.",
+      "tags": ["self-hosted-runners", "enterprise", "networking", "manage-actions"],
+      "difficulty": "medium",
+      "domain": "Manage GitHub Actions for the Enterprise"
+    },
+    {
+      "id": "github-actions-009",
+      "question": "A team wants to deploy to AWS from GitHub Actions without storing long-lived AWS access keys as secrets anywhere in GitHub. Which mechanism eliminates the need for static credentials?",
+      "options": [
+        "Storing the AWS access key ID and secret access key as organization-level secrets and referencing them in `actions/configure-aws-credentials` across all deployment workflows",
+        "Configuring AWS IAM to trust GitHub's OIDC provider, then creating an IAM role the workflow assumes using a short-lived token issued to the workflow at runtime",
+        "Enabling the built-in GitHub-AWS integration in repository Settings, which automatically provisions and rotates temporary IAM session credentials for each workflow run",
+        "Placing AWS credentials in a GitHub deployment environment protected by branch filters and required reviewers to limit access to approved workflows and branches"
+      ],
+      "correct": 1,
+      "explanation": "GitHub Actions supports OpenID Connect (OIDC). A workflow requests a signed OIDC token from GitHub and exchanges it with AWS STS for temporary credentials — no static keys are stored anywhere. Setup requires adding `token.actions.githubusercontent.com` as an IAM Identity Provider in AWS and creating an IAM role with trust conditions scoped to the specific org, repo, and branch. `actions/configure-aws-credentials` then uses `role-to-assume:` instead of static key inputs. The other options either rely on stored static secrets or describe non-existent GitHub features.",
+      "tags": ["oidc", "aws", "keyless-auth", "security", "manage-actions"],
+      "difficulty": "hard",
+      "domain": "Manage GitHub Actions for the Enterprise"
+    },
+    {
+      "id": "github-actions-010",
+      "question": "A release team requires that any workflow job deploying to the production environment must be explicitly approved by at least one member of the `release-eng` team before execution begins. Which GitHub Actions feature implements this gate natively?",
+      "options": [
+        "Branch protection rules on the release branch requiring a pull request review from the `release-eng` team before any workflow targeting that branch is permitted to run",
+        "A deployment environment named `production` with a required reviewer rule specifying the `release-eng` team, referenced from the deployment job via the `environment:` key",
+        "A `concurrency:` group on the deployment job that queues pending runs and sends a webhook to the `release-eng` channel for manual approval before the next run dequeues",
+        "A composite action as the first step of the deployment job that calls the GitHub Deployments API to create a pending status and blocks until a reviewer approves the request"
+      ],
+      "correct": 1,
+      "explanation": "GitHub deployment environments support protection rules including required reviewers. When a job declares `environment: production` and that environment has the `release-eng` team set as required reviewers, the job pauses before executing, sends approval requests to the team, and waits for approval before proceeding. Branch protection rules gate merges, not workflow job execution. `concurrency:` manages parallel runs, not human approval gates. Using the Deployments API in a composite action step is a workaround, not the native mechanism for this requirement.",
+      "tags": ["environments", "deployment-protection", "required-reviewers", "manage-actions"],
+      "difficulty": "medium",
+      "domain": "Manage GitHub Actions for the Enterprise"
+    }
+  ]
+}
