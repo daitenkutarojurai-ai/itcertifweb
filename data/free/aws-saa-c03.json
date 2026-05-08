@@ -819,15 +819,15 @@
     },
     {
       "id": "saa-042",
-      "question": "A company uses AWS CloudTrail. A security team wants to ensure CloudTrail logs cannot be modified or deleted by anyone, including administrators. Which feature provides this guarantee?",
+      "question": "A bank's compliance team must ensure that API audit logs shipped to an S3 bucket cannot be modified or deleted by anyone \u2014 including administrators and the root account \u2014 before a mandatory 90-day hold expires. They also need cryptographic proof that each log file has not been altered since delivery. Which two controls together satisfy both requirements?",
       "options": [
-        "Enable MFA Delete on the S3 bucket storing CloudTrail logs",
-        "Enable CloudTrail log file validation and store logs in an S3 bucket with Object Lock in Compliance mode",
-        "Encrypt CloudTrail logs with a KMS CMK",
-        "Set S3 bucket ACLs to private on the CloudTrail log bucket"
+        "Enable S3 MFA Delete and turn on bucket versioning for the log bucket",
+        "Enable log file validation and apply S3 Object Lock in Compliance mode",
+        "Encrypt logs with a KMS CMK and restrict key usage to the security team",
+        "Add a bucket policy Deny on s3:DeleteObject for all IAM principals"
       ],
       "correct": 1,
-      "explanation": "S3 Object Lock in Compliance mode prevents anyone \u2014 including the root account \u2014 from deleting or modifying locked objects before their retention period expires. Combined with CloudTrail log file validation (SHA-256 hash chain), you can detect any tampering. Log file validation proves logs haven't been altered after delivery. KMS encryption protects confidentiality but not integrity. ACLs control access but administrators can still delete logs.",
+      "explanation": "S3 Object Lock in Compliance mode creates a WORM hold that even the root account cannot override before the retention period ends, satisfying the deletion-prevention requirement. CloudTrail log file validation generates an hourly SHA-256 digest chain; any post-delivery tampering breaks the chain and is immediately detectable, providing the cryptographic integrity proof. KMS encryption (option C) protects confidentiality but not integrity \u2014 an administrator with key access could still delete the objects. MFA Delete (option A) can be disabled by the root user, so it does not provide the same ironclad guarantee as Object Lock Compliance mode.",
       "tags": [
         "cloudtrail",
         "s3",
@@ -835,7 +835,8 @@
         "compliance",
         "object-lock"
       ],
-      "difficulty": "hard"
+      "difficulty": "hard",
+      "rewritten": true
     },
     {
       "id": "saa-043",
@@ -915,22 +916,23 @@
     },
     {
       "id": "saa-047",
-      "question": "A serverless application with API Gateway and Lambda is seeing a high percentage of 429 errors from Lambda throttling. What are TWO appropriate remediation steps?",
+      "question": "A team's serverless checkout API runs on API Gateway backed by Lambda. During a flash sale, multiple functions in the same AWS account exhaust the shared regional concurrency pool, leaving the checkout function throttled while lower-priority background functions remain active. The team wants to guarantee the checkout function always has a minimum concurrency allocation that other functions in the account cannot claim. Which Lambda feature addresses this?",
       "options": [
-        "Increase API Gateway timeout to 30 seconds",
-        "Request a Lambda concurrency limit increase and implement exponential backoff with jitter in clients",
-        "Move to EC2 instances to avoid Lambda limits",
-        "Enable API Gateway caching for all endpoints"
+        "Provisioned concurrency for the checkout Lambda function",
+        "Reserved concurrency set on the checkout Lambda function",
+        "AWS Lambda Power Tuning to reduce per-invocation duration",
+        "API Gateway usage plan throttling per customer API key"
       ],
       "correct": 1,
-      "explanation": "Lambda has per-region concurrency limits (default 1000). Requesting a limit increase via AWS Support directly addresses the capacity issue. Implementing exponential backoff with jitter in clients handles transient throttling gracefully without overwhelming Lambda during bursts. API Gateway caching helps for GET requests but not all endpoints. Moving to EC2 loses serverless benefits and is disproportionate.",
+      "explanation": "Reserved concurrency carves out a dedicated slice of the account-level concurrency pool exclusively for the specified function. Other functions cannot consume that reserved portion, ensuring the checkout function is never starved by lower-priority workloads competing for the shared pool. Provisioned concurrency (option A) pre-initializes execution environments to eliminate cold starts and improve latency, but it does not prevent other functions from consuming the unreserved portion of the account-wide limit that applies to non-provisioned invocations. API Gateway usage plans throttle individual external callers but have no effect on how Lambda allocates its internal concurrency pool.",
       "tags": [
         "lambda",
-        "api-gateway",
+        "concurrency",
         "throttling",
-        "scaling"
+        "serverless"
       ],
-      "difficulty": "medium"
+      "difficulty": "medium",
+      "rewritten": true
     },
     {
       "id": "saa-048",
@@ -972,22 +974,23 @@
     },
     {
       "id": "saa-050",
-      "question": "A company needs to temporarily grant external auditors read access to specific S3 buckets. The auditors have their own AWS account. What is the MOST secure approach?",
+      "question": "A fintech company's SOC 2 audit requires that third-party auditors, who operate their own separate AWS account, have read-only access to specific S3 buckets for a two-week review window. The security team's constraints are: no long-lived credentials may be created, and no bucket endpoint may be exposed to the public internet. What should they configure?",
       "options": [
-        "Create IAM users for each auditor and share credentials via email",
-        "Create a cross-account IAM role with read-only S3 permissions and share the role ARN with the auditors to assume",
-        "Make the S3 buckets publicly accessible with signed URLs",
-        "Create a new AWS account for the auditors with root access"
+        "Create an IAM user per auditor and email the access keys to each",
+        "Create a cross-account IAM role and share the role ARN for assumption",
+        "Share presigned S3 URLs (2-week expiry) directly with each auditor",
+        "Create a new AWS account for auditors and assign root-level S3 access"
       ],
       "correct": 1,
-      "explanation": "Cross-account IAM roles are the AWS-recommended pattern for temporary cross-account access. You create a role in your account with the required permissions and a trust policy allowing the auditor's account to assume it. The auditors call sts:AssumeRole to get temporary credentials \u2014 no permanent credentials are created or shared. When access is no longer needed, delete the role. Sharing IAM user credentials is a security anti-pattern.",
+      "explanation": "A cross-account IAM role with an S3 read-only policy and a trust policy scoped to the auditor's AWS account lets the auditors call sts:AssumeRole to obtain short-lived temporary credentials \u2014 no long-lived keys are created or shared. Deleting the role at the end of the review instantly revokes all access. Sharing IAM user access keys by email (option A) creates long-lived credentials that may be forwarded or cached, violating the no-permanent-credentials requirement. Presigned URLs (option C) are internet-accessible HTTPS endpoints \u2014 anyone who holds the URL can fetch the object \u2014 and cannot be scoped to another AWS account's identity, failing both security constraints.",
       "tags": [
         "iam",
         "cross-account",
         "roles",
         "security"
       ],
-      "difficulty": "easy"
+      "difficulty": "medium",
+      "rewritten": true
     },
     {
       "id": "saa-051",
@@ -1049,22 +1052,23 @@
     },
     {
       "id": "saa-054",
-      "question": "A company is designing a multi-tier application (web, app, database tiers). Each tier should only communicate with the adjacent tier. Which configuration BEST enforces this isolation?",
+      "question": "A three-tier e-commerce application runs web servers, app servers, and an RDS MySQL database in separate subnets. A security audit finds the RDS instance accepts connections on port 3306 from the full VPC CIDR (10.0.0.0/16). The team must restrict database access to only the app-tier EC2 instances in a way that remains accurate as instances are replaced or the fleet scales without manual IP updates. What should they configure?",
       "options": [
-        "Place all tiers in the same subnet with one security group",
-        "Create separate security groups per tier; reference the upstream tier's SG in inbound rules rather than IP ranges",
-        "Use NACLs on each subnet to block inter-tier traffic",
-        "Use VPN tunnels between each tier for encrypted communication"
+        "Update the RDS security group to allow port 3306 from the app subnet CIDR",
+        "Reference the app-tier security group in the RDS security group inbound rule",
+        "Apply a subnet NACL on the RDS subnet blocking all traffic except from the app subnet",
+        "Move the RDS instance to an isolated VPC connected to the app tier via PrivateLink"
       ],
       "correct": 1,
-      "explanation": "Using security group references (SG-to-SG rules) enforces tier isolation dynamically \u2014 when instances scale in/out, new instances automatically inherit SG membership and access controls update without IP changes. App tier's SG allows inbound only from web tier's SG; DB tier's SG allows inbound only from app tier's SG. NACLs are stateless and harder to maintain. VPNs are for inter-network connectivity.",
+      "explanation": "Referencing a security group ID in an inbound rule grants access to all instances carrying that group at the time of each request \u2014 when app-tier instances are replaced or scale out, new EC2s inherit the security group and immediately gain database access without any manual rule update. Restricting to the app subnet CIDR (option A) allows any EC2 in that subnet \u2014 monitoring agents, developer tools, or a compromised instance \u2014 not just the app-tier application, violating least-privilege isolation. NACLs (option C) are stateless: an inbound allow for port 3306 also requires an explicit outbound rule covering ephemeral reply ports (1024\u201365535), doubling maintenance overhead and increasing the chance of misconfiguration that locks out valid traffic.",
       "tags": [
         "security-groups",
         "vpc",
         "security",
         "multi-tier"
       ],
-      "difficulty": "medium"
+      "difficulty": "medium",
+      "rewritten": true
     },
     {
       "id": "saa-055",
@@ -1144,15 +1148,15 @@
     },
     {
       "id": "saa-059",
-      "question": "A company needs to track all API calls including read-only calls, store logs for 7 years for compliance, and ensure logs are tamper-proof. What is the COMPLETE solution?",
+      "question": "A financial services firm must satisfy a compliance mandate that all AWS API activity — including read-only calls — be retained for 7 years with cryptographic proof that no log has been altered or deleted after delivery. The team routes logs to a dedicated S3 archive bucket. Which combination of CloudTrail and S3 settings satisfies all three requirements?",
       "options": [
-        "Enable CloudTrail management events only and store in S3 Standard",
-        "Enable CloudTrail with management and data events; store in S3 with Object Lock Compliance mode, Glacier archival lifecycle, and log file validation enabled",
-        "Use CloudWatch Logs Insights to query all API calls",
-        "Enable AWS Config with 7-year retention"
+        "Log file validation enabled; S3 Standard storage with a 7-year lifecycle rule",
+        "Log file validation enabled; S3 Object Lock in Compliance mode (7-year hold)",
+        "KMS CMK encryption; S3 Glacier Deep Archive with a 7-year expiry policy",
+        "MFA Delete and S3 versioning enabled; S3 Standard-IA with a 7-year lifecycle rule"
       ],
       "correct": 1,
-      "explanation": "Comprehensive compliance logging requires: (1) CloudTrail with management events (all API calls including reads), (2) Log file validation to detect tampering via SHA-256 hashes, (3) S3 Object Lock Compliance mode to prevent deletion/modification for 7 years, (4) S3 lifecycle to transition to Glacier for cost-effective long-term storage. CloudWatch Logs lacks tamper-proof guarantees. Config tracks resource state, not all API calls.",
+      "explanation": "CloudTrail log file validation generates an hourly SHA-256 digest chain; any modification to a log file or its digest after delivery breaks the chain, providing cryptographic proof of integrity. S3 Object Lock in Compliance mode creates a WORM hold for the full retention period that even the root account cannot override, guaranteeing 7-year immutability and satisfying the tamper-proof requirement. Option A enables log file validation but stores objects in S3 Standard without Object Lock — an administrator can still delete the files, failing the deletion-prevention requirement. KMS encryption (option C) protects confidentiality but not integrity; a user with key access could still delete objects. MFA Delete (option D) can be disabled by the root account and does not provide the same ironclad protection as Object Lock Compliance mode.",
       "tags": [
         "cloudtrail",
         "compliance",
@@ -1160,7 +1164,8 @@
         "audit",
         "object-lock"
       ],
-      "difficulty": "hard"
+      "difficulty": "hard",
+      "rewritten": true
     },
     {
       "id": "saa-060",
