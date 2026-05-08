@@ -626,41 +626,43 @@
     },
     {
       "id": "saa-032",
-      "question": "A company stores sensitive configuration data (database passwords, API keys) that EC2 instances and Lambda functions need. The data must be encrypted at rest, version-controlled, and access-audited. Which service is MOST appropriate?",
+      "question": "A startup operates 50 Lambda functions and an EC2 Auto Scaling group, all of which retrieve database credentials and API keys at startup. The security team requires KMS encryption per value, individual CloudTrail access logging, and version history for rollback. The team must store 500 config values and wants to minimize monthly AWS spend. Which service best meets all three requirements?",
       "options": [
-        "Store in S3 with SSE-KMS encryption",
-        "AWS Systems Manager Parameter Store with SecureString type backed by KMS",
-        "Hardcode in EC2 user data scripts",
-        "Store in DynamoDB with encryption enabled"
+        "AWS Secrets Manager \u2014 charges $0.40 per secret per month",
+        "AWS Systems Manager Parameter Store with SecureString",
+        "Amazon S3 with server-side SSE-KMS and object versioning",
+        "Amazon DynamoDB table encrypted with a customer-managed KMS key"
       ],
       "correct": 1,
-      "explanation": "AWS Systems Manager Parameter Store with SecureString type encrypts values using KMS, supports versioning, and logs all access in CloudTrail. It integrates natively with EC2, Lambda, ECS, and other services. AWS Secrets Manager is also valid (with automatic rotation), but Parameter Store is free for standard parameters. S3 can store secrets but lacks the purpose-built access model. DynamoDB is a database, not a secrets store.",
+      "explanation": "AWS Systems Manager Parameter Store SecureString parameters are encrypted with KMS, every access call is logged in CloudTrail (including caller identity and parameter name), and each parameter keeps a full version history \u2014 all at no charge for the standard tier, making it zero additional cost for 500 values. AWS Secrets Manager also provides encryption and auditing, but charges $0.40 per secret per month \u2014 $200/month for 500 secrets. Amazon S3 can store encrypted files but lacks parameter-level access control or native versioning designed for secrets.",
       "tags": [
-        "ssm-parameter-store",
-        "secrets",
         "security",
-        "kms"
+        "ssm-parameter-store",
+        "secrets-management",
+        "cost-optimization"
       ],
-      "difficulty": "medium"
+      "difficulty": "medium",
+      "rewritten": true
     },
     {
       "id": "saa-033",
-      "question": "An application experiences traffic spikes lasting 2-3 minutes, several times per day. The workload runs on EC2. Which Auto Scaling approach responds FASTEST to these brief spikes?",
+      "question": "An e-commerce checkout API runs on an EC2 Auto Scaling group. Flash sale announcements trigger 5\u00d7 traffic spikes lasting 2-3 minutes, up to 10 times daily at unpredictable times. Cold-starting a new EC2 instance from the AMI takes 4 minutes. Which Auto Scaling configuration absorbs these spikes before they cause user-visible errors?",
       "options": [
-        "Scheduled scaling actions set to specific spike times",
-        "Simple scaling policy triggered by CloudWatch alarms",
-        "Predictive scaling using ML to forecast traffic",
-        "Step scaling policy combined with a warm pool of pre-initialized instances"
+        "Scheduled scaling actions set to each anticipated spike time",
+        "Step scaling combined with a warm pool of stopped instances",
+        "Predictive scaling using ML to forecast flash sale demand",
+        "Target tracking on ALB RequestCountPerTarget metric"
       ],
-      "correct": 3,
-      "explanation": "A warm pool keeps pre-initialized, stopped EC2 instances that can be launched within seconds rather than the typical 3-5 minutes for cold starts. Step scaling (which adds multiple instances based on alarm breach magnitude) combined with warm pool provides the fastest response for sub-5-minute spikes. Scheduled scaling works when spike times are predictable. Predictive scaling is ML-based and best for recurring patterns.",
+      "correct": 1,
+      "explanation": "A warm pool holds pre-initialized EC2 instances in a Stopped state; when the step scaling policy fires, warm pool instances reach InService in seconds rather than the 4-minute cold-start time, so capacity arrives before the 2-3 minute spike ends. Step scaling (rather than simple scaling) adds instances proportional to the alarm breach magnitude, scaling more aggressively when the spike is severe. Scheduled scaling only helps when spike times are predictable, and predictive scaling requires days of historical data before producing a useful forecast.",
       "tags": [
         "auto-scaling",
         "ec2",
         "warm-pool",
         "performance"
       ],
-      "difficulty": "hard"
+      "difficulty": "hard",
+      "rewritten": true
     },
     {
       "id": "saa-034",
@@ -762,60 +764,63 @@
     },
     {
       "id": "saa-039",
-      "question": "A company stores financial transaction data in DynamoDB. They need to maintain a history of all changes to each item for compliance auditing. Which feature enables this WITHOUT custom application code changes?",
+      "question": "A fintech company stores payment transactions in DynamoDB. For regulatory compliance, every item modification must be captured in an immutable audit log showing both the old and new attribute values. The solution must not require changes to the existing application, which writes directly to DynamoDB. Which approach creates a complete item-level change history?",
       "options": [
-        "DynamoDB on-demand backups",
-        "DynamoDB Streams captured by Lambda writing each change to S3",
-        "DynamoDB Point-in-Time Recovery (PITR)",
-        "DynamoDB Global Tables"
+        "DynamoDB Point-in-Time Recovery with hourly snapshot comparisons",
+        "DynamoDB Streams consumed by Lambda, writing events to S3",
+        "DynamoDB on-demand backup job triggered by an EventBridge rule",
+        "DynamoDB Global Tables replicating to an audit-only AWS region"
       ],
       "correct": 1,
-      "explanation": "DynamoDB Streams captures a time-ordered sequence of every item-level modification. A Lambda function triggered by the stream can write each change event to S3, forming an immutable audit trail. PITR allows restore to any point in time but doesn't provide a browsable change history. On-demand backups create snapshots but not change logs. Global Tables replicate data across regions but don't maintain change history.",
+      "explanation": "DynamoDB Streams records every INSERT, MODIFY, and REMOVE event at the item level, including both old and new attribute images, with no changes needed in the writing application. A Lambda function triggered by the stream writes each event record to S3, creating an immutable, time-ordered audit trail. Point-in-Time Recovery lets you restore the entire table to a past moment but does not expose a log of individual change events. On-demand backups capture full table snapshots rather than per-modification records, and Global Tables replicate data across regions without tracking what changed.",
       "tags": [
         "dynamodb",
         "streams",
-        "lambda",
-        "audit"
+        "audit",
+        "compliance"
       ],
-      "difficulty": "medium"
+      "difficulty": "medium",
+      "rewritten": true
     },
     {
       "id": "saa-040",
-      "question": "A company needs to run a batch processing job that is not time-critical but must complete eventually at the lowest cost. The job can tolerate interruption. Which EC2 purchasing option is MOST cost-effective?",
+      "question": "A genomics company runs a batch analysis pipeline on EC2 that processes 3 TB of sequencing data per job, taking 8-12 hours. The pipeline saves progress to S3 every 15 minutes and resumes from the last checkpoint after any failure. Jobs must complete eventually but have no hard deadline. Which EC2 purchasing option minimizes compute cost for this workload?",
       "options": [
-        "On-Demand Instances",
-        "Reserved Instances (1-year, no upfront)",
-        "Spot Instances with checkpointing and Spot interruption handling",
-        "Dedicated Hosts"
+        "On-Demand Instances billed by the second with no commitment",
+        "Spot Instances (up to 90% discount versus On-Demand pricing)",
+        "Reserved Instances with a 1-year no-upfront payment plan",
+        "Dedicated Hosts reserved for a 1-year term to ensure capacity"
       ],
-      "correct": 2,
-      "explanation": "Spot Instances offer up to 90% discount versus On-Demand pricing. For fault-tolerant, non-time-critical batch workloads that can checkpoint progress and handle 2-minute interruption notices, Spot Instances are the optimal choice. On-Demand is most expensive per hour. Reserved Instances save 30-70% but require upfront commitment for predictable workloads. Dedicated Hosts are the most expensive option.",
+      "correct": 1,
+      "explanation": "Spot Instances are priced up to 90% below On-Demand rates, and the pipeline's 15-minute checkpointing makes it tolerant of the 2-minute Spot interruption notice \u2014 if the instance is reclaimed, the job restarts from the last S3 checkpoint with minimal rework. Dedicated Hosts are reserved physical servers intended for software licensing compliance and are the most expensive per-hour option. Reserved Instances reduce costs for predictable, steady-state workloads but are poorly suited to intermittent jobs that only run when triggered.",
       "tags": [
         "ec2",
         "spot-instances",
         "cost-optimization",
-        "purchasing-options"
+        "batch-processing"
       ],
-      "difficulty": "easy"
+      "difficulty": "easy",
+      "rewritten": true
     },
     {
       "id": "saa-041",
-      "question": "An application serving both HTTP and HTTPS traffic needs to redirect all HTTP requests to HTTPS at the load balancer level. Which load balancer type supports this redirect rule?",
+      "question": "A SaaS company wants to enforce HTTPS on its public web application. Users who access the plain HTTP URL in their browser should automatically be sent to the HTTPS version. The change must be applied at the load balancer with no modifications to the application servers. Which load balancer type and configuration achieves this?",
       "options": [
-        "Network Load Balancer (NLB)",
-        "Classic Load Balancer (CLB)",
-        "Application Load Balancer (ALB) with a redirect listener rule",
-        "Gateway Load Balancer (GWLB)"
+        "Network Load Balancer with port forwarding from TCP 80 to TCP 443",
+        "Application Load Balancer with an HTTP listener redirect action",
+        "Classic Load Balancer with an HTTP listener and SSL offloading",
+        "Gateway Load Balancer with inline traffic forwarding rules"
       ],
-      "correct": 2,
-      "explanation": "ALB supports listener rules with redirect actions. You create an HTTP listener (port 80) with a redirect rule that sends a 301 response redirecting to HTTPS (port 443). This happens at the load balancer, saving a round trip to the backend. NLB operates at Layer 4 (TCP/UDP) and cannot inspect or modify HTTP requests. CLB has limited rule support. GWLB is for third-party network appliances.",
+      "correct": 1,
+      "explanation": "Application Load Balancer (ALB) is the only AWS load balancer that can inspect Layer-7 HTTP content and respond with a redirect action \u2014 for example, returning an HTTP 301 on port 80 that points the browser to the HTTPS endpoint on port 443. This is configured as a listener rule on the port-80 listener and involves no backend instances. Network Load Balancer operates at Layer 4 (TCP) and cannot read or modify HTTP headers, so it cannot issue a protocol-level redirect. Classic Load Balancer supports SSL termination but lacks listener rule actions for automatic HTTP-to-HTTPS promotion.",
       "tags": [
         "alb",
+        "load-balancing",
         "https",
-        "redirect",
-        "load-balancing"
+        "security"
       ],
-      "difficulty": "easy"
+      "difficulty": "easy",
+      "rewritten": true
     },
     {
       "id": "saa-042",
@@ -1148,7 +1153,7 @@
     },
     {
       "id": "saa-059",
-      "question": "A financial services firm must satisfy a compliance mandate that all AWS API activity — including read-only calls — be retained for 7 years with cryptographic proof that no log has been altered or deleted after delivery. The team routes logs to a dedicated S3 archive bucket. Which combination of CloudTrail and S3 settings satisfies all three requirements?",
+      "question": "A financial services firm must satisfy a compliance mandate that all AWS API activity \u2014 including read-only calls \u2014 be retained for 7 years with cryptographic proof that no log has been altered or deleted after delivery. The team routes logs to a dedicated S3 archive bucket. Which combination of CloudTrail and S3 settings satisfies all three requirements?",
       "options": [
         "Log file validation enabled; S3 Standard storage with a 7-year lifecycle rule",
         "Log file validation enabled; S3 Object Lock in Compliance mode (7-year hold)",
@@ -1156,7 +1161,7 @@
         "MFA Delete and S3 versioning enabled; S3 Standard-IA with a 7-year lifecycle rule"
       ],
       "correct": 1,
-      "explanation": "CloudTrail log file validation generates an hourly SHA-256 digest chain; any modification to a log file or its digest after delivery breaks the chain, providing cryptographic proof of integrity. S3 Object Lock in Compliance mode creates a WORM hold for the full retention period that even the root account cannot override, guaranteeing 7-year immutability and satisfying the tamper-proof requirement. Option A enables log file validation but stores objects in S3 Standard without Object Lock — an administrator can still delete the files, failing the deletion-prevention requirement. KMS encryption (option C) protects confidentiality but not integrity; a user with key access could still delete objects. MFA Delete (option D) can be disabled by the root account and does not provide the same ironclad protection as Object Lock Compliance mode.",
+      "explanation": "CloudTrail log file validation generates an hourly SHA-256 digest chain; any modification to a log file or its digest after delivery breaks the chain, providing cryptographic proof of integrity. S3 Object Lock in Compliance mode creates a WORM hold for the full retention period that even the root account cannot override, guaranteeing 7-year immutability and satisfying the tamper-proof requirement. Option A enables log file validation but stores objects in S3 Standard without Object Lock \u2014 an administrator can still delete the files, failing the deletion-prevention requirement. KMS encryption (option C) protects confidentiality but not integrity; a user with key access could still delete objects. MFA Delete (option D) can be disabled by the root account and does not provide the same ironclad protection as Object Lock Compliance mode.",
       "tags": [
         "cloudtrail",
         "compliance",
