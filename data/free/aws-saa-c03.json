@@ -845,79 +845,83 @@
     },
     {
       "id": "saa-043",
-      "question": "A company's web application experiences sudden traffic surges that can 10x normal load within 30 seconds. The application tier is stateless. Which approach handles sub-minute scaling BEST?",
+      "question": "A company's e-commerce platform is fully stateless and handles flash sales that spike traffic to 10\u00d7 normal within 30 seconds. The infrastructure team cannot reliably pre-warm capacity for unpredictable sale windows. Which compute approach meets the sub-minute scaling requirement?",
       "options": [
-        "EC2 Auto Scaling with a 5-minute warm-up period",
-        "AWS Lambda with an ALB \u2014 Lambda scales instantly to thousands of concurrent executions",
-        "Pre-scaled EC2 fleet with reserved capacity for peak",
-        "Elastic Beanstalk with rolling updates"
+        "EC2 Auto Scaling with target-tracking scaling on CPU",
+        "AWS Lambda behind an Application Load Balancer",
+        "A pre-sized On-Demand EC2 fleet reserved for peak load",
+        "Elastic Beanstalk with time-based scheduled scale-out"
       ],
       "correct": 1,
-      "explanation": "Lambda scales from 0 to thousands of concurrent executions in seconds. For stateless workloads that can run within Lambda's execution model, this provides instant scaling beyond what EC2 Auto Scaling can achieve in 30 seconds. Lambda with ALB is a valid production pattern. Pre-scaling wastes cost at normal load. Auto Scaling has a 3-5 minute EC2 launch time.",
+      "explanation": "AWS Lambda scales from zero to thousands of concurrent executions in seconds without provisioning or warm-up delays, making it ideal for unpredictable sub-minute traffic spikes. EC2 Auto Scaling typically takes 3\u20135 minutes to launch and initialize new instances \u2014 far too slow for a 30-second surge. Pre-sizing an EC2 fleet covers the spike but wastes cost during normal load, and Elastic Beanstalk time-based scaling requires predicting when surges occur.",
       "tags": [
+        "compute",
         "lambda",
-        "alb",
         "scaling",
         "serverless"
       ],
-      "difficulty": "medium"
+      "difficulty": "medium",
+      "rewritten": true
     },
     {
       "id": "saa-044",
-      "question": "A company wants to migrate an on-premises Oracle database to AWS with minimal downtime. Which service handles heterogeneous database migration with ongoing replication during the cutover window?",
+      "question": "A financial company's on-premises Oracle 19c database is written to 24/7 and must be migrated to Amazon Aurora PostgreSQL with fewer than 4 hours of application downtime. The database is 2 TB. Which migration approach satisfies this requirement?",
       "options": [
-        "AWS Database Migration Service (DMS) with Schema Conversion Tool",
-        "AWS Snowball for database file transfer",
-        "Manually export/import using Oracle Data Pump",
-        "AWS DataSync"
+        "AWS DMS with CDC replication to Aurora PostgreSQL",
+        "Oracle Data Pump with a scheduled maintenance window",
+        "AWS Snowball physical transfer for the 2 TB export",
+        "AWS SCT schema conversion running as standalone migration"
       ],
       "correct": 0,
-      "explanation": "AWS DMS migrates databases to AWS with minimal downtime using Change Data Capture (CDC) for ongoing replication after the initial full load. The Schema Conversion Tool (SCT) handles schema conversion for heterogeneous migrations (e.g., Oracle to Aurora PostgreSQL). During migration, the source remains online until cutover. Snowball is for bulk data transfer. Data Pump requires downtime. DataSync is for file-based storage.",
+      "explanation": "AWS Database Migration Service (DMS) performs a full initial load, then uses Change Data Capture (CDC) to replicate ongoing transactions to the Aurora target while the Oracle source remains online \u2014 shrinking the cutover window to minutes. Oracle Data Pump requires pausing writes during export, which cannot meet a 4-hour constraint for a 2 TB actively-written database. AWS Snowball handles bulk data transport but provides no mechanism for live replication. AWS Schema Conversion Tool converts schemas and code objects but does not migrate data on its own.",
       "tags": [
-        "dms",
         "migration",
+        "dms",
         "databases",
         "oracle"
       ],
-      "difficulty": "medium"
+      "difficulty": "medium",
+      "rewritten": true
     },
     {
       "id": "saa-045",
-      "question": "A company needs to share VPC resources between AWS accounts in the same AWS Organization without using VPC peering. Which feature allows subnets to be shared across accounts?",
+      "question": "An enterprise manages a central networking account containing a VPC with carefully segmented subnets. Twenty application accounts in the same AWS Organization need to deploy EC2 instances and RDS clusters using those centrally managed subnets, without owning their own VPCs. Which AWS capability enables this?",
       "options": [
-        "VPC Peering between accounts",
-        "AWS Transit Gateway",
-        "AWS Resource Access Manager (RAM) to share subnets from a central VPC",
-        "VPC Endpoints with service sharing"
+        "AWS Resource Access Manager shared subnets",
+        "AWS Transit Gateway with cross-account attachments",
+        "VPC Peering from the hub account to each spoke",
+        "AWS PrivateLink endpoint services per spoke VPC"
       ],
-      "correct": 2,
-      "explanation": "AWS Resource Access Manager (RAM) allows sharing subnets from a central 'owner' account with 'participant' accounts in the same Organization. Participant accounts can launch EC2 instances, RDS, and other resources into the shared subnet without needing their own VPC. This simplifies networking and reduces costs by eliminating duplicate infrastructure. VPC Peering connects separate VPCs; RAM shares subnets within one VPC.",
+      "correct": 0,
+      "explanation": "AWS Resource Access Manager (RAM) lets the subnet-owning account share specific subnets with participant accounts in the same AWS Organization. Participants can launch EC2, RDS, and other resources directly into those shared subnets while the network team retains control of routing, NACLs, and security groups. AWS Transit Gateway interconnects separate VPCs at the routing level but does not let participant accounts deploy into a single shared subnet. VPC Peering links two separate VPCs without granting subnet-level access to a participant account. PrivateLink exposes specific services, not shared network segments.",
       "tags": [
+        "networking",
         "ram",
         "vpc",
-        "organizations",
-        "networking"
+        "organizations"
       ],
-      "difficulty": "hard"
+      "difficulty": "hard",
+      "rewritten": true
     },
     {
       "id": "saa-046",
-      "question": "A company needs to expose an internal service running on EC2 to another company's VPC without establishing full VPC peering. Which feature enables this securely?",
+      "question": "A SaaS provider runs a payment-processing API inside their AWS VPC. A customer company wants to invoke that API from within their own VPC without traversing the internet, without CIDR overlap constraints, and without gaining access to any other resource in the provider's VPC. Which networking pattern satisfies all three requirements?",
       "options": [
-        "VPC Peering between the two companies' VPCs",
-        "AWS PrivateLink (VPC Endpoint Service) with a Network Load Balancer",
-        "AWS Direct Connect between the two companies",
-        "Internet Gateway with security group rules"
+        "AWS PrivateLink backed by a Network Load Balancer",
+        "VPC Peering between provider and customer accounts",
+        "AWS Transit Gateway connecting both company VPCs",
+        "AWS Direct Connect dedicated link to the provider"
       ],
-      "correct": 1,
-      "explanation": "AWS PrivateLink allows exposing a service to other VPCs or AWS accounts without VPC peering, internet exposure, or overlapping CIDR concerns. The provider creates a VPC Endpoint Service backed by a Network Load Balancer. The consumer creates an Interface VPC Endpoint in their VPC. Traffic never leaves the AWS network. VPC Peering exposes the entire VPC, not just one service.",
+      "correct": 0,
+      "explanation": "AWS PrivateLink creates an Interface VPC Endpoint in the consumer's VPC that maps to a VPC Endpoint Service backed by a Network Load Balancer in the provider's VPC. Traffic stays within the AWS network, CIDR ranges never conflict, and the consumer can only reach that specific NLB \u2014 not the rest of the provider's VPC. VPC Peering and Transit Gateway grant full network-level access across VPCs, violating the isolation requirement. AWS Direct Connect is designed for on-premises-to-AWS private connectivity, not for inter-VPC API-level service sharing.",
       "tags": [
+        "networking",
         "privatelink",
         "vpc-endpoints",
-        "networking",
         "security"
       ],
-      "difficulty": "hard"
+      "difficulty": "hard",
+      "rewritten": true
     },
     {
       "id": "saa-047",
@@ -941,22 +945,23 @@
     },
     {
       "id": "saa-048",
-      "question": "A company needs to query data stored in S3 using standard SQL without loading it into a database. The data is in Parquet format, partitioned by date. Which service handles this?",
+      "question": "A data engineering team stores 18 months of clickstream logs in Amazon S3 as Parquet files partitioned by date. Business analysts need to run ad-hoc SQL queries against this data without provisioning a database cluster or building ETL pipelines. Which service meets this need at the lowest operational overhead?",
       "options": [
-        "Amazon RDS with S3 integration",
-        "Amazon Athena with a Glue Data Catalog table definition",
-        "Amazon Redshift with S3 COPY command",
-        "AWS Glue ETL job writing results to DynamoDB"
+        "Amazon Athena querying via the Glue Data Catalog",
+        "Amazon Redshift Spectrum reading S3 Parquet directly",
+        "Amazon EMR Spark cluster querying the S3 dataset",
+        "AWS Glue Studio ETL job loading S3 data to DynamoDB"
       ],
-      "correct": 1,
-      "explanation": "Amazon Athena is a serverless query service that uses SQL (Presto) to query data directly in S3. AWS Glue Data Catalog defines the schema and partition structure. Athena reads only specific Parquet files matching query filters (partition pruning), minimizing scan and cost. You pay per TB scanned. RDS and Redshift require loading data first. Glue ETL is for transformation, not ad-hoc querying.",
+      "correct": 0,
+      "explanation": "Amazon Athena is fully serverless \u2014 analysts write standard SQL and Athena reads Parquet files directly from S3 using the Glue Data Catalog for schema and partition information, with no cluster to provision or maintain. Amazon Redshift Spectrum also queries S3 directly but requires a running Redshift cluster, adding provisioning overhead. Amazon EMR provides distributed processing power but requires launching and managing a cluster. AWS Glue Studio is a data transformation tool that writes data to a target store \u2014 it does not provide an ad-hoc SQL query interface.",
       "tags": [
+        "analytics",
         "athena",
         "s3",
-        "analytics",
         "sql"
       ],
-      "difficulty": "easy"
+      "difficulty": "medium",
+      "rewritten": true
     },
     {
       "id": "saa-049",
