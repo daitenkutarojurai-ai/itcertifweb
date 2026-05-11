@@ -155,12 +155,32 @@ function renderGoalPicker(packs) {
       <p class="goal-picker-sub">Pick a goal, get a personalized starting point. No signup, no tracking — your progress stays in your browser.</p>
     </div>
 
+    <!-- Always-visible cert search — fast path for users who know what they want -->
+    <div class="cert-search-wrap open" id="cert-search-wrap">
+      <div class="cert-search-input-wrap">
+        <span class="cert-search-icon" aria-hidden="true">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        </span>
+        <input
+          class="cert-search-input"
+          id="cert-search-input"
+          type="search"
+          placeholder="Search a cert: CCNA, AWS SAA, AZ-104, Security+…"
+          autocomplete="off"
+          spellcheck="false"
+          aria-label="Search for a certification"
+        />
+        <button class="cert-search-clear" id="cert-search-clear" type="button" aria-label="Clear search" hidden>✕</button>
+      </div>
+      <div class="cert-search-results" id="cert-search-results" role="listbox"></div>
+    </div>
+
     <div class="goal-picker-grid">
-      <button class="goal-button" data-goal="exam" type="button">
-        <span class="goal-icon">📅</span>
-        <strong>I have an exam date</strong>
-        <span class="goal-desc">Pick a cert and start a quick quiz</span>
-      </button>
+      <a class="goal-button" data-goal="exam" href="/train.html">
+        <span class="goal-icon">🎯</span>
+        <strong>I have a certification in mind</strong>
+        <span class="goal-desc">Browse the full exam list</span>
+      </a>
       <a class="goal-button" data-goal="career" href="/careers/">
         <span class="goal-icon">🚀</span>
         <strong>I want to change careers</strong>
@@ -168,50 +188,43 @@ function renderGoalPicker(packs) {
       </a>
       <a class="goal-button" data-goal="explore" href="/train.html?pack=${POPULAR_PACK_FOR_EXPLORE}&autostart=quick">
         <span class="goal-icon">🎲</span>
-        <strong>Just exploring</strong>
+        <strong>Surprise me</strong>
         <span class="goal-desc">Random 5-question quiz</span>
       </a>
     </div>
-
-    <div class="cert-search-wrap" id="cert-search-wrap" aria-hidden="true">
-      <div class="cert-search-input-wrap">
-        <span class="cert-search-icon">🔎</span>
-        <input
-          class="cert-search-input"
-          id="cert-search-input"
-          type="text"
-          placeholder="Type a cert: CCNA, AWS SAA, AZ-104, Security+..."
-          autocomplete="off"
-          spellcheck="false"
-        />
-        <button class="cert-search-clear" id="cert-search-clear" type="button" aria-label="Clear search">✕</button>
-      </div>
-      <div class="cert-search-results" id="cert-search-results" role="listbox"></div>
-    </div>
   `;
 
-  // Wire up the "exam" button — toggle search reveal
-  const examBtn = wrap.querySelector('[data-goal="exam"]');
   const searchWrap = wrap.querySelector('#cert-search-wrap');
   const searchInput = wrap.querySelector('#cert-search-input');
   const searchResults = wrap.querySelector('#cert-search-results');
   const clearBtn = wrap.querySelector('#cert-search-clear');
 
-  examBtn.addEventListener('click', () => {
-    searchWrap.classList.add('open');
-    searchWrap.setAttribute('aria-hidden', 'false');
-    setTimeout(() => searchInput.focus(), 50);
-    renderResults(searchInput.value, packs, searchResults);
-  });
+  function showResults() { searchWrap.classList.add('active'); }
+  function hideResults() { searchWrap.classList.remove('active'); }
 
-  searchInput.addEventListener('input', () => renderResults(searchInput.value, packs, searchResults));
+  searchInput.addEventListener('focus', () => {
+    renderResults(searchInput.value, packs, searchResults);
+    showResults();
+  });
+  searchInput.addEventListener('input', () => {
+    renderResults(searchInput.value, packs, searchResults);
+    clearBtn.hidden = searchInput.value.length === 0;
+    showResults();
+  });
+  /* Delay blur-hide so a click on a result link can fire first */
+  searchInput.addEventListener('blur', () => {
+    setTimeout(() => {
+      if (searchInput.value.trim() === '' && document.activeElement !== searchInput) hideResults();
+    }, 180);
+  });
   clearBtn.addEventListener('click', () => {
     searchInput.value = '';
+    clearBtn.hidden = true;
     renderResults('', packs, searchResults);
     searchInput.focus();
   });
 
-  // Initial render: show the most popular packs as suggestions
+  /* Pre-render popular suggestions so they appear instantly on focus */
   renderResults('', packs, searchResults);
 
   return wrap;
