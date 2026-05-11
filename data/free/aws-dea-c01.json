@@ -1,0 +1,152 @@
+{
+  "meta": {
+    "id": "aws-dea-c01",
+    "name": "AWS Data Engineer Associate (DEA-C01)",
+    "vendor": "Amazon AWS",
+    "version": "1.0.0",
+    "question_count": 10,
+    "last_updated": "2026-05-11"
+  },
+  "questions": [
+    {
+      "id": "aws-dea-c01-001",
+      "question": "A team must continuously deliver clickstream events to Amazon S3 in Apache Parquet, with no code to manage shards or consumer applications, while batching events into roughly 5-minute files. Which AWS service is the best fit?",
+      "options": [
+        "Amazon Kinesis Data Streams with a custom Lambda consumer that writes Parquet to S3 each minute",
+        "Amazon Data Firehose with Parquet format conversion enabled and a 300-second buffer on the stream",
+        "Amazon MSK with a Kafka Connect S3 sink running on an EC2 cluster the team has to size and patch",
+        "AWS Glue streaming ETL job triggered every five minutes from an Amazon EventBridge schedule rule"
+      ],
+      "correct": 1,
+      "explanation": "Amazon Data Firehose (formerly Kinesis Data Firehose) is fully managed, can convert incoming records to Parquet or ORC, and natively buffers by size or by time interval (up to 900 seconds) before writing to S3. There are no shards or consumer applications to operate. Kinesis Data Streams requires you to build and scale a consumer. Self-managed MSK with Kafka Connect adds significant operational burden. Glue streaming jobs run continuously, not on a 5-minute cron, and would still need extra configuration to land Parquet files.",
+      "tags": ["data-ingestion", "firehose", "streaming"],
+      "difficulty": "easy"
+    },
+    {
+      "id": "aws-dea-c01-002",
+      "question": "An AWS Glue Spark job reads daily files from an S3 prefix and must process only newly arrived files on each run, without re-scanning previously ingested data. Which Glue feature should be enabled on the job?",
+      "options": [
+        "Pushdown predicate filters configured per partition column in the source DynamicFrame transform",
+        "Glue job bookmarks, which persist a per-source watermark and skip data processed in previous runs",
+        "Glue triggers set to run on a fixed cron schedule so old partitions are not re-read by the workflow",
+        "Workflow run properties carrying the latest processed date that the job reads when it starts up"
+      ],
+      "correct": 1,
+      "explanation": "Job bookmarks store state (file names, timestamps, or row counts depending on source type) across runs, so the next execution resumes from the last processed point and does not re-read older S3 files. Pushdown predicates filter known partitions but do not auto-track progress between runs. Triggers only schedule a job — they do not remember what was processed. Run properties require the user to track state manually.",
+      "tags": ["data-transformation", "glue", "incremental"],
+      "difficulty": "intermediate"
+    },
+    {
+      "id": "aws-dea-c01-003",
+      "question": "A Kinesis Data Streams application must keep events for the same user_id strictly in order, while scaling throughput across many users. How should producers configure each record?",
+      "options": [
+        "Set the explicit hash key to a random value so writes are distributed evenly across every shard",
+        "Use the user_id as the partition key so all records for one user hash to the same shard in order",
+        "Configure each producer to write to a single fixed shard to guarantee in-order delivery for users",
+        "Aggregate user events client-side and write one batched record per minute regardless of user id"
+      ],
+      "correct": 1,
+      "explanation": "Kinesis preserves ordering within a single shard, and the record's partition key determines which shard it lands on. Using user_id as the partition key keeps per-user ordering while spreading aggregate load across many shards. Randomizing the explicit hash key breaks ordering. Writing to a single shard caps throughput at one shard's limits. Minute-level batching loses ordering granularity and adds latency.",
+      "tags": ["data-ingestion", "kinesis", "ordering"],
+      "difficulty": "intermediate"
+    },
+    {
+      "id": "aws-dea-c01-004",
+      "question": "Regulatory archives must remain on Amazon S3 for seven years, are accessed less than once per quarter, and may be retrieved within a 12-hour window when needed. Which storage class minimizes cost while still meeting that retrieval window?",
+      "options": [
+        "S3 Standard, which keeps the archives immediately accessible from any application at any time",
+        "S3 Glacier Deep Archive, which is lowest cost but uses a standard retrieval time of about 12 hours",
+        "S3 Glacier Instant Retrieval, which charges higher storage in exchange for millisecond access SLAs",
+        "S3 One Zone-IA, which is cheaper than Standard-IA but stores data in only one availability zone"
+      ],
+      "correct": 1,
+      "explanation": "S3 Glacier Deep Archive has the lowest per-GB storage cost on S3; its standard retrieval time is up to 12 hours, which exactly satisfies the SLA. S3 Standard is far more expensive and unnecessary for quarterly access. Glacier Instant Retrieval costs more per GB in exchange for millisecond reads the workload does not need. One Zone-IA reduces resilience without reaching Glacier-tier pricing for long-term archives.",
+      "tags": ["data-store", "s3", "storage-classes"],
+      "difficulty": "easy"
+    },
+    {
+      "id": "aws-dea-c01-005",
+      "question": "A Redshift fact table with billions of rows is joined daily to a 50-million-row customer dimension on customer_id. Which distribution choice minimizes data shuffle during the join?",
+      "options": [
+        "DISTSTYLE EVEN on both tables so each slice carries an equal share of rows for parallel scans",
+        "DISTSTYLE ALL on the fact table so every node holds the full copy used during the join phase",
+        "DISTSTYLE KEY on customer_id for both tables so matching rows land on the same compute slice",
+        "DISTSTYLE AUTO on the fact table and DISTSTYLE ALL on the dimension regardless of its size"
+      ],
+      "correct": 2,
+      "explanation": "When two tables share the same DISTKEY, Redshift co-locates rows with matching key values on the same slice and the join executes locally with no network shuffle. DISTSTYLE EVEN forces a redistribution on every join. DISTSTYLE ALL on a billion-row fact would be impractically large. DISTSTYLE ALL on a 50-million-row dimension wastes considerable storage on every node — ALL is meant for small lookup tables, typically up to a few million rows.",
+      "tags": ["data-store", "redshift", "performance"],
+      "difficulty": "intermediate"
+    },
+    {
+      "id": "aws-dea-c01-006",
+      "question": "A DynamoDB table keyed on date_only (YYYY-MM-DD) throttles heavily on writes each day because every new record hits the same partition. Which redesign best spreads write load while preserving efficient daily lookups?",
+      "options": [
+        "Add a random suffix to the partition key and use Scan with FilterExpression to find each day's items",
+        "Use date_only as the sort key and a high-cardinality field such as order_id as the new partition key",
+        "Switch the table to provisioned mode at a much higher write capacity to absorb the daily write spike",
+        "Enable DynamoDB Accelerator (DAX) so writes are cached and asynchronously batched to the base table"
+      ],
+      "correct": 1,
+      "explanation": "Promoting a high-cardinality attribute (order_id) to the partition key spreads writes across many partitions, eliminating the hot partition; keeping date_only as the sort key still allows efficient per-day Query operations using a GSI on date_only or a partition-overloaded design. Scans with filters are expensive and read the whole table. Raising capacity does not fix data skew. DAX is a read-through cache and does not absorb write traffic.",
+      "tags": ["data-store", "dynamodb", "hot-partition"],
+      "difficulty": "intermediate"
+    },
+    {
+      "id": "aws-dea-c01-007",
+      "question": "An Athena workload scans a JSON dataset partitioned by event_date and is both slow and expensive. The team wants the largest reduction in bytes scanned with minimal query rewrites. Which change has the greatest impact?",
+      "options": [
+        "Convert the underlying data to Apache Parquet so Athena reads only the columns each query selects",
+        "Re-encode the JSON files using gzip compression so each query downloads fewer total bytes from S3",
+        "Switch the Athena engine version to the latest release available in the workgroup configuration",
+        "Increase the per-query data scanned limit in the workgroup so larger result sets are not throttled"
+      ],
+      "correct": 0,
+      "explanation": "Parquet is a columnar format, so Athena reads only the columns referenced by a query; combined with partition pruning this typically reduces bytes scanned (and Athena cost) by an order of magnitude or more. Gzipped JSON is still row-oriented, so every query reads the full row even to read one column. Engine version upgrades give marginal gains. Raising the workgroup scan limit caps cost runaway but does not lower per-query bytes scanned.",
+      "tags": ["data-ops", "athena", "parquet"],
+      "difficulty": "easy"
+    },
+    {
+      "id": "aws-dea-c01-008",
+      "question": "A pipeline must run nightly with up to fifty interdependent Python tasks, retry logic per task, and rich DAG visualization familiar to the existing data team. Which orchestrator is the best fit?",
+      "options": [
+        "Amazon MWAA, the managed Apache Airflow service that runs Python DAGs with task-level retries",
+        "AWS Step Functions Standard workflow defined in Amazon States Language with one state per task",
+        "Amazon EventBridge Scheduler rules that fire each task at a specific time and order independently",
+        "Amazon SageMaker Pipelines orchestrating the data tasks as steps inside a single training pipeline"
+      ],
+      "correct": 0,
+      "explanation": "Amazon MWAA (managed Airflow) is purpose-built for Python-centric DAGs with per-task retries and the familiar Airflow web UI for DAG visualization. Step Functions excels at orchestrating AWS service calls but lacks Airflow's Python-DAG ergonomics. EventBridge Scheduler fires jobs at a time but offers no dependency graph between tasks. SageMaker Pipelines is an ML-pipeline tool and not the right primitive for a general 50-task Python ETL graph.",
+      "tags": ["data-ops", "orchestration", "mwaa"],
+      "difficulty": "intermediate"
+    },
+    {
+      "id": "aws-dea-c01-009",
+      "question": "An analytics account needs to query specific AWS Glue Data Catalog tables that live in a separate producer account, with column-level permissions enforced. Which AWS Lake Formation mechanism provides this most directly?",
+      "options": [
+        "Copy the underlying S3 objects to the analytics account each night with AWS DataSync and run jobs locally",
+        "Grant cross-account Lake Formation permissions on the table, then accept the resource share in AWS RAM",
+        "Make the producer's S3 bucket policy public-read so any IAM principal in the analytics account can scan it",
+        "Export the Glue Data Catalog to a CSV file and let the analytics account import it into a new local database"
+      ],
+      "correct": 1,
+      "explanation": "Lake Formation integrates with AWS Resource Access Manager (RAM) to share Data Catalog resources cross-account and enforces fine-grained permissions — including column-level grants — on the consumer side without copying data. Replicating data with DataSync defeats single-source-of-truth governance. Public S3 buckets are an obvious security violation. Exporting the catalog to CSV loses live metadata and Lake Formation enforcement.",
+      "tags": ["security", "lake-formation", "cross-account"],
+      "difficulty": "intermediate"
+    },
+    {
+      "id": "aws-dea-c01-010",
+      "question": "An Amazon S3 bucket using SSE-KMS for billions of small object writes is incurring high AWS KMS request charges. Which feature reduces those KMS API calls without weakening encryption guarantees?",
+      "options": [
+        "Switch the bucket to SSE-S3 so KMS is no longer used and all encryption is handled internally",
+        "Enable an S3 Bucket Key, which uses a short-lived key derived from the KMS key to encrypt objects",
+        "Disable encryption on writes and re-encrypt objects asynchronously at night using a batch job",
+        "Move the bucket and its KMS key into a dedicated VPC endpoint so KMS calls become free of charge"
+      ],
+      "correct": 1,
+      "explanation": "S3 Bucket Keys cache a time-limited bucket-level key derived from the configured KMS CMK, so individual object writes no longer make a GenerateDataKey call per object. This cuts KMS request volume (and cost) dramatically while still using KMS-protected encryption. Switching to SSE-S3 changes the security model and loses customer-managed key control. Disabling encryption is unacceptable for protected data. VPC endpoints route KMS traffic privately but do not waive KMS request pricing.",
+      "tags": ["security", "encryption", "kms"],
+      "difficulty": "intermediate"
+    }
+  ]
+}
