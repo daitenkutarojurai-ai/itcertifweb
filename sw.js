@@ -10,7 +10,7 @@
  * Bump CACHE_VERSION to invalidate clients on next visit.
  */
 
-const CACHE_VERSION = 'v21-2026-05-11-sticky-header-per-brand-cert-icons';
+const CACHE_VERSION = 'v22-2026-05-11-sticky-fix-goal-polish-brand-icons';
 const RUNTIME_CACHE = `cq-runtime-${CACHE_VERSION}`;
 const PRECACHE      = `cq-precache-${CACHE_VERSION}`;
 
@@ -18,8 +18,8 @@ const PRECACHE      = `cq-precache-${CACHE_VERSION}`;
 const PRECACHE_URLS = [
   '/',
   '/index.html',
-  '/src/styles/main.css?v=18',
-  '/src/styles/desktop.css?v=18',
+  '/src/styles/main.css?v=19',
+  '/src/styles/desktop.css?v=19',
   '/src/assets/icons/favicon-96.png?v=4',
   '/src/assets/icons/favicon-32.png?v=4',
   '/src/assets/icons/favicon-192.png?v=4',
