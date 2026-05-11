@@ -7,63 +7,137 @@ up when there's time.
 
 ## P1 — Duolingo-style characters · Phase 2 (player avatar)
 
-Phase 1 shipped 2026-05-11: a single floating mascot (🦉 owl) in the
-bottom-right corner rotates encouraging tips, dismissible for 12 h.
-Code: `src/mascot.js`, CSS `src/styles/desktop.css` (MASCOT WIDGET block).
+### Status
+- ✅ Phase 1 shipped 2026-05-11: floating 🦉 owl mascot (bottom-right).
+  Rotating tips, dismissible 12 h, idle wave every 18 s, continuous bob +
+  glow + status-dot pulse animations.
+  Code: `src/mascot.js`, CSS in `src/styles/desktop.css` (MASCOT WIDGET).
+  **The main mascot is locked — design will not change going forward.**
 
-Phase 2 — player character that evolves with practice metrics:
+### Decisions (locked)
+- **Position:** header chip — left of the logo on every page. Visible at
+  all times, contextual progress marker, doesn't compete with the corner
+  mascot. Mobile: shrinks to icon-only (32 px circular badge). Desktop:
+  icon + thin XP bar + level label.
+- **Phase 2A ships with emoji placeholders** so we can validate the UX
+  loop quickly. Phase 2B swaps in the 30 custom SVGs as they're designed.
 
-- **Tracked metrics** (localStorage, keyed by cert pack):
-  - `cq-stats.totalSeconds` — cumulative study time
-  - `cq-stats.questionsAnswered` — total answered
-  - `cq-stats.correctRate` — rolling 100-question accuracy
-  - `cq-stats.streakDays` — consecutive days with ≥1 session
-  - `cq-stats.lastSessionAt` — for streak detection
-  - `cq-stats.perPack[packId]` — per-cert breakdown (which cert they're
-    putting time into → reflects in avatar gear/theme)
+### 30-avatar evolution roadmap
 
-- **Avatar stages** (5 levels, gated on time + accuracy compound score):
-  1. 🐣 Hatchling (0-30 min, default)
-  2. 🐥 Apprentice (30 min, >50% acc)
-  3. 🦅 Trainee (3 h, >65% acc)
-  4. 🦉 Adept (10 h, >75% acc, 7-day streak)
-  5. 👑 Master (25 h, >85% acc, 14-day streak)
+End target: **30 distinct avatars**. Player progresses through them via
+compound XP (time × accuracy × streak). Each level requires ~1.5× the XP
+of the previous, so cumulative time-to-Master is realistic (~150-200 h of
+serious practice).
 
-  Stages are emoji for v1; can swap for custom SVGs later.
+Five tiered arcs of 6 stages each. Within an arc, the same character
+gradually gains equipment / posture / aura. Crossing arc boundaries
+unlocks a new species/form (visible "I leveled up" moment).
 
-- **Display:** small avatar chip in the header (next to the logo, mobile)
-  or as a left-aligned counterpart to the main mascot (bottom-left on desktop).
-  Shows current level emoji + a thin XP bar to next level.
+#### Arc 1 — Hatchling (levels 1-6) · learning to study
+1. 🥚 Untouched egg (default, level 1)
+2. 🐣 Egg with a crack
+3. 🐤 Just hatched (eyes closed)
+4. 🐥 Standing chick
+5. 🐥 Chick with study cap
+6. 🐥 Chick holding a pencil
 
-- **Level-up moment:** brief full-bleed confetti + the main mascot bubble
-  says "Level up! You're now an Adept." Plays the wave animation.
+#### Arc 2 — Apprentice (levels 7-12) · building habits
+7. 🐦 Fledgling
+8. 🐦 Fledgling with notebook
+9. 🐦 Fledgling with reading glasses
+10. 🦜 Colored plumage emerging
+11. 🦜 First feathers + scarf
+12. 🦜 Apprentice with diploma roll
 
-- **Tap the avatar:** opens a small panel with:
-  - Current level + XP to next
-  - Top 3 certs by time spent
-  - Day streak count + heat-map of last 14 days
-  - "Reset progress" link (with confirm)
+#### Arc 3 — Trainee (levels 13-18) · domain depth
+13. 🦅 Young hawk
+14. 🦅 Hawk with backpack
+15. 🦅 Hawk + laptop
+16. 🦅 Hawk + cloud icon (cert branding)
+17. 🦅 Hawk with first medal
+18. 🦅 Hawk standing on a server rack
 
-- **Contextual main-mascot tips** (Phase 2.5): the bubble pool should
-  query `cq-stats` and pick relevant tips:
-  - low streak → "It's been 3 days — come back, the brain forgets fast"
-  - low accuracy on pack X → "AWS networking tripping you up? Try a 5-Q
-    focus on VPC."
-  - high streak → "10-day streak! 🔥 Keep it going."
+#### Arc 4 — Adept (levels 19-24) · multi-cert mastery
+19. 🦉 Sage owl (eyes glow)
+20. 🦉 Owl with mortar board
+21. 🦉 Owl with stack of certifications
+22. 🦉 Owl on a podium
+23. 🦉 Owl with lightning bolt (speed badge)
+24. 🦉 Owl with constellation aura
 
-- **Wiring:** quiz screens (`src/screens/quiz.js`, `src/screens/results.js`)
-  should emit a custom event `cq:session-complete` with `{packId, secondsSpent,
-  questionsAnswered, correct}`. The avatar listens, updates stats, re-renders.
+#### Arc 5 — Master (levels 25-30) · legendary
+25. 👑 Crowned phoenix
+26. 👑 Phoenix with rune circle
+27. 👑 Phoenix wielding a quill
+28. 👑 Phoenix on a throne of books
+29. 👑 Phoenix in flight, banner trailing
+30. 👑 Phoenix radiating aurora — final form
 
-- **No backend:** all localStorage. Cleared with "Reset" or by user wiping
-  site data. Privacy-friendly (matches the existing no-tracking stance).
+### Tracked metrics (localStorage, no backend)
 
-### Open questions before building Phase 2
-- Which page is best for the avatar widget? Header chip (always visible)
-  or bottom-left (stays out of content)?
-- Custom SVG character vs. emoji stages — emoji ships in a day, SVG
-  needs a designer pass.
-- How often should the main mascot react contextually? (Risk: nagging.)
+- `cq-stats.totalSeconds` — cumulative study time
+- `cq-stats.questionsAnswered` — total answered
+- `cq-stats.correctRate` — rolling 100-question accuracy
+- `cq-stats.streakDays` — consecutive days with ≥1 session
+- `cq-stats.lastSessionAt` — for streak detection / reset
+- `cq-stats.perPack[packId]` — per-cert breakdown (top cert reflects
+  in the avatar's themed accessory)
+- `cq-stats.xp` — derived; saved to avoid recomputing
+
+### XP formula (rough)
+
+```
+xp = totalSeconds / 60                              // 1 XP per minute
+   * clamp(correctRate, 0.5, 1.2)                   // accuracy multiplier
+   + streakDays * 8                                 // streak bonus
+   + completedSessions * 2                          // commitment bonus
+```
+
+Level N requires: `XP_required(N) = round(50 * 1.18^(N-1))`. Level 30 ≈
+12 000 XP (~200 h serious study + streak + accuracy).
+
+### Level-up moment
+Confetti burst + main mascot bubble: "Level up! You're now <stage name>."
+Brief 1-second avatar scale-up + glow pulse. New avatar persists.
+
+### Tap-the-avatar panel
+- Current level + stage name + XP bar to next
+- Top 3 certs by time spent (with mini brand badges)
+- Streak count + 14-day heat-map (filled green = practiced)
+- "Reset progress" link with confirm modal
+
+### Contextual main-mascot tips (Phase 2.5)
+The owl's tip pool queries stats and prefers contextual tips:
+- low streak → "It's been 3 days — brain forgets fast. 5-Q quiz?"
+- low accuracy on pack X → "AWS networking tripping you up? Try a VPC
+  focus quiz."
+- high streak → "10-day streak! 🔥 Keep it going."
+- new level reached → tied to level-up moment, not idle rotation
+
+### Wiring
+- `src/screens/quiz.js` / `src/screens/results.js` dispatch
+  `cq:session-complete` event with detail `{packId, secondsSpent,
+  questionsAnswered, correct}`
+- New `src/stats.js`: reducer over the event → updates localStorage + XP
+- New `src/avatar.js`: listens for stats change → re-renders the header
+  chip + fires `cq:level-up` event when crossing a level boundary
+- `src/mascot.js` already responds to events for contextual tips
+
+### Build order (concrete tickets)
+
+1. **Stats reducer** (`src/stats.js`) + emit `cq:session-complete` from
+   quiz/results screens. Verify on console first; no UI yet.
+2. **Header avatar chip** with emoji stage + XP bar. Read-only display.
+3. **Level-up moment** (confetti + animated stage swap).
+4. **Tap-to-panel** modal.
+5. **Contextual mascot tips** (Phase 2.5).
+6. **SVG character set** — 30 unique artworks. Design pass; can use
+   AI-assist + manual cleanup for the first version. Drop into
+   `src/assets/avatar/lvl-01.svg` … `lvl-30.svg`. Switch source from
+   emoji to SVG via a single `STAGE_ART_TYPE` flag.
+
+### Open Qs
+- None currently — position locked, roadmap locked, target locked.
 
 ---
 
