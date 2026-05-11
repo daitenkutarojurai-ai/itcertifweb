@@ -95,5 +95,21 @@
     menu.querySelector('.mobile-menu-close').addEventListener('click', close);
     menu.addEventListener('click', function (e) { if (e.target === menu) close(); });
     document.addEventListener('keydown', function (e) { if (!menu.hidden && e.key === 'Escape') close(); });
+
+    /* ── Sticky header scrolled-state toggle ── */
+    var scrollTicking = false;
+    function syncScrolled() {
+      var scrolled = (window.scrollY || window.pageYOffset || 0) > 8;
+      header.classList.toggle('is-scrolled', scrolled);
+      scrollTicking = false;
+    }
+    function onScroll() {
+      if (!scrollTicking) {
+        window.requestAnimationFrame(syncScrolled);
+        scrollTicking = true;
+      }
+    }
+    window.addEventListener('scroll', onScroll, { passive: true });
+    syncScrolled();
   });
 })();
