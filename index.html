@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
   <meta name="theme-color" content="#06080f" />
   <meta name="referrer" content="strict-origin-when-cross-origin" />
   <meta name="format-detection" content="telephone=no" />
@@ -45,8 +45,8 @@
   <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=DM+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet" />
 
   <!-- Styles -->
-  <link rel="stylesheet" href="src/styles/main.css" />
-  <link rel="stylesheet" href="src/styles/desktop.css?v=6" />
+  <link rel="stylesheet" href="src/styles/main.css?v=9" />
+  <link rel="stylesheet" href="src/styles/desktop.css?v=9" />
   <link rel="stylesheet" href="src/styles/onboarding.css?v=2" />
 
   <!-- Structured Data: SoftwareApplication -->
@@ -2579,6 +2579,48 @@
     }
     .hero-stat strong { font-size: 24px !important; }
     .hero-stat span { font-size: 11.5px !important; }
+
+    /* ── Mobile hero reflow: get CTA above the fold ────────────────────────
+       Default DOM order is: eyebrow → h1 → sub → claim-cards → CTAs → stats
+       → trust-badges → vendor-marquee. The 3 big claim-cards push the CTA
+       down ~700px on a phone. We want: eyebrow → h1 → sub → CTA → stats →
+       (everything else). Make the hero a flex column and use `order`. */
+    .landing-hero {
+      display: flex !important;
+      flex-direction: column !important;
+    }
+    .landing-hero > .eyebrow       { order: 1; }
+    .landing-hero > h1             { order: 2; }
+    .landing-hero > .sub           { order: 3; margin-bottom: 18px !important; }
+    .landing-hero > .hero-ctas     { order: 4; }
+    .landing-hero > .hero-stats    { order: 5; margin-top: 6px !important; }
+    .landing-hero > .trust-badges  { order: 6; }
+    .landing-hero > .hero-claims   { order: 7; margin-top: 28px !important; }
+    .landing-hero > .vendor-marquee{ order: 8; }
+    .landing-hero > .hero-stats-note { order: 9; }
+    .landing-hero > .hero-orbits   { order: 0; }
+
+    /* Pulse the primary CTA so it reads as the obvious next step */
+    .landing-hero .cta-primary {
+      box-shadow: 0 8px 28px rgba(59,130,246,0.42),
+                  inset 0 1px 0 rgba(255,255,255,0.18) !important;
+      font-size: 16px !important;
+      padding: 16px 20px !important;
+    }
+
+    /* Tighten the 3 claim cards so they're a glanceable strip, not 3 screens */
+    .hero-claims {
+      gap: 10px !important;
+      padding: 0 14px !important;
+    }
+    .hero-claim {
+      padding: 14px 16px !important;
+      border-radius: 14px !important;
+    }
+    .hero-claim-num { font-size: 22px !important; }
+    .hero-claim-label { font-size: 13px !important; line-height: 1.45 !important; }
+    .hero-claim-feature-title { font-size: 14px !important; }
+    .hero-claim-pill { font-size: 11px !important; padding: 3px 7px !important; }
   }
 
   /* ── ≤480px ── */
@@ -2702,10 +2744,24 @@
      without the user having to clear site data. */
   </style>
   <script>
+    /* SW lifecycle:
+       1. On every page view, ask the active SW to check for an update so the
+          new CACHE_VERSION installs in the background.
+       2. When a NEW SW takes control (post-install + clients.claim), reload
+          the page once. Without this, the user keeps seeing CSS that the OLD
+          SW already cached on the previous visit (the "sometimes desktop view
+          on mobile" symptom). The sessionStorage flag prevents reload loops. */
     if ('serviceWorker' in navigator) {
       navigator.serviceWorker.getRegistrations().then(function(regs){
         regs.forEach(function(r){ try { r.update(); } catch(e){} });
       }).catch(function(){});
+
+      var SW_RELOADED_KEY = '__sw_reloaded_v10';
+      navigator.serviceWorker.addEventListener('controllerchange', function(){
+        if (sessionStorage.getItem(SW_RELOADED_KEY)) return;
+        sessionStorage.setItem(SW_RELOADED_KEY, '1');
+        window.location.reload();
+      });
     }
   </script>
 </head>
@@ -2795,11 +2851,11 @@
         <span class="hero-orbit hero-orbit-5"></span>
       </div>
       <span class="eyebrow">
-        &#10003; 100% Free &middot; No signup &middot; No tracking
+        &#10003; Free IT certification training &middot; No signup
         <span class="live-pulse">Live</span>
       </span>
-      <h1>Pass your IT certification.<br><span class="grad">Community-corrected practice questions.</span></h1>
-      <p class="sub">Real exam-style questions, an engineer-written explanation on every answer, and an open issue tracker that gets wrong answers fixed in days. 2,520 questions across 37 exam packs and 13 vendors — Cisco, AWS, Azure, CompTIA, Kubernetes, Terraform and more. Free, no signup.</p>
+      <h1>Train for your IT certification.<br><span class="grad">Free practice questions, written by engineers.</span></h1>
+      <p class="sub"><b>2,520 real exam-style questions</b> across <b>37 exam packs</b> &mdash; Cisco CCNA, AWS, Azure, CompTIA Security+, Kubernetes, Terraform and more. Engineer-written explanation on every answer. Free, no signup, works offline.</p>
 
       <!-- ═══ Marquee claim strip — 3 attention-grabbing, defensible stats ═══ -->
       <div class="hero-claims" role="list" aria-label="What you get">
@@ -2822,8 +2878,8 @@
       </div>
 
       <div class="hero-ctas">
-        <a href="#certifications" class="cta-primary cta-pulse">Choose your certification &darr;</a>
-        <a href="train.html" class="cta-secondary">Browse all exams</a>
+        <a href="#certifications" class="cta-primary cta-pulse">Start training &rarr;</a>
+        <a href="train.html" class="cta-secondary">Browse all 37 exams</a>
       </div>
       <div class="hero-stats">
         <div class="hero-stat"><strong data-target="2520">0</strong><span>Questions in the bank</span></div>

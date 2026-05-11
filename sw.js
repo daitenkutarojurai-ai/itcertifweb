@@ -10,7 +10,7 @@
  * Bump CACHE_VERSION to invalidate clients on next visit.
  */
 
-const CACHE_VERSION = 'v6-2026-04-30-qotd-mobile-no-cursor-halo';
+const CACHE_VERSION = 'v12-2026-05-11-mobile-v9-universal-grid-collapse';
 const RUNTIME_CACHE = `cq-runtime-${CACHE_VERSION}`;
 const PRECACHE      = `cq-precache-${CACHE_VERSION}`;
 
@@ -18,8 +18,8 @@ const PRECACHE      = `cq-precache-${CACHE_VERSION}`;
 const PRECACHE_URLS = [
   '/',
   '/index.html',
-  '/src/styles/main.css',
-  '/src/styles/desktop.css?v=6',
+  '/src/styles/main.css?v=9',
+  '/src/styles/desktop.css?v=9',
   '/src/assets/icons/favicon-96.png?v=4',
   '/src/assets/icons/favicon-32.png?v=4',
   '/src/assets/icons/favicon-192.png?v=4',
@@ -106,7 +106,16 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // Everything else: stale-while-revalidate
+  // Own-origin CSS + JS: network-first so layout/behaviour fixes reach phones
+  // on the next page load (was stale-while-revalidate, which served the
+  // previous deploy's CSS for one visit and broke mobile layout).
+  if (req.destination === 'style' || req.destination === 'script' ||
+      url.pathname.endsWith('.css') || url.pathname.endsWith('.js')) {
+    event.respondWith(networkFirst(req));
+    return;
+  }
+
+  // Images / fonts / data: stale-while-revalidate (bandwidth-friendly)
   event.respondWith(staleWhileRevalidate(req));
 });
 
