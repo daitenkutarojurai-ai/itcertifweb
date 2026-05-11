@@ -180,16 +180,19 @@ function renderGoalPicker(packs) {
         <span class="goal-icon">🎯</span>
         <strong>Find a cert</strong>
         <span class="goal-desc">Browse the full exam list</span>
+        <span class="goal-arrow" aria-hidden="true">→</span>
       </a>
       <a class="goal-button" data-goal="career" href="/careers/">
         <span class="goal-icon">🚀</span>
         <strong>Change careers</strong>
         <span class="goal-desc">See the career roadmaps</span>
+        <span class="goal-arrow" aria-hidden="true">→</span>
       </a>
       <a class="goal-button" data-goal="news" href="/news/">
         <span class="goal-icon">📰</span>
         <strong>Latest tips</strong>
         <span class="goal-desc">News, cheat sheets, war stories</span>
+        <span class="goal-arrow" aria-hidden="true">→</span>
       </a>
     </div>
   `;
