@@ -10,7 +10,7 @@
  * Bump CACHE_VERSION to invalidate clients on next visit.
  */
 
-const CACHE_VERSION = 'v18-2026-05-11-onboarding-search-always-visible';
+const CACHE_VERSION = 'v19-2026-05-11-hamburger-menu-career-icons';
 const RUNTIME_CACHE = `cq-runtime-${CACHE_VERSION}`;
 const PRECACHE      = `cq-precache-${CACHE_VERSION}`;
 
@@ -18,8 +18,8 @@ const PRECACHE      = `cq-precache-${CACHE_VERSION}`;
 const PRECACHE_URLS = [
   '/',
   '/index.html',
-  '/src/styles/main.css?v=15',
-  '/src/styles/desktop.css?v=15',
+  '/src/styles/main.css?v=16',
+  '/src/styles/desktop.css?v=16',
   '/src/assets/icons/favicon-96.png?v=4',
   '/src/assets/icons/favicon-32.png?v=4',
   '/src/assets/icons/favicon-192.png?v=4',

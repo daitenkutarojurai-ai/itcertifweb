@@ -165,7 +165,7 @@ function renderGoalPicker(packs) {
           class="cert-search-input"
           id="cert-search-input"
           type="search"
-          placeholder="Search a cert: CCNA, AWS SAA, AZ-104, Security+…"
+          placeholder="Search certifications…"
           autocomplete="off"
           spellcheck="false"
           aria-label="Search for a certification"
@@ -178,18 +178,18 @@ function renderGoalPicker(packs) {
     <div class="goal-picker-grid">
       <a class="goal-button" data-goal="exam" href="/train.html">
         <span class="goal-icon">🎯</span>
-        <strong>I have a certification in mind</strong>
+        <strong>Find a cert</strong>
         <span class="goal-desc">Browse the full exam list</span>
       </a>
       <a class="goal-button" data-goal="career" href="/careers/">
         <span class="goal-icon">🚀</span>
-        <strong>I want to change careers</strong>
-        <span class="goal-desc">See the 6 career roadmaps</span>
+        <strong>Change careers</strong>
+        <span class="goal-desc">See the career roadmaps</span>
       </a>
-      <a class="goal-button" data-goal="explore" href="/train.html?pack=${POPULAR_PACK_FOR_EXPLORE}&autostart=quick">
-        <span class="goal-icon">🎲</span>
-        <strong>Surprise me</strong>
-        <span class="goal-desc">Random 5-question quiz</span>
+      <a class="goal-button" data-goal="news" href="/news/">
+        <span class="goal-icon">📰</span>
+        <strong>Latest tips</strong>
+        <span class="goal-desc">News, cheat sheets, war stories</span>
       </a>
     </div>
   `;
