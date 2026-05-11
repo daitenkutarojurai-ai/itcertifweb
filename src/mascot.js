@@ -68,53 +68,75 @@
     root.setAttribute('role', 'complementary');
     root.setAttribute('aria-label', 'Friendly tip from the CertQuests mascot');
     root.innerHTML =
-      '<button type="button" class="cq-mascot-bubble" aria-live="polite">' +
+      '<button type="button" class="cq-mascot-bubble" aria-live="polite" aria-hidden="true">' +
         '<span class="cq-mascot-bubble-text">' + TIPS[getTipIdx()] + '</span>' +
         '<span class="cq-mascot-bubble-tail" aria-hidden="true"></span>' +
       '</button>' +
-      '<button type="button" class="cq-mascot-char" aria-label="Next tip">' +
-        '<span class="cq-mascot-emoji" aria-hidden="true">🦉</span>' +
+      '<button type="button" class="cq-mascot-char" aria-label="Tip from CertQuests">' +
+        '<span class="cq-mascot-emoji" aria-hidden="true">🦑</span>' +
         '<span class="cq-mascot-dot" aria-hidden="true"></span>' +
-      '</button>' +
-      '<button type="button" class="cq-mascot-close" aria-label="Hide tips for a while">' +
-        '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"><line x1="6" y1="6" x2="18" y2="18"/><line x1="6" y1="18" x2="18" y2="6"/></svg>' +
       '</button>';
     document.body.appendChild(root);
 
     var bubble = root.querySelector('.cq-mascot-bubble');
     var bubbleText = root.querySelector('.cq-mascot-bubble-text');
     var charBtn = root.querySelector('.cq-mascot-char');
-    var closeBtn = root.querySelector('.cq-mascot-close');
+    var bubbleOpen = false;
+    var bubbleHideTimeout = null;
 
+    function showBubble() {
+      bubbleOpen = true;
+      bubble.classList.add('cq-mascot-bubble--visible');
+      bubble.setAttribute('aria-hidden', 'false');
+      /* Auto-hide bubble after 6s of inactivity */
+      clearTimeout(bubbleHideTimeout);
+      bubbleHideTimeout = setTimeout(hideBubble, 6000);
+    }
+    function hideBubble() {
+      bubbleOpen = false;
+      bubble.classList.remove('cq-mascot-bubble--visible');
+      bubble.setAttribute('aria-hidden', 'true');
+      clearTimeout(bubbleHideTimeout);
+    }
     function nextTip() {
       var i = bumpTipIdx();
       bubbleText.textContent = TIPS[i];
       bubble.classList.remove('cq-mascot-bubble--pop');
-      void bubble.offsetWidth; /* restart animation */
+      void bubble.offsetWidth;
       bubble.classList.add('cq-mascot-bubble--pop');
-      charBtn.classList.remove('cq-mascot-char--wave');
-      void charBtn.offsetWidth;
-      charBtn.classList.add('cq-mascot-char--wave');
-    }
-    function dismiss() {
-      root.classList.add('cq-mascot--dismissing');
-      try { localStorage.setItem(DISMISS_KEY, String(Date.now())); } catch (_) {}
-      setTimeout(function () { root.remove(); }, 250);
     }
 
-    bubble.addEventListener('click', nextTip);
-    charBtn.addEventListener('click', nextTip);
-    closeBtn.addEventListener('click', dismiss);
+    /* Tap the squid: open bubble if closed; advance to next tip if already open */
+    charBtn.addEventListener('click', function () {
+      if (!bubbleOpen) {
+        showBubble();
+        charBtn.classList.remove('cq-mascot-char--wave');
+        void charBtn.offsetWidth;
+        charBtn.classList.add('cq-mascot-char--wave');
+      } else {
+        nextTip();
+        clearTimeout(bubbleHideTimeout);
+        bubbleHideTimeout = setTimeout(hideBubble, 6000);
+      }
+    });
+    /* Tap the bubble: dismiss it (less invasive) */
+    bubble.addEventListener('click', hideBubble);
+    /* Outside-tap also dismisses */
+    document.addEventListener('click', function (e) {
+      if (bubbleOpen && !root.contains(e.target)) hideBubble();
+    });
 
-    /* Slide in after a short delay so the page paints first */
-    setTimeout(function () { root.classList.add('cq-mascot--visible'); }, 1400);
+    /* Slide in after a longer delay so it doesn't intrude on first paint */
+    setTimeout(function () { root.classList.add('cq-mascot--visible'); }, 2200);
 
-    /* Mini-wave every 18s if the user hasn't interacted */
+    /* No automatic bubble-show; the user opens by tapping.
+       Very occasional idle micro-wave so the squid still feels alive. */
     var idleWaveInterval = setInterval(function () {
       if (!document.body.contains(root)) { clearInterval(idleWaveInterval); return; }
+      if (bubbleOpen) return; /* don't wave while reading */
       charBtn.classList.remove('cq-mascot-char--wave');
       void charBtn.offsetWidth;
       charBtn.classList.add('cq-mascot-char--wave');
-    }, 18000);
+    }, 45000);
   });
 })();
