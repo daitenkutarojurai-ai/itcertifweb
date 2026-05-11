@@ -5,6 +5,68 @@ up when there's time.
 
 ---
 
+## P1 — Duolingo-style characters · Phase 2 (player avatar)
+
+Phase 1 shipped 2026-05-11: a single floating mascot (🦉 owl) in the
+bottom-right corner rotates encouraging tips, dismissible for 12 h.
+Code: `src/mascot.js`, CSS `src/styles/desktop.css` (MASCOT WIDGET block).
+
+Phase 2 — player character that evolves with practice metrics:
+
+- **Tracked metrics** (localStorage, keyed by cert pack):
+  - `cq-stats.totalSeconds` — cumulative study time
+  - `cq-stats.questionsAnswered` — total answered
+  - `cq-stats.correctRate` — rolling 100-question accuracy
+  - `cq-stats.streakDays` — consecutive days with ≥1 session
+  - `cq-stats.lastSessionAt` — for streak detection
+  - `cq-stats.perPack[packId]` — per-cert breakdown (which cert they're
+    putting time into → reflects in avatar gear/theme)
+
+- **Avatar stages** (5 levels, gated on time + accuracy compound score):
+  1. 🐣 Hatchling (0-30 min, default)
+  2. 🐥 Apprentice (30 min, >50% acc)
+  3. 🦅 Trainee (3 h, >65% acc)
+  4. 🦉 Adept (10 h, >75% acc, 7-day streak)
+  5. 👑 Master (25 h, >85% acc, 14-day streak)
+
+  Stages are emoji for v1; can swap for custom SVGs later.
+
+- **Display:** small avatar chip in the header (next to the logo, mobile)
+  or as a left-aligned counterpart to the main mascot (bottom-left on desktop).
+  Shows current level emoji + a thin XP bar to next level.
+
+- **Level-up moment:** brief full-bleed confetti + the main mascot bubble
+  says "Level up! You're now an Adept." Plays the wave animation.
+
+- **Tap the avatar:** opens a small panel with:
+  - Current level + XP to next
+  - Top 3 certs by time spent
+  - Day streak count + heat-map of last 14 days
+  - "Reset progress" link (with confirm)
+
+- **Contextual main-mascot tips** (Phase 2.5): the bubble pool should
+  query `cq-stats` and pick relevant tips:
+  - low streak → "It's been 3 days — come back, the brain forgets fast"
+  - low accuracy on pack X → "AWS networking tripping you up? Try a 5-Q
+    focus on VPC."
+  - high streak → "10-day streak! 🔥 Keep it going."
+
+- **Wiring:** quiz screens (`src/screens/quiz.js`, `src/screens/results.js`)
+  should emit a custom event `cq:session-complete` with `{packId, secondsSpent,
+  questionsAnswered, correct}`. The avatar listens, updates stats, re-renders.
+
+- **No backend:** all localStorage. Cleared with "Reset" or by user wiping
+  site data. Privacy-friendly (matches the existing no-tracking stance).
+
+### Open questions before building Phase 2
+- Which page is best for the avatar widget? Header chip (always visible)
+  or bottom-left (stays out of content)?
+- Custom SVG character vs. emoji stages — emoji ships in a day, SVG
+  needs a designer pass.
+- How often should the main mascot react contextually? (Risk: nagging.)
+
+---
+
 ## P0 — Rewrite all 2,520 questions to remove tells and match real exam difficulty
 
 **Why this matters:** the question bank has three problems that make it
