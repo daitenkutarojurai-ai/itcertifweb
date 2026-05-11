@@ -18,19 +18,35 @@
   var TIP_KEY = 'cq-mascot-tip-idx';
   var TWELVE_HOURS = 12 * 60 * 60 * 1000;
 
+  /**
+   * Each tip has: text (advice), cta (button label), href (where it goes).
+   * Tapping the squid cycles tips; tapping the bubble follows the link.
+   */
   var TIPS = [
-    "Hey! 20 minutes a day beats 4 hours once a week. 💪",
-    "Pro tip: do the Question of the Day first — quick warm-up.",
-    "Stuck on a cert? Check the career roadmaps for context.",
-    "Studying for AWS? Start with Cloud Practitioner — it's the foundation.",
-    "Don't just read — quiz yourself. Recall beats re-reading.",
-    "Practice with a 5-question quiz on lunch break. Easy win.",
-    "Each cert opens doors. Pick one and commit for 30 days.",
-    "Tap the search bar at the top to jump straight to your cert.",
-    "Got a Pomodoro timer? 25 min focused study, then a quick walk.",
-    "Failed a question? Read the explanation twice. It'll stick.",
-    "Browse the news section for cheatsheets and war stories.",
-    "Want the mobile app? Tap the menu → Get the app for offline mode."
+    { text: "20 minutes a day beats 4 hours once a week. 💪",
+      cta: "Start a 5-Q quiz →", href: "/train.html?autostart=quick" },
+    { text: "Studying AWS? Start with Cloud Practitioner — it's the foundation.",
+      cta: "Browse AWS exams →", href: "/certifications/aws.html" },
+    { text: "Stuck on which cert to pick? Career roadmaps map it out.",
+      cta: "Browse careers →", href: "/careers/" },
+    { text: "Pro tip: do the Question of the Day first — quick warm-up.",
+      cta: "Try today's question →", href: "/#qotd-section" },
+    { text: "Want Azure instead? AZ-900 is a friendly first step.",
+      cta: "Browse Azure exams →", href: "/certifications/microsoft.html" },
+    { text: "Network engineer track? Network+ → CCNA is the road.",
+      cta: "Browse Cisco exams →", href: "/certifications/cisco.html" },
+    { text: "Cybersecurity is hot. Security+ is the door-opener.",
+      cta: "Browse CompTIA exams →", href: "/certifications/comptia.html" },
+    { text: "Recall beats re-reading. Quiz yourself — that's why we're here.",
+      cta: "Open the full cert list →", href: "/train.html" },
+    { text: "Latest cheatsheets, war stories, and study tips drop weekly.",
+      cta: "Browse news & tips →", href: "/news/" },
+    { text: "DevOps/Kubernetes route? CKA + Terraform is gold.",
+      cta: "Browse Linux & DevOps →", href: "/certifications/linux-devops.html" },
+    { text: "Want offline practice? The app saves your progress.",
+      cta: "Get the app →", href: "https://play.google.com/store/apps/details?id=com.certquest.app" },
+    { text: "Free hands-on courses by track — start small, ramp up.",
+      cta: "Browse free courses →", href: "/courses/" }
   ];
 
   function ready(fn) {
@@ -67,11 +83,13 @@
     root.className = 'cq-mascot';
     root.setAttribute('role', 'complementary');
     root.setAttribute('aria-label', 'Friendly tip from the CertQuests mascot');
+    var initial = TIPS[getTipIdx()];
     root.innerHTML =
-      '<button type="button" class="cq-mascot-bubble" aria-live="polite" aria-hidden="true">' +
-        '<span class="cq-mascot-bubble-text">' + TIPS[getTipIdx()] + '</span>' +
+      '<a href="' + initial.href + '" class="cq-mascot-bubble" aria-live="polite" aria-hidden="true">' +
+        '<span class="cq-mascot-bubble-text"></span>' +
+        '<span class="cq-mascot-bubble-cta"></span>' +
         '<span class="cq-mascot-bubble-tail" aria-hidden="true"></span>' +
-      '</button>' +
+      '</a>' +
       '<button type="button" class="cq-mascot-char" aria-label="Tip from CertQuests">' +
         '<span class="cq-mascot-emoji" aria-hidden="true">' +
           '<svg viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg">' +
@@ -113,23 +131,37 @@
             '<ellipse cx="44" cy="33" rx="2.6" ry="1.6" fill="#fca5a5" opacity="0.55"/>' +
           '</svg>' +
         '</span>' +
-        '<span class="cq-mascot-dot" aria-hidden="true"></span>' +
       '</button>';
     document.body.appendChild(root);
 
     var bubble = root.querySelector('.cq-mascot-bubble');
     var bubbleText = root.querySelector('.cq-mascot-bubble-text');
+    var bubbleCta = root.querySelector('.cq-mascot-bubble-cta');
     var charBtn = root.querySelector('.cq-mascot-char');
     var bubbleOpen = false;
     var bubbleHideTimeout = null;
+
+    function applyTip(tip) {
+      bubbleText.textContent = tip.text;
+      bubbleCta.textContent = tip.cta;
+      bubble.setAttribute('href', tip.href);
+      /* External links open in a new tab */
+      if (/^https?:\/\//.test(tip.href) && tip.href.indexOf(location.host) === -1) {
+        bubble.setAttribute('target', '_blank');
+        bubble.setAttribute('rel', 'noopener');
+      } else {
+        bubble.removeAttribute('target');
+        bubble.removeAttribute('rel');
+      }
+    }
+    applyTip(initial);
 
     function showBubble() {
       bubbleOpen = true;
       bubble.classList.add('cq-mascot-bubble--visible');
       bubble.setAttribute('aria-hidden', 'false');
-      /* Auto-hide bubble after 6s of inactivity */
       clearTimeout(bubbleHideTimeout);
-      bubbleHideTimeout = setTimeout(hideBubble, 6000);
+      bubbleHideTimeout = setTimeout(hideBubble, 7000);
     }
     function hideBubble() {
       bubbleOpen = false;
@@ -139,13 +171,13 @@
     }
     function nextTip() {
       var i = bumpTipIdx();
-      bubbleText.textContent = TIPS[i];
+      applyTip(TIPS[i]);
       bubble.classList.remove('cq-mascot-bubble--pop');
       void bubble.offsetWidth;
       bubble.classList.add('cq-mascot-bubble--pop');
     }
 
-    /* Tap the squid: open bubble if closed; advance to next tip if already open */
+    /* Tap the squid: open bubble (or cycle to next tip if already open) */
     charBtn.addEventListener('click', function () {
       if (!bubbleOpen) {
         showBubble();
@@ -155,12 +187,11 @@
       } else {
         nextTip();
         clearTimeout(bubbleHideTimeout);
-        bubbleHideTimeout = setTimeout(hideBubble, 6000);
+        bubbleHideTimeout = setTimeout(hideBubble, 7000);
       }
     });
-    /* Tap the bubble: dismiss it (less invasive) */
-    bubble.addEventListener('click', hideBubble);
-    /* Outside-tap also dismisses */
+    /* Tap the bubble = navigate (default anchor behavior). No JS handler. */
+    /* Outside-tap dismisses */
     document.addEventListener('click', function (e) {
       if (bubbleOpen && !root.contains(e.target)) hideBubble();
     });
