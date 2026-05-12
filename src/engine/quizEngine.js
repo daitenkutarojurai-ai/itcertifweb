@@ -13,8 +13,16 @@
 export function createQuiz(questions, options = {}) {
   const { count = 20, shuffle = true } = options;
   let pool = shuffle ? shuffleArray([...questions]) : [...questions];
-  // Filter out malformed questions (must have 4 options and valid correct index)
-  pool = pool.filter(q => q.options?.length === 4 && q.correct >= 0 && q.correct < 4);
+  // Filter out malformed questions. `correct` may be a single index OR an
+  // array of indices (multi-select). All indices must be in-range.
+  pool = pool.filter(q => {
+    if (!q.options || q.options.length !== 4) return false;
+    if (Array.isArray(q.correct)) {
+      return q.correct.length >= 1 &&
+             q.correct.every(i => Number.isInteger(i) && i >= 0 && i < 4);
+    }
+    return Number.isInteger(q.correct) && q.correct >= 0 && q.correct < 4;
+  });
   pool = pool.slice(0, Math.min(count, pool.length));
 
   return {
@@ -28,23 +36,49 @@ export function createQuiz(questions, options = {}) {
 
 /**
  * Record the user's answer for the current question.
- * Call this when the user taps an option.
+ * Call this when the user taps an option (single-select) or submits a
+ * checkbox set (multi-select).
+ *
+ * @param {object} quiz
+ * @param {number|number[]} selected - index for single-select, array of
+ *                                     indices for multi-select.
  * @returns {boolean} true if correct
  */
-export function answerQuestion(quiz, selectedIndex) {
+export function answerQuestion(quiz, selected) {
   const q = quiz.questions[quiz.current];
-  const isCorrect = selectedIndex === q.correct;
+  const isCorrect = isAnswerCorrect(q.correct, selected);
 
   quiz.answers.push({
     questionId: q.id,
     question:   q,
-    selected:   selectedIndex,
+    selected,
     correct:    q.correct,
     isCorrect,
     timeSpent:  Date.now() - quiz.questionStartTime,
   });
 
   return isCorrect;
+}
+
+/**
+ * Check whether the user's selection matches the correct answer.
+ * Handles both single-select (number === number) and multi-select (set
+ * equality, order-independent).
+ */
+export function isAnswerCorrect(correct, selected) {
+  if (Array.isArray(correct)) {
+    if (!Array.isArray(selected)) return false;
+    if (selected.length !== correct.length) return false;
+    const a = [...correct].sort((x,y)=>x-y).join(',');
+    const b = [...selected].sort((x,y)=>x-y).join(',');
+    return a === b;
+  }
+  return selected === correct;
+}
+
+/** True if a question requires multi-select (checkboxes + Submit). */
+export function isMultiSelect(question) {
+  return Array.isArray(question.correct) && question.correct.length > 1;
 }
 
 /**
