@@ -127,49 +127,58 @@ function buildChapter(chap, chapIndex) {
     });
   });
 
-  // 3) Mini-game node — alternates between match-up and true-false speed run
+  // 3) Mini-game node — "Is this the right answer?" Yes/No drill.
+  //
+  // The previous TF generator concatenated a question stem ("Which AWS
+  // service is serverless?") with one of its options and asked True/False.
+  // That broke for any "Which/What/How" stem because the user couldn't
+  // tell what they were judging. The match-up variant was worse: full
+  // truncated questions paired with truncated answers.
+  //
+  // New format: each card explicitly shows the question and a proposed
+  // answer ("Q: … / A: …"); the user judges whether the answer is correct.
+  // Works with the entire MCQ bank without any content rewriting.
   if (chap.questions.length >= 6) {
-    /* Every chapter has a mini-game now (was every other); type alternates
-       so the user sees variety. */
-    const useTrueFalse = chapIndex % 2 === 0;
-    if (useTrueFalse) {
-      /* True/False speed run: pick 8 questions, derive statements from
-         the correct option + 4 false ones from wrong options */
-      const tfPool = sorted.slice(0, Math.min(8, sorted.length)).map((q, i) => {
-        const correctText = (q.options[q.correct] || '').slice(0, 90);
-        const useTrue = i % 2 === 0; /* alternate true/false to balance */
-        let statement, isTrue;
-        if (useTrue) {
-          statement = `${q.question.split('?')[0].slice(0, 60)}? ${correctText}`;
-          isTrue = true;
-        } else {
-          const wrongIdx = q.options.findIndex((_, oi) => oi !== q.correct);
-          const wrongText = (q.options[wrongIdx] || correctText).slice(0, 90);
-          statement = `${q.question.split('?')[0].slice(0, 60)}? ${wrongText}`;
-          isTrue = false;
-        }
-        return { statement, isTrue };
-      });
-      nodes.push({
-        id: `c${chapIndex + 1}-game`,
-        type: 'minigame',
-        gameType: 'truefalse',
-        title: `${title} — Speed Run`,
-        statements: tfPool,
-        timePerQ: 5
-      });
-    } else {
-      nodes.push({
-        id: `c${chapIndex + 1}-game`,
-        type: 'minigame',
-        gameType: 'match',
-        title: `${title} — Match-Up`,
-        pairs: chap.questions.slice(0, 6).map(q => ({
-          prompt: q.question.slice(0, 60),
-          answer: (q.options[q.correct] || '').slice(0, 60)
-        }))
-      });
+    const CARDS_PER_GAME = 6;
+    const TARGET_CORRECT = 3; // half correct, half wrong — feels honest
+    const pool = sorted.slice(0, Math.min(CARDS_PER_GAME, sorted.length));
+    const pairs = pool.map((q, i) => {
+      const showCorrect = i < TARGET_CORRECT;
+      const correctIdx = Array.isArray(q.correct) ? q.correct[0] : q.correct;
+      let optionIdx;
+      if (showCorrect) {
+        optionIdx = correctIdx;
+      } else {
+        // Pick a wrong option deterministically (rotate by chapter+i so users
+        // see different wrongs across chapters; seed avoids same option every run).
+        const wrongOptions = q.options
+          .map((_, oi) => oi)
+          .filter(oi => Array.isArray(q.correct) ? !q.correct.includes(oi) : oi !== correctIdx);
+        optionIdx = wrongOptions.length
+          ? wrongOptions[(chapIndex + i) % wrongOptions.length]
+          : correctIdx;
+      }
+      return {
+        qid:     q.id,
+        stem:    q.question,
+        option:  q.options[optionIdx] || '',
+        correct: optionIdx === correctIdx
+      };
+    });
+    // Deterministic shuffle so each chapter has a different correct/wrong order
+    // but reloads land on the same sequence (no client-side "reroll" exploit).
+    for (let i = pairs.length - 1; i > 0; i--) {
+      const j = ((chapIndex + 1) * 31 + i * 17) % (i + 1);
+      [pairs[i], pairs[j]] = [pairs[j], pairs[i]];
     }
+    nodes.push({
+      id: `c${chapIndex + 1}-game`,
+      type: 'minigame',
+      gameType: 'yesno',
+      title: `${title} — Quick Drill`,
+      pairs,
+      timePerQ: 10
+    });
   }
 
   // 4) Sub-boss

@@ -351,8 +351,14 @@
       return;
     }
     if (node.type === 'minigame') {
-      if (node.gameType === 'truefalse') renderTrueFalseInline(node);
-      else renderMinigameInline(node);
+      // New canonical format: "Is this the right answer?" Yes/No drill.
+      // Legacy gametypes ('truefalse' and 'match') are migrated on the fly
+      // for any stale-cached path JSON in the service worker — the next
+      // gen-paths run overwrites them with the new schema.
+      if (node.gameType === 'yesno') renderYesNoInline(node);
+      else if (node.gameType === 'truefalse') renderYesNoInline(migrateTFNode(node));
+      else if (node.gameType === 'match')     renderYesNoInline(migrateMatchNode(node));
+      else renderYesNoInline(node); // best-effort default
       return;
     }
     if (node.type === 'chest') {
@@ -455,133 +461,81 @@
     setTimeout(function () { flash.remove(); }, 1100);
   }
 
-  /* ───── Inline mini-game (drag-match) ───── */
-  function renderMinigameInline(node) {
-    var panel = $('.node-sheet-panel');
-    panel.querySelectorAll('.node-sheet-inline').forEach(function (n) { n.remove(); });
-    var pairs = (node.pairs || []).slice(0, 6);
-    var prompts = pairs.map(function (p, i) { return { i: i, text: p.prompt }; });
-    var answers = pairs.map(function (p, i) { return { i: i, text: p.answer }; }).sort(function () { return Math.random() - 0.5; });
-
-    var wrap = el('div', { class: 'node-sheet-inline minigame-match' });
-    wrap.appendChild(el('p', { class: 'minigame-help', text: 'Tap a prompt then tap its match. Combo for bonus XP!' }));
-
-    var promptsCol = el('div', { class: 'minigame-col' });
-    var answersCol = el('div', { class: 'minigame-col' });
-    var selectedPrompt = null;
-    var solved = 0;
-    var combo = 0;
-    var comboBonus = 0;
-    var promptEls = {}, answerEls = {};
-
-    prompts.forEach(function (p) {
-      var bt = el('button', { class: 'minigame-tile', type: 'button', text: p.text, 'data-i': p.i });
-      bt.addEventListener('click', function () {
-        if (bt.classList.contains('is-solved')) return;
-        if (selectedPrompt) selectedPrompt.classList.remove('is-active');
-        selectedPrompt = bt;
-        bt.classList.add('is-active');
-      });
-      promptEls[p.i] = bt;
-      promptsCol.appendChild(bt);
+  /* ───── Legacy schema migration ─────
+     Old TF nodes stored { statements: [{ statement, isTrue }] } where the
+     "statement" was a question stem concatenated with one option. Split it
+     back apart so the new Yes/No renderer can show a clean Q+A card. */
+  function migrateTFNode(node) {
+    var pairs = (node.statements || []).map(function (s) {
+      var raw = String(s.statement || '');
+      var qIdx = raw.indexOf('?');
+      var stem = qIdx >= 0 ? raw.slice(0, qIdx + 1) : raw;
+      var option = qIdx >= 0 ? raw.slice(qIdx + 1).trim() : '';
+      return { stem: stem, option: option, correct: !!s.isTrue };
     });
-    answers.forEach(function (a) {
-      var bt = el('button', { class: 'minigame-tile', type: 'button', text: a.text, 'data-i': a.i });
-      bt.addEventListener('click', function () {
-        if (bt.classList.contains('is-solved')) return;
-        if (!selectedPrompt) return;
-        var pi = +selectedPrompt.dataset.i;
-        var ai = +bt.dataset.i;
-        if (pi === ai) {
-          selectedPrompt.classList.add('is-solved');
-          bt.classList.add('is-solved');
-          combo++;
-          if (combo >= 2) {
-            var bonus = combo - 1; /* x2 = +1 bonus XP, x3 = +2, etc. */
-            comboBonus += bonus;
-            spawnCombo(bt, combo, bonus);
-          }
-          selectedPrompt.classList.remove('is-active');
-          selectedPrompt = null;
-          solved++;
-          if (solved === prompts.length) {
-            setTimeout(function () {
-              var prev = snapshotProgress(sheetState.path);
-              markComplete(sheetState.path.packId, sheetState.node.id, 100);
-              try {
-                window.dispatchEvent(new CustomEvent('cq:session-complete', { detail: {
-                  packId: sheetState.path.packId,
-                  secondsSpent: 90, questionsAnswered: prompts.length, correct: prompts.length,
-                  mode: 'path-minigame', bonusXp: comboBonus
-                }}));
-              } catch (_) {}
-              closeNodeSheet();
-              renderMap(sheetState.path);
-              setTimeout(function () { maybeBurstChapterEnd(prev, snapshotProgress(sheetState.path), sheetState.path); }, 150);
-              setTimeout(function () {
-                var cur = $('#path-map').querySelector('.path-node.is-current');
-                if (cur) walkTo(cur);
-              }, 250);
-            }, 600);
-          }
-        } else {
-          bt.classList.add('is-wrong');
-          combo = 0; /* break combo on wrong match */
-          setTimeout(function () { bt.classList.remove('is-wrong'); }, 400);
-          /* lose a heart if hearts.js is loaded */
-          if (window.cqHearts) window.cqHearts.lose();
-        }
-      });
-      answerEls[a.i] = bt;
-      answersCol.appendChild(bt);
+    return { pairs: pairs, timePerQ: node.timePerQ || 8, title: node.title };
+  }
+  /* Old match nodes stored { pairs: [{ prompt, answer }] } as Q→correct-A
+     pairs only (always "true"). Reframe as Yes/No, marking each as correct. */
+  function migrateMatchNode(node) {
+    var pairs = (node.pairs || []).map(function (p) {
+      return { stem: String(p.prompt || ''), option: String(p.answer || ''), correct: true };
     });
-
-    wrap.appendChild(el('div', { class: 'minigame-grid' }, [promptsCol, answersCol]));
-    panel.appendChild(wrap);
-    $('#node-sheet-start').hidden = true;
+    return { pairs: pairs, timePerQ: node.timePerQ || 10, title: node.title };
   }
 
-  /* ───── Inline mini-game (true/false speed run) ───── */
-  function renderTrueFalseInline(node) {
+  /* ───── Inline mini-game (Yes/No drill) ─────
+     One canonical mini-game format. Each card shows a question stem and a
+     proposed answer; the user judges whether the answer is correct.
+     Designed to work with any MCQ in the bank without rewriting content. */
+  function renderYesNoInline(node) {
     var panel = $('.node-sheet-panel');
     panel.querySelectorAll('.node-sheet-inline').forEach(function (n) { n.remove(); });
     $('#node-sheet-start').hidden = true;
 
-    var statements = (node.statements || []).slice(0, 10);
-    var timePerQ = node.timePerQ || 5;
+    var pairs = (node.pairs || []).slice(0, 10);
+    var timePerQ = Number(node.timePerQ) > 0 ? Number(node.timePerQ) : 10;
     var idx = 0;
     var correct = 0;
     var combo = 0;
     var comboBonus = 0;
     var timer = null;
+    var locked = false; /* prevents double-fire when both pointerdown and click land */
     var startedAt = Date.now();
 
-    var wrap = el('div', { class: 'node-sheet-inline minigame-tf' });
-    var hud = el('div', { class: 'tf-hud' }, [
-      el('span', { class: 'tf-progress', text: '1 / ' + statements.length }),
-      el('div', { class: 'tf-timer' }, [el('div', { class: 'tf-timer-fill' })]),
-      el('span', { class: 'tf-score', text: '0 ✓' })
+    var wrap = el('div', { class: 'node-sheet-inline minigame-yn' });
+    var hud = el('div', { class: 'yn-hud' }, [
+      el('span', { class: 'yn-progress', text: '1 / ' + pairs.length }),
+      el('div', { class: 'yn-timer' }, [el('div', { class: 'yn-timer-fill' })]),
+      el('span', { class: 'yn-score', text: '0 ✓' })
     ]);
-    var card = el('div', { class: 'tf-card', text: 'Loading…' });
-    var buttons = el('div', { class: 'tf-buttons' }, [
-      el('button', { class: 'tf-btn tf-btn--false', type: 'button', html: '✗ FALSE' }),
-      el('button', { class: 'tf-btn tf-btn--true',  type: 'button', html: '✓ TRUE'  })
-    ]);
+    var card    = el('div', { class: 'yn-card' });
+    var stemEl  = el('div', { class: 'yn-stem',  text: 'Loading…' });
+    var labelEl = el('div', { class: 'yn-label', text: 'Is this the right answer?' });
+    var optEl   = el('div', { class: 'yn-option', text: '' });
+    card.appendChild(stemEl);
+    card.appendChild(labelEl);
+    card.appendChild(optEl);
+    var btnNo  = el('button', { class: 'yn-btn yn-btn--no',  type: 'button', html: '✗ NO'  });
+    var btnYes = el('button', { class: 'yn-btn yn-btn--yes', type: 'button', html: '✓ YES' });
+    var buttons = el('div', { class: 'yn-buttons' }, [btnNo, btnYes]);
     wrap.appendChild(hud);
     wrap.appendChild(card);
     wrap.appendChild(buttons);
     panel.appendChild(wrap);
 
     function step() {
-      if (idx >= statements.length) return finish();
-      var s = statements[idx];
-      hud.querySelector('.tf-progress').textContent = (idx + 1) + ' / ' + statements.length;
-      hud.querySelector('.tf-score').textContent = correct + ' ✓';
-      card.textContent = s.statement;
-      card.classList.remove('tf-card--right', 'tf-card--wrong');
+      if (idx >= pairs.length) return finish();
+      var p = pairs[idx];
+      hud.querySelector('.yn-progress').textContent = (idx + 1) + ' / ' + pairs.length;
+      hud.querySelector('.yn-score').textContent = correct + ' ✓';
+      stemEl.textContent = p.stem || '';
+      optEl.textContent  = p.option || '';
+      card.classList.remove('yn-card--right', 'yn-card--wrong');
+      locked = false;
       /* Restart timer */
       clearTimeout(timer);
-      var bar = hud.querySelector('.tf-timer-fill');
+      var bar = hud.querySelector('.yn-timer-fill');
       bar.style.transition = 'none';
       bar.style.width = '100%';
       void bar.offsetWidth;
@@ -590,13 +544,15 @@
       timer = setTimeout(function () { answer(null); }, timePerQ * 1000);
     }
     function answer(picked) {
+      if (locked) return;
+      locked = true;
       clearTimeout(timer);
-      var s = statements[idx];
-      var ok = picked === s.isTrue;
+      var p = pairs[idx];
+      var ok = picked === !!p.correct;
       if (ok) {
         correct++;
         combo++;
-        card.classList.add('tf-card--right');
+        card.classList.add('yn-card--right');
         if (combo >= 2) {
           var bonus = combo - 1;
           comboBonus += bonus;
@@ -604,7 +560,7 @@
         }
       } else {
         combo = 0;
-        card.classList.add('tf-card--wrong');
+        card.classList.add('yn-card--wrong');
         if (window.cqHearts) window.cqHearts.lose();
       }
       idx++;
@@ -614,24 +570,27 @@
       clearTimeout(timer);
       var elapsed = Math.round((Date.now() - startedAt) / 1000);
       var prev = snapshotProgress(sheetState.path);
-      markComplete(sheetState.path.packId, sheetState.node.id, Math.round((correct / statements.length) * 100));
+      var score = pairs.length ? Math.round((correct / pairs.length) * 100) : 0;
+      markComplete(sheetState.path.packId, sheetState.node.id, score);
       try {
         window.dispatchEvent(new CustomEvent('cq:session-complete', { detail: {
           packId: sheetState.path.packId,
-          secondsSpent: elapsed, questionsAnswered: statements.length,
+          secondsSpent: elapsed, questionsAnswered: pairs.length,
           correct: correct, mode: 'path-minigame', bonusXp: comboBonus
         }}));
       } catch (_) {}
 
       /* Show summary */
-      var summary = el('div', { class: 'tf-summary' }, [
-        el('div', { class: 'tf-summary-score', text: correct + ' / ' + statements.length }),
-        el('div', { class: 'tf-summary-label', text: correct === statements.length ? 'Flawless!' : correct >= statements.length * 0.7 ? 'Nice run!' : 'Keep practicing.' }),
-        comboBonus > 0 ? el('div', { class: 'tf-summary-bonus', text: '+' + comboBonus + ' combo bonus XP' }) : null,
-        el('button', { class: 'cta-primary tf-continue', type: 'button', text: 'Continue →' })
+      var summary = el('div', { class: 'yn-summary' }, [
+        el('div', { class: 'yn-summary-score', text: correct + ' / ' + pairs.length }),
+        el('div', { class: 'yn-summary-label', text:
+          correct === pairs.length ? 'Flawless!' :
+          correct >= pairs.length * 0.7 ? 'Nice run!' : 'Keep practicing.' }),
+        comboBonus > 0 ? el('div', { class: 'yn-summary-bonus', text: '+' + comboBonus + ' combo bonus XP' }) : null,
+        el('button', { class: 'cta-primary yn-continue', type: 'button', text: 'Continue →' })
       ]);
-      panel.querySelector('.minigame-tf').replaceWith(summary);
-      summary.querySelector('.tf-continue').addEventListener('click', function () {
+      panel.querySelector('.minigame-yn').replaceWith(summary);
+      summary.querySelector('.yn-continue').addEventListener('click', function () {
         closeNodeSheet();
         renderMap(sheetState.path);
         setTimeout(function () { maybeBurstChapterEnd(prev, snapshotProgress(sheetState.path), sheetState.path); }, 150);
@@ -642,8 +601,16 @@
       });
     }
 
-    buttons.querySelector('.tf-btn--true').addEventListener('click', function () { answer(true); });
-    buttons.querySelector('.tf-btn--false').addEventListener('click', function () { answer(false); });
+    /* pointerdown fires earlier than click on touch — fixes the historical
+       "TF taps don't register" bug where the 5-second timer fired
+       answer(null) before the click event landed on iOS. */
+    function bind(btn, val) {
+      var handler = function (ev) { ev.preventDefault(); answer(val); };
+      btn.addEventListener('pointerdown', handler);
+      btn.addEventListener('click', function (ev) { ev.preventDefault(); /* answer already locked */ });
+    }
+    bind(btnYes, true);
+    bind(btnNo,  false);
     setTimeout(step, 100);
   }
 

@@ -10,7 +10,7 @@
  * Bump CACHE_VERSION to invalidate clients on next visit.
  */
 
-const CACHE_VERSION = 'v47-2026-05-12-audit-qids-overflow-clip-xss-esc-v33';
+const CACHE_VERSION = 'v48-2026-05-12-yesno-minigame-rework-v34';
 const RUNTIME_CACHE = `cq-runtime-${CACHE_VERSION}`;
 const PRECACHE      = `cq-precache-${CACHE_VERSION}`;
 
@@ -20,15 +20,15 @@ const PRECACHE_URLS = [
   '/index.html',
   '/path.html',
   '/profile.html',
-  '/src/styles/main.css?v=33',
-  '/src/styles/desktop.css?v=33',
+  '/src/styles/main.css?v=34',
+  '/src/styles/desktop.css?v=34',
   '/certifications/',
-  '/src/styles/path.css?v=33',
-  '/src/styles/profile.css?v=33',
-  '/src/cq-core.js?v=33',
-  '/src/path.js?v=33',
-  '/src/profile.js?v=33',
-  '/src/mascot-loader.js?v=33',
+  '/src/styles/path.css?v=34',
+  '/src/styles/profile.css?v=34',
+  '/src/cq-core.js?v=34',
+  '/src/path.js?v=34',
+  '/src/profile.js?v=34',
+  '/src/mascot-loader.js?v=34',
   '/data/cosmetics.json',
   '/src/assets/icons/favicon-96.png?v=4',
   '/src/assets/icons/favicon-32.png?v=4',
