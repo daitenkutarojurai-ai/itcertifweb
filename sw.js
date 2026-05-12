@@ -10,7 +10,7 @@
  * Bump CACHE_VERSION to invalidate clients on next visit.
  */
 
-const CACHE_VERSION = 'v37-2026-05-12-profile-laurels-heatmap-share';
+const CACHE_VERSION = 'v38-2026-05-12-a11y-seo-offline-paths';
 const RUNTIME_CACHE = `cq-runtime-${CACHE_VERSION}`;
 const PRECACHE      = `cq-precache-${CACHE_VERSION}`;
 
@@ -19,9 +19,12 @@ const PRECACHE_URLS = [
   '/',
   '/index.html',
   '/path.html',
+  '/profile.html',
   '/src/styles/main.css?v=31',
   '/src/styles/desktop.css?v=31',
   '/src/styles/path.css?v=4',
+  '/src/styles/profile.css?v=1',
+  '/src/a11y.js?v=1',
   '/src/stats.js?v=2',
   '/src/avatar.js?v=2',
   '/src/hearts.js?v=1',
@@ -30,8 +33,7 @@ const PRECACHE_URLS = [
   '/src/menu.js?v=5',
   '/src/path.js?v=4',
   '/src/profile.js?v=1',
-  '/profile.html',
-  '/src/styles/profile.css?v=1',
+  '/data/cosmetics.json',
   '/src/assets/icons/favicon-96.png?v=4',
   '/src/assets/icons/favicon-32.png?v=4',
   '/src/assets/icons/favicon-192.png?v=4',
@@ -127,7 +129,14 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // Images / fonts / data: stale-while-revalidate (bandwidth-friendly)
+  // Path / cosmetics JSON: cache-first with background refresh so the path
+  // map works offline after the first visit. Tiny payloads (~2-8 KB each).
+  if (url.pathname.startsWith('/data/paths/') || url.pathname === '/data/cosmetics.json') {
+    event.respondWith(staleWhileRevalidate(req));
+    return;
+  }
+
+  // Images / fonts / other data: stale-while-revalidate (bandwidth-friendly)
   event.respondWith(staleWhileRevalidate(req));
 });
 
