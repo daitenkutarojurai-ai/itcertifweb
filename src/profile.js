@@ -262,6 +262,34 @@
     }, 'image/png');
   }
 
+  /* First-time visitors land on /profile.html with no sessions to their
+     name — usually after tapping a shared image. Render a one-time
+     framing banner so they're not staring at "0 sessions / 0 XP / 0%"
+     with no context. Once they've played anything we hide it. */
+  function maybeRenderEmptyState(stats) {
+    var hero = document.querySelector('.profile-hero');
+    if (!hero) return;
+    var hasActivity = (stats.sessionsCount || 0) > 0 || (stats.questionsAnswered || 0) > 0;
+    var existing = document.getElementById('profile-empty-state');
+    if (hasActivity) { if (existing) existing.remove(); return; }
+    if (existing) return;
+    var banner = document.createElement('section');
+    banner.id = 'profile-empty-state';
+    banner.className = 'profile-empty-state';
+    banner.innerHTML =
+      '<div class="profile-empty-state-emoji" aria-hidden="true">🥚</div>' +
+      '<div class="profile-empty-state-body">' +
+        '<h2>Your CertQuests profile starts here</h2>' +
+        '<p>Sessions, XP, hats and laurels show up below as soon as you play. ' +
+        'Pick a cert and start a quick quiz to seed the page.</p>' +
+        '<div class="profile-empty-state-actions">' +
+          '<a class="cta-primary" href="/path.html">Browse paths →</a>' +
+          '<a class="cta-secondary" href="/train.html">Start training</a>' +
+        '</div>' +
+      '</div>';
+    hero.insertAdjacentElement('afterend', banner);
+  }
+
   function renderAll() {
     var stats = window.cqStats ? window.cqStats.get() : { level: 1, xp: 0 };
     renderHero(stats);
@@ -269,6 +297,7 @@
     renderHeatmap(stats);
     renderHats();
     renderLaurels();
+    maybeRenderEmptyState(stats);
   }
 
   document.addEventListener('DOMContentLoaded', function () {

@@ -1,4 +1,4 @@
-/* CertQuests core bundle — generated 2026-05-12T11:59:34.094Z
+/* CertQuests core bundle — generated 2026-05-12T12:03:25.556Z
  *
  * This file is concatenated by scripts/build-core.js. Do not edit by hand;
  * edit the source modules in src/*.js and re-run `npm run build-core`.
@@ -710,8 +710,16 @@
     chip.addEventListener('click', openModal);
     render();
 
-    /* Refresh display every minute for regen ticking */
-    setInterval(render, 60000);
+    /* Refresh display every minute for regen ticking. If the chip
+       is ever removed from the DOM (e.g., a tab teardown or future
+       SPA route swap), clear the interval to avoid wasted wake-ups. */
+    var tick = setInterval(function () {
+      if (!document.getElementById('cq-hearts-chip')) {
+        clearInterval(tick);
+        return;
+      }
+      render();
+    }, 60000);
   });
 
   window.cqHearts = {

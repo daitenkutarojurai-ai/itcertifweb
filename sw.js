@@ -10,7 +10,7 @@
  * Bump CACHE_VERSION to invalidate clients on next visit.
  */
 
-const CACHE_VERSION = 'v52-2026-05-12-round7-cta-unify-cqdbg-v38';
+const CACHE_VERSION = 'v53-2026-05-12-round8-touch-particle-hearts-empty-v39';
 const RUNTIME_CACHE = `cq-runtime-${CACHE_VERSION}`;
 const PRECACHE      = `cq-precache-${CACHE_VERSION}`;
 
@@ -20,15 +20,15 @@ const PRECACHE_URLS = [
   '/index.html',
   '/path.html',
   '/profile.html',
-  '/src/styles/main.css?v=38',
-  '/src/styles/desktop.css?v=38',
+  '/src/styles/main.css?v=39',
+  '/src/styles/desktop.css?v=39',
   '/certifications/',
-  '/src/styles/path.css?v=38',
-  '/src/styles/profile.css?v=38',
-  '/src/cq-core.js?v=38',
-  '/src/path.js?v=38',
-  '/src/profile.js?v=38',
-  '/src/mascot-loader.js?v=38',
+  '/src/styles/path.css?v=39',
+  '/src/styles/profile.css?v=39',
+  '/src/cq-core.js?v=39',
+  '/src/path.js?v=39',
+  '/src/profile.js?v=39',
+  '/src/mascot-loader.js?v=39',
   '/data/cosmetics.json',
   '/src/assets/icons/favicon-96.png?v=4',
   '/src/assets/icons/favicon-32.png?v=4',

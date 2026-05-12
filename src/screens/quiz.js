@@ -424,17 +424,33 @@ function spawnXpFloat(container, xp, multiplier) {
   setTimeout(() => el.remove(), 1100);
 }
 
+// Bounded set so a flurry of correct answers (combo run) can't pile up
+// orphan particle nodes if the user navigates away mid-animation. Each
+// particle is tracked; when the cap is hit, the oldest is evicted and
+// its remove timer is cleared so it doesn't double-remove.
+const PARTICLE_CAP = 36;
+const activeParticles = [];
 function spawnParticles(container, optionIndex) {
   const opt = container.querySelectorAll('.answer-option')[optionIndex];
   if (!opt) return;
   const colors = ['#10b981', '#34d399', '#6ee7b7', '#a7f3d0', '#fff'];
   const rect   = opt.getBoundingClientRect();
   for (let i = 0; i < 12; i++) {
+    while (activeParticles.length >= PARTICLE_CAP) {
+      const oldest = activeParticles.shift();
+      if (oldest) { clearTimeout(oldest.tid); oldest.el.remove(); }
+    }
     const p = document.createElement('div');
     p.className = 'particle';
     p.style.cssText = `left:${rect.left + rect.width/2}px;top:${rect.top + rect.height/2}px;background:${colors[Math.floor(Math.random()*colors.length)]};--dx:${(Math.random()-.5)*140}px;--dy:${(Math.random()-.8)*120}px;`;
     document.body.appendChild(p);
-    setTimeout(() => p.remove(), 700);
+    const entry = { el: p, tid: 0 };
+    entry.tid = setTimeout(() => {
+      p.remove();
+      const idx = activeParticles.indexOf(entry);
+      if (idx >= 0) activeParticles.splice(idx, 1);
+    }, 700);
+    activeParticles.push(entry);
   }
 }
 

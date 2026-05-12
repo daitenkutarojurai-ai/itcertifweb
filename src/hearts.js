@@ -142,8 +142,16 @@
     chip.addEventListener('click', openModal);
     render();
 
-    /* Refresh display every minute for regen ticking */
-    setInterval(render, 60000);
+    /* Refresh display every minute for regen ticking. If the chip
+       is ever removed from the DOM (e.g., a tab teardown or future
+       SPA route swap), clear the interval to avoid wasted wake-ups. */
+    var tick = setInterval(function () {
+      if (!document.getElementById('cq-hearts-chip')) {
+        clearInterval(tick);
+        return;
+      }
+      render();
+    }, 60000);
   });
 
   window.cqHearts = {
