@@ -10,7 +10,7 @@
  * Bump CACHE_VERSION to invalidate clients on next visit.
  */
 
-const CACHE_VERSION = 'v32-2026-05-12-desktop-bg-not-black';
+const CACHE_VERSION = 'v33-2026-05-12-phase3a-learning-paths';
 const RUNTIME_CACHE = `cq-runtime-${CACHE_VERSION}`;
 const PRECACHE      = `cq-precache-${CACHE_VERSION}`;
 
@@ -18,8 +18,15 @@ const PRECACHE      = `cq-precache-${CACHE_VERSION}`;
 const PRECACHE_URLS = [
   '/',
   '/index.html',
-  '/src/styles/main.css?v=29',
-  '/src/styles/desktop.css?v=29',
+  '/path.html',
+  '/src/styles/main.css?v=30',
+  '/src/styles/desktop.css?v=30',
+  '/src/styles/path.css?v=1',
+  '/src/stats.js?v=1',
+  '/src/avatar.js?v=1',
+  '/src/hearts.js?v=1',
+  '/src/menu.js?v=4',
+  '/src/path.js?v=1',
   '/src/assets/icons/favicon-96.png?v=4',
   '/src/assets/icons/favicon-32.png?v=4',
   '/src/assets/icons/favicon-192.png?v=4',
