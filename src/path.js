@@ -308,7 +308,8 @@
       return;
     }
     if (node.type === 'minigame') {
-      renderMinigameInline(node);
+      if (node.gameType === 'truefalse') renderTrueFalseInline(node);
+      else renderMinigameInline(node);
       return;
     }
     if (node.type === 'chest') {
@@ -376,6 +377,21 @@
     $('#node-sheet-start').hidden = true;
   }
 
+  /* ───── Combo flash overlay (used by both mini-game types) ───── */
+  function spawnCombo(targetEl, comboCount, bonus) {
+    if (comboCount < 2) return;
+    var flash = document.createElement('div');
+    flash.className = 'cq-combo-flash';
+    flash.innerHTML =
+      '<span class="cq-combo-x">×' + comboCount + '</span>' +
+      '<span class="cq-combo-xp">+' + bonus + ' XP</span>';
+    var rect = (targetEl || document.body).getBoundingClientRect();
+    flash.style.left = (rect.left + rect.width / 2) + 'px';
+    flash.style.top = (rect.top + rect.height / 2 - 20) + 'px';
+    document.body.appendChild(flash);
+    setTimeout(function () { flash.remove(); }, 1100);
+  }
+
   /* ───── Inline mini-game (drag-match) ───── */
   function renderMinigameInline(node) {
     var panel = $('.node-sheet-panel');
@@ -385,12 +401,14 @@
     var answers = pairs.map(function (p, i) { return { i: i, text: p.answer }; }).sort(function () { return Math.random() - 0.5; });
 
     var wrap = el('div', { class: 'node-sheet-inline minigame-match' });
-    wrap.appendChild(el('p', { class: 'minigame-help', text: 'Tap a prompt then tap its match. Score 100% to clear.' }));
+    wrap.appendChild(el('p', { class: 'minigame-help', text: 'Tap a prompt then tap its match. Combo for bonus XP!' }));
 
     var promptsCol = el('div', { class: 'minigame-col' });
     var answersCol = el('div', { class: 'minigame-col' });
     var selectedPrompt = null;
     var solved = 0;
+    var combo = 0;
+    var comboBonus = 0;
     var promptEls = {}, answerEls = {};
 
     prompts.forEach(function (p) {
@@ -414,6 +432,12 @@
         if (pi === ai) {
           selectedPrompt.classList.add('is-solved');
           bt.classList.add('is-solved');
+          combo++;
+          if (combo >= 2) {
+            var bonus = combo - 1; /* x2 = +1 bonus XP, x3 = +2, etc. */
+            comboBonus += bonus;
+            spawnCombo(bt, combo, bonus);
+          }
           selectedPrompt.classList.remove('is-active');
           selectedPrompt = null;
           solved++;
@@ -424,7 +448,8 @@
               try {
                 window.dispatchEvent(new CustomEvent('cq:session-complete', { detail: {
                   packId: sheetState.path.packId,
-                  secondsSpent: 90, questionsAnswered: prompts.length, correct: prompts.length, mode: 'path-minigame'
+                  secondsSpent: 90, questionsAnswered: prompts.length, correct: prompts.length,
+                  mode: 'path-minigame', bonusXp: comboBonus
                 }}));
               } catch (_) {}
               closeNodeSheet();
@@ -438,6 +463,7 @@
           }
         } else {
           bt.classList.add('is-wrong');
+          combo = 0; /* break combo on wrong match */
           setTimeout(function () { bt.classList.remove('is-wrong'); }, 400);
           /* lose a heart if hearts.js is loaded */
           if (window.cqHearts) window.cqHearts.lose();
@@ -450,6 +476,112 @@
     wrap.appendChild(el('div', { class: 'minigame-grid' }, [promptsCol, answersCol]));
     panel.appendChild(wrap);
     $('#node-sheet-start').hidden = true;
+  }
+
+  /* ───── Inline mini-game (true/false speed run) ───── */
+  function renderTrueFalseInline(node) {
+    var panel = $('.node-sheet-panel');
+    panel.querySelectorAll('.node-sheet-inline').forEach(function (n) { n.remove(); });
+    $('#node-sheet-start').hidden = true;
+
+    var statements = (node.statements || []).slice(0, 10);
+    var timePerQ = node.timePerQ || 5;
+    var idx = 0;
+    var correct = 0;
+    var combo = 0;
+    var comboBonus = 0;
+    var timer = null;
+    var startedAt = Date.now();
+
+    var wrap = el('div', { class: 'node-sheet-inline minigame-tf' });
+    var hud = el('div', { class: 'tf-hud' }, [
+      el('span', { class: 'tf-progress', text: '1 / ' + statements.length }),
+      el('div', { class: 'tf-timer' }, [el('div', { class: 'tf-timer-fill' })]),
+      el('span', { class: 'tf-score', text: '0 ✓' })
+    ]);
+    var card = el('div', { class: 'tf-card', text: 'Loading…' });
+    var buttons = el('div', { class: 'tf-buttons' }, [
+      el('button', { class: 'tf-btn tf-btn--false', type: 'button', html: '✗ FALSE' }),
+      el('button', { class: 'tf-btn tf-btn--true',  type: 'button', html: '✓ TRUE'  })
+    ]);
+    wrap.appendChild(hud);
+    wrap.appendChild(card);
+    wrap.appendChild(buttons);
+    panel.appendChild(wrap);
+
+    function step() {
+      if (idx >= statements.length) return finish();
+      var s = statements[idx];
+      hud.querySelector('.tf-progress').textContent = (idx + 1) + ' / ' + statements.length;
+      hud.querySelector('.tf-score').textContent = correct + ' ✓';
+      card.textContent = s.statement;
+      card.classList.remove('tf-card--right', 'tf-card--wrong');
+      /* Restart timer */
+      clearTimeout(timer);
+      var bar = hud.querySelector('.tf-timer-fill');
+      bar.style.transition = 'none';
+      bar.style.width = '100%';
+      void bar.offsetWidth;
+      bar.style.transition = 'width ' + timePerQ + 's linear';
+      bar.style.width = '0%';
+      timer = setTimeout(function () { answer(null); }, timePerQ * 1000);
+    }
+    function answer(picked) {
+      clearTimeout(timer);
+      var s = statements[idx];
+      var ok = picked === s.isTrue;
+      if (ok) {
+        correct++;
+        combo++;
+        card.classList.add('tf-card--right');
+        if (combo >= 2) {
+          var bonus = combo - 1;
+          comboBonus += bonus;
+          spawnCombo(card, combo, bonus);
+        }
+      } else {
+        combo = 0;
+        card.classList.add('tf-card--wrong');
+        if (window.cqHearts) window.cqHearts.lose();
+      }
+      idx++;
+      setTimeout(step, 600);
+    }
+    function finish() {
+      clearTimeout(timer);
+      var elapsed = Math.round((Date.now() - startedAt) / 1000);
+      var prev = snapshotProgress(sheetState.path);
+      markComplete(sheetState.path.packId, sheetState.node.id, Math.round((correct / statements.length) * 100));
+      try {
+        window.dispatchEvent(new CustomEvent('cq:session-complete', { detail: {
+          packId: sheetState.path.packId,
+          secondsSpent: elapsed, questionsAnswered: statements.length,
+          correct: correct, mode: 'path-minigame', bonusXp: comboBonus
+        }}));
+      } catch (_) {}
+
+      /* Show summary */
+      var summary = el('div', { class: 'tf-summary' }, [
+        el('div', { class: 'tf-summary-score', text: correct + ' / ' + statements.length }),
+        el('div', { class: 'tf-summary-label', text: correct === statements.length ? 'Flawless!' : correct >= statements.length * 0.7 ? 'Nice run!' : 'Keep practicing.' }),
+        comboBonus > 0 ? el('div', { class: 'tf-summary-bonus', text: '+' + comboBonus + ' combo bonus XP' }) : null,
+        el('button', { class: 'cta-primary tf-continue', type: 'button', text: 'Continue →' })
+      ]);
+      panel.querySelector('.minigame-tf').replaceWith(summary);
+      summary.querySelector('.tf-continue').addEventListener('click', function () {
+        closeNodeSheet();
+        renderMap(sheetState.path);
+        setTimeout(function () { maybeBurstChapterEnd(prev, snapshotProgress(sheetState.path), sheetState.path); }, 150);
+        setTimeout(function () {
+          var cur = $('#path-map').querySelector('.path-node.is-current');
+          if (cur) walkTo(cur);
+        }, 250);
+      });
+    }
+
+    buttons.querySelector('.tf-btn--true').addEventListener('click', function () { answer(true); });
+    buttons.querySelector('.tf-btn--false').addEventListener('click', function () { answer(false); });
+    setTimeout(step, 100);
   }
 
   /* ───── On load: figure out which pack + handshake any pending node ───── */
@@ -491,6 +623,61 @@
   function show(elId) { var n = document.getElementById(elId); if (n) n.hidden = false; }
   function hide(elId) { var n = document.getElementById(elId); if (n) n.hidden = true; }
 
+  /* ───── Path index: list all generated paths with per-pack progress ───── */
+  function renderPathIndex() {
+    var main = document.querySelector('main.path-page');
+    if (!main) return;
+    document.title = 'Learning Paths — CertQuests';
+    var loading = el('p', { class: 'path-index-loading', text: 'Loading paths…' });
+    main.appendChild(loading);
+
+    fetch('/data/paths/_index.json', { cache: 'no-cache' })
+      .then(function (r) { return r.json(); })
+      .then(function (list) {
+        loading.remove();
+        var allProg = loadProgress();
+        var header = el('header', { class: 'path-header path-index-header' }, [
+          el('div', { class: 'path-header-eyebrow', text: 'CertQuests · Learning Paths' }),
+          el('h1', { class: 'path-title', text: 'Pick your path' }),
+          el('p', { class: 'path-index-sub', text: 'A guided journey for each cert: concepts, drills, mini-games, sub-bosses, and a final mock exam. ' + list.length + ' paths available.' })
+        ]);
+        main.appendChild(header);
+
+        var grid = el('div', { class: 'path-index-grid' });
+        list.sort(function (a, b) {
+          /* In-progress first, then alphabetical */
+          var pa = allProg[a.packId] ? Object.keys(allProg[a.packId]).length : 0;
+          var pb = allProg[b.packId] ? Object.keys(allProg[b.packId]).length : 0;
+          if (pa !== pb) return pb - pa;
+          return a.title.localeCompare(b.title);
+        }).forEach(function (p) {
+          var done = allProg[p.packId] ? Object.keys(allProg[p.packId]).filter(function (k) { return allProg[p.packId][k].completed; }).length : 0;
+          var pct = Math.round((done / p.totalNodes) * 100);
+          var card = el('a', {
+            class: 'path-index-card',
+            href: '/path.html?pack=' + encodeURIComponent(p.packId),
+            style: '--brand-color:' + (p.brandColor || '#60a5fa')
+          }, [
+            el('div', { class: 'path-index-brand', text: p.brandName || 'Certification' }),
+            el('div', { class: 'path-index-title', text: p.title }),
+            el('div', { class: 'path-index-meta' }, [
+              el('span', { text: p.chapters + ' chapters' }),
+              el('span', { text: p.totalNodes + ' nodes' })
+            ]),
+            el('div', { class: 'path-index-bar' }, [
+              el('div', { class: 'path-index-bar-fill', style: 'width:' + pct + '%' })
+            ]),
+            el('div', { class: 'path-index-progress', text: done > 0 ? (done + ' / ' + p.totalNodes + ' done · ' + pct + '%') : 'Start →' })
+          ]);
+          grid.appendChild(card);
+        });
+        main.appendChild(grid);
+      })
+      .catch(function () {
+        loading.textContent = "Couldn't load path index.";
+      });
+  }
+
   document.addEventListener('DOMContentLoaded', function () {
     /* Wire sheet close */
     $('#node-sheet').addEventListener('click', function (e) {
@@ -512,8 +699,9 @@
 
     var packId = getPackId();
     if (!packId) {
-      $('#path-error-msg').textContent = 'No certification specified. Try /path.html?pack=ccna';
-      hide('path-loading'); show('path-error');
+      /* No pack → show the index of all paths */
+      hide('path-loading');
+      renderPathIndex();
       return;
     }
 

@@ -127,18 +127,49 @@ function buildChapter(chap, chapIndex) {
     });
   });
 
-  // 3) Optional mini-game node every other chapter (lightweight engagement)
-  if (chapIndex % 2 === 1 && chap.questions.length >= 8) {
-    nodes.push({
-      id: `c${chapIndex + 1}-game`,
-      type: 'minigame',
-      gameType: 'match',
-      title: `${title} — Match-Up`,
-      pairs: chap.questions.slice(0, 6).map(q => ({
-        prompt: q.question.slice(0, 60),
-        answer: (q.options[q.correct] || '').slice(0, 60)
-      }))
-    });
+  // 3) Mini-game node — alternates between match-up and true-false speed run
+  if (chap.questions.length >= 6) {
+    /* Every chapter has a mini-game now (was every other); type alternates
+       so the user sees variety. */
+    const useTrueFalse = chapIndex % 2 === 0;
+    if (useTrueFalse) {
+      /* True/False speed run: pick 8 questions, derive statements from
+         the correct option + 4 false ones from wrong options */
+      const tfPool = sorted.slice(0, Math.min(8, sorted.length)).map((q, i) => {
+        const correctText = (q.options[q.correct] || '').slice(0, 90);
+        const useTrue = i % 2 === 0; /* alternate true/false to balance */
+        let statement, isTrue;
+        if (useTrue) {
+          statement = `${q.question.split('?')[0].slice(0, 60)}? ${correctText}`;
+          isTrue = true;
+        } else {
+          const wrongIdx = q.options.findIndex((_, oi) => oi !== q.correct);
+          const wrongText = (q.options[wrongIdx] || correctText).slice(0, 90);
+          statement = `${q.question.split('?')[0].slice(0, 60)}? ${wrongText}`;
+          isTrue = false;
+        }
+        return { statement, isTrue };
+      });
+      nodes.push({
+        id: `c${chapIndex + 1}-game`,
+        type: 'minigame',
+        gameType: 'truefalse',
+        title: `${title} — Speed Run`,
+        statements: tfPool,
+        timePerQ: 5
+      });
+    } else {
+      nodes.push({
+        id: `c${chapIndex + 1}-game`,
+        type: 'minigame',
+        gameType: 'match',
+        title: `${title} — Match-Up`,
+        pairs: chap.questions.slice(0, 6).map(q => ({
+          prompt: q.question.slice(0, 60),
+          answer: (q.options[q.correct] || '').slice(0, 60)
+        }))
+      });
+    }
   }
 
   // 4) Sub-boss

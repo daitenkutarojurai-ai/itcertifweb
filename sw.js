@@ -10,7 +10,7 @@
  * Bump CACHE_VERSION to invalidate clients on next visit.
  */
 
-const CACHE_VERSION = 'v35-2026-05-12-chests-cosmetics-daily';
+const CACHE_VERSION = 'v36-2026-05-12-combo-truefalse-pathindex';
 const RUNTIME_CACHE = `cq-runtime-${CACHE_VERSION}`;
 const PRECACHE      = `cq-precache-${CACHE_VERSION}`;
 
@@ -21,14 +21,14 @@ const PRECACHE_URLS = [
   '/path.html',
   '/src/styles/main.css?v=31',
   '/src/styles/desktop.css?v=31',
-  '/src/styles/path.css?v=3',
+  '/src/styles/path.css?v=4',
   '/src/stats.js?v=1',
   '/src/avatar.js?v=1',
   '/src/hearts.js?v=1',
   '/src/cosmetics.js?v=1',
   '/src/daily.js?v=1',
   '/src/menu.js?v=4',
-  '/src/path.js?v=3',
+  '/src/path.js?v=4',
   '/src/assets/icons/favicon-96.png?v=4',
   '/src/assets/icons/favicon-32.png?v=4',
   '/src/assets/icons/favicon-192.png?v=4',
