@@ -31,7 +31,10 @@
   }
   function load() {
     try { return JSON.parse(localStorage.getItem(KEY) || '{}'); }
-    catch (_) { return {}; }
+    catch (e) {
+      if (window.cqDbg) window.cqDbg('[daily] load JSON.parse failed', e);
+      return {};
+    }
   }
   function save(s) {
     try { localStorage.setItem(KEY, JSON.stringify(s)); } catch (_) {}

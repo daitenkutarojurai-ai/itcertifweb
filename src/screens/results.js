@@ -309,7 +309,7 @@ function buildEmailCardHTML(results) {
           ${disabled}
         />
         ${checkboxBlock}
-        <button type="submit" class="btn-primary email-report-submit" id="email-report-submit" ${disabled}>
+        <button type="submit" class="cta-primary email-report-submit" id="email-report-submit" ${disabled}>
           ${cta}
         </button>
         <div class="email-report-status" id="email-report-status" role="status" aria-live="polite"></div>
@@ -460,12 +460,12 @@ function buildHTML(pack, results, mode, newAchievements) {
       ${buildEmailCardHTML(results)}
 
       <div class="results-actions">
-        <button class="btn-secondary" id="btn-home-bottom">Home</button>
+        <button class="cta-secondary" id="btn-home-bottom">Home</button>
         ${isQuick
-          ? `<button class="btn-primary" id="btn-replay">⚡ New 5 Questions</button>`
+          ? `<button class="cta-primary" id="btn-replay">⚡ New 5 Questions</button>`
           : isStudy
-          ? `<button class="btn-primary" id="btn-study-again">📖 Study More</button>`
-          : `<button class="btn-primary" id="btn-retry">Retry →</button>`}
+          ? `<button class="cta-primary" id="btn-study-again">📖 Study More</button>`
+          : `<button class="cta-primary" id="btn-retry">Retry →</button>`}
       </div>
 
     </div>

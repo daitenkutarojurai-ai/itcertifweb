@@ -109,7 +109,8 @@
   function renderLaurels() {
     var host = $('profile-laurels');
     var laurels = [];
-    try { laurels = JSON.parse(localStorage.getItem('cq-laurels-v1') || '[]'); } catch (_) {}
+    try { laurels = JSON.parse(localStorage.getItem('cq-laurels-v1') || '[]'); }
+    catch (e) { if (window.cqDbg) window.cqDbg('[profile] laurels JSON.parse failed', e); }
     if (!laurels.length) {
       host.innerHTML = '<p class="profile-laurels-empty">Clear a final-boss exam to earn your first laurel.</p>';
       return;

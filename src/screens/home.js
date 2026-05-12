@@ -200,7 +200,7 @@ function buildNewsletterCardHTML() {
       <form class="newsletter-form" id="newsletter-form" novalidate>
         <input type="email" class="newsletter-input" id="newsletter-input"
           placeholder="you@example.com" autocomplete="email" required />
-        <button type="submit" class="btn-primary newsletter-submit" id="newsletter-submit">Subscribe</button>
+        <button type="submit" class="cta-primary newsletter-submit" id="newsletter-submit">Subscribe</button>
       </form>
       <div class="newsletter-status" id="newsletter-status" role="status" aria-live="polite"></div>
     </div>

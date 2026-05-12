@@ -1,4 +1,4 @@
-/* CertQuests core bundle — generated 2026-05-12T11:53:26.801Z
+/* CertQuests core bundle — generated 2026-05-12T11:59:34.094Z
  *
  * This file is concatenated by scripts/build-core.js. Do not edit by hand;
  * edit the source modules in src/*.js and re-run `npm run build-core`.
@@ -189,6 +189,17 @@
     if (!IS_BROWSER) return false;
     try { return localStorage.getItem('cq-debug') === '1'; } catch (_) { return false; }
   }
+  /* Shared debug emitter, exposed on window so other modules (path.js,
+     profile.js, daily.js, mascot.js) can replace silent `catch (_) {}`
+     with `catch (e) { window.cqDbg && window.cqDbg('[label]', e); }`
+     for catches that could mask real data corruption. */
+  function cqDbg() {
+    if (!isDebug()) return;
+    /* eslint-disable no-console */
+    console.warn.apply(console, arguments);
+    /* eslint-enable no-console */
+  }
+  if (IS_BROWSER) window.cqDbg = cqDbg;
 
   var DEFAULTS = {
     _v: SCHEMA_VERSION,
@@ -401,7 +412,13 @@
         }
         localStorage.removeItem('cq-path-pending');
       }
-    } catch (_) {}
+    } catch (e) {
+      /* The handshake is the bridge between train.html → path.html. If
+         it ever silently fails the user's path node never marks complete
+         on their next visit — visible regression that's hard to repro
+         without a log. Surface in debug builds. */
+      cqDbg('[stats] path-pending handshake failed', e);
+    }
     if (isDebug()) {
       /* eslint-disable no-console */
       console.log('[cq-stats] session-complete →', {
@@ -870,7 +887,10 @@
   }
   function load() {
     try { return JSON.parse(localStorage.getItem(KEY) || '{}'); }
-    catch (_) { return {}; }
+    catch (e) {
+      if (window.cqDbg) window.cqDbg('[daily] load JSON.parse failed', e);
+      return {};
+    }
   }
   function save(s) {
     try { localStorage.setItem(KEY, JSON.stringify(s)); } catch (_) {}

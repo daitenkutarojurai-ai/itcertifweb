@@ -30,7 +30,12 @@
   /* ───── Progress store ───── */
   function loadProgress() {
     try { return JSON.parse(localStorage.getItem(PROGRESS_KEY) || '{}'); }
-    catch (_) { return {}; }
+    catch (e) {
+      /* Should never fire — we own the writer. Surfacing this in debug
+         catches a corruption-by-another-tab or hand-edited localStorage. */
+      if (window.cqDbg) window.cqDbg('[path] loadProgress JSON.parse failed', e);
+      return {};
+    }
   }
   function saveProgress(p) {
     try { localStorage.setItem(PROGRESS_KEY, JSON.stringify(p)); } catch (_) {}
@@ -54,7 +59,9 @@
           localStorage.setItem('cq-laurels-v1', JSON.stringify(laurels));
           window.dispatchEvent(new CustomEvent('cq:laurel-earned', { detail: { packId: packId } }));
         }
-      } catch (_) {}
+      } catch (e) {
+        if (window.cqDbg) window.cqDbg('[path] award-laurel failed', e);
+      }
     }
   }
 
