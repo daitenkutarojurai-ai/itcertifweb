@@ -20,8 +20,15 @@
  * Idempotent. Plain IIFE — no ES-module import needed.
  */
 (function () {
-  if (window.__cqStatsInit) return;
-  window.__cqStatsInit = true;
+  /* This file runs in two contexts:
+       1) browser <script> — registers window.cqStats, listens for events
+       2) Node tests — pure helpers reachable via module.exports
+     The IIFE always evaluates; browser-only side effects are guarded. */
+  var IS_BROWSER = typeof window !== 'undefined';
+  if (IS_BROWSER) {
+    if (window.__cqStatsInit) return;
+    window.__cqStatsInit = true;
+  }
 
   var STORE_KEY = 'cq-stats-v1';
   var MAX_LEVEL = 30;
@@ -74,6 +81,7 @@
   function yesterdayKey() { return dateKey(new Date(Date.now() - 86400000)); }
 
   function load() {
+    if (!IS_BROWSER) return Object.assign({}, DEFAULTS);
     try {
       var raw = JSON.parse(localStorage.getItem(STORE_KEY) || '{}');
       var s = Object.assign({}, DEFAULTS, raw);
@@ -82,6 +90,7 @@
     } catch (_) { return Object.assign({}, DEFAULTS); }
   }
   function save(s) {
+    if (!IS_BROWSER) return;
     try { localStorage.setItem(STORE_KEY, JSON.stringify(s)); } catch (_) {}
   }
 
@@ -156,6 +165,30 @@
     s.xp = computeXp(s);
     s.level = levelForXp(s.xp);
     return { stats: s, leveledUp: s.level > prevLevel, prevLevel: prevLevel };
+  }
+
+  /* Browser-only: bind event listeners + expose to window */
+  if (!IS_BROWSER) {
+    /* Node test mode — export the pure helpers via CommonJS */
+    if (typeof module !== 'undefined' && module.exports) {
+      module.exports = {
+        DEFAULTS: DEFAULTS,
+        MAX_LEVEL: MAX_LEVEL,
+        STAGE_EMOJI: STAGE_EMOJI,
+        STAGE_NAME: STAGE_NAME,
+        computeXp: computeXp,
+        levelForXp: levelForXp,
+        thresholdForLevel: thresholdForLevel,
+        xpProgressForLevel: xpProgressForLevel,
+        stageEmojiForLevel: stageEmojiForLevel,
+        stageNameForLevel: stageNameForLevel,
+        applySession: applySession,
+        dateKey: dateKey,
+        todayKey: todayKey,
+        yesterdayKey: yesterdayKey
+      };
+    }
+    return;
   }
 
   window.addEventListener('cq:session-complete', function (e) {

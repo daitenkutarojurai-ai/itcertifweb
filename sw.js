@@ -10,7 +10,7 @@
  * Bump CACHE_VERSION to invalidate clients on next visit.
  */
 
-const CACHE_VERSION = 'v38-2026-05-12-a11y-seo-offline-paths';
+const CACHE_VERSION = 'v39-2026-05-12-tests-defensive-lazy-mascot';
 const RUNTIME_CACHE = `cq-runtime-${CACHE_VERSION}`;
 const PRECACHE      = `cq-precache-${CACHE_VERSION}`;
 
