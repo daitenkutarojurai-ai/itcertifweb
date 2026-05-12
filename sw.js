@@ -10,7 +10,7 @@
  * Bump CACHE_VERSION to invalidate clients on next visit.
  */
 
-const CACHE_VERSION = 'v41-2026-05-12-ceremony-keyboardnav-polish';
+const CACHE_VERSION = 'v42-2026-05-12-cert-index-paths-everywhere';
 const RUNTIME_CACHE = `cq-runtime-${CACHE_VERSION}`;
 const PRECACHE      = `cq-precache-${CACHE_VERSION}`;
 
@@ -20,11 +20,12 @@ const PRECACHE_URLS = [
   '/index.html',
   '/path.html',
   '/profile.html',
-  '/src/styles/main.css?v=31',
-  '/src/styles/desktop.css?v=31',
+  '/src/styles/main.css?v=32',
+  '/src/styles/desktop.css?v=32',
+  '/certifications/',
   '/src/styles/path.css?v=5',
   '/src/styles/profile.css?v=1',
-  '/src/cq-core.js?v=1',
+  '/src/cq-core.js?v=2',
   '/src/path.js?v=5',
   '/src/profile.js?v=1',
   '/src/mascot-loader.js?v=1',
