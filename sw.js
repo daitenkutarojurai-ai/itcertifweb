@@ -10,7 +10,7 @@
  * Bump CACHE_VERSION to invalidate clients on next visit.
  */
 
-const CACHE_VERSION = 'v50-2026-05-12-round5-race-toast-schema-swr-v36';
+const CACHE_VERSION = 'v51-2026-05-12-round6-nav-walker-confetti-contrast-v37';
 const RUNTIME_CACHE = `cq-runtime-${CACHE_VERSION}`;
 const PRECACHE      = `cq-precache-${CACHE_VERSION}`;
 
@@ -20,15 +20,15 @@ const PRECACHE_URLS = [
   '/index.html',
   '/path.html',
   '/profile.html',
-  '/src/styles/main.css?v=36',
-  '/src/styles/desktop.css?v=36',
+  '/src/styles/main.css?v=37',
+  '/src/styles/desktop.css?v=37',
   '/certifications/',
-  '/src/styles/path.css?v=36',
-  '/src/styles/profile.css?v=36',
-  '/src/cq-core.js?v=36',
-  '/src/path.js?v=36',
-  '/src/profile.js?v=36',
-  '/src/mascot-loader.js?v=36',
+  '/src/styles/path.css?v=37',
+  '/src/styles/profile.css?v=37',
+  '/src/cq-core.js?v=37',
+  '/src/path.js?v=37',
+  '/src/profile.js?v=37',
+  '/src/mascot-loader.js?v=37',
   '/data/cosmetics.json',
   '/src/assets/icons/favicon-96.png?v=4',
   '/src/assets/icons/favicon-32.png?v=4',

@@ -136,12 +136,26 @@
     setTimeout(function () { walker.classList.remove('cq-path-walker--walking'); }, 750);
   }
 
-  /* Simple confetti — vanilla, no library */
+  /* Simple confetti — vanilla, no library.
+     A bounded set so rapid-fire bursts (chapter clear + chest open +
+     level-up firing in <1s) can't pile up dozens of orphan containers.
+     We cap at MAX_CONCURRENT; new bursts evict the oldest. */
+  var MAX_CONFETTI_CONTAINERS = 4;
+  var confettiContainers = [];
   function burstConfetti(opts) {
     opts = opts || {};
     var n = opts.count || 36;
     var origin = opts.origin || { x: window.innerWidth / 2, y: window.innerHeight / 2 };
     var colors = opts.colors || ['#60a5fa','#a78bfa','#4ade80','#fbbf24','#f472b6','#22d3ee'];
+    /* Evict oldest if at the cap — guards against DOM-leak via piles of
+       burst containers when the user triggers a flurry of celebrations. */
+    while (confettiContainers.length >= MAX_CONFETTI_CONTAINERS) {
+      var oldest = confettiContainers.shift();
+      if (oldest && oldest.container) {
+        clearTimeout(oldest.tid);
+        oldest.container.remove();
+      }
+    }
     var container = document.createElement('div');
     container.className = 'cq-confetti';
     document.body.appendChild(container);
@@ -162,7 +176,13 @@
       p.style.animationDuration = dur + 'ms';
       container.appendChild(p);
     }
-    setTimeout(function () { container.remove(); }, 2500);
+    var entry = { container: container, tid: 0 };
+    entry.tid = setTimeout(function () {
+      container.remove();
+      var idx = confettiContainers.indexOf(entry);
+      if (idx >= 0) confettiContainers.splice(idx, 1);
+    }, 2500);
+    confettiContainers.push(entry);
   }
 
   function renderMap(path) {
@@ -957,8 +977,19 @@
   }
   window.addEventListener('cq:stats-changed', function () { refreshWalkerVisuals(); });
   window.addEventListener('cq:cosmetic-changed', function () { refreshWalkerVisuals(); });
-  window.addEventListener('cq:level-up', function () {
-    setWalkerEmoji();
+  window.addEventListener('cq:level-up', function (e) {
+    /* Prefer the emoji the event already carries — avoids re-reading
+       window.cqStats which may race with cosmetics.ensureCatalog. */
+    var detail = (e && e.detail) || {};
+    if (walker && detail.newStageEmoji) {
+      var n = walker.querySelector('.cq-path-walker-emoji');
+      if (n) n.textContent = detail.newStageEmoji;
+    } else {
+      setWalkerEmoji();
+    }
+    /* Refresh the hat on the next frame so cosmetics catalog has time
+       to settle if it loaded in parallel with this event. */
+    requestAnimationFrame(function () { refreshWalkerVisuals(); });
     /* Burst confetti next to the avatar chip in the header */
     var chip = document.querySelector('.cq-avatar-chip');
     if (chip) {
@@ -967,11 +998,30 @@
     }
   });
 
-  /* Keep walker glued to the current node on resize */
-  window.addEventListener('resize', function () {
+  /* Keep walker glued to the current node on resize AND scroll AND layout
+     shifts (e.g., daily-quest banner mounting late, deferred image loads
+     above the path-map). The walker uses position:absolute with page-
+     relative transforms, so scroll-by-itself doesn't move it — but ANY
+     above-the-map height change shifts every node's absolute Y without
+     us knowing, hence the periodic re-pin. */
+  function repinWalker() {
     var cur = document.querySelector('.path-node.is-current') ||
               document.querySelector('.path-node.is-completed:last-of-type') ||
               document.querySelector('.path-node');
     if (cur) positionWalker(cur, false);
-  });
+  }
+  window.addEventListener('resize', repinWalker);
+  /* Passive scroll listener — cheap, fires on layout-shifting nav (e.g.
+     mobile address-bar collapse), keeps the walker visually anchored. */
+  window.addEventListener('scroll', repinWalker, { passive: true });
+  /* If the path-map root resizes (chapter expanded, image hydrated), repin. */
+  if (typeof ResizeObserver !== 'undefined') {
+    var ro = new ResizeObserver(repinWalker);
+    var observePathMap = function () {
+      var m = document.getElementById('path-map');
+      if (m) ro.observe(m);
+    };
+    if (document.readyState !== 'loading') observePathMap();
+    else document.addEventListener('DOMContentLoaded', observePathMap);
+  }
 })();
