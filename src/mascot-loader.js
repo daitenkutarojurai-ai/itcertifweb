@@ -13,7 +13,7 @@
   if (window.__cqMascotLoaderInit) return;
   window.__cqMascotLoaderInit = true;
 
-  var SRC = '/src/mascot.js?v=42';
+  var SRC = '/src/mascot.js?v=43';
   var IDLE_TIMEOUT = 8000;
   var triggered = false;
   var idleTimer = null;

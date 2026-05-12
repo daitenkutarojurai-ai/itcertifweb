@@ -10,7 +10,7 @@
  * Bump CACHE_VERSION to invalidate clients on next visit.
  */
 
-const CACHE_VERSION = 'v56-2026-05-12-content-cissp-path-v42';
+const CACHE_VERSION = 'v57-2026-05-12-phase3d-auth-magic-link-v43';
 const RUNTIME_CACHE = `cq-runtime-${CACHE_VERSION}`;
 const PRECACHE      = `cq-precache-${CACHE_VERSION}`;
 
@@ -20,15 +20,17 @@ const PRECACHE_URLS = [
   '/index.html',
   '/path.html',
   '/profile.html',
-  '/src/styles/main.css?v=42',
-  '/src/styles/desktop.css?v=42',
+  '/src/styles/main.css?v=43',
+  '/src/styles/desktop.css?v=43',
   '/certifications/',
-  '/src/styles/path.css?v=42',
-  '/src/styles/profile.css?v=42',
-  '/src/cq-core.js?v=42',
-  '/src/path.js?v=42',
-  '/src/profile.js?v=42',
-  '/src/mascot-loader.js?v=42',
+  '/src/styles/path.css?v=43',
+  '/src/styles/profile.css?v=43',
+  '/src/cq-core.js?v=43',
+  '/src/path.js?v=43',
+  '/src/profile.js?v=43',
+  '/src/mascot-loader.js?v=43',
+  '/src/auth.js?v=43',
+  '/src/auth-ui.js?v=43',
   '/data/cosmetics.json',
   '/src/assets/icons/favicon-96.png?v=4',
   '/src/assets/icons/favicon-32.png?v=4',
