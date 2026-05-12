@@ -51,9 +51,12 @@
           '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><line x1="6" y1="6" x2="18" y2="18"/><line x1="6" y1="18" x2="18" y2="6"/></svg>' +
         '</button>' +
         '<div class="mobile-menu-eyebrow">Explore</div>' +
-        '<a href="/path.html?pack=ccna" class="mobile-menu-new">' +
+        '<a href="/path.html" class="mobile-menu-new">' +
           '<span class="mobile-menu-emoji">🗺️</span>Learning paths' +
           '<span class="mobile-menu-pill">NEW</span>' +
+        '</a>' +
+        '<a href="/profile.html">' +
+          '<span class="mobile-menu-emoji">🦑</span>Your profile' +
         '</a>' +
         '<a href="/train.html">' +
           '<span class="mobile-menu-emoji">🎯</span>Training' +

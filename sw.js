@@ -10,7 +10,7 @@
  * Bump CACHE_VERSION to invalidate clients on next visit.
  */
 
-const CACHE_VERSION = 'v36-2026-05-12-combo-truefalse-pathindex';
+const CACHE_VERSION = 'v37-2026-05-12-profile-laurels-heatmap-share';
 const RUNTIME_CACHE = `cq-runtime-${CACHE_VERSION}`;
 const PRECACHE      = `cq-precache-${CACHE_VERSION}`;
 
@@ -22,13 +22,16 @@ const PRECACHE_URLS = [
   '/src/styles/main.css?v=31',
   '/src/styles/desktop.css?v=31',
   '/src/styles/path.css?v=4',
-  '/src/stats.js?v=1',
-  '/src/avatar.js?v=1',
+  '/src/stats.js?v=2',
+  '/src/avatar.js?v=2',
   '/src/hearts.js?v=1',
   '/src/cosmetics.js?v=1',
   '/src/daily.js?v=1',
-  '/src/menu.js?v=4',
+  '/src/menu.js?v=5',
   '/src/path.js?v=4',
+  '/src/profile.js?v=1',
+  '/profile.html',
+  '/src/styles/profile.css?v=1',
   '/src/assets/icons/favicon-96.png?v=4',
   '/src/assets/icons/favicon-32.png?v=4',
   '/src/assets/icons/favicon-192.png?v=4',

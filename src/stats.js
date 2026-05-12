@@ -35,6 +35,7 @@
     sessionsCount: 0,
     streakDays: 0,
     lastSessionDate: null,
+    sessionDates: [],     /* last ~60 dates with at least one session (for heatmap) */
     perPack: {},
     bonusXp: 0,
     xp: 0,
@@ -139,6 +140,11 @@
     s.questionsAnswered += Math.max(0, +detail.questionsAnswered || 0);
     s.correctAnswered += Math.max(0, +detail.correct || 0);
     if (detail.bonusXp) s.bonusXp = (s.bonusXp || 0) + Math.max(0, +detail.bonusXp);
+    /* Push today's date into the rolling heatmap window */
+    if (!s.sessionDates) s.sessionDates = [];
+    if (s.sessionDates.indexOf(today) === -1) s.sessionDates.push(today);
+    /* Keep only the last 60 unique dates */
+    if (s.sessionDates.length > 60) s.sessionDates = s.sessionDates.slice(-60);
     if (detail.packId) {
       var p = s.perPack[detail.packId] || { seconds: 0, qa: 0, correct: 0 };
       p.seconds += +detail.secondsSpent || 0;

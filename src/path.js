@@ -42,8 +42,20 @@
   function markComplete(packId, nodeId, score) {
     var p = loadProgress();
     p[packId] = p[packId] || {};
+    var alreadyDone = !!p[packId][nodeId];
     p[packId][nodeId] = { completed: true, completedAt: Date.now(), score: score || null };
     saveProgress(p);
+    /* If this is the final-boss node, award a "Cert Survivor" laurel */
+    if (!alreadyDone && nodeId === 'final-boss') {
+      try {
+        var laurels = JSON.parse(localStorage.getItem('cq-laurels-v1') || '[]');
+        if (!laurels.some(function (l) { return l.packId === packId; })) {
+          laurels.push({ packId: packId, earnedAt: Date.now(), score: score || null });
+          localStorage.setItem('cq-laurels-v1', JSON.stringify(laurels));
+          window.dispatchEvent(new CustomEvent('cq:laurel-earned', { detail: { packId: packId } }));
+        }
+      } catch (_) {}
+    }
   }
 
   /* ───── Helpers ───── */

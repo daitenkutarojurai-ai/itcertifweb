@@ -66,7 +66,7 @@
 
     var chip = document.createElement('a');
     chip.className = 'cq-avatar-chip';
-    chip.href = '/stats.html';
+    chip.href = '/profile.html';
     chip.setAttribute('aria-label', 'Your level');
     chip.innerHTML =
       '<span class="cq-avatar-ring" aria-hidden="true"></span>' +
