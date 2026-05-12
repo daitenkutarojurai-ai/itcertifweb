@@ -108,10 +108,12 @@
         '<form class="cq-auth-form cq-auth-form--signin" id="cq-form-signin" autocomplete="on" hidden>' +
           '<label class="cq-auth-label" for="cq-signin-email">Email</label>' +
           '<input class="cq-auth-input" id="cq-signin-email" name="email" type="email" required autocomplete="email" placeholder="you@example.com" />' +
-          '<label class="cq-auth-label" for="cq-signin-password">Password</label>' +
+          '<label class="cq-auth-label cq-auth-label--with-link" for="cq-signin-password">' +
+            '<span>Password</span>' +
+            '<button type="button" class="cq-auth-forgot" id="cq-forgot-trigger">Forgot password?</button>' +
+          '</label>' +
           '<input class="cq-auth-input" id="cq-signin-password" name="password" type="password" required autocomplete="current-password" placeholder="••••••••" />' +
           '<button type="submit" class="cta-primary cq-auth-submit">Sign in →</button>' +
-          '<button type="button" class="cq-auth-secondary-link" id="cq-magic-link-trigger">Send me a magic link instead</button>' +
           '<div class="cq-auth-message" id="cq-signin-msg" hidden></div>' +
         '</form>' +
 
@@ -207,18 +209,19 @@
       }
     });
 
-    /* ── Magic-link affordance on the Sign-in tab ────────────────────── */
-    modal.querySelector('#cq-magic-link-trigger').addEventListener('click', async () => {
+    /* ── Forgot password ───────────────────────────────────────────── */
+    modal.querySelector('#cq-forgot-trigger').addEventListener('click', async () => {
       const email = formSignin.email.value.trim();
       if (!email) {
-        showMsg(formSignin, 'err', 'Enter your email above first.');
+        showMsg(formSignin, 'err', 'Enter your email above first, then tap "Forgot password?" again.');
         return;
       }
-      const res = await window.cqAuth.signInWithEmail(email);
+      if (!window.cqAuth) return;
+      const res = await window.cqAuth.requestPasswordReset(email);
       showMsg(formSignin, res.ok ? 'ok' : 'err',
         res.ok
-          ? '✓ Magic link sent. Check your inbox — clicking the link signs you in.'
-          : (res.error || 'Could not send magic link.'));
+          ? '✓ Reset link sent to ' + email + '. Check your inbox — the link opens a "set new password" page.'
+          : (res.error || 'Could not send reset link.'));
     });
 
     /* ── Sign-up form ───────────────────────────────────────────────── */

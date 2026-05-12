@@ -139,6 +139,37 @@ if (window.__cqAuthInit) {
   }
 
   /**
+   * Send a password-reset email. The link lands on /reset-password.html
+   * (or the Capacitor scheme equivalent); detectSessionInUrl turns the
+   * recovery code into a short-lived session and supabase-js emits a
+   * PASSWORD_RECOVERY event the reset page listens for.
+   */
+  async function requestPasswordReset(email) {
+    if (!email || !email.includes('@')) return { ok: false, error: 'Enter a valid email.' };
+    const redirectTo = isCapacitor
+      ? 'capacitor://localhost/reset-password'
+      : window.location.origin + '/reset-password.html';
+    const { error } = await supabase.auth.resetPasswordForEmail(email, { redirectTo });
+    if (error) return { ok: false, error: error.message };
+    return { ok: true };
+  }
+
+  /**
+   * Update the signed-in user's password. Used by /reset-password.html
+   * once the recovery session is active. The recovery session is scoped
+   * specifically to allow password changes; once updateUser succeeds it
+   * upgrades to a normal session.
+   */
+  async function updatePassword(newPassword) {
+    if (!newPassword || newPassword.length < 8) {
+      return { ok: false, error: 'Password must be at least 8 characters.' };
+    }
+    const { error } = await supabase.auth.updateUser({ password: newPassword });
+    if (error) return { ok: false, error: error.message };
+    return { ok: true };
+  }
+
+  /**
    * OAuth — Google (enabled in dashboard) or GitHub (enable to wire up).
    * Redirects the browser to the provider; supabase-js extracts the code
    * from the callback URL and finalizes the session via detectSessionInUrl.
@@ -186,15 +217,17 @@ if (window.__cqAuthInit) {
   window.cqAuth = {
     signUp,
     signInWithPassword,
-    signInWithEmail,        // magic link — kept for the "forgot password" path
+    signInWithEmail,           // magic link — kept as a passwordless fallback
     signInWithProvider,
     resendConfirmation,
+    requestPasswordReset,      // sends reset email → /reset-password.html
+    updatePassword,            // called on the reset page after recovery session
     signOut,
     getSession,
     getUser,
     isSignedIn,
     isCapacitor,
-    // Escape hatch for advanced callers (e.g., stats sync in future round)
+    // Escape hatch for advanced callers (sync, profile rename, etc.)
     _client: supabase,
   };
 
