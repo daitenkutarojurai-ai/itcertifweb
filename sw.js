@@ -10,7 +10,7 @@
  * Bump CACHE_VERSION to invalidate clients on next visit.
  */
 
-const CACHE_VERSION = 'v54-2026-05-12-content-concept-library-v40';
+const CACHE_VERSION = 'v55-2026-05-12-content-concept-library-batch2-v41';
 const RUNTIME_CACHE = `cq-runtime-${CACHE_VERSION}`;
 const PRECACHE      = `cq-precache-${CACHE_VERSION}`;
 
@@ -20,15 +20,15 @@ const PRECACHE_URLS = [
   '/index.html',
   '/path.html',
   '/profile.html',
-  '/src/styles/main.css?v=40',
-  '/src/styles/desktop.css?v=40',
+  '/src/styles/main.css?v=41',
+  '/src/styles/desktop.css?v=41',
   '/certifications/',
-  '/src/styles/path.css?v=40',
-  '/src/styles/profile.css?v=40',
-  '/src/cq-core.js?v=40',
-  '/src/path.js?v=40',
-  '/src/profile.js?v=40',
-  '/src/mascot-loader.js?v=40',
+  '/src/styles/path.css?v=41',
+  '/src/styles/profile.css?v=41',
+  '/src/cq-core.js?v=41',
+  '/src/path.js?v=41',
+  '/src/profile.js?v=41',
+  '/src/mascot-loader.js?v=41',
   '/data/cosmetics.json',
   '/src/assets/icons/favicon-96.png?v=4',
   '/src/assets/icons/favicon-32.png?v=4',

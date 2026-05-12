@@ -116,14 +116,32 @@ function buildChapter(chap, chapIndex) {
   // 1) Concept-card node introducing the chapter.
   //
   // Preference order:
-  //   (a) Hand-authored content from data/concept-library.json keyed by
-  //       the chapter's primary tag (covers ~25 top tags, ~600+ Q's of
-  //       coverage as of 2026-05-12).
+  //   (a) Hand-authored content from data/concept-library.json. We first
+  //       try the chapter's primary tag (chap.tag). If that doesn't hit,
+  //       we count tag occurrences across every question in the chapter
+  //       (including secondary/tertiary tags) and pick the most-frequent
+  //       tag that has a library entry. This lets authored content for
+  //       "dns" surface on a chapter primarily tagged "networking" if
+  //       most of its questions also carry "dns" as a secondary tag.
   //   (b) Fallback: derive from the first few questions in the chapter,
   //       using the FULL question stem (no 80-char slice — that was
   //       cutting off in the middle of words like "...build, train, and
   //       de?"). The explanation is the back of the card.
-  const libEntry = CONCEPT_LIBRARY[chap.tag];
+  let libEntry = CONCEPT_LIBRARY[chap.tag];
+  let matchedTag = libEntry ? chap.tag : null;
+  if (!libEntry) {
+    const tagFreq = {};
+    for (const q of chap.questions) {
+      for (const t of (q.tags || [])) {
+        if (CONCEPT_LIBRARY[t]) tagFreq[t] = (tagFreq[t] || 0) + 1;
+      }
+    }
+    const sortedTags = Object.entries(tagFreq).sort((a, b) => b[1] - a[1]);
+    if (sortedTags.length) {
+      matchedTag = sortedTags[0][0];
+      libEntry = CONCEPT_LIBRARY[matchedTag];
+    }
+  }
   let conceptNode;
   if (libEntry && Array.isArray(libEntry.flashcards) && libEntry.flashcards.length) {
     conceptNode = {
@@ -137,6 +155,8 @@ function buildChapter(chap, chapIndex) {
       })),
       // Marker so the renderer / audit can tell authored vs auto-derived
       source: 'concept-library',
+      // Which library tag won — useful for coverage analytics
+      sourceTag: matchedTag,
     };
   } else {
     conceptNode = {

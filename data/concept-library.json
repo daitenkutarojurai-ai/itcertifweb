@@ -381,5 +381,257 @@
       { "front": "Just-in-time (JIT) provisioning — what does it solve?",
         "back": "Instead of pre-creating users in every app, JIT creates the user on first SSO login, hydrated from the IdP's attributes. Onboarding a new hire: add to the IdP group once, every app that supports JIT auto-creates them on first visit. Deprovisioning is the inverse — IdP removes them, apps refuse next login." }
     ]
+  },
+  "windows": {
+    "title": "Windows administration",
+    "intro": "Windows admin questions cluster around a few core tools: Settings, Control Panel, Task Manager, Event Viewer, the Registry, and Group Policy. Knowing which tool owns which knob saves you in scenario questions where every distractor 'kind of' fits.",
+    "flashcards": [
+      { "front": "When do you use Group Policy vs the Registry directly?",
+        "back": "Group Policy is the supported, centrally-managed way to enforce settings on domain-joined machines — auditable, reversible, scoped to OUs. Editing the Registry directly works on any machine but is per-host, undocumented, and easy to break. Use GPO for domain config; use Registry edits only for one-off targeted fixes with a backup first." },
+      { "front": "What does Event Viewer show?",
+        "back": "Windows' centralized log: Application logs (apps), Security logs (auth attempts, audit events), System logs (driver/service errors). Filter by Event ID — most exam scenarios give you an ID number and ask which log to check. Save a custom view for the events your team cares about." },
+      { "front": "Task Manager vs Resource Monitor vs Performance Monitor.",
+        "back": "Task Manager: instant snapshot of CPU/RAM/disk/network usage per process — first stop for 'why is my machine slow?'. Resource Monitor: deeper per-resource view with handles and modules. Performance Monitor: long-term metric collection and alerts (set up Data Collector Sets to record over time)." },
+      { "front": "How do you join a PC to an Active Directory domain?",
+        "back": "Settings → System → About → Rename this PC (advanced) → Change → choose Domain → enter domain name → authenticate with a domain account that has join rights → reboot. The PC gets an AD computer object, group policy starts applying, domain users can log in." }
+    ]
+  },
+  "exploitation": {
+    "title": "Exploitation techniques",
+    "intro": "The exploitation phase of a pentest is where reconnaissance becomes access. You're chaining a vulnerability with a payload to land code execution. The exam tests common categories (buffer overflows, injection, deserialization, privilege escalation) and the tools that automate them.",
+    "flashcards": [
+      { "front": "Buffer overflow — what's the basic mechanism?",
+        "back": "An unbounded write past the end of a stack buffer overwrites the saved return address. When the function returns, execution jumps to whatever the attacker placed there — typically shellcode or a return-into-libc gadget. Modern mitigations: stack canaries, ASLR, DEP/NX — defeated one at a time by chaining bugs." },
+      { "front": "SQL injection vs command injection — same idea?",
+        "back": "Same root cause: untrusted input concatenated into a command string the interpreter executes. SQLi puts `OR 1=1` into a query. Command injection puts `; cat /etc/passwd` into a shell call. Mitigations also the same shape: parameterized queries, never build commands by string concatenation." },
+      { "front": "What is privilege escalation?",
+        "back": "Going from a low-priv shell to root / SYSTEM / admin. Two flavors: vertical (low → high on the same machine via a kernel bug, sudo misconfig, SUID binary) and horizontal (account A → account B at same privilege level). The 'pentester's daily bread' — initial access is usually a low-priv user." },
+      { "front": "Why is Metasploit so commonly mentioned in exam questions?",
+        "back": "It's the dominant exploit framework — modular: pick an exploit module, set a payload (Meterpreter, reverse shell), set options (RHOSTS, LHOST), run. It bundles thousands of vetted exploits and post-modules. The exam tests vocabulary (msfconsole, payload, listener, handler) more than deep usage." }
+    ]
+  },
+  "bigquery": {
+    "title": "Google BigQuery",
+    "intro": "BigQuery is GCP's serverless data warehouse — petabyte-scale SQL with no clusters to manage. You pay for storage and for bytes scanned by each query (or for slots if you reserve capacity). The exam tests partitioning, clustering, cost control, and access patterns.",
+    "flashcards": [
+      { "front": "What's the difference between partitioning and clustering?",
+        "back": "Partitioning splits a table into separate physical chunks by date or integer range — queries that filter on the partition column scan only relevant chunks. Clustering sorts data inside each partition by up to 4 columns — further reduces bytes read. Use both: partition by ingest_date, cluster by user_id." },
+      { "front": "On-demand vs flat-rate pricing — pick one.",
+        "back": "On-demand: $5/TB scanned, perfect for unpredictable workloads. Flat-rate: reserve N slots (compute units) for $/month or $/year, no per-query cost — pick when you have a steady high query volume and want predictable bills. Most teams start on-demand and switch to flat-rate around ~$10k/month." },
+      { "front": "Why does column selection matter so much?",
+        "back": "BigQuery is columnar — `SELECT *` scans every column for every row. `SELECT user_id, ts` scans only those two. On a 10-column table, that's a 5x cost reduction with one keystroke. Never `SELECT *` in production analytics; always project explicitly." },
+      { "front": "Where do you put data BigQuery can query directly?",
+        "back": "Native BigQuery storage (best perf, replicated automatically), or external tables over Cloud Storage / Bigtable / Cloud SQL (federated queries, no copy needed but slower and cost-variable). Use native for analytics queries; use external when source-of-truth lives elsewhere." }
+    ]
+  },
+  "reporting": {
+    "title": "Reporting and documentation",
+    "intro": "Reporting questions appear in PenTest+, CySA+, and SOC analyst tracks. Findings are only valuable if stakeholders can act on them — structure, audience, severity scoring, and remediation guidance are what separate junior from senior write-ups.",
+    "flashcards": [
+      { "front": "What's the standard pentest report structure?",
+        "back": "Executive summary (1-2 pages, no jargon, business impact). Methodology (scope, dates, tools, tester names). Findings (one per vuln, with CVSS, evidence screenshots, repro steps). Recommendations (specific, prioritized). Appendix (raw scan output, tool versions, IP lists). The exec summary is the only part C-levels read — make it stand alone." },
+      { "front": "CVSS — what's the score for?",
+        "back": "Common Vulnerability Scoring System: 0-10 severity score combining exploitability and impact metrics. 9.0-10.0 = Critical, 7.0-8.9 = High, 4.0-6.9 = Medium. Use it to prioritize fixes — but adjust for YOUR environment (a critical RCE behind a firewall in a dev VLAN may be lower business risk than a medium XSS on the login page)." },
+      { "front": "Who's the audience for each report section?",
+        "back": "Exec summary: CISO / CTO / board — business impact only. Findings detail: developers and sysadmins — needs every CVE, command, and IP. Methodology: legal and audit — proves you stayed in scope. Tailor language and depth per audience; one giant report with everything pleases no one." },
+      { "front": "Why include remediation guidance, not just findings?",
+        "back": "A report that says 'SQL injection on /login' without 'use parameterized queries with these examples' makes the dev guess. Generic findings get ignored. Specific remediation with code snippets and reference links (OWASP, vendor docs) is what makes the gap actually close. Pentest is half offense, half teaching." }
+    ]
+  },
+  "cloudformation": {
+    "title": "AWS CloudFormation",
+    "intro": "CloudFormation is AWS's native IaC service — declarative YAML/JSON templates that describe stacks of AWS resources. The control plane handles ordering, rollback on failure, and drift detection. The exam tests intrinsic functions, change sets, and stack lifecycle.",
+    "flashcards": [
+      { "front": "What's a change set?",
+        "back": "A preview of what would happen if you applied an updated template. Lists adds, modifies, replaces (resources that must be destroyed and recreated). Lets you spot dangerous changes (replacing your prod RDS!) before executing. Always use change sets in production; never `update-stack` blind." },
+      { "front": "When is a resource replaced vs updated in place?",
+        "back": "Depends on the property changed. Some properties (instance type) update in place. Others (security group name, RDS engine version major) require replacement: CFN creates a new resource, updates references, then deletes the old. Replacement = downtime + possible data loss. Read the docs before changing names or immutable IDs." },
+      { "front": "Stack policy — what does it protect?",
+        "back": "A JSON document attached to a stack that says 'these resource updates are NOT allowed during stack update'. Typical use: lock the prod database resource so an accidental rerun of `update-stack` can't drop it. Default policy: everything mutable; you opt in to lock specific logical IDs." },
+      { "front": "Nested stacks vs cross-stack references.",
+        "back": "Nested: parent template instantiates child templates as `AWS::CloudFormation::Stack` resources — tight coupling, one deploy unit. Cross-stack: stack A exports an output, stack B imports it via `Fn::ImportValue` — loose coupling, independent lifecycles. Pick nested for reusable patterns, cross-stack for shared infra (VPC) referenced by many apps." }
+    ]
+  },
+  "dynamodb": {
+    "title": "Amazon DynamoDB",
+    "intro": "DynamoDB is AWS's managed NoSQL key-value store. Single-digit-ms reads at any scale, but only if your data model fits the access pattern. The exam tests partition keys, indexes, capacity modes, and the gotchas around hot partitions and item size limits.",
+    "flashcards": [
+      { "front": "Partition key vs sort key — what do they do?",
+        "back": "Partition key (required): hashed to pick a physical partition. Items with the same PK live together. Sort key (optional): orders items within a partition; lets you query `pk = X AND sk BETWEEN a AND b`. Together they're the primary key. Pick a PK that distributes load evenly — uneven PK = hot partition = throttling." },
+      { "front": "GSI vs LSI — when do you use each?",
+        "back": "Local Secondary Index (LSI): different sort key on the SAME partition key, must be defined at table create, max 5. Global Secondary Index (GSI): different partition key entirely, eventually consistent, can be added later, max 20. Almost always use GSIs — LSIs have rigid constraints and are rarely worth it." },
+      { "front": "On-demand vs provisioned capacity — pick a mode.",
+        "back": "On-demand: pay per request, autoscales instantly, no capacity planning, more expensive per request. Provisioned: reserve N read/write capacity units, cheaper if you know your load, can throttle on burst. Start on-demand; switch to provisioned when you've seen 2-4 weeks of traffic and the savings beat the planning effort." },
+      { "front": "What's the max item size, and why does it matter?",
+        "back": "400 KB per item. Larger blobs (PDFs, images) belong in S3 with the S3 key stored in DynamoDB. Watch out for unbounded list attributes (comments, tags) that grow over time — they'll hit the cap eventually. Design for the future size, not the today size." }
+    ]
+  },
+  "gke": {
+    "title": "Google Kubernetes Engine",
+    "intro": "GKE is GCP's managed Kubernetes service — two flavors: Standard (you manage node pools) and Autopilot (Google manages nodes, you only pay for pod resources). Exam questions test node pools, networking, identity, and which mode to pick.",
+    "flashcards": [
+      { "front": "GKE Standard vs Autopilot — which to pick?",
+        "back": "Standard: you create and size node pools, pay for nodes whether pods use them or not, full control. Autopilot: Google sizes nodes automatically, you pay only for pods' CPU/RAM/storage, hands-off but less flexibility (e.g., DaemonSets restricted). Pick Autopilot for new projects; Standard when you need GPUs, large nodes, or custom OS." },
+      { "front": "What's a node pool?",
+        "back": "A group of nodes with the same machine type, OS, and config inside a GKE cluster. You can have multiple pools (e.g., default + gpu-pool + high-memory-pool). Pods can be scheduled to specific pools via node selectors or taints. Upgrades happen per pool, so prod and batch can be on different K8s versions." },
+      { "front": "Workload Identity — why use it?",
+        "back": "Lets a Kubernetes Service Account impersonate a Google Cloud Service Account — pods get GCP IAM permissions without long-lived JSON keys. Replaces the dangerous pattern of mounting `gcp-sa-key.json` as a secret. Always-on by default in Autopilot; opt-in for Standard." },
+      { "front": "VPC-native vs routes-based clusters.",
+        "back": "VPC-native: pods get IPs from a secondary range of your VPC — direct routing, no overlay overhead, supports private GKE. Routes-based: legacy, uses GCP routes table (limited to 200 routes per VPC). All new clusters should be VPC-native; routes-based is for legacy compatibility only." }
+    ]
+  },
+  "compliance": {
+    "title": "Compliance frameworks",
+    "intro": "Compliance is the discipline of mapping your controls to an external framework (PCI, HIPAA, SOC 2, GDPR, ISO 27001) and proving it to an auditor. Most exam questions test which framework owns which scope, not the minutiae of each clause.",
+    "flashcards": [
+      { "front": "PCI DSS — what's the scope?",
+        "back": "Payment Card Industry Data Security Standard. Applies to anyone who stores, processes, or transmits cardholder data (PAN, expiry, CVV). 12 high-level requirements: firewalls, no defaults, encrypted storage, encrypted transmission, antivirus, secure dev, restrict access, MFA, log, test, policy. Required by Visa/Mastercard, not by law." },
+      { "front": "HIPAA vs HITRUST — what's the difference?",
+        "back": "HIPAA is U.S. law for protected health information (PHI) — sets the legal requirements but is high-level on technical controls. HITRUST CSF is a certifiable framework that operationalizes HIPAA (plus ISO, NIST, PCI) into specific testable controls. Healthcare orgs are legally HIPAA-bound; many also pursue HITRUST cert to prove diligence." },
+      { "front": "SOC 2 — what's it certify?",
+        "back": "American Institute of CPAs report on a SaaS company's controls across five trust criteria: security, availability, processing integrity, confidentiality, privacy. Type I = controls designed at a point in time. Type II = controls operated effectively over 6-12 months. Enterprise customers ask for the Type II as proof you're not making it up." },
+      { "front": "GDPR — what does it require beyond US-style privacy laws?",
+        "back": "European General Data Protection Regulation. Requires explicit consent (not pre-ticked), right to access / deletion / portability, 72-hour breach notification, data protection officer (for large processors), data minimization, and Privacy Impact Assessments for high-risk processing. Fines: up to 4% of global revenue. Applies to anyone processing EU residents' data, regardless of company location." }
+    ]
+  },
+  "cloudtrail": {
+    "title": "AWS CloudTrail",
+    "intro": "CloudTrail logs every AWS API call in your account — who did what, when, from which IP. It's the audit log and the incident-response timeline. The exam tests trail types, multi-region, integration with CloudWatch / S3, and the difference between management vs data events.",
+    "flashcards": [
+      { "front": "Management events vs data events — what's logged?",
+        "back": "Management events: control-plane API calls (CreateBucket, RunInstances, AttachRolePolicy) — on by default, free for the first trail. Data events: data-plane operations (S3 GetObject, Lambda Invoke) — opt-in per resource, billable. Most security audits need management events only; data events are for forensics on specific buckets / functions." },
+      { "front": "Why enable a multi-region trail?",
+        "back": "A trail enabled in `us-east-1` only logs API calls in that region. An attacker in `eu-west-1` would be invisible. Multi-region trails (the modern default) log every region into one S3 bucket — single pane of glass, no blind spots. AWS recommends this; toggle it on at trail creation." },
+      { "front": "How do you make CloudTrail logs tamper-evident?",
+        "back": "Enable log file integrity validation: CloudTrail emits a digest file every hour, signed with a hash chain. If a log file is later modified or deleted, validation fails and you know exactly which window was tampered with. Cheap (a few KB per hour) and required by most audit frameworks." },
+      { "front": "Where do CloudTrail logs land, and who can read them?",
+        "back": "An S3 bucket you specify. Best practice: a dedicated log-archive account in your AWS Organization, bucket policy that DENIES delete to everyone except a specific SecOps role, S3 Object Lock for legal-hold immutability. Push events to CloudWatch Logs in parallel for alerting on suspicious API patterns." }
+    ]
+  },
+  "incident-response": {
+    "title": "Incident response",
+    "intro": "IR follows a documented lifecycle so a panicked 3am pager doesn't turn into 'what do we do now?'. The classic NIST flow is preparation, detection, containment, eradication, recovery, lessons learned. Exam questions test which phase owns which action.",
+    "flashcards": [
+      { "front": "NIST IR lifecycle — name the phases.",
+        "back": "(1) Preparation: playbooks, contact lists, hardened images. (2) Detection & Analysis: SIEM alerts, IDS, user reports. (3) Containment: short-term (isolate host) + long-term (block C2 domains). (4) Eradication: remove malware, close vuln. (5) Recovery: restore from clean backup, monitor for re-infection. (6) Lessons learned: post-mortem within 2 weeks, action items tracked." },
+      { "front": "Containment — short-term vs long-term?",
+        "back": "Short-term: stop the bleed fast — pull the network cable, kill the user session, block the IP. May be reversible. Long-term: durable fix — patch the vuln, rotate creds, deploy IPS rule, sometimes rebuild from scratch. Don't skip short-term: every minute of attacker dwell time multiplies damage." },
+      { "front": "Chain of custody — why does it matter?",
+        "back": "If the incident leads to prosecution, evidence must be admissible — every transfer, image, and access logged from acquisition to court. Drives required to be hashed (SHA-256) immediately, copies (not originals) used for analysis, originals stored in a tamper-evident bag with signatures. Skip this and the lawyer dismisses your case." },
+      { "front": "What's a post-mortem (lessons learned) supposed to produce?",
+        "back": "Blameless write-up within 2 weeks: timeline, what worked, what didn't, action items with owners + due dates. The goal is process improvement, not punishment — if engineers fear blame they hide details and the next incident is worse. Track action items in your normal sprint board, not in a doc nobody reopens." }
+    ]
+  },
+  "dns": {
+    "title": "DNS",
+    "intro": "DNS turns names into addresses. Most outages traced to 'is it DNS?' get answered 'yes'. The exam tests record types, recursion vs iteration, TTL behavior, and how DNSSEC works.",
+    "flashcards": [
+      { "front": "What do A, AAAA, CNAME, and MX records do?",
+        "back": "A: name → IPv4 address. AAAA: name → IPv6 address. CNAME: name → another name (an alias; cannot coexist with other records at the same name). MX: name → mail server with priority. TXT: arbitrary key-value (SPF, DKIM, domain ownership proofs). Memorize at least these five." },
+      { "front": "Recursive vs authoritative resolver — what's the difference?",
+        "back": "Authoritative: the server that owns the zone — when you ask 'what's the A record for example.com?' it answers definitively. Recursive: the client-side resolver (your ISP's, 1.1.1.1, 8.8.8.8) that walks the DNS hierarchy on your behalf, asking root → TLD → authoritative. Your laptop talks to a recursive resolver; the resolver talks to authoritatives." },
+      { "front": "Why does TTL matter?",
+        "back": "Tells caching resolvers how long to keep a record. Low TTL (60s) = fast failover when you change records, but more DNS queries. High TTL (24h) = fewer queries, but a config change takes a day to propagate. Drop TTL to 60s a few hours BEFORE a planned migration; restore high TTL after." },
+      { "front": "DNSSEC — what attack does it prevent?",
+        "back": "Cache poisoning: attacker injects fake records into a recursive resolver. DNSSEC signs records with the zone's private key; resolvers validate the signature against the DNS-published public key. If the signature doesn't match, the record is rejected. Adds CPU and complexity; most resolvers still don't strictly validate, but it's slowly winning." }
+    ]
+  },
+  "rbac": {
+    "title": "Role-based access control",
+    "intro": "RBAC assigns permissions to roles, then users to roles — a layer of indirection that scales. Azure's RBAC, AWS's IAM, Kubernetes RBAC, and GCP's IAM all share the same mental model. Mastering one transfers directly to the others.",
+    "flashcards": [
+      { "front": "Why use roles instead of granting permissions to users directly?",
+        "back": "Roles separate WHO from WHAT. Add a person to a role, they inherit the permissions. Remove them, they lose access instantly. Auditing: 'who can read prod?' becomes 'who's in the prod-readers role?' instead of scanning thousands of user-level policies. Onboarding/offboarding becomes role membership changes, not 500 permission grants." },
+      { "front": "What's the difference between a built-in role and a custom role?",
+        "back": "Built-in: cloud-provided, covers common patterns (Owner, Contributor, Reader, Storage Admin). Can't be modified. Custom: you define the exact actions allowed — pick when built-ins are too broad or too narrow. Cost of custom roles: maintenance — every new service adds actions you may need to add." },
+      { "front": "Scope — why is it as important as the role?",
+        "back": "Same role at different scopes = wildly different power. 'Contributor' at the subscription scope = god mode on the whole subscription. 'Contributor' on one resource group = limited to that group's resources. Always scope at the smallest unit that's practical — never grant subscription-level if resource-group-level works." },
+      { "front": "RBAC vs ABAC — when do you need attributes?",
+        "back": "RBAC: permissions tied to fixed roles. Works great until you need rules like 'engineers can read their own team's resources but not others'. ABAC (attribute-based) evaluates request attributes (user.team, resource.team) at runtime. Most clouds support both — start with RBAC, add ABAC tags when the role explosion becomes painful." }
+    ]
+  },
+  "wireless": {
+    "title": "Wireless networking",
+    "intro": "Wi-Fi exam questions cluster around standards (which band, which speed), authentication modes (Open / WPA2-PSK / WPA3-Enterprise), and troubleshooting (interference, channel overlap, weak signal vs slow client). Knowing the practical defaults beats memorizing every spec.",
+    "flashcards": [
+      { "front": "2.4 GHz vs 5 GHz vs 6 GHz — pick the right band.",
+        "back": "2.4 GHz: longer range, slower, more congestion (every microwave, baby monitor, BT device). 5 GHz: faster, shorter range, more channels (less crowded). 6 GHz (Wi-Fi 6E): newest, very fast, very clean, but client support is recent. Modern APs broadcast all three; clients auto-pick. For dense environments, prefer 5 GHz with 20 MHz channels." },
+      { "front": "WPA2-PSK vs WPA2-Enterprise — when do you use each?",
+        "back": "PSK: one shared password for the whole SSID — easy, fine for home/small office. Cannot revoke a single user without rotating the PSK for everyone. Enterprise (802.1X/EAP): each user authenticates with their own credentials against a RADIUS server backed by AD/LDAP — required for compliance, audit, individual revocation. Always Enterprise at work." },
+      { "front": "What is channel overlap and how do you avoid it?",
+        "back": "Adjacent 2.4 GHz channels overlap; only 1, 6, 11 are non-overlapping in North America. If three APs use 1, 6, 7 instead of 1, 6, 11, channel 7 collides with both 6 and 11 — throughput drops everywhere. Site-survey, pick non-overlapping channels, enable Auto-RF features (DCA, TPC) on modern controllers." },
+      { "front": "Slow Wi-Fi — what's the troubleshooting order?",
+        "back": "(1) Confirm it's wireless: try wired. (2) Check signal strength (RSSI > -67 dBm is fine, < -75 is bad). (3) Check channel utilization (a busy channel = airtime starvation). (4) Check client capability (an old 2.4-GHz-only laptop won't reach Wi-Fi 6 speeds). (5) Check the AP-uplink (gigabit AP connected to a 100 Mbps switch port is a classic bottleneck)." }
+    ]
+  },
+  "acl": {
+    "title": "Access control lists",
+    "intro": "An ACL is an ordered list of permit/deny rules evaluated top-down until first match. Used everywhere: router interfaces, switch ports, NTFS files, cloud network ACLs. Order matters — a permit at line 5 won't fire if a deny at line 3 matches the same traffic.",
+    "flashcards": [
+      { "front": "Standard vs extended ACL — what's the difference?",
+        "back": "Standard ACL (Cisco IOS 1-99): matches source IP only. Extended (100-199 or named): matches source IP + destination + protocol + port. Use extended for anything realistic — standard ACLs can't say 'block SSH from this subnet to that host'. Apply extended close to the source, standard close to the destination." },
+      { "front": "What is the implicit deny?",
+        "back": "Every ACL has an invisible `deny ip any any` at the end. If nothing matches your permit rules, traffic is dropped. Common gotcha: configure 'permit ssh from 10.0.0.0/24', forget that this blocks DNS, NTP, ICMP — anything you didn't explicitly permit. Always log the implicit deny while testing to see what you accidentally blocked." },
+      { "front": "Inbound vs outbound — which direction to apply?",
+        "back": "Inbound: filter traffic ENTERING the interface BEFORE the router routes it. Outbound: filter traffic LEAVING after the router decided where it's going. Inbound is more efficient (drops bad traffic before routing); outbound is rarely needed except for specific egress filtering. When in doubt, apply inbound on the closest interface to the source." },
+      { "front": "Why does order matter in an ACL?",
+        "back": "Rules are evaluated top to bottom; first match wins. If you put 'deny 10.0.0.0/24' before 'permit 10.0.0.5', host .5 is denied — its specific permit never gets reached. Order most-specific rules first, broad rules last. Always end with explicit denies that log, so you can see what's getting blocked." }
+    ]
+  },
+  "nat": {
+    "title": "Network Address Translation",
+    "intro": "NAT translates private IPs (10.0.0.0/8, 192.168.0.0/16) to public IPs at the network edge — the trick that lets billions of devices share the 4 billion IPv4 address space. Knowing the three NAT flavors is a CCNA / Network+ staple.",
+    "flashcards": [
+      { "front": "Static NAT vs Dynamic NAT vs PAT — pick the right one.",
+        "back": "Static NAT: 1:1 fixed mapping (one private IP ↔ one public IP). Use for inbound services (web server gets a dedicated public). Dynamic NAT: pool of public IPs assigned on-demand, no port translation. PAT (Port Address Translation, a.k.a. NAT Overload): many private IPs share one public IP, distinguished by source port. PAT is what 'NAT' usually means in home routers." },
+      { "front": "How does PAT distinguish two clients hitting the same server?",
+        "back": "By the source port. Client A from 10.0.0.5:50000 → translated to 1.2.3.4:32145. Client B from 10.0.0.6:50000 → translated to 1.2.3.4:32146. The router keeps a translation table mapping (private IP, port) ↔ (public IP, port). When reply comes back, look up the port, send to the right private host." },
+      { "front": "Why does NAT break some protocols (FTP, SIP)?",
+        "back": "Protocols that embed IP addresses or port numbers INSIDE the payload (FTP PORT command, SIP INVITE) break when NAT rewrites only the IP header. The payload still contains the private IP, the remote end gets confused. Mitigation: an Application Layer Gateway (ALG) on the router rewrites the embedded addresses too. Many ALGs are buggy — vendors recommend disabling SIP ALG for VoIP." },
+      { "front": "What's the difference between source NAT and destination NAT?",
+        "back": "Source NAT (SNAT): rewrites the source address of outbound traffic — what PAT/dynamic NAT do for internet access. Destination NAT (DNAT): rewrites the destination address of inbound traffic — used to publish internal servers, also called 'port forwarding' on home routers. Most NAT devices do both, in different directions." }
+    ]
+  },
+  "mpls": {
+    "title": "MPLS",
+    "intro": "MPLS (Multiprotocol Label Switching) is a carrier-grade WAN technology that adds short labels to packets so core routers can forward by label instead of inspecting full IP headers. The Layer-2.5 design lets one network carry L2 (Ethernet) and L3 (IP) services with traffic engineering.",
+    "flashcards": [
+      { "front": "What problem does MPLS solve over plain IP routing?",
+        "back": "Speed and engineering. Pre-MPLS, every router did full IP lookup per packet — slow on huge tables. MPLS labels are short fixed-size headers, looked up in tiny tables in hardware. And labels can be assigned by policy (this customer's traffic takes that path), enabling true traffic engineering — not just shortest-path." },
+      { "front": "PE vs P vs CE router — define each.",
+        "back": "CE (Customer Edge): the customer's router, runs normal IP, peers with the provider. PE (Provider Edge): provider router at the customer-facing edge — runs MPLS toward the core, peers with the customer over BGP/static/OSPF. P (Provider): pure MPLS core router, switches by label, doesn't even know about customer routes." },
+      { "front": "What is an L3 VPN vs an L2 VPN?",
+        "back": "L3 VPN (MPLS BGP/VPN): provider participates in L3 routing — customer sites exchange IP routes via the provider, each customer gets isolated routing tables (VRF). L2 VPN (VPLS, EVPN): provider transparently tunnels L2 frames — customer's network looks like one Ethernet segment across sites. L3 is more common; L2 used when an app needs to be in the same broadcast domain across cities." },
+      { "front": "Why is MPLS being replaced by SD-WAN in many deployments?",
+        "back": "MPLS is expensive per Mbps and slow to provision (weeks). SD-WAN runs over plain internet, encrypts traffic, intelligently routes per-application based on real-time metrics. For most enterprises the redundant-internet+SD-WAN combo is 70% cheaper than MPLS. MPLS still wins on guaranteed latency / private SLA — banks, healthcare, real-time trading." }
+    ]
+  },
+  "ha": {
+    "title": "High availability",
+    "intro": "HA means designing so a single failure doesn't take the service down. Build redundancy at every layer the SLA cares about — power, network, compute, storage, region. Measure with availability percentages (the 9s) and recovery objectives (RTO/RPO).",
+    "flashcards": [
+      { "front": "Active-active vs active-passive — when do you use each?",
+        "back": "Active-active: both nodes serve traffic; failure of one cuts capacity in half but service continues — no failover delay. Active-passive: only primary serves traffic; secondary is hot standby, takes over on failure with seconds-to-minutes delay. Active-active is harder (concurrency, conflict resolution) but better RTO. Active-passive is simpler — pick it for stateful systems that can't easily multi-write (most RDBMS)." },
+      { "front": "RTO vs RPO — what's the difference?",
+        "back": "RTO (Recovery Time Objective): how long until the service is back. RPO (Recovery Point Objective): how much data you can afford to lose. An RTO of 4h + RPO of 15 min means 'we can be down 4 hours and lose up to the last 15 minutes of writes'. Drives architecture choices: tight RPO needs synchronous replication; loose RPO allows async backups." },
+      { "front": "The 'nines' — what does 99.9% vs 99.99% mean in real time?",
+        "back": "99% (two 9s): ~3.65 days/yr of downtime. 99.9% (three 9s): ~8.76 hours/yr. 99.99%: ~52 minutes/yr. 99.999% (five 9s): ~5 minutes/yr. Each 9 typically multiplies cost ~10x because you need geographic redundancy, faster failover, and a much smaller deploy blast radius. Don't promise more 9s than the business actually values." },
+      { "front": "Why is testing failover the hardest part of HA?",
+        "back": "An HA setup that's never been tested isn't HA — it's hope. Real-world failure modes are messier than 'kill primary' tests: cert expiry, DNS TTLs, partial-write states, split brain, runbooks out of date. Chaos engineering (Netflix's Chaos Monkey, AWS Fault Injection Simulator) makes failure normal — small failures every week so the big one isn't novel." }
+    ]
+  },
+  "cloudfront": {
+    "title": "Amazon CloudFront",
+    "intro": "CloudFront is AWS's CDN — caches your origin's content at 400+ edge locations worldwide so users get low-latency hits. The exam tests origins, cache behaviors, TTLs, invalidation, signed URLs, and the difference between viewer and origin requests.",
+    "flashcards": [
+      { "front": "What can CloudFront use as an origin?",
+        "back": "S3 bucket (typical for static sites), an ALB / API Gateway / Lambda function URL, an EC2 instance with a public IP, or any HTTP origin including on-prem servers. One distribution can have multiple origins with cache behaviors routing by path (e.g., `/api/*` → ALB, `/*` → S3)." },
+      { "front": "Cache key — what determines whether two requests hit the same cache entry?",
+        "back": "The cache key is composed from the URL path plus any policy-specified headers, cookies, and query strings. By default it's just path. To vary by `Accept-Language` for example, add it to the cache policy. Beware: too many cache-key dimensions explodes cache size and lowers hit rate." },
+      { "front": "How do you invalidate cached content?",
+        "back": "Two options. (1) Cache invalidation API: pay per path invalidated — fine for emergencies, expensive at scale ('/*' is one path, but full bypass for ~15 min). (2) Versioned URLs: rename `style.css` to `style-v3.css` on every deploy — costs nothing, immediate, doesn't disturb the existing cache. Always prefer versioned URLs." },
+      { "front": "What's a signed URL / signed cookie for?",
+        "back": "Time-limited access to private content. Signed URL: hand out a unique URL with a signature parameter that grants access until a specific timestamp. Signed cookie: same idea but the credential is in a cookie covering multiple URLs (good for streaming where the player issues many requests). Use IAM-based access (OAC) when content is non-public AND served only via CloudFront." }
+    ]
   }
 }

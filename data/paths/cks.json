@@ -12,27 +12,28 @@
         {
           "id": "c1-concept",
           "type": "concept",
-          "title": "Part 1: Key Ideas",
-          "content": "Quick primer on Part 1. Tap to flip cards covering the most-asked exam ideas in this domain.",
+          "title": "Role-based access control: Key Ideas",
+          "content": "RBAC assigns permissions to roles, then users to roles — a layer of indirection that scales. Azure's RBAC, AWS's IAM, Kubernetes RBAC, and GCP's IAM all share the same mental model. Mastering one transfers directly to the others.",
           "flashcards": [
             {
-              "front": "A namespace `prod` contains a web app that should only accept traffic from Pods within the same namespace. Which NetworkPolicy spec correctly restricts ingress to only Pods inside `prod`?",
-              "back": "To restrict ingress to only Pods within the same namespace, the NetworkPolicy ingress rule must use `namespaceSelector` matching the namespace's own label (`kubernetes.io/metadata.name: prod`). `podSelector: {}` in the ingress block means all pods from that namespace. `ipBlock` operates at the IP level, not namespace level. Egress rules don't restrict incoming traffic."
+              "front": "Why use roles instead of granting permissions to users directly?",
+              "back": "Roles separate WHO from WHAT. Add a person to a role, they inherit the permissions. Remove them, they lose access instantly. Auditing: 'who can read prod?' becomes 'who's in the prod-readers role?' instead of scanning thousands of user-level policies. Onboarding/offboarding becomes role membership changes, not 500 permission grants."
             },
             {
-              "front": "You run kube-bench against your cluster and it reports: `1.2.6 Ensure that the --authorization-mode argument is not set to AlwaysAllow.` What is the correct remediation?",
-              "back": "The CIS benchmark requires that `AlwaysAllow` is not used as it bypasses all authorization. The correct production mode is `Node,RBAC`: Node authorization handles kubelet requests, RBAC handles all other API requests. ABAC is an older file-based authorization system. `--anonymous-auth` controls authentication, not authorization. Admission plugins are separate from authorization modes."
+              "front": "What's the difference between a built-in role and a custom role?",
+              "back": "Built-in: cloud-provided, covers common patterns (Owner, Contributor, Reader, Storage Admin). Can't be modified. Custom: you define the exact actions allowed — pick when built-ins are too broad or too narrow. Cost of custom roles: maintenance — every new service adds actions you may need to add."
             },
             {
-              "front": "Pods in your cluster should not be able to access the cloud provider's instance metadata endpoint (169.254.169.254). Which Kubernetes-native control enforces this?",
-              "back": "A NetworkPolicy egress rule blocking traffic to 169.254.169.254/32 is the correct Kubernetes-native control to prevent pods from reaching the cloud metadata endpoint. `hostNetwork: false` prevents pods from using the host's network namespace but does not block specific IP addresses. Pod Security Standards restrict security context settings, not network destinations. The `--cloud-provider` flag changes resource management, not pod network access."
+              "front": "Scope — why is it as important as the role?",
+              "back": "Same role at different scopes = wildly different power. 'Contributor' at the subscription scope = god mode on the whole subscription. 'Contributor' on one resource group = limited to that group's resources. Always scope at the smallest unit that's practical — never grant subscription-level if resource-group-level works."
             },
             {
-              "front": "Which kubeadm configuration ensures the API server certificate includes `k8s.example.com` as a Subject Alternative Name (SAN)?",
-              "back": "To include custom SANs in the API server certificate during cluster initialization, use the `certSANs` list in the kubeadm `InitConfiguration` under `apiServer`. kubeadm generates the certificate with those SANs included. Manually setting TLS flags after the fact does not add SANs to the existing certificate. TLS Secrets are for Ingress, not the API server itself. `requestheader-extra-headers-prefix` is for aggregation layer auth."
+              "front": "RBAC vs ABAC — when do you need attributes?",
+              "back": "RBAC: permissions tied to fixed roles. Works great until you need rules like 'engineers can read their own team's resources but not others'. ABAC (attribute-based) evaluates request attributes (user.team, resource.team) at runtime. Most clouds support both — start with RBAC, add ABAC tags when the role explosion becomes painful."
             }
           ],
-          "source": "auto-derived"
+          "source": "concept-library",
+          "sourceTag": "rbac"
         },
         {
           "id": "c1-quiz1",
@@ -240,27 +241,28 @@
         {
           "id": "c3-concept",
           "type": "concept",
-          "title": "Part 3: Key Ideas",
-          "content": "Quick primer on Part 3. Tap to flip cards covering the most-asked exam ideas in this domain.",
+          "title": "Incident response: Key Ideas",
+          "content": "IR follows a documented lifecycle so a panicked 3am pager doesn't turn into 'what do we do now?'. The classic NIST flow is preparation, detection, containment, eradication, recovery, lessons learned. Exam questions test which phase owns which action.",
           "flashcards": [
             {
-              "front": "An attacker obtained a Kubernetes Secret. The external token has been rotated but the old Secret object still exists. What is the complete remediation?",
-              "back": "The correct remediation is: delete the old Secret, recreate it with the new value. For Pods using it as an environment variable, a rolling restart is required since env vars are baked in at Pod start. For volume-mounted Secrets, Kubernetes automatically refreshes them within the kubelet's sync period (default ~1 minute). `kubectl patch` with null data would corrupt the Secret. Setting `immutable: true` prevents future updates. `metadata.resourceVersion` is managed by Kubernetes and cannot be set manually. rollout-restart Deployments using it as env var (volume-mounted Secrets auto-refresh within the kubelet sync period)"
+              "front": "NIST IR lifecycle — name the phases.",
+              "back": "(1) Preparation: playbooks, contact lists, hardened images. (2) Detection & Analysis: SIEM alerts, IDS, user reports. (3) Containment: short-term (isolate host) + long-term (block C2 domains). (4) Eradication: remove malware, close vuln. (5) Recovery: restore from clean backup, monitor for re-infection. (6) Lessons learned: post-mortem within 2 weeks, action items tracked."
             },
             {
-              "front": "Kubernetes Secrets are base64-encoded in etcd by default. How do you enable encryption at rest for Secrets?",
-              "back": "Encryption at rest requires an `EncryptionConfiguration` YAML file that specifies the encryption provider (e.g., `aescbc`, `secretbox`, or `aesgcm`) and the key, then pass `--encryption-provider-config=<path>` to the kube-apiserver. This only encrypts newly written Secrets — existing ones must be re-written: `kubectl get secrets -A -o json | kubectl replace -f -`. The `--encryption-provider-config` flag is for the kube-apiserver, not kubelet. There is no `SecretEncryption` feature gate or `--encrypt` flag. pass it to kube-apiserver with `--encryption-provider-config`"
+              "front": "Containment — short-term vs long-term?",
+              "back": "Short-term: stop the bleed fast — pull the network cable, kill the user session, block the IP. May be reversible. Long-term: durable fix — patch the vuln, rotate creds, deploy IPS rule, sometimes rebuild from scratch. Don't skip short-term: every minute of attacker dwell time multiplies damage."
             },
             {
-              "front": "Your organization uses HashiCorp Vault. Which approach integrates Vault with Kubernetes Pods without storing the actual secret value in a Kubernetes Secret object?",
-              "back": "The Vault Agent Injector uses a mutating admission webhook to inject a Vault Agent sidecar into Pods. The sidecar authenticates to Vault using the Pod's service account (via Kubernetes auth) and writes secrets to a shared in-memory volume. No Kubernetes Secret object is created. The Vault CSI driver (option B) also avoids creating Kubernetes Secrets and is another valid approach. Mounting a Vault token as a Kubernetes Secret still puts a sensitive value in Kubernetes. ConfigMaps don't support encryption annotations."
+              "front": "Chain of custody — why does it matter?",
+              "back": "If the incident leads to prosecution, evidence must be admissible — every transfer, image, and access logged from acquisition to court. Drives required to be hashed (SHA-256) immediately, copies (not originals) used for analysis, originals stored in a tamper-evident bag with signatures. Skip this and the lawyer dismisses your case."
             },
             {
-              "front": "A developer asks why Kubernetes Secrets are not truly secure by default. What is the most accurate explanation?",
-              "back": "By default, Kubernetes stores Secrets in etcd as base64-encoded values — base64 is an encoding scheme, not encryption. Anyone with direct etcd access can `base64 -d` to retrieve the value. This is why encryption at rest (EncryptionConfiguration) and external secrets managers are recommended for production. The API server communicates with etcd over TLS (not HTTP). RBAC is enforced for Secrets. The concern is etcd at-rest storage, not AES key placement."
+              "front": "What's a post-mortem (lessons learned) supposed to produce?",
+              "back": "Blameless write-up within 2 weeks: timeline, what worked, what didn't, action items with owners + due dates. The goal is process improvement, not punishment — if engineers fear blame they hide details and the next incident is worse. Track action items in your normal sprint board, not in a doc nobody reopens."
             }
           ],
-          "source": "auto-derived"
+          "source": "concept-library",
+          "sourceTag": "incident-response"
         },
         {
           "id": "c3-quiz1",
@@ -354,27 +356,28 @@
         {
           "id": "c4-concept",
           "type": "concept",
-          "title": "Part 4: Key Ideas",
-          "content": "Quick primer on Part 4. Tap to flip cards covering the most-asked exam ideas in this domain.",
+          "title": "Observability and monitoring: Key Ideas",
+          "content": "Observability is metrics + logs + traces — the three pillars. You need all three to debug a production incident: metrics tell you something is wrong, logs tell you what happened, traces tell you where in the call graph the problem lives.",
           "flashcards": [
             {
-              "front": "You want a Falco rule to alert when a process inside any container reads `/etc/shadow`. Which rule condition is correct?",
-              "back": "`open_read` is a Falco macro matching file-open events for reading. `container` is the Falco macro that restricts events to container context. `fd.name` is the file descriptor name (full path). This combination correctly fires when any container reads `/etc/shadow`. Option B uses non-existent Falco fields (`syscall.type`, `file.path`, `kubernetes.namespace`). Option C uses `path.file` (invalid; should be `fd.name`). Option D uses `read_file` and `filename` which are not standard Falco macros or fields."
+              "front": "Metrics vs logs vs traces — what does each tell you?",
+              "back": "Metrics: numeric time-series, cheap to store, perfect for dashboards and alerts ('p99 latency = 800 ms'). Logs: discrete events with context, expensive at scale, perfect for forensics. Traces: causally-linked spans showing a request's full path through services."
             },
             {
-              "front": "Your audit policy generates too many low-value events. How do you suppress `get`, `list`, and `watch` requests for ConfigMaps?",
-              "back": "Kubernetes audit policies are evaluated top-to-bottom, first match wins. To suppress ConfigMap read events, the `level: None` rule MUST be placed BEFORE any broader rules (e.g., `level: Metadata` for all resources), or the broader rule will match first and the None rule will never fire. If placed at the end, it has no effect. `omitStages: [RequestReceived]` only omits that one stage; the response stage is still logged. Audit backends don't have per-resource ignore settings. resources: [{group: \"\", resources: [\"configmaps\"]}]` BEFORE any broader-scope rules"
+              "front": "What's the difference between an alert and a notification?",
+              "back": "An alert is a condition that fires when a metric crosses a threshold (CPU > 80% for 5 min). The notification is the resulting message (email, Slack, PagerDuty page). One alert can fan out to many notifications. Tuning alerts is harder than wiring notifications."
             },
             {
-              "front": "You want to enforce immutable container infrastructure. Which combination best achieves this?",
-              "back": "`readOnlyRootFilesystem: true` makes the container root filesystem read-only at the OS level — any write attempt returns an error. Applications requiring writable directories (temp files, logs, cache) should mount `emptyDir` volumes for those specific paths. `imagePullPolicy: Always` ensures fresh images on each restart but doesn't prevent filesystem changes at runtime. `lifecycle` hooks run inside the container and can't reliably lock the filesystem. `terminationGracePeriodSeconds: 0` is about pod termination speed, not immutability."
+              "front": "What is an SLI / SLO / SLA?",
+              "back": "SLI (indicator): the metric you actually measure ('% of requests under 200 ms'). SLO (objective): the internal target ('99.9% of requests under 200 ms over 28 days'). SLA (agreement): the contractual promise to customers, usually weaker than the SLO so you have buffer."
             },
             {
-              "front": "You want Falco to forward alerts to Slack in real time. Which configuration achieves this?",
-              "back": "`falcosidekick` is the standard solution for routing Falco alerts to external services (Slack, PagerDuty, Teams, Elasticsearch, etc.). It receives Falco events via HTTP or gRPC and forwards them. There is no built-in Slack output in Falco itself. `json_output: true` writes JSON to stdout/file but doesn't push to Slack. There is no `--output slack_webhook_url` CLI flag. Slack URLs are not configured inside rule definitions."
+              "front": "Why structured logs?",
+              "back": "Plain-text logs are unparseable at scale. Structured logs (JSON, with timestamp + level + service + request_id + key fields) are indexable, queryable, and join-able across services. Most platforms auto-extract fields from JSON without configuration."
             }
           ],
-          "source": "auto-derived"
+          "source": "concept-library",
+          "sourceTag": "monitoring"
         },
         {
           "id": "c4-quiz1",
@@ -466,7 +469,7 @@
     "timeMinutes": 27
   },
   "meta": {
-    "generatedAt": "2026-05-12T12:13:13.629Z",
+    "generatedAt": "2026-05-12T12:35:58.081Z",
     "totalNodes": 21,
     "totalQuestions": 61,
     "nodeTypes": [

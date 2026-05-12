@@ -12,27 +12,28 @@
         {
           "id": "c1-concept",
           "type": "concept",
-          "title": "Part 1: Key Ideas",
-          "content": "Quick primer on Part 1. Tap to flip cards covering the most-asked exam ideas in this domain.",
+          "title": "AWS CloudTrail: Key Ideas",
+          "content": "CloudTrail logs every AWS API call in your account — who did what, when, from which IP. It's the audit log and the incident-response timeline. The exam tests trail types, multi-region, integration with CloudWatch / S3, and the difference between management vs data events.",
           "flashcards": [
             {
-              "front": "GuardDuty generates a finding 'Recon:EC2/PortProbeUnprotectedPort' for multiple EC2 instances. The security team wants to automatically isolate affected instances by removing them from their security group and placing them in a quarantine security group. What is the MOST automated implementation?",
-              "back": "GuardDuty does not natively isolate instances. The standard automated remediation pattern uses EventBridge to match specific GuardDuty finding types and trigger Lambda functions. The Lambda uses EC2 API to modify instance security group associations. EventBridge rule patterns can filter by finding type, severity, and affected resource to target responses precisely. trigger a Lambda function that removes the instance from its security group and attaches the quarantine security group"
+              "front": "Management events vs data events — what's logged?",
+              "back": "Management events: control-plane API calls (CreateBucket, RunInstances, AttachRolePolicy) — on by default, free for the first trail. Data events: data-plane operations (S3 GetObject, Lambda Invoke) — opt-in per resource, billable. Most security audits need management events only; data events are for forensics on specific buckets / functions."
             },
             {
-              "front": "A security engineer needs to investigate a potential security incident involving unauthorized S3 API calls. The engineer needs to determine which IAM entity made specific calls, from which IP addresses, and at what times — going back 90 days. Which service provides this data most efficiently?",
-              "back": "Amazon Detective automatically ingests and correlates data from CloudTrail, VPC Flow Logs, and GuardDuty findings to create behavior graphs. It allows investigators to visualize API activity timelines, geolocation of IP addresses, IAM entity behavior profiles, and relationships between resources — all without requiring manual CloudTrail queries. It's specifically designed for security investigation workflows. VPC Flow Logs, and GuardDuty findings to build entity behavior profiles and visualize activity timelines"
+              "front": "Why enable a multi-region trail?",
+              "back": "A trail enabled in `us-east-1` only logs API calls in that region. An attacker in `eu-west-1` would be invisible. Multi-region trails (the modern default) log every region into one S3 bucket — single pane of glass, no blind spots. AWS recommends this; toggle it on at trail creation."
             },
             {
-              "front": "A company is experiencing a suspected DDoS attack targeting its web application on EC2 behind an ALB. The attack is a volumetric UDP flood at layer 3. AWS Shield Standard is already enabled. What additional measure provides DDoS-specific financial protection and 24/7 access to the AWS DDoS Response Team (DRT)?",
-              "back": "AWS Shield Advanced provides: 24/7 access to the AWS DDoS Response Team (DRT) for active attack assistance, DDoS cost protection (credits for scaling costs during attacks), advanced metrics and reporting per protected resource, and automatic application layer attack detection with WAF rule auto-creation. Shield Standard only provides automatic protection against common layer 3/4 attacks without these additional features. which provides DDoS cost protection credits, proactive engagement from the DRT, and enhanced detection for specific resources"
+              "front": "How do you make CloudTrail logs tamper-evident?",
+              "back": "Enable log file integrity validation: CloudTrail emits a digest file every hour, signed with a hash chain. If a log file is later modified or deleted, validation fails and you know exactly which window was tampered with. Cheap (a few KB per hour) and required by most audit frameworks."
             },
             {
-              "front": "A security team receives a GuardDuty finding 'UnauthorizedAccess:IAMUser/ConsoleLoginSuccess.B' indicating a console login from an unusual location. The security engineer needs to determine what actions the user took after logging in. Which sequence of tools investigates this most effectively?",
-              "back": "The recommended investigation flow: (1) Use the GuardDuty finding to identify the IAM principal and source IP, (2) Query CloudTrail for all API calls by that principal after the suspicious login time, (3) Use Amazon Detective to visualize the entity's behavior graph — it correlates CloudTrail events, shows IP geolocation, resource access patterns, and peer comparison against historical baseline. Detective significantly accelerates investigation compared to manual CloudTrail queries. then use Amazon Detective to visualize the full activity timeline and correlated resources"
+              "front": "Where do CloudTrail logs land, and who can read them?",
+              "back": "An S3 bucket you specify. Best practice: a dedicated log-archive account in your AWS Organization, bucket policy that DENIES delete to everyone except a specific SecOps role, S3 Object Lock for legal-hold immutability. Push events to CloudWatch Logs in parallel for alerting on suspicious API patterns."
             }
           ],
-          "source": "auto-derived"
+          "source": "concept-library",
+          "sourceTag": "cloudtrail"
         },
         {
           "id": "c1-quiz1",
@@ -126,27 +127,28 @@
         {
           "id": "c2-concept",
           "type": "concept",
-          "title": "Part 2: Key Ideas",
-          "content": "Quick primer on Part 2. Tap to flip cards covering the most-asked exam ideas in this domain.",
+          "title": "Incident response: Key Ideas",
+          "content": "IR follows a documented lifecycle so a panicked 3am pager doesn't turn into 'what do we do now?'. The classic NIST flow is preparation, detection, containment, eradication, recovery, lessons learned. Exam questions test which phase owns which action.",
           "flashcards": [
             {
-              "front": "A company's S3 bucket stores confidential financial records. The security team requires that objects can NEVER be deleted or overwritten for 7 years, even by the bucket owner or AWS root account. Which S3 feature enforces this?",
-              "back": "S3 Object Lock Compliance mode provides WORM (Write Once, Read Many) protection that cannot be overridden by ANY user including the AWS root account or AWS itself. Objects are immutable until the retention period expires. Compliance mode is specifically designed for regulatory requirements (SEC 17a-4, FINRA, HIPAA) where records must not be altered. Governance mode allows users with s3:BypassGovernanceRetention permission to override the lock. no user, including root, can delete or overwrite objects before the retention period expires"
+              "front": "NIST IR lifecycle — name the phases.",
+              "back": "(1) Preparation: playbooks, contact lists, hardened images. (2) Detection & Analysis: SIEM alerts, IDS, user reports. (3) Containment: short-term (isolate host) + long-term (block C2 domains). (4) Eradication: remove malware, close vuln. (5) Recovery: restore from clean backup, monitor for re-infection. (6) Lessons learned: post-mortem within 2 weeks, action items tracked."
             },
             {
-              "front": "A security engineer needs to ensure all data stored in an S3 bucket is encrypted with a specific CMK, and any PutObject request without SSE-KMS using that key is rejected. How should the bucket policy be written?",
-              "back": "A bucket policy with a Deny condition checks the PutObject request headers. The condition 'StringNotEquals: s3:x-amz-server-side-encryption: aws:kms' denies uploads not using SSE-KMS. Adding 'StringNotEquals: s3:x-amz-server-side-encryption-aws-kms-key-id: <key-ARN>' further enforces that only the specific CMK is used. Default encryption applies KMS if no header is provided but doesn't reject non-compliant requests — the bucket policy Deny is needed for strict enforcement."
+              "front": "Containment — short-term vs long-term?",
+              "back": "Short-term: stop the bleed fast — pull the network cable, kill the user session, block the IP. May be reversible. Long-term: durable fix — patch the vuln, rotate creds, deploy IPS rule, sometimes rebuild from scratch. Don't skip short-term: every minute of attacker dwell time multiplies damage."
             },
             {
-              "front": "A company needs to manage TLS certificates for 200 internal microservices using custom domain names within their VPC. Certificates should auto-renew and be provisioned by application developers without requiring IAM privilege escalation. Which service provides this?",
-              "back": "ACM Private CA (formerly ACM PCA) allows organizations to create a private CA hierarchy and issue private TLS certificates for internal services. Certificates are managed through ACM with automated renewal. Developers can request certificates via ACM API/console without needing access to the CA private key. ACM public certificates require public DNS domain validation and cannot be used for internal-only domains. IAM certificate store doesn't provide issuance or renewal. issue certificates via ACM for internal services with automated renewal"
+              "front": "Chain of custody — why does it matter?",
+              "back": "If the incident leads to prosecution, evidence must be admissible — every transfer, image, and access logged from acquisition to court. Drives required to be hashed (SHA-256) immediately, copies (not originals) used for analysis, originals stored in a tamper-evident bag with signatures. Skip this and the lawyer dismisses your case."
             },
             {
-              "front": "A KMS customer-managed key (CMK) is used to encrypt S3 data. A security engineer needs to allow Application Team A to encrypt data but prevent them from ever decrypting it. Which IAM/KMS permission combination achieves this?",
-              "back": "To allow encryption but prevent decryption, grant kms:Encrypt and kms:GenerateDataKey (needed for envelope encryption in S3/SDK) in the KMS key policy, and explicitly Deny kms:Decrypt and kms:GenerateDataKeyWithoutPlaintext. An explicit Deny in the key policy cannot be overridden by identity-based policies. This creates a 'write-only encryption' scenario useful for logging pipelines where the writer should never read back encrypted data."
+              "front": "What's a post-mortem (lessons learned) supposed to produce?",
+              "back": "Blameless write-up within 2 weeks: timeline, what worked, what didn't, action items with owners + due dates. The goal is process improvement, not punishment — if engineers fear blame they hide details and the next incident is worse. Track action items in your normal sprint board, not in a doc nobody reopens."
             }
           ],
-          "source": "auto-derived"
+          "source": "concept-library",
+          "sourceTag": "incident-response"
         },
         {
           "id": "c2-quiz1",
@@ -240,27 +242,28 @@
         {
           "id": "c3-concept",
           "type": "concept",
-          "title": "Part 3: Key Ideas",
-          "content": "Quick primer on Part 3. Tap to flip cards covering the most-asked exam ideas in this domain.",
+          "title": "AWS Lambda: Key Ideas",
+          "content": "Lambda runs your code in response to events (API call, S3 upload, EventBridge schedule, SQS message). No servers to manage. You pay for invocations and execution time. The exam tests limits, cold starts, triggers, and the IAM execution role.",
           "flashcards": [
             {
-              "front": "Amazon Macie is enabled on an S3 bucket containing employee records. Macie generates a finding that a file contains Social Security Numbers (SSNs). The security team wants to be automatically notified and have the object's ACL set to private if it was accidentally made public. Which integration achieves this?",
-              "back": "Macie generates EventBridge events for all sensitive data findings. An EventBridge rule filtering for SensitiveData:S3Object/Personal findings triggers a Lambda that calls s3:GetObjectAcl to check if the object is public, then calls s3:PutObjectAcl to set it private. An SNS notification is sent to the security team. Macie itself only detects, it does not remediate. While S3 Block Public Access is a preventive control, the question asks for automated response to Macie findings. trigger Lambda to check the object ACL and set it to private if public, then send SNS notification"
+              "front": "Lambda execution limits — memory, time, payload?",
+              "back": "Memory: 128 MB - 10 GB (CPU scales with memory). Timeout: max 15 minutes. Sync invocation payload: 6 MB. Async invocation payload: 256 KB. Deployment package (zipped): 50 MB direct upload, 250 MB via S3, 10 GB via container image."
             },
             {
-              "front": "A company's developer accidentally committed AWS access keys to a public GitHub repository 2 hours ago. What are the FIRST two immediate actions the security engineer should take?",
-              "back": "When credentials are exposed: immediate deactivation stops ongoing unauthorized use within seconds. Deletion removes the key permanently. CloudTrail allows searching for all API calls made with the specific access key ID (using the accessKeyId filter in CloudTrail Event History) to determine if unauthorized access occurred. GitHub token scanning may have already notified AWS about the exposed key — AWS sometimes auto-deactivates keys it detects on public repos, but don't rely on this. then review CloudTrail for unauthorized activity during the 2-hour exposure window using the compromised access key ID"
+              "front": "Cold start — what is it and how do you minimize it?",
+              "back": "First invocation of an idle function takes 100 ms - 2 s extra to load the runtime and your code. Mitigations: provisioned concurrency (pre-warmed instances), smaller deployment packages, native-compiled runtimes (Go, Rust), keeping connections out of the handler so they're reused across invocations."
             },
             {
-              "front": "A company must ensure that all EBS volumes attached to EC2 instances are encrypted. New volumes should be encrypted by default and existing unencrypted volumes must be identified. Which combination of controls achieves both requirements?",
-              "back": "AWS enables 'EBS encryption by default' per region per account — once enabled, any new EBS volume, snapshot, or copy is automatically encrypted with the default KMS key (or a specified CMK). The AWS Config managed rule 'encrypted-volumes' evaluates ALL attached EBS volumes and reports any that are not encrypted, identifying existing non-compliant volumes. Together these controls enforce current and prospective encryption compliance."
+              "front": "Sync vs async vs poll-based invocation.",
+              "back": "Sync (API Gateway, ALB): caller waits for result. Async (S3, SNS, EventBridge): Lambda queues and retries on failure. Poll-based (SQS, Kinesis, DynamoDB Streams): Lambda pulls records, processes in batches, manages retries via the source. Each has different retry semantics — read the docs."
             },
             {
-              "front": "A company uses CloudHSM for storing cryptographic keys. What is the PRIMARY difference between CloudHSM and AWS KMS when selecting between them?",
-              "back": "KMS is AWS-managed (multi-tenant, FIPS 140-2 Level 2), integrates natively with 100+ AWS services, and AWS has administrative access to key metadata (though not key material for CMKs). CloudHSM is single-tenant dedicated HSM hardware (FIPS 140-2 Level 3 validated) in your VPC — AWS has NO access to your keys or HSMs; only your users can access them. CloudHSM is required when: regulatory requirements mandate exclusive key control, Level 3 FIPS validation is required, or custom cryptographic operations are needed. EBS, RDS) while CloudHSM is single-tenant hardware you manage, providing FIPS 140-2 Level 3 validation and exclusive key ownership with no AWS access to your keys"
+              "front": "How does Lambda get permissions to call other AWS services?",
+              "back": "Each function has an IAM execution role. The role's policies say what the function CAN do (read S3, write DynamoDB, decrypt KMS). Lambda assumes the role on every invocation and exposes temporary credentials to your code via the SDK."
             }
           ],
-          "source": "auto-derived"
+          "source": "concept-library",
+          "sourceTag": "lambda"
         },
         {
           "id": "c3-quiz1",
@@ -354,27 +357,28 @@
         {
           "id": "c4-concept",
           "type": "concept",
-          "title": "Part 4: Key Ideas",
-          "content": "Quick primer on Part 4. Tap to flip cards covering the most-asked exam ideas in this domain.",
+          "title": "Amazon S3: Key Ideas",
+          "content": "S3 is AWS's object store — flat namespace of buckets containing objects, accessed via HTTP. It backs almost every AWS architecture: data lakes, static sites, backups, lambda triggers, CloudFront origins. The exam tests storage classes, encryption, access control, and event notifications.",
           "flashcards": [
             {
-              "front": "A developer needs read access to an S3 bucket in Account B from an EC2 instance in Account A. The bucket policy in Account B already grants s3:GetObject to Account A's EC2 role ARN. However, the GetObject calls are still failing. What is the MOST likely missing configuration?",
-              "back": "Cross-account S3 access requires BOTH policies to allow: (1) The bucket policy in Account B must grant access to Account A's IAM role, AND (2) The IAM role in Account A must have an identity-based policy allowing s3:GetObject on the specific bucket ARN in Account B. This is different from same-account access where a bucket policy alone can grant access. If either policy denies or doesn't allow, the access fails."
+              "front": "S3 storage classes — pick one for backups, one for hot data, one for archive.",
+              "back": "Hot: S3 Standard (high cost, instant access). Backups / infrequent: S3 Standard-IA (cheaper storage, retrieval fee). Archive: Glacier Deep Archive (cheapest storage, retrieval in hours). Lifecycle policies move objects between classes automatically based on age."
             },
             {
-              "front": "A company uses Amazon Cognito User Pools for their mobile application authentication. They want to ensure that after a user's account is compromised and their password is reset, any existing JWT tokens are immediately invalidated. What is the MOST direct approach?",
-              "back": "Amazon Cognito's AdminUserGlobalSignOut API revokes all valid tokens (ID, access, refresh) for a specific user across all devices and sessions. After calling this API, any request using the user's previous tokens receives an invalid token error. Combined with a forced password reset (AdminSetUserPassword or AdminResetUserPassword), this immediately locks out the compromised account. Token expiry shortening is reactive and doesn't immediately revoke existing tokens. which invalidates all outstanding tokens and refresh tokens for the user across all devices"
+              "front": "S3 bucket policy vs IAM policy vs ACL — which to use?",
+              "back": "IAM policy: 'this user/role can read bucket X'. Bucket policy: 'these principals can access this bucket' — required for cross-account and public access. ACL (legacy): per-object permissions, mostly avoided today. Use bucket policies for most cross-account, IAM for in-account."
             },
             {
-              "front": "A company's security audit finds that IAM users have more permissions than they actually use. The security team wants to right-size IAM permissions to implement least privilege. Which AWS tool identifies unused IAM permissions over the past 90 days?",
-              "back": "IAM Access Advisor (available on every IAM user, role, group, and policy detail page) shows the last time each AWS service was accessed by that entity. For IAM Identity Center permission sets, you can see service last access across accounts. AWS generates 'last accessed' data for service-level and, for some services, action-level granularity. If a service hasn't been accessed in 90 days, the permissions for that service can likely be removed. This data is also available via IAM GetServiceLastAccessedDetails API. which shows the last time each service and action was used by an IAM entity, enabling policy right-sizing"
+              "front": "How do you make an S3 website (static-site hosting)?",
+              "back": "Enable static-website hosting on the bucket, upload index.html, set a bucket policy allowing public-read on objects, point a CloudFront distribution at it for HTTPS + edge caching. Don't expose the bucket directly — CloudFront with an OAC (Origin Access Control) is the canonical pattern."
             },
             {
-              "front": "A company needs to enforce that all S3 buckets created in their accounts use SSE-KMS encryption and have public access blocked. New accounts joining the organization must automatically comply. Which combination achieves this with ZERO manual per-account configuration?",
-              "back": "S3 Block Public Access can now be enabled at the AWS Organizations level, automatically applying to all existing and new accounts. An SCP can deny S3 bucket creation without the SSE-KMS header, preventing creation of unencrypted buckets. Config conformance packs deployed via StackSets with automatic deployment cover new accounts automatically. Together these create a zero-touch enforcement layer for all current and future accounts. enable S3 Block Public Access at the organization level via Amazon S3 account settings in Organizations; configure AWS Config conformance packs via StackSets with automatic deployment"
+              "front": "What's the difference between server-side and client-side encryption?",
+              "back": "SSE: data encrypted by S3 after upload. Variants: SSE-S3 (AWS-managed key, easiest), SSE-KMS (your KMS key, audit trail), SSE-C (you supply the key on each request). Client-side: you encrypt before upload — S3 only sees ciphertext. Pick SSE-KMS for compliance, SSE-S3 for default-on."
             }
           ],
-          "source": "auto-derived"
+          "source": "concept-library",
+          "sourceTag": "s3"
         },
         {
           "id": "c4-quiz1",
@@ -466,7 +470,7 @@
     "timeMinutes": 27
   },
   "meta": {
-    "generatedAt": "2026-05-12T12:13:13.616Z",
+    "generatedAt": "2026-05-12T12:35:58.069Z",
     "totalNodes": 21,
     "totalQuestions": 61,
     "nodeTypes": [
