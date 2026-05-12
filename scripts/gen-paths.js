@@ -22,6 +22,9 @@ const TARGET_CHAPTERS = 6;        // 5-7 is the sweet spot
 const QUIZ_NODE_SIZE = 5;         // questions per quiz node
 const SUBBOSS_NODE_SIZE = 12;     // sub-boss = harder, more questions
 const MIN_QS_PER_CHAPTER = 6;     // need at least this many to form a chapter
+const FINAL_BOSS_MAX = 30;        // hard ceiling — final boss caps at 30 Qs
+const FINAL_BOSS_PCT = 0.30;      // soft target — ~30% of the pack
+const FINAL_BOSS_MIN = 15;        // need at least this many to feel like a boss
 
 function loadPack(file) {
   try {
@@ -221,7 +224,13 @@ function buildPath(packId, pack) {
 
   const builtChapters = chapters.map((c, i) => buildChapter(c, i));
   const allQuestionIds = questions.map(q => q.id);
-  const finalMockSize = Math.min(40, Math.max(20, Math.floor(allQuestionIds.length * 0.5)));
+  // Final boss caps at FINAL_BOSS_MAX so it doesn't trivialize the pack —
+  // the previous 50%/40-question target meant a 20-Q pack got a 20-Q final
+  // boss which leaked the entire bank into the boss fight.
+  const finalMockSize = Math.min(
+    FINAL_BOSS_MAX,
+    Math.max(FINAL_BOSS_MIN, Math.floor(allQuestionIds.length * FINAL_BOSS_PCT))
+  );
 
   /* Pack metadata is nested: { meta: { name, vendor, … }, questions: [] } */
   const meta = pack.meta || {};

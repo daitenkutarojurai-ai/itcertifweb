@@ -191,7 +191,7 @@
       var typeClass = `is-${node.type}`;
 
       var row = el('div', { class: `path-node-row ${sideClass}` });
-      var bubble = el('button', {
+      var nodeAttrs = {
         class: `path-node ${stateClass} ${typeClass}`,
         type: 'button',
         'aria-label': `${meta.label}: ${node.title}` + (completed ? ' (completed)' : locked ? ' (locked)' : ''),
@@ -199,7 +199,15 @@
         on: {
           click: function () { if (!locked) openNodeSheet(path, node); }
         }
-      }, [
+      };
+      // Locked nodes shouldn't be in the Tab order or activatable via Enter/Space.
+      // aria-disabled is preferred over the `disabled` attribute because we still
+      // want the node to receive focus when keyboard-navigating across the map.
+      if (locked) {
+        nodeAttrs['aria-disabled'] = 'true';
+        nodeAttrs.tabindex = '-1';
+      }
+      var bubble = el('button', nodeAttrs, [
         el('span', { class: 'path-node-icon', text: completed ? '✓' : meta.icon }),
         node.isFinal ? el('span', { class: 'path-node-final', text: 'FINAL' }) : null,
         current ? el('span', { class: 'path-node-current-pin', 'aria-hidden': 'true' }, [

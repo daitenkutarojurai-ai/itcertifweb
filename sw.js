@@ -10,7 +10,7 @@
  * Bump CACHE_VERSION to invalidate clients on next visit.
  */
 
-const CACHE_VERSION = 'v48-2026-05-12-yesno-minigame-rework-v34';
+const CACHE_VERSION = 'v49-2026-05-12-round4-a11y-daily-deadtiles-finalboss-v35';
 const RUNTIME_CACHE = `cq-runtime-${CACHE_VERSION}`;
 const PRECACHE      = `cq-precache-${CACHE_VERSION}`;
 
@@ -20,15 +20,15 @@ const PRECACHE_URLS = [
   '/index.html',
   '/path.html',
   '/profile.html',
-  '/src/styles/main.css?v=34',
-  '/src/styles/desktop.css?v=34',
+  '/src/styles/main.css?v=35',
+  '/src/styles/desktop.css?v=35',
   '/certifications/',
-  '/src/styles/path.css?v=34',
-  '/src/styles/profile.css?v=34',
-  '/src/cq-core.js?v=34',
-  '/src/path.js?v=34',
-  '/src/profile.js?v=34',
-  '/src/mascot-loader.js?v=34',
+  '/src/styles/path.css?v=35',
+  '/src/styles/profile.css?v=35',
+  '/src/cq-core.js?v=35',
+  '/src/path.js?v=35',
+  '/src/profile.js?v=35',
+  '/src/mascot-loader.js?v=35',
   '/data/cosmetics.json',
   '/src/assets/icons/favicon-96.png?v=4',
   '/src/assets/icons/favicon-32.png?v=4',

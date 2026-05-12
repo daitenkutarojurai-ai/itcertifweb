@@ -1,4 +1,4 @@
-/* CertQuests core bundle — generated 2026-05-12T09:25:39.858Z
+/* CertQuests core bundle — generated 2026-05-12T11:33:58.797Z
  *
  * This file is concatenated by scripts/build-core.js. Do not edit by hand;
  * edit the source modules in src/*.js and re-run `npm run build-core`.
@@ -931,9 +931,17 @@
   }, 60000);
 
   document.addEventListener('DOMContentLoaded', function () {
-    /* Path page: prepend to .path-page */
+    /* Path INDEX page only: prepend to .path-page. Skip the banner on
+       individual pack pages (/path.html?pack=…) — the banner there
+       clutters the map and offers a destination the user is already on. */
     var pathHost = document.querySelector('.path-page');
-    if (pathHost) { inject(pathHost); return; }
+    if (pathHost) {
+      try {
+        var pp = new URLSearchParams(location.search);
+        if (pp.get('pack')) return;
+      } catch (_) {}
+      inject(pathHost); return;
+    }
     /* Homepage: prepend after the onboarding-zone (or just inside main) */
     var ob = document.getElementById('onboarding-mount');
     if (ob && ob.parentNode) {
