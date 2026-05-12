@@ -10,7 +10,7 @@
  * Bump CACHE_VERSION to invalidate clients on next visit.
  */
 
-const CACHE_VERSION = 'v49-2026-05-12-round4-a11y-daily-deadtiles-finalboss-v35';
+const CACHE_VERSION = 'v50-2026-05-12-round5-race-toast-schema-swr-v36';
 const RUNTIME_CACHE = `cq-runtime-${CACHE_VERSION}`;
 const PRECACHE      = `cq-precache-${CACHE_VERSION}`;
 
@@ -20,15 +20,15 @@ const PRECACHE_URLS = [
   '/index.html',
   '/path.html',
   '/profile.html',
-  '/src/styles/main.css?v=35',
-  '/src/styles/desktop.css?v=35',
+  '/src/styles/main.css?v=36',
+  '/src/styles/desktop.css?v=36',
   '/certifications/',
-  '/src/styles/path.css?v=35',
-  '/src/styles/profile.css?v=35',
-  '/src/cq-core.js?v=35',
-  '/src/path.js?v=35',
-  '/src/profile.js?v=35',
-  '/src/mascot-loader.js?v=35',
+  '/src/styles/path.css?v=36',
+  '/src/styles/profile.css?v=36',
+  '/src/cq-core.js?v=36',
+  '/src/path.js?v=36',
+  '/src/profile.js?v=36',
+  '/src/mascot-loader.js?v=36',
   '/data/cosmetics.json',
   '/src/assets/icons/favicon-96.png?v=4',
   '/src/assets/icons/favicon-32.png?v=4',
@@ -116,14 +116,14 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // Own-origin CSS + JS: network-first so layout/behaviour fixes reach phones
-  // on the next page load (was stale-while-revalidate, which served the
-  // previous deploy's CSS for one visit and broke mobile layout).
-  if (req.destination === 'style' || req.destination === 'script' ||
-      url.pathname.endsWith('.css') || url.pathname.endsWith('.js')) {
-    event.respondWith(networkFirst(req));
-    return;
-  }
+  // Own-origin CSS + JS: stale-while-revalidate. The previous network-first
+  // strategy was added because an older deploy served stale CSS for one
+  // visit and broke mobile layout — but that was before the unified `?v=N`
+  // cache-bust was in place. With versioned URLs, the cache key changes on
+  // every deploy, so SWR can't serve last-deploy's CSS to this-deploy's
+  // HTML. Versioned URL hit → cache or refresh; unversioned URL miss →
+  // fall through to the catch-all SWR below. Net result: instant first
+  // paint, version bumps still propagate immediately.
 
   // Path / cosmetics JSON: cache-first with background refresh so the path
   // map works offline after the first visit. Tiny payloads (~2-8 KB each).

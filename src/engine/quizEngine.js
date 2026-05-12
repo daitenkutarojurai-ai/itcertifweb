@@ -135,3 +135,23 @@ function shuffleArray(arr) {
   }
   return arr;
 }
+
+// ─── Node test bridge ──────────────────────────────────────────────────────────
+// The src/ tree is loaded as ES modules in the browser, but the Node test
+// suite runs as CommonJS (`require('../src/engine/quizEngine.js')`). Expose
+// the pure helpers via `module.exports` so tests can import them without
+// adding "type": "module" to package.json (which would force every other
+// file to become an ESM consumer).
+if (typeof module !== 'undefined' && module.exports) {
+  module.exports = {
+    createQuiz,
+    answerQuestion,
+    timeoutQuestion,
+    nextQuestion,
+    isComplete,
+    getResults,
+    getScore,
+    isAnswerCorrect,
+    isMultiSelect,
+  };
+}

@@ -42,6 +42,23 @@ const esc = (s) => String(s ?? '').replace(/[&<>"']/g, c => ({
   '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
 }[c]));
 
+// Non-modal toast — replaces blocking alert() so a tap doesn't freeze the
+// main thread on mobile while the user waits for the OS dialog.
+function showToast(text, ms = 2200) {
+  const prev = document.getElementById('cq-quiz-toast');
+  if (prev) prev.remove();
+  const el = document.createElement('div');
+  el.id = 'cq-quiz-toast';
+  el.className = 'cq-quiz-toast';
+  el.textContent = text;
+  document.body.appendChild(el);
+  requestAnimationFrame(() => el.classList.add('cq-quiz-toast--visible'));
+  setTimeout(() => {
+    el.classList.remove('cq-quiz-toast--visible');
+    setTimeout(() => el.remove(), 300);
+  }, ms);
+}
+
 const CORRECT_MSG = [
   { title: 'Correct! 🎯',        sub: 'Great job!' },
   { title: 'Excellent! ⚡',       sub: 'Keep it up!' },
@@ -381,7 +398,7 @@ function showFeedbackPanel(container, q, type, combo) {
   } else {
     expBox.innerHTML = `<span class="lock-inline">🔒 <span class="unlock-link" id="btn-unlock">Unlock explanations with Premium</span></span>`;
     expBox.style.display = '';
-    expBox.querySelector('#btn-unlock')?.addEventListener('click', () => alert('Premium coming soon! 🎯'));
+    expBox.querySelector('#btn-unlock')?.addEventListener('click', () => showToast('Premium coming soon! 🎯'));
   }
 
   panel.style.display = '';

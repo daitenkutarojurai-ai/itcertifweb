@@ -785,19 +785,13 @@
       });
   });
 
-  /* Listen for quiz completions globally — if it matches a pending path
-     node, mark it complete so the user sees progress when they navigate back. */
-  window.addEventListener('cq:session-complete', function (e) {
-    var detail = e.detail || {};
-    try {
-      var pending = JSON.parse(localStorage.getItem('cq-path-pending') || 'null');
-      if (pending && pending.packId === detail.packId) {
-        markComplete(pending.packId, pending.nodeId, detail.correct);
-        localStorage.removeItem('cq-path-pending');
-      }
-      localStorage.setItem('cq-stats-v1-last-session-at', String(Date.now()));
-    } catch (_) {}
-  });
+  /* NOTE: cq-path-pending resolution lives in src/stats.js (which is
+     bundled into cq-core.js and loads on every page, including train.html).
+     A previous duplicate listener here on path.html caused a write race
+     against cq-path-progress-v1 — both wrote the same value but path.js's
+     write fired second and re-rendered. Removed to give stats.js sole
+     ownership; path.html still reflects the new progress on next render
+     because openNodeSheet / renderMap re-read localStorage every time. */
 
   /* ───── Chest opening ───── */
   function openChest(node) {

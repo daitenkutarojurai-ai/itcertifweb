@@ -1,4 +1,4 @@
-/* CertQuests core bundle — generated 2026-05-12T11:33:58.797Z
+/* CertQuests core bundle — generated 2026-05-12T11:40:00.668Z
  *
  * This file is concatenated by scripts/build-core.js. Do not edit by hand;
  * edit the source modules in src/*.js and re-run `npm run build-core`.
@@ -181,8 +181,17 @@
   var MAX_LEVEL = 30;
   var LEVEL_BASE = 50;
   var LEVEL_RATIO = 1.18;
+  var SCHEMA_VERSION = 1;   /* bump + add a case in migrate() when adding a field */
+
+  /* Gate debug logging behind a flag so production phones aren't noisy.
+     Enable with `localStorage.setItem('cq-debug', '1')` in DevTools. */
+  function isDebug() {
+    if (!IS_BROWSER) return false;
+    try { return localStorage.getItem('cq-debug') === '1'; } catch (_) { return false; }
+  }
 
   var DEFAULTS = {
+    _v: SCHEMA_VERSION,
     totalSeconds: 0,
     questionsAnswered: 0,
     correctAnswered: 0,
@@ -195,6 +204,18 @@
     xp: 0,
     level: 1
   };
+
+  /* Migrate older shapes forward. Always non-destructive: missing fields
+     get DEFAULTS, present fields keep their value. Add a `case 1:` block
+     and bump SCHEMA_VERSION whenever the on-disk shape changes. */
+  function migrate(raw) {
+    var v = (raw && typeof raw._v === 'number') ? raw._v : 0;
+    if (v >= SCHEMA_VERSION) return raw;
+    /* v0 → v1: original schema had no _v field. Nothing to rename — just
+       stamp it so subsequent migrations have something to switch on. */
+    raw._v = SCHEMA_VERSION;
+    return raw;
+  }
 
   /* Per-level emojis. Index = level - 1. */
   var STAGE_EMOJI = [
@@ -231,6 +252,7 @@
     if (!IS_BROWSER) return Object.assign({}, DEFAULTS);
     try {
       var raw = JSON.parse(localStorage.getItem(STORE_KEY) || '{}');
+      raw = migrate(raw);
       var s = Object.assign({}, DEFAULTS, raw);
       s.perPack = Object.assign({}, raw.perPack || {});
       return s;
@@ -380,14 +402,16 @@
         localStorage.removeItem('cq-path-pending');
       }
     } catch (_) {}
-    /* eslint-disable no-console */
-    console.log('[cq-stats] session-complete →', {
-      packId: detail.packId, secondsSpent: detail.secondsSpent,
-      correct: detail.correct, questionsAnswered: detail.questionsAnswered,
-      newLevel: res.stats.level, xp: res.stats.xp,
-      streak: res.stats.streakDays, leveledUp: res.leveledUp
-    });
-    /* eslint-enable no-console */
+    if (isDebug()) {
+      /* eslint-disable no-console */
+      console.log('[cq-stats] session-complete →', {
+        packId: detail.packId, secondsSpent: detail.secondsSpent,
+        correct: detail.correct, questionsAnswered: detail.questionsAnswered,
+        newLevel: res.stats.level, xp: res.stats.xp,
+        streak: res.stats.streakDays, leveledUp: res.leveledUp
+      });
+      /* eslint-enable no-console */
+    }
     window.dispatchEvent(new CustomEvent('cq:stats-changed', {
       detail: { stats: res.stats, leveledUp: res.leveledUp, prevLevel: res.prevLevel }
     }));
