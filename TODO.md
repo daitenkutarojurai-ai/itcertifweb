@@ -5,6 +5,281 @@ up when there's time.
 
 ---
 
+## P1 — Phase 3: Learning-Path Maps (Duolingo-style game) + Accounts
+
+> Largest item on the roadmap. Reframes the site from "take a quiz" to
+> "follow a guided journey." Each certification gets a winding path of
+> nodes (quizzes, courses, mini-games, boss fights). The player avatar
+> (P1 Phase 2) walks the path and evolves with progress. Accounts let
+> users keep progress across devices.
+
+### 3.0 — Vision in one paragraph
+
+Every certification (AWS SAA-C03, Security+, AZ-104, CCNA, etc.) has a
+~30-50-node **path** that takes a complete beginner to exam-ready. Nodes
+are varied (quiz, micro-course, lab sim, mini-game, sub-boss, final boss)
+so the loop stays fresh. The path is **gated** — finish node N to unlock
+N+1. The map UI is a winding vertical scroller (mobile-first) with the
+player's avatar standing on the current node and walking forward on
+completion. Mid-path sub-bosses gate chapters; a final boss = full mock
+exam. Avatar evolves through 30 stages tied to XP + streak (see Phase 2).
+
+### 3.1 — Node types
+
+| Icon | Type | What it is | Time | XP |
+| --- | --- | --- | --- | --- |
+| 🎯 | **Quiz** | 5-10 Qs on a topic | 3 min | 10 |
+| 📖 | **Course** | Short reading / diagram + key-points recap | 5-8 min | 15 |
+| 💡 | **Concept** | Single-screen cheatsheet, "tap to flip" cards | 1 min | 5 |
+| 🧪 | **Lab** | Interactive sim (config a VPC, set a policy) | 5-15 min | 30 |
+| 🎮 | **Mini-game** | Drag-match-sort (e.g. match OSI layer to protocol) | 2 min | 10 |
+| 👹 | **Sub-boss** | 20-Q harder test on one chapter | 10 min | 75 |
+| 👑 | **Final boss** | Full-length mock exam (cert-sized) | 60 min+ | 300 |
+| 🌟 | **Bonus** | Optional side-quest (war stories, edge cases) | 5 min | 20 |
+
+Failing a boss locks you for 30 min (cooldown) OR forces a remediation
+quiz on the failed topic before retry — keeps it spicy without being
+punitive.
+
+### 3.2 — Path structure (per certification)
+
+- **Chapters**: 5-7, each one exam domain (e.g. SAA-C03 has 4 domains
+  → 4 chapters; CompTIA Sec+ has 5 → 5 chapters)
+- **Nodes per chapter**: 5-8 mixed (3-4 quizzes + 1-2 courses + 1
+  mini-game/lab + 1 sub-boss at the end of the chapter)
+- **Final boss**: at the path's tail
+- **Bonus nodes**: branch off the main line, optional, give a cosmetic
+  badge for the avatar (e.g. "AWS Survivor")
+- **Re-traversal**: completed nodes can be re-played for fun (no extra
+  XP, but accuracy is tracked → improves mock-exam predicted score)
+
+Path data lives in `data/paths/<pack-id>.json`. Schema:
+
+```jsonc
+{
+  "packId": "aws-saa-c03",
+  "title": "AWS Solutions Architect Associate",
+  "chapters": [
+    {
+      "id": "ch1", "title": "Design Resilient Architectures", "domain": 1,
+      "nodes": [
+        { "id": "q1", "type": "quiz", "title": "EC2 basics", "questionIds": [12,15,22,38,41] },
+        { "id": "c1", "type": "course", "title": "What's an AZ?", "md": "/data/courses/aws/az-vs-region.md" },
+        { "id": "g1", "type": "minigame", "title": "Match the service", "config": {…} },
+        { "id": "b1", "type": "subboss", "title": "Resilience Boss", "questionIds": […20…] }
+      ]
+    }
+    /* … */
+  ],
+  "finalBoss": { "type": "mock", "examLength": 65, "timeMinutes": 130 }
+}
+```
+
+### 3.3 — Map UI
+
+- **Mobile-first vertical scroller** (the canonical Duolingo layout)
+- Winding S-curve path; each node is a 72px circle on mobile / 88px desktop
+- **States**: locked (grey, dimmed) · unlocked (colored, pulsing) ·
+  current (bigger ring, avatar standing on it) · completed (green check)
+- **Chapter dividers** with title banner; sub-boss = bigger circle with
+  red glow + crown icon
+- **Final boss** = large hex shield at the very bottom
+- Path **lines** connect nodes: dashed for locked, solid for unlocked
+- **Avatar** sprite stands on the current node; on node-complete it
+  walks forward to the next (CSS keyframe animation along an SVG path)
+- **Scroll-to-current** on load
+- Tap a node → bottom-sheet with title + description + START button
+- Hold node → preview the questions/content without committing
+
+### 3.4 — Game feel (the "make it fun" pieces)
+
+- **Combo meter**: consecutive correct answers within a node compound XP
+- **Streak fire**: 7+ day streak unlocks a fire trail around the avatar
+- **Hearts/lives**: 5 hearts; wrong answer = -1; regenerate over time
+  or by completing a free course node ("free heart")
+- **Treasure chests**: random drop at chapter end → cosmetic (avatar
+  hat, banner, frame)
+- **Sound design**: short "ding" on correct, descending tone on wrong,
+  fanfare on chapter end (optional, off by default)
+- **End-of-path ceremony**: full-bleed confetti + avatar gets a
+  "<Cert>-Certified Survivor" laurel that persists in profile
+- **Daily quest** in the corner ("clear 1 node today" → bonus XP)
+- **Leaderboards** (P2 stretch): weekly XP among logged-in users
+
+### 3.5 — Avatar / Phase 2 integration
+
+The Phase 2 avatar system (already specced above) plugs in directly:
+- Path completion fires `cq:session-complete` and `cq:node-complete`
+- Avatar walks the path visually (transforms applied along node positions)
+- Sub-boss kills trigger `cq:level-up` more frequently → noticeable
+  evolution as the user climbs
+- Final-boss victory unlocks the next arc's avatar early as a bonus
+
+### 3.6 — Accounts (the new big thing)
+
+#### Why
+- Multi-device: continue on desktop and phone with same XP/progress
+- Resume across years
+- Future social features (leaderboards, friends)
+- Optional — anonymous play stays the default
+
+#### Auth model — recommendation: **Supabase**
+Comparison done; reasoning:
+- **Cloudflare D1 + Workers** — already on Cloudflare (`wrangler.jsonc`).
+  Cheap, fast at edge, but auth is DIY (sessions, password hashing,
+  email verification all hand-rolled). 2-3 weeks of work.
+- **Supabase** — managed Postgres + Auth + magic-links + OAuth providers
+  out of the box. Free tier covers ≥10k users. Drop-in JS SDK. ~3 days
+  to integrate. Lock-in risk is mild (data is portable Postgres).
+- **Clerk / Auth0** — best auth UX, but pricey above small user counts.
+
+**Pick Supabase** unless we have a strong reason to stay 100%
+Cloudflare. Supabase + the existing Cloudflare-hosted static site is a
+clean split: front-end on CF, auth/data on Supabase.
+
+#### Sign-up methods
+1. **Email + magic link** (no password) — lowest friction, ships first
+2. **Google OAuth** — second priority
+3. **GitHub OAuth** — third (free for our tech-leaning audience)
+4. **Email + password** — only if users request it
+
+#### Database schema (Postgres / Supabase)
+
+```sql
+-- managed by Supabase Auth
+auth.users(id uuid pk, email text, …)
+
+-- our app tables
+profiles(
+  id uuid pk references auth.users(id),
+  display_name text,
+  avatar_unlock_max int default 1,        -- highest avatar level reached
+  cosmetics jsonb default '[]'::jsonb,    -- {hats,banners,frames}
+  created_at timestamptz default now()
+)
+stats(
+  user_id uuid pk references profiles(id),
+  total_seconds int default 0,
+  questions_answered int default 0,
+  correct_answered int default 0,
+  sessions_count int default 0,
+  streak_days int default 0,
+  last_session_date date,
+  xp int default 0,
+  level int default 1,
+  updated_at timestamptz default now()
+)
+pack_progress(
+  user_id uuid references profiles(id),
+  pack_id text,
+  node_id text,
+  status text check (status in ('completed','in_progress')),
+  best_score numeric,
+  attempts int default 1,
+  last_played_at timestamptz default now(),
+  primary key (user_id, pack_id, node_id)
+)
+mock_exams(
+  user_id uuid, pack_id text, score numeric, total int, time_seconds int,
+  finished_at timestamptz default now()
+)
+```
+
+Row-Level Security (RLS) policies: users can only read/write their own
+rows.
+
+#### Sync strategy — anonymous → account
+
+Anonymous users build up localStorage state. On sign-up:
+1. Read all localStorage data
+2. POST to Supabase via authenticated client
+3. Server merges: take max(xp), sum totals, union completed nodes,
+   max streak
+4. On success, clear localStorage and switch to "remote" mode
+
+After sign-in, every `cq:session-complete` writes to both localStorage
+(immediate UI) AND debounced to Supabase (every 5s, batched). On load,
+hydrate from Supabase, replace localStorage.
+
+#### UI affordances
+- **"Sign up to save your progress"** banner appears once XP > 200 if
+  anonymous (don't nag earlier — let them experience the loop first)
+- **Profile chip** replaces avatar chip when logged in: shows
+  display-name initials + level
+- **Settings → Account**: change email, sign out, delete account
+  (full data purge — GDPR-clean)
+
+### 3.7 — Concrete build order
+
+Phase 3A (path UI, no backend) — 1-2 weeks dev
+1. Path JSON schema + AWS-SAA-C03 first pilot file
+2. `/path/<pack-id>` route + map renderer (SVG winding)
+3. Node states from localStorage (already-completed pack questions)
+4. Wire existing quiz screen as the "quiz node" handler
+5. Avatar position on path + walk animation between nodes
+
+Phase 3B (richer nodes) — 2-3 weeks dev + content
+6. Course node renderer (Markdown → reading view)
+7. Concept-card node (flip cards)
+8. Mini-game node engine (one game type to start: match-drag)
+9. Sub-boss = existing quiz with harder filtering
+10. Hearts/lives system
+
+Phase 3C (final-boss + ceremony) — 1-2 weeks
+11. Final-boss = existing full-length mock from `train.html`
+12. End-of-path confetti + cert-survivor laurel
+13. Avatar cosmetic system (hats, banners)
+14. Treasure chests + RNG cosmetic drops
+
+Phase 3D (accounts) — 1-2 weeks
+15. Supabase setup + RLS policies + types generated
+16. Magic-link sign-in/sign-up UI
+17. Google OAuth (+ later: GitHub)
+18. Anonymous → account sync migration
+19. Multi-device hydration on load
+20. Settings → Account (delete, export, change email)
+
+Phase 3E (social, much later)
+21. Friend invites
+22. Weekly leaderboards (XP within friend circle)
+23. Path completion shareable cards (Twitter / LinkedIn)
+
+### 3.8 — Open questions before starting
+
+- **Content authoring**: who writes the course-node Markdown content
+  for ~12 packs × ~5 chapters? Pure AI-gen is risky for cert accuracy.
+  Hybrid: AI draft + human review.
+- **Lab/mini-game scope**: too much engineering for v1? Maybe ship 3A
+  + 3D with only quiz/course/concept node types, defer mini-games + labs.
+- **Hearts/lives ruining the vibe?** Duolingo's biggest UX gripe. We
+  could ship without lives and reintroduce only if engagement data
+  shows users binge-quitting.
+- **Mock-exam length**: full 65 questions in one sitting on mobile is
+  rough. Allow pause+resume? (Yes, but with a 24h max.)
+- **Path linearity**: strict linear gating vs. branching choices? V1 =
+  strict linear (simpler, mirrors Duolingo). V2 could open up choice.
+- **Existing /train.html flow**: keep it as a non-gated free-play mode?
+  Yes — power users will want it. The Path is for newcomers and the
+  full structured journey.
+
+### 3.9 — Smallest demo-able slice
+
+If we ship one thing to validate the concept:
+1. Build the SVG path map for **one cert** (AWS Cloud Practitioner —
+   shortest, friendliest, broadest audience)
+2. Wire ~20 nodes (mix of quiz + concept-card only — skip lab/game/boss)
+3. Use existing question bank for the quiz nodes
+4. Player avatar standing on current node, walks on completion
+5. No accounts yet — pure localStorage
+6. Soft-launch behind a `/path/aws-cloud-practitioner` URL, link from
+   the homepage "Find a cert" CTA
+7. Measure: completion rate per chapter, drop-off, time-to-finish
+
+That's the **MVP for validation** — ships in ~1 week instead of months.
+Iterate from there.
+
+---
+
 ## P1 — Duolingo-style characters · Phase 2 (player avatar)
 
 ### Status
