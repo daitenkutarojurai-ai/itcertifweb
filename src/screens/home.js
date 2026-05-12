@@ -5,7 +5,7 @@
 import { loadIndex, loadPack }      from '../engine/dataLoader.js';
 import { isSoundEnabled, toggleSound } from '../engine/sounds.js';
 import { getProgress, getStreak, hasQuizzedToday } from '../engine/progress.js';
-import { showModePicker }            from '../app.js';
+import { showModePicker, navigate as appNavigate } from '../app.js';
 import { isEnabled, requestPermission, scheduleNextReminder } from '../engine/notifications.js';
 import { getDailyXP, getDailyGoal, getHearts, getMaxHearts, getMasteryPct, getNextHeartRegenMs } from '../engine/gamification.js';
 import { submitNewsletter, isApiConfigured } from '../engine/emailReport.js';
@@ -256,7 +256,9 @@ function attachListeners(container, navigate, brands) {
   const params       = new URLSearchParams(location.search);
   const packParam    = params.get('pack');
   const brandParam   = params.get('brand');
-  const autostart    = !!params.get('autostart'); // any value triggers the mode picker
+  const autostartVal = params.get('autostart');    // 'quick' | 'full' | 'study' | null
+  const autostart    = !!autostartVal;
+  const qidsParam    = params.get('qids');         // path-node focused subset (comma-separated IDs)
   let targetBrandId = null;
   let targetPackId  = null;
 
@@ -279,7 +281,12 @@ function attachListeners(container, navigate, brands) {
       // Strip query so a refresh lands on plain Home, not the autostart loop
       try { history.replaceState(null, '', location.pathname); } catch {}
       // Defer until after this render cycle so the home screen is the backdrop
-      setTimeout(() => autostartPicker(brand, pack), 50);
+      if (qidsParam) {
+        const ids = qidsParam.split(',').map(s => s.trim()).filter(Boolean);
+        setTimeout(() => autostartFocused(brand, pack, ids, autostartVal || 'quick'), 50);
+      } else {
+        setTimeout(() => autostartPicker(brand, pack), 50);
+      }
     }
   }
   if (!targetBrandId) {
@@ -407,4 +414,27 @@ async function autostartPicker(brand, pack) {
   const data = await loadPack(pack.file);
   if (!data?.questions?.length) return;
   showModePicker({ ...pack, brandName: brand.name }, data.questions);
+}
+
+// ─── Path-node focused quiz ──────────────────────────────────────────────────
+// When path.js launches a node it sends ?qids=<csv>. Skip the mode picker and
+// launch a quiz containing only those questions, preserving the order encoded
+// in the URL so the sub-boss / quiz node behaves deterministically.
+async function autostartFocused(brand, pack, qids, mode) {
+  const data = await loadPack(pack.file);
+  if (!data?.questions?.length) return;
+  const byId = new Map(data.questions.map(q => [String(q.id), q]));
+  const focused = qids.map(id => byId.get(String(id))).filter(Boolean);
+  if (!focused.length) {
+    // Fallback: if the path-node IDs no longer match the pack (regenerated
+    // bank, renamed IDs), drop to the picker instead of starting a 0-Q quiz.
+    showModePicker({ ...pack, brandName: brand.name }, data.questions);
+    return;
+  }
+  appNavigate('quiz', {
+    pack:      { ...pack, brandName: brand.name },
+    questions: focused,
+    mode:      mode === 'full' ? 'full' : 'quick',
+    count:     focused.length,
+  });
 }

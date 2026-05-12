@@ -474,20 +474,30 @@ function buildHTML(pack, results, mode, newAchievements) {
 
 function buildReviewItem(answer) {
   const q = answer.question;
-  const correctLabel  = LETTERS[answer.correct];
-  const selectedLabel = answer.selected >= 0 ? LETTERS[answer.selected] : '–';
+  const isMulti = Array.isArray(answer.correct);
+  const correctIdxs  = isMulti ? answer.correct : [answer.correct];
+  const selectedIdxs = isMulti
+    ? (Array.isArray(answer.selected) ? answer.selected : [])
+    : (typeof answer.selected === 'number' && answer.selected >= 0 ? [answer.selected] : []);
+
+  const fmt = (idxs) => idxs.length
+    ? idxs.map(i => `${LETTERS[i]}: ${escapeTag(q.options[i])}`).join(' · ')
+    : '–';
+  const correctText  = fmt(correctIdxs);
+  const selectedText = fmt(selectedIdxs);
+  const timedOut     = !isMulti && answer.selected === -1;
 
   return `
     <div class="review-item ${answer.isCorrect ? 'correct' : 'wrong'}">
       <div class="review-icon">${answer.isCorrect ? '✓' : '✗'}</div>
       <div class="review-content">
-        <div class="review-question-text">${q.question}</div>
+        <div class="review-question-text">${escapeTag(q.question)}${isMulti ? ' <span class="badge badge-multi">Multi</span>' : ''}</div>
         <div class="review-answer ${answer.isCorrect ? 'correct' : 'wrong'}">
           ${answer.isCorrect
-            ? `Correct — ${correctLabel}: ${q.options[answer.correct]}`
-            : answer.selected < 0
-              ? `Time's up — Answer: ${correctLabel}: ${q.options[answer.correct]}`
-              : `You: ${selectedLabel} · Correct: ${correctLabel}: ${q.options[answer.correct]}`}
+            ? `Correct — ${correctText}`
+            : timedOut
+              ? `Time's up — Answer: ${correctText}`
+              : `You: ${selectedText} · Correct: ${correctText}`}
         </div>
       </div>
     </div>

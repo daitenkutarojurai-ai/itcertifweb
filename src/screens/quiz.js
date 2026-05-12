@@ -35,6 +35,13 @@ const TIMER_MAX        = 30;
 const isStudyMode = () => quizMode === 'study' || quizMode === 'diagnostic';
 const LETTERS     = ['A', 'B', 'C', 'D'];
 
+// Pack JSON is trusted today, but the same template will ship user-contributed
+// packs once Supabase auth lands. Escape every interpolation that lands in
+// innerHTML so a stray "<img onerror=…>" in a question never executes.
+const esc = (s) => String(s ?? '').replace(/[&<>"']/g, c => ({
+  '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
+}[c]));
+
 const CORRECT_MSG = [
   { title: 'Correct! 🎯',        sub: 'Great job!' },
   { title: 'Excellent! ⚡',       sub: 'Keep it up!' },
@@ -151,10 +158,10 @@ function renderQuestion(container) {
         <div class="question-meta-row">
           <span class="question-num-label">Q${idx + 1}</span>
           <span class="badge badge-${q.difficulty}">${q.difficulty}</span>
-          ${q.tags?.length ? `<span class="badge badge-tag">${q.tags[0]}</span>` : ''}
+          ${q.tags?.length ? `<span class="badge badge-tag">${esc(q.tags[0])}</span>` : ''}
           ${isMultiSelect(q) ? `<span class="badge badge-multi">Pick ${q.correct.length}</span>` : ''}
         </div>
-        <div class="question-text">${q.question}</div>
+        <div class="question-text">${esc(q.question)}</div>
         ${isMultiSelect(q) ? `<div class="multi-hint">Select <b>${q.correct.length}</b> answers, then submit.</div>` : ''}
       </div>
 
@@ -162,7 +169,7 @@ function renderQuestion(container) {
         ${q.options.map((opt, i) => `
           <div class="answer-option" data-index="${i}" role="${isMultiSelect(q) ? 'checkbox' : 'button'}" aria-checked="false" tabindex="0">
             <span class="option-letter">${isMultiSelect(q) ? '☐' : LETTERS[i]}</span>
-            <span class="option-text">${opt}</span>
+            <span class="option-text">${esc(opt)}</span>
             <span class="option-check" id="check-${i}" style="display:none"></span>
           </div>
         `).join('')}
