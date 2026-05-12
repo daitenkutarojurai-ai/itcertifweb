@@ -24,7 +24,16 @@
 
   function render(chip, stats) {
     var api = getApi();
-    if (!api || !chip) return;
+    if (!chip) return;
+    /* Defensive: render a safe baseline if stats API isn't ready */
+    if (!api || typeof api.xpProgressForLevel !== 'function') {
+      chip.style.setProperty('--xp-deg', '0deg');
+      var fallbackEmoji = chip.querySelector('.cq-avatar-emoji');
+      var fallbackLvl = chip.querySelector('.cq-avatar-level');
+      if (fallbackEmoji) fallbackEmoji.textContent = '🥚';
+      if (fallbackLvl) fallbackLvl.textContent = '1';
+      return;
+    }
     var level = stats.level || 1;
     var progress = api.xpProgressForLevel(stats.xp || 0, level); /* 0..1 */
     var emoji = api.stageEmojiForLevel(level);

@@ -242,14 +242,31 @@ function main() {
   const files = fs.readdirSync(PACKS_DIR).filter(f => f.endsWith('.json')).sort();
   console.log(`Found ${files.length} pack files in ${PACKS_DIR}\n`);
 
-  let ok = 0, skip = 0;
+  let ok = 0;
   const index = [];
+  const skipped = []; /* structured skip report so we can see WHY each pack was dropped */
   for (const file of files) {
     const packId = file.replace(/\.json$/, '');
-    const pack = loadPack(path.join(PACKS_DIR, file));
-    if (!pack) { skip++; continue; }
+    const raw = (() => {
+      try { return fs.readFileSync(path.join(PACKS_DIR, file), 'utf8'); }
+      catch (e) { return null; }
+    })();
+    const pack = raw ? (() => { try { return JSON.parse(raw); } catch (_) { return null; } })() : null;
+    if (!pack) {
+      skipped.push({ packId, reason: 'parse-error' });
+      console.warn(`  ✗ ${packId}  parse-error (probably an unresolved merge conflict)`);
+      continue;
+    }
+    const qCount = (pack.questions || []).length;
+    if (qCount < 12) {
+      skipped.push({ packId, reason: 'too-few-questions', questionCount: qCount });
+      continue;
+    }
     const built = buildPath(packId, pack);
-    if (!built) { skip++; continue; }
+    if (!built) {
+      skipped.push({ packId, reason: 'no-viable-chapters', questionCount: qCount });
+      continue;
+    }
     const outFile = path.join(OUT_DIR, file);
     fs.writeFileSync(outFile, JSON.stringify(built, null, 2));
     console.log(`  ✓ ${packId}  → ${built.meta.totalNodes} nodes, ${built.chapters.length} chapters`);
@@ -264,8 +281,20 @@ function main() {
     ok++;
   }
   fs.writeFileSync(path.join(OUT_DIR, '_index.json'), JSON.stringify(index, null, 2));
-  console.log(`\nGenerated ${ok} path(s). Skipped ${skip}.`);
-  console.log(`Index → data/paths/_index.json`);
+  fs.writeFileSync(path.join(OUT_DIR, '_skipped.json'), JSON.stringify({
+    generatedAt: new Date().toISOString(),
+    totalPacks: files.length,
+    generated: ok,
+    skipped: skipped.length,
+    reasons: skipped
+  }, null, 2));
+  console.log(`\nGenerated ${ok} path(s). Skipped ${skipped.length}.`);
+  if (skipped.length) {
+    const byReason = skipped.reduce((acc, s) => { acc[s.reason] = (acc[s.reason] || 0) + 1; return acc; }, {});
+    console.log('  Reasons:', Object.entries(byReason).map(([k, v]) => `${k}=${v}`).join(', '));
+  }
+  console.log('Index → data/paths/_index.json');
+  console.log('Skips → data/paths/_skipped.json');
 }
 
 main();

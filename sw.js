@@ -10,7 +10,7 @@
  * Bump CACHE_VERSION to invalidate clients on next visit.
  */
 
-const CACHE_VERSION = 'v39-2026-05-12-tests-defensive-lazy-mascot';
+const CACHE_VERSION = 'v40-2026-05-12-bundle-defensive-skipreport-docs';
 const RUNTIME_CACHE = `cq-runtime-${CACHE_VERSION}`;
 const PRECACHE      = `cq-precache-${CACHE_VERSION}`;
 
@@ -24,15 +24,10 @@ const PRECACHE_URLS = [
   '/src/styles/desktop.css?v=31',
   '/src/styles/path.css?v=4',
   '/src/styles/profile.css?v=1',
-  '/src/a11y.js?v=1',
-  '/src/stats.js?v=2',
-  '/src/avatar.js?v=2',
-  '/src/hearts.js?v=1',
-  '/src/cosmetics.js?v=1',
-  '/src/daily.js?v=1',
-  '/src/menu.js?v=5',
+  '/src/cq-core.js?v=1',
   '/src/path.js?v=4',
   '/src/profile.js?v=1',
+  '/src/mascot-loader.js?v=1',
   '/data/cosmetics.json',
   '/src/assets/icons/favicon-96.png?v=4',
   '/src/assets/icons/favicon-32.png?v=4',

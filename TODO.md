@@ -33,58 +33,87 @@ up when there's time.
 
 ### Pending (concrete tickets)
 
-**3B — Game feel & content polish** (next-up)
-- [ ] **3B.1 Treasure-chest node** — auto-inserted after each sub-boss in
-      `gen-paths.js`. Tapping spawns a reward modal (XP bonus + cosmetic
-      unlock). Local-only for now.
-- [ ] **3B.2 First cosmetic set** — avatar "hat" overlay unlocked at
-      levels 5/10/15/20/25/30. Renders as a small emoji/SVG above the
-      stage emoji on the walker + chip. Persisted in `cq-cosmetics-v1`.
-- [ ] **3B.3 Daily quest banner** — top of homepage + path page: "Clear
-      1 node today → +20 XP". Resets at local midnight. Persisted by date key.
-- [ ] **3B.4 Combo flash in mini-game** — 2+ correct in a row → "x2"
-      floating overlay, +XP multiplier. Decays on a wrong match.
-- [ ] **3B.5 Second mini-game type** — true-false speed run (10 statements,
-      tap T/F under 4s each). Engine pluggable so future types are
-      drop-in: `data/paths` node carries `gameType: 'truefalse' | 'match'`.
-- [ ] **3B.6 Path index page** — `/path.html` (no query) lists all 33
-      paths as cards so users discover them; current homepage routing
-      goes to `ccna` only.
+**3B — Game feel & content polish** SHIPPED
+- ✅ **3B.1 Treasure-chest node** — auto-inserted after each chapter
+- ✅ **3B.2 First cosmetic set** — 13 hats (chapter rewards + level gates)
+- ✅ **3B.3 Daily quest banner** — clear 1 node → +20 XP, resets at midnight
+- ✅ **3B.4 Combo flash in mini-game** — ×N XP multiplier overlay
+- ✅ **3B.5 True/false speed-run** — second mini-game type, alternates per chapter
+- ✅ **3B.6 Path index page** — `/path.html` (no query) shows all 33 paths
 - [ ] **3B.7 AI-drafted concept content** — `scripts/gen-concepts.js`
-      that calls an LLM (Claude or OpenAI) to produce 4-6 sentence
-      concept stubs + 4 flashcards per chapter. Writes to
-      `data/paths/<pack>.json` `nodes[].content` and `flashcards`.
-      **User decision needed**: which LLM API + key?
+      Pending: needs LLM API decision + budget approval.
 
-**3C — Cosmetic & social moments**
-- [ ] 3C.1 Cosmetic inventory UI (settings → my collection)
-- [ ] 3C.2 Cert-survivor laurel: persistent overlay on the avatar chip
-      after clearing a final boss; shows which certs completed
-- [ ] 3C.3 Shareable path-complete card (PNG generated client-side)
-- [ ] 3C.4 Streak heat-map (14-day grid) on a profile/stats panel
+**3C — Cosmetic & social moments** SHIPPED (all 4 items)
+- ✅ 3C.1 Cosmetic inventory UI — `/profile.html` Hats section (tap to wear)
+- ✅ 3C.2 Cert-Survivor laurels — auto-awarded on `final-boss` complete,
+      persistent badges on `/profile.html`, fired via `cq:laurel-earned`
+- ✅ 3C.3 Shareable PNG — canvas-rendered 1080×1080, Web Share API + download
+- ✅ 3C.4 14-day streak heatmap — `sessionDates[]` in stats, today highlighted
 
-**3D — Accounts (Supabase)** — deferred until user requests
+**3D — Accounts (Supabase)** — DEFERRED (user request: not yet)
 - [ ] 3D.1 Supabase project + tables (profiles, stats, pack_progress)
 - [ ] 3D.2 Magic-link auth UI
 - [ ] 3D.3 Anonymous → account sync on first sign-in
 - [ ] 3D.4 Google + GitHub OAuth
 - [ ] 3D.5 Multi-device hydration on load
 
-**3E — Avatar Phase 2B (custom SVG art)**
+**3E — Avatar Phase 2B (custom SVG art)** — DEFERRED
 - [ ] 3E.1 Design 30 SVG character stages (replace emoji placeholders)
 - [ ] 3E.2 `STAGE_ART_TYPE` flag in `stats.js` to switch emoji→SVG
 - [ ] 3E.3 SVG asset pipeline (single sprite sheet or per-file)
 
+**Quality pass** SHIPPED
+- ✅ Accessibility — `src/a11y.js` injected on all 88 pages. Focus-trap
+     auto-attaches to any visible `[role="dialog"][aria-modal="true"]`,
+     restores focus to the trigger element on close. ESC dispatches
+     `cq:a11y-escape` so close-policy stays with the modal owner.
+- ✅ SEO on `/path.html` — now indexable, full OG + Twitter Card +
+     JSON-LD WebPage schema + sitemap entry (priority 0.95)
+- ✅ Offline support — `/data/paths/*.json` + `/data/cosmetics.json`
+     cached stale-while-revalidate; full path map works offline
+- ✅ Unit tests — 33 characterization tests for `src/stats.js` via
+     Node's built-in test runner (`node --test`). Pin XP formula,
+     30-level thresholds, streak rules, applySession edge cases.
+- ✅ stats.js is now Node-compatible — exports CommonJS when run
+     outside the browser, IIFE side effects guarded by IS_BROWSER.
+- ✅ `package.json` — `npm test`, `npm run gen-paths`, `npm run build-core`
+- ✅ Lazy mascot — `src/mascot-loader.js` injects mascot.js only on
+     first interaction or after 8s idle. ~6 KB saved on bounce traffic.
+- ✅ JS bundle — `src/cq-core.js` (37 KB) concatenates 7 modules
+     (a11y/stats/avatar/hearts/cosmetics/daily/menu) → 6 fewer HTTP
+     requests per page load. Build: `npm run build-core`.
+- ✅ Defensive guards — `path.js` walker + `avatar.js` chip render
+     safe baselines if `window.cqStats` isn't ready yet.
+- ✅ `gen-paths.js` reports — writes `data/paths/_skipped.json` with
+     structured `{packId, reason, …}` entries so we can see which
+     packs failed (parse-error, too-few-questions, no-viable-chapters)
+
+### Remaining
+
+- [ ] **3B.7 AI concept content** — needs LLM API + ~$20 budget
+- [ ] **3D Supabase accounts** — full spec in §3.6 above
+- [ ] **3E custom SVG avatars** — 30 designs to replace emoji placeholders
+- [ ] **Resolve 6 merge-conflict question JSONs** —
+      `data/free/{aws-saa-c03,aws-dva-c02,aws-cloud-practitioner,
+      comptia-security-plus,az-104,gcp-ace}.json`. Currently silent-skipped
+      in `data/paths/_skipped.json`. User must merge manually.
+- [ ] **Path completion ceremony** — full-bleed confetti + survivor laurel
+      reveal animation when the final boss is cleared (currently just
+      awards the laurel; the reveal is muted)
+- [ ] **Lighthouse audit pass** — contrast ratios on new color tokens,
+      keyboard navigation on path map nodes (Tab through them)
+- [ ] **Bundle size budget** — `cq-core.js` is 37 KB. If we add more
+      modules, consider minification (esbuild) or further code-splitting.
+
 ### Open questions
 
-- **AI for concept content (3B.7)**: which LLM + how do we pay for it?
-  Recommend Claude (Anthropic API) with a fixed budget — ~$0.50/pack
-  for 33 packs = $17 one-shot. Run once, commit JSON output.
-- **Mock exams for final boss**: do we use the existing /train.html
-  full-exam flow as-is, or build a dedicated path-final UI with the
-  cert-survivor laurel award flow integrated?
+- **AI for concept content (3B.7)**: which LLM + budget?
+  Recommend Claude (Anthropic API) — ~$0.50/pack for 33 packs ≈ $17 one-shot.
+  Run once via `scripts/gen-concepts.js`, commit JSON output.
+- **Mock exams for final boss**: use existing /train.html full-exam flow
+  as-is, or build a dedicated path-final UI with the survivor-laurel reveal?
 - **Cosmetic art**: emoji-stack (cheap and fast) vs. SVG (designed,
-  slower). Same call as Phase 2A → emoji first, SVG later.
+  slower). Currently emoji; can upgrade to SVG with a flag flip.
 
 
 

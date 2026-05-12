@@ -107,9 +107,18 @@
   }
   function setWalkerEmoji() {
     var api = window.cqStats;
-    if (!api || !walker) return;
-    var s = api.get();
-    walker.querySelector('.cq-path-walker-emoji').textContent = api.stageEmojiForLevel(s.level || 1);
+    if (!walker) return;
+    /* Defensive: stats.js may not be loaded yet (e.g., bundle hiccup).
+       Fall back to the egg so the walker still renders. */
+    var emoji = '🥚';
+    try {
+      if (api && typeof api.stageEmojiForLevel === 'function') {
+        var s = (typeof api.get === 'function') ? api.get() : { level: 1 };
+        emoji = api.stageEmojiForLevel(s.level || 1) || '🥚';
+      }
+    } catch (_) {}
+    var node = walker.querySelector('.cq-path-walker-emoji');
+    if (node) node.textContent = emoji;
   }
   function positionWalker(nodeEl, animate) {
     if (!walker || !nodeEl) return;
