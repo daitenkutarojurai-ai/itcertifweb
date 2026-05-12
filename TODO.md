@@ -5,6 +5,189 @@ up when there's time.
 
 ---
 
+## P0 — Phase 4: Path Section Rework (Cert Quest v2)
+
+> Multiple shallow bug-fixes have stacked up. User keeps hitting different
+> failure modes (flashcards unreadable, Start button no-op, TF buttons
+> don't respond, quiz nodes redirect to a non-filtered train.html, etc.).
+> Time to stop patching and rebuild the Path execution flow as one
+> coherent system.
+
+### 4.1 — Bugs found so far (live audit)
+
+**Architectural / state bugs**
+- [ ] Quiz nodes redirect to `/train.html?qids=…` but **train.html ignores
+      qids entirely** — user gets random pack questions, not the focused
+      chapter subset. `qids` parameter never read in `src/screens/home.js`.
+- [x] ✅ Path-node handshake broke when user left to train.html (stats.js
+      now resolves cq-path-pending — fixed 2026-05-12)
+- [x] ✅ Survivor laurel ceremony only fires if user is on path.html when
+      event dispatches (fixed via cq-laurel-fresh-v1 flag — 2026-05-12)
+- [x] ✅ openNodeSheet didn't reset Start button state (fixed 2026-05-12)
+- [ ] Chapter banners + paths use lower-cased pack-IDs in some places
+      where titles haven't been re-fetched (cosmetic)
+
+**Per-node-type bugs**
+- [ ] **TF mini-game**: user reports "buttons cant be answer" — buttons
+      visually present but tap doesn't register. Suspected: timer fires
+      `answer(null)` before user can tap because 5 s per Q is too short
+      on mobile, OR pointer-events blocked by overlapping element.
+      Need to investigate with a click logger.
+- [ ] **Match mini-game**: same risk surface; pair texts often overflow,
+      cards look broken on phones with long question text.
+- [x] ✅ Concept flashcards unreadable — text clipped (fixed 2026-05-12)
+- [x] ✅ Concept Start button dead-zone after first interaction (fixed)
+- [ ] **Chest**: tap chest → animations play, XP awarded, but cosmetic
+      sometimes doesn't visually appear (chip render race condition)
+- [ ] **Sub-boss**: same redirect-to-train.html issue as quiz nodes,
+      with no focused question subset
+- [ ] **Final boss**: redirects to train.html for the full mock — fine
+      in principle, but the user has no idea how to come back and see
+      the survivor ceremony unless they specifically return to /path.html
+
+**Walker / map bugs**
+- [ ] Walker position drifts on scroll because it's body-attached with
+      JS-computed top — Resize observer triggers but scroll doesn't.
+      Walker should be `position: sticky` on the current node container
+      OR re-positioned on scroll events.
+- [ ] Walker emoji doesn't update immediately on level-up (stale stats
+      ref in path.js — race with cosmetics.ensureCatalog)
+- [ ] Confetti can pile up if user triggers many completions quickly
+      (no cleanup of old burst containers)
+
+**Visual / UX bugs**
+- [x] ✅ Path header was max-width: 560px (fixed 2026-05-12 — full width)
+- [ ] Mini-game cards (TF + match) have inconsistent padding compared
+      to flashcards
+- [ ] Sub-boss / Final-boss node visuals are large but the bottom-sheet
+      "Start →" is misleading (sends to a different page, no preview)
+- [ ] Locked-node lock badge (🔒) only shows on hover — on mobile (no
+      hover), users don't know why a node won't open
+- [ ] Path index page: titles now correct but **brand names show
+      duplicates** (e.g., "AWS Solutions Architect Associate" + "Amazon
+      AWS" — the title already contains the brand, redundant)
+- [ ] Daily quest banner clutters /path.html — should only appear on
+      the index page, not inside an active path
+
+### 4.2 — Architectural decisions for the rework
+
+**Decision 1: Quiz nodes execute inline, not via train.html redirect.**
+Build a stripped-down quiz engine inside `src/path.js` that:
+- Loads the focused `questionIds` from the path node
+- Renders one question at a time in the bottom-sheet
+- Tracks correct/wrong, hearts, time
+- Dispatches `cq:session-complete` on finish
+- Closes the sheet, marks node complete, advances walker
+Benefits: no redirect/handshake mess, focused question subset honored,
+hearts decrement live, consistent UX with concept/mini-game nodes.
+Risk: code duplication with existing quiz engine. Mitigation: extract
+the shared question-rendering bits into `src/quiz-core.js` and reuse.
+
+**Decision 2: Every node type follows the same lifecycle.**
+```
+openNodeSheet(node)
+  → sheet opens with title/desc/meta + primary button "Start →"
+  → user taps Start
+  → node-specific content renders INLINE (concept cards / quiz / TF /
+    match / chest / mock-exam)
+  → primary button transforms to context-aware label
+    ("Mark complete" / "Continue" / "Open chest" / "See score")
+  → user taps it → mark complete + fire session-complete + close sheet
+  → walker hops forward; possible confetti / level-up / chest
+```
+The DUAL-STATE Start button pattern I introduced for concept becomes
+the universal pattern for ALL node types.
+
+**Decision 3: Hearts decrement IS the gating mechanism.**
+- Each wrong answer in quiz / TF / match → 1 heart lost
+- 0 hearts → lock all path nodes for 30 min (with countdown chip in
+  header)
+- Free heart = complete a course/concept node (already partially built)
+
+**Decision 4: Per-node state machine documented in code.**
+Each node type defines:
+- `prepare(node)`: prep DOM in sheet (idempotent)
+- `start(node)`: begin the activity
+- `finish(node, result)`: handle completion → mark + advance
+- `cleanup(node)`: tear down before next sheet open
+
+### 4.3 — Build order (concrete tickets, in priority)
+
+**4.3.1 — Foundation (1 day)**
+- [ ] Refactor `src/path.js` into modules:
+      `path-core.js` (data + progress) ·
+      `path-map.js` (render winding map) ·
+      `path-sheet.js` (bottom-sheet lifecycle) ·
+      `path-nodes/concept.js · quiz.js · minigame-match.js ·
+                  minigame-tf.js · chest.js · finalboss.js`
+- [ ] Define the `NodeHandler` interface every node type implements
+- [ ] Rebuild bundle to include the split modules
+
+**4.3.2 — Inline quiz engine (1-2 days)**
+- [ ] Extract from `src/screens/quiz.js` the question-rendering bits
+      into `src/quiz-core.js` (no DOM coupling)
+- [ ] Wire path-nodes/quiz.js to use it: load `questionIds`, fetch
+      pack questions, render one at a time in the sheet
+- [ ] Hearts decrement on wrong answer
+- [ ] Session-complete dispatch on finish
+- [ ] Quiz node UX: 5-Q quiz inline, no redirect
+
+**4.3.3 — Mini-game fixes (1 day)**
+- [ ] TF: investigate click-not-firing bug (add console log, raise
+      timer to 8 s, verify pointer-events)
+- [ ] Match: long-text overflow, ensure pairs always have a winning
+      match (defensive against duplicate answers)
+- [ ] Both: combo flash, hearts deplete on wrong, retry on heart-out
+
+**4.3.4 — Sub-boss + Final-boss inline (1-2 days)**
+- [ ] Sub-boss = path-nodes/quiz.js with 20 hardest Qs (already filter
+      sorted in gen-paths)
+- [ ] Final boss = path-nodes/quiz.js with 40-Q exam mode + countdown
+      timer (pulls from finalBoss.questionCount)
+- [ ] Both fire the survivor-ceremony / level-up moments as before
+
+**4.3.5 — Walker / visual polish (half day)**
+- [ ] Walker re-positions on scroll (use IntersectionObserver +
+      scroll listener)
+- [ ] Lock badge always visible on mobile (no hover gate)
+- [ ] Locked-node tooltip on tap ("Beat the previous boss to unlock")
+- [ ] Hide daily quest banner on /path.html?pack=… (keep on index only)
+
+**4.3.6 — Tests (half day)**
+- [ ] Unit tests for path-progress.js (mark, isComplete, snapshot,
+      laurel awarding)
+- [ ] Unit tests for the dual-state Start button helper
+- [ ] Manual test plan documented in CLAUDE.md
+
+### 4.4 — Per-node-type spec (target state)
+
+| Type | Time | Inline? | Hearts? | Start label | Finish label | XP |
+|---|---|---|---|---|---|---|
+| concept | 1-2 min | ✓ inline cards | no | Start → | Mark complete | +5 |
+| quiz | 3 min | ✓ inline 5-Q | yes | Start → | See score | 10 |
+| minigame-match | 2 min | ✓ inline | yes | Start → | Continue → | 10+combo |
+| minigame-tf | 2 min | ✓ inline | yes | Start → | Continue → | 10+combo |
+| chest | 10 s | ✓ inline | no | Open chest 🎁 | Continue → | 30 |
+| sub-boss | 10 min | ✓ inline 20-Q | yes | Start boss → | See score | 75 |
+| final-boss | 60 min | ✓ inline mock | yes | Start exam → | See score | 300 |
+
+### 4.5 — What WON'T change (keep)
+
+- 33 generated path JSONs (data shape stays)
+- Walker emoji from `cqStats.stageEmojiForLevel`
+- Confetti cascades on chapter end / level-up / final boss
+- Cert-Survivor laurels + share PNG
+- Daily quest banner (path.html INDEX only)
+- Cosmetics + hats inventory on /profile.html
+- All test infrastructure (npm test, 33 stats tests)
+
+### 4.6 — Estimated total
+
+~4-6 working days end-to-end. Ship in 4 PRs (one per build-order
+section). Each PR keeps the site shippable — no big-bang rewrite.
+
+---
+
 ## P1 — Phase 3: Learning-Path Maps (Duolingo-style game) + Accounts
 
 > Largest item on the roadmap. Reframes the site from "take a quiz" to
