@@ -221,6 +221,13 @@
           if (!laurels.some(function (l) { return l.packId === pending.packId; })) {
             laurels.push({ packId: pending.packId, earnedAt: Date.now(), score: detail.correct || null });
             localStorage.setItem('cq-laurels-v1', JSON.stringify(laurels));
+            /* Flag a freshly-earned laurel so path.html can fire the
+               survivor ceremony when the user returns. The page that
+               awards the laurel is train.html, but the ceremony lives
+               in path.js — so we hand it off via this localStorage flag. */
+            localStorage.setItem('cq-laurel-fresh-v1', JSON.stringify({
+              packId: pending.packId, at: Date.now(), score: detail.correct || null
+            }));
           }
         }
         localStorage.removeItem('cq-path-pending');

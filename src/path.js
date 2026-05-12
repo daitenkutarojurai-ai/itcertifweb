@@ -641,6 +641,25 @@
     } catch (_) {}
   }
 
+  /* On page load, check for a freshly-earned laurel (set by stats.js
+     when the user clears the final boss on train.html). If recent (within
+     5 minutes — handles slow nav), fire the ceremony. Single-fire: the
+     flag is consumed on read. */
+  function checkFreshLaurel() {
+    try {
+      var raw = localStorage.getItem('cq-laurel-fresh-v1');
+      if (!raw) return;
+      var fresh = JSON.parse(raw);
+      localStorage.removeItem('cq-laurel-fresh-v1');
+      if (!fresh || !fresh.packId) return;
+      var age = Date.now() - (fresh.at || 0);
+      if (age > 5 * 60 * 1000) return; /* too stale */
+      /* Defer slightly so the path map paints first and the ceremony
+         overlays it dramatically */
+      setTimeout(function () { showFinalBossCeremony(fresh.packId); }, 800);
+    } catch (_) {}
+  }
+
   function show(elId) { var n = document.getElementById(elId); if (n) n.hidden = false; }
   function hide(elId) { var n = document.getElementById(elId); if (n) n.hidden = true; }
 
@@ -723,10 +742,14 @@
       /* No pack → show the index of all paths */
       hide('path-loading');
       renderPathIndex();
+      /* Still check for a freshly-earned laurel — user might land here
+         after clearing a final boss elsewhere. */
+      checkFreshLaurel();
       return;
     }
 
     applyPendingFromQuiz();
+    checkFreshLaurel();
 
     fetchPath(packId)
       .then(function (pathDoc) {

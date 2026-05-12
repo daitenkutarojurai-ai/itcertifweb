@@ -1,4 +1,4 @@
-/* CertQuests core bundle — generated 2026-05-12T08:04:04.439Z
+/* CertQuests core bundle — generated 2026-05-12T08:06:55.208Z
  *
  * This file is concatenated by scripts/build-core.js. Do not edit by hand;
  * edit the source modules in src/*.js and re-run `npm run build-core`.
@@ -368,6 +368,13 @@
           if (!laurels.some(function (l) { return l.packId === pending.packId; })) {
             laurels.push({ packId: pending.packId, earnedAt: Date.now(), score: detail.correct || null });
             localStorage.setItem('cq-laurels-v1', JSON.stringify(laurels));
+            /* Flag a freshly-earned laurel so path.html can fire the
+               survivor ceremony when the user returns. The page that
+               awards the laurel is train.html, but the ceremony lives
+               in path.js — so we hand it off via this localStorage flag. */
+            localStorage.setItem('cq-laurel-fresh-v1', JSON.stringify({
+              packId: pending.packId, at: Date.now(), score: detail.correct || null
+            }));
           }
         }
         localStorage.removeItem('cq-path-pending');
