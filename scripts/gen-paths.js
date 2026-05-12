@@ -152,6 +152,16 @@ function buildChapter(chap, chapIndex) {
     });
   }
 
+  // 5) Treasure chest (reward for clearing the chapter)
+  nodes.push({
+    id: `c${chapIndex + 1}-chest`,
+    type: 'chest',
+    title: 'Treasure Chest',
+    rewardXp: 30,
+    /* cosmetic key may unlock a new hat from /data/cosmetics.json */
+    cosmeticKey: `chapter-${chapIndex + 1}`
+  });
+
   return { id: `ch${chapIndex + 1}`, title, tag: chap.tag, nodes };
 }
 

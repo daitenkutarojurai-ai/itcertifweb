@@ -36,6 +36,7 @@
     streakDays: 0,
     lastSessionDate: null,
     perPack: {},
+    bonusXp: 0,
     xp: 0,
     level: 1
   };
@@ -90,7 +91,7 @@
     var minutes = s.totalSeconds / 60;
     var acc = s.questionsAnswered > 0 ? s.correctAnswered / s.questionsAnswered : 0.7;
     var accFactor = Math.max(0.5, Math.min(1.2, acc));
-    return Math.round(minutes * accFactor + s.streakDays * 8 + s.sessionsCount * 2);
+    return Math.round(minutes * accFactor + s.streakDays * 8 + s.sessionsCount * 2 + (s.bonusXp || 0));
   }
 
   /* XP threshold to *reach* level N. L1 starts at 0. */
@@ -137,6 +138,7 @@
     s.totalSeconds += Math.max(0, +detail.secondsSpent || 0);
     s.questionsAnswered += Math.max(0, +detail.questionsAnswered || 0);
     s.correctAnswered += Math.max(0, +detail.correct || 0);
+    if (detail.bonusXp) s.bonusXp = (s.bonusXp || 0) + Math.max(0, +detail.bonusXp);
     if (detail.packId) {
       var p = s.perPack[detail.packId] || { seconds: 0, qa: 0, correct: 0 };
       p.seconds += +detail.secondsSpent || 0;

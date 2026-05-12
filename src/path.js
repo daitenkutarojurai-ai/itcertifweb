@@ -23,6 +23,7 @@
     quiz:      { icon: '🎯', label: 'Quiz',       color: '#60a5fa' },
     minigame:  { icon: '🎮', label: 'Mini-game',  color: '#4ade80' },
     subboss:   { icon: '👹', label: 'Sub-boss',   color: '#f97316' },
+    chest:     { icon: '🎁', label: 'Reward',     color: '#fde047' },
     finalboss: { icon: '👑', label: 'Final Boss', color: '#fbbf24' }
   };
 
@@ -269,6 +270,9 @@
     } else if (node.type === 'subboss') {
       desc = 'Harder questions filtered from this chapter. Beat it to unlock the next chapter.';
       meta2 = `${(node.questionIds || []).length} questions · ~10 min · big XP`;
+    } else if (node.type === 'chest') {
+      desc = 'You earned this for clearing the chapter. Open it for XP and a possible cosmetic unlock.';
+      meta2 = `+${node.rewardXp || 30} XP · maybe a new hat 🎩`;
     } else if (node.type === 'finalboss') {
       desc = 'Full-length mock exam. The closest thing to the real cert.';
       meta2 = `${node.questionCount} questions · ${node.timeMinutes} min · MASSIVE XP`;
@@ -305,6 +309,10 @@
     }
     if (node.type === 'minigame') {
       renderMinigameInline(node);
+      return;
+    }
+    if (node.type === 'chest') {
+      openChest(node);
       return;
     }
     /* Quiz / sub-boss / final-boss → train.html with a special pathnode param */
@@ -541,8 +549,93 @@
     } catch (_) {}
   });
 
-  /* Refresh walker emoji when player levels up (avatar evolves on the path too) */
-  window.addEventListener('cq:stats-changed', function () { setWalkerEmoji(); });
+  /* ───── Chest opening ───── */
+  function openChest(node) {
+    var panel = $('.node-sheet-panel');
+    panel.querySelectorAll('.node-sheet-inline').forEach(function (n) { n.remove(); });
+    $('#node-sheet-start').hidden = true;
+
+    var prev = snapshotProgress(sheetState.path);
+    var wrap = el('div', { class: 'node-sheet-inline cq-chest-wrap' });
+    var chestEl = el('div', { class: 'cq-chest', html: '<span class="cq-chest-art">🎁</span><span class="cq-chest-rays" aria-hidden="true"></span>' });
+    var rewardEl = el('div', { class: 'cq-chest-reward', html: '<span class="cq-chest-xp">+' + (node.rewardXp || 30) + ' XP</span><span class="cq-chest-cos" hidden></span>' });
+    var hint = el('p', { class: 'cq-chest-hint', text: 'Tap the chest to open!' });
+    var continueBtn = el('button', { class: 'cta-primary cq-chest-continue', type: 'button', text: 'Continue →', hidden: true });
+    wrap.appendChild(chestEl);
+    wrap.appendChild(rewardEl);
+    wrap.appendChild(hint);
+    wrap.appendChild(continueBtn);
+    panel.appendChild(wrap);
+
+    var opened = false;
+    chestEl.addEventListener('click', function () {
+      if (opened) return;
+      opened = true;
+      chestEl.classList.add('cq-chest--opening');
+      hint.textContent = '';
+
+      /* Award XP + cosmetic */
+      markComplete(sheetState.path.packId, sheetState.node.id, 100);
+      try {
+        window.dispatchEvent(new CustomEvent('cq:session-complete', { detail: {
+          packId: sheetState.path.packId,
+          secondsSpent: 10, questionsAnswered: 0, correct: 0, mode: 'path-chest',
+          bonusXp: node.rewardXp || 30
+        }}));
+      } catch (_) {}
+
+      if (node.cosmeticKey && window.cqCosmetics) {
+        window.cqCosmetics.ensureCatalog().then(function (cat) {
+          var hat = (cat.hats || []).find(function (h) { return h.key === node.cosmeticKey; });
+          var newlyUnlocked = hat && window.cqCosmetics.unlock(node.cosmeticKey);
+          if (hat && newlyUnlocked) {
+            rewardEl.querySelector('.cq-chest-cos').hidden = false;
+            rewardEl.querySelector('.cq-chest-cos').innerHTML =
+              '<span class="cq-chest-cos-emoji">' + hat.emoji + '</span>' +
+              '<span class="cq-chest-cos-name">' + hat.name + '<br><small>unlocked!</small></span>';
+          }
+        });
+      }
+
+      /* Confetti */
+      var r = chestEl.getBoundingClientRect();
+      burstConfetti({ origin: { x: r.left + r.width/2, y: r.top + r.height/2 }, count: 60, colors: ['#fde047','#fbbf24','#f97316','#a78bfa','#60a5fa'] });
+
+      setTimeout(function () { continueBtn.hidden = false; }, 700);
+    });
+
+    continueBtn.addEventListener('click', function () {
+      closeNodeSheet();
+      renderMap(sheetState.path);
+      setTimeout(function () { maybeBurstChapterEnd(prev, snapshotProgress(sheetState.path), sheetState.path); }, 150);
+      setTimeout(function () {
+        var cur = $('#path-map').querySelector('.path-node.is-current');
+        if (cur) walkTo(cur);
+      }, 250);
+    });
+  }
+
+  /* Refresh walker emoji + hat when player levels up or unlocks cosmetic */
+  function refreshWalkerVisuals() {
+    if (!walker) return;
+    setWalkerEmoji();
+    /* Apply currently-worn hat as a small element above the emoji */
+    var existingHat = walker.querySelector('.cq-path-walker-hat');
+    var hat = window.cqCosmetics && window.cqCosmetics.currentHat && window.cqCosmetics.currentHat();
+    if (hat) {
+      if (existingHat) existingHat.textContent = hat.emoji;
+      else {
+        var h = document.createElement('span');
+        h.className = 'cq-path-walker-hat';
+        h.textContent = hat.emoji;
+        walker.insertBefore(h, walker.firstChild);
+      }
+    } else if (existingHat) {
+      existingHat.remove();
+    }
+  }
+  window.addEventListener('cq:stats-changed', function () { refreshWalkerVisuals(); });
+  window.addEventListener('cq:cosmetic-changed', function () { refreshWalkerVisuals(); });
   window.addEventListener('cq:level-up', function () {
     setWalkerEmoji();
     /* Burst confetti next to the avatar chip in the header */

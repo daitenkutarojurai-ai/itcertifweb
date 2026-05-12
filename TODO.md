@@ -13,6 +13,81 @@ up when there's time.
 > (P1 Phase 2) walks the path and evolves with progress. Accounts let
 > users keep progress across devices.
 
+### Shipped (2026-05-12)
+
+- ✅ **3A.1 Path data model** — `scripts/gen-paths.js` auto-generates
+  `data/paths/*.json` for 33 cert packs from existing question banks
+- ✅ **3A.2 Path renderer** — `path.html` + `src/path.js` + `path.css`,
+  winding S-curve map of nodes, locked/unlocked/done/current states
+- ✅ **3A.3 Quiz integration** — `cq:session-complete` from `quiz.js`
+  + `cq-path-pending` handshake marks nodes done after quiz returns
+- ✅ **3A.4 Hearts/lives** — `src/hearts.js` (5 max, regen 30 min,
+  modal with countdown)
+- ✅ **3A.5 Concept node** — inline flashcards (flip-cards), +5 XP
+- ✅ **3A.6 Mini-game node** — inline match-up, lose heart on wrong, +10 XP
+- ✅ **3A.7 Sub-boss / final-boss routing** — opens train.html with qids
+- ✅ **3A.8 Walker** — player avatar (stage emoji) sits on current node,
+  walks forward on completion, evolves with level
+- ✅ **3A.9 Confetti** — chapter-end / level-up / final boss bursts
+- ✅ **3A.10 Discovery** — "🗺️ Learning paths" entry in hamburger menu
+
+### Pending (concrete tickets)
+
+**3B — Game feel & content polish** (next-up)
+- [ ] **3B.1 Treasure-chest node** — auto-inserted after each sub-boss in
+      `gen-paths.js`. Tapping spawns a reward modal (XP bonus + cosmetic
+      unlock). Local-only for now.
+- [ ] **3B.2 First cosmetic set** — avatar "hat" overlay unlocked at
+      levels 5/10/15/20/25/30. Renders as a small emoji/SVG above the
+      stage emoji on the walker + chip. Persisted in `cq-cosmetics-v1`.
+- [ ] **3B.3 Daily quest banner** — top of homepage + path page: "Clear
+      1 node today → +20 XP". Resets at local midnight. Persisted by date key.
+- [ ] **3B.4 Combo flash in mini-game** — 2+ correct in a row → "x2"
+      floating overlay, +XP multiplier. Decays on a wrong match.
+- [ ] **3B.5 Second mini-game type** — true-false speed run (10 statements,
+      tap T/F under 4s each). Engine pluggable so future types are
+      drop-in: `data/paths` node carries `gameType: 'truefalse' | 'match'`.
+- [ ] **3B.6 Path index page** — `/path.html` (no query) lists all 33
+      paths as cards so users discover them; current homepage routing
+      goes to `ccna` only.
+- [ ] **3B.7 AI-drafted concept content** — `scripts/gen-concepts.js`
+      that calls an LLM (Claude or OpenAI) to produce 4-6 sentence
+      concept stubs + 4 flashcards per chapter. Writes to
+      `data/paths/<pack>.json` `nodes[].content` and `flashcards`.
+      **User decision needed**: which LLM API + key?
+
+**3C — Cosmetic & social moments**
+- [ ] 3C.1 Cosmetic inventory UI (settings → my collection)
+- [ ] 3C.2 Cert-survivor laurel: persistent overlay on the avatar chip
+      after clearing a final boss; shows which certs completed
+- [ ] 3C.3 Shareable path-complete card (PNG generated client-side)
+- [ ] 3C.4 Streak heat-map (14-day grid) on a profile/stats panel
+
+**3D — Accounts (Supabase)** — deferred until user requests
+- [ ] 3D.1 Supabase project + tables (profiles, stats, pack_progress)
+- [ ] 3D.2 Magic-link auth UI
+- [ ] 3D.3 Anonymous → account sync on first sign-in
+- [ ] 3D.4 Google + GitHub OAuth
+- [ ] 3D.5 Multi-device hydration on load
+
+**3E — Avatar Phase 2B (custom SVG art)**
+- [ ] 3E.1 Design 30 SVG character stages (replace emoji placeholders)
+- [ ] 3E.2 `STAGE_ART_TYPE` flag in `stats.js` to switch emoji→SVG
+- [ ] 3E.3 SVG asset pipeline (single sprite sheet or per-file)
+
+### Open questions
+
+- **AI for concept content (3B.7)**: which LLM + how do we pay for it?
+  Recommend Claude (Anthropic API) with a fixed budget — ~$0.50/pack
+  for 33 packs = $17 one-shot. Run once, commit JSON output.
+- **Mock exams for final boss**: do we use the existing /train.html
+  full-exam flow as-is, or build a dedicated path-final UI with the
+  cert-survivor laurel award flow integrated?
+- **Cosmetic art**: emoji-stack (cheap and fast) vs. SVG (designed,
+  slower). Same call as Phase 2A → emoji first, SVG later.
+
+
+
 ### 3.0 — Vision in one paragraph
 
 Every certification (AWS SAA-C03, Security+, AZ-104, CCNA, etc.) has a

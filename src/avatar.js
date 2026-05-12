@@ -38,6 +38,19 @@
       'Level ' + level + ' · ' + Math.round(progress * 100) + '% to next');
     chip.setAttribute('title',
       'Level ' + level + ' · XP ' + (stats.xp || 0) + ' · streak ' + (stats.streakDays || 0) + 'd');
+    /* Worn hat overlay */
+    var hat = window.cqCosmetics && window.cqCosmetics.currentHat && window.cqCosmetics.currentHat();
+    var hatEl = chip.querySelector('.cq-avatar-hat');
+    if (hat) {
+      if (hatEl) hatEl.textContent = hat.emoji;
+      else {
+        var h = document.createElement('span');
+        h.className = 'cq-avatar-hat';
+        h.setAttribute('aria-hidden', 'true');
+        h.textContent = hat.emoji;
+        chip.appendChild(h);
+      }
+    } else if (hatEl) { hatEl.remove(); }
   }
 
   function levelUpAnimation(chip) {
@@ -74,6 +87,9 @@
     });
     window.addEventListener('cq:level-up', function () {
       levelUpAnimation(chip);
+    });
+    window.addEventListener('cq:cosmetic-changed', function () {
+      if (api) render(chip, api.get());
     });
   });
 })();

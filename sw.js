@@ -10,7 +10,7 @@
  * Bump CACHE_VERSION to invalidate clients on next visit.
  */
 
-const CACHE_VERSION = 'v34-2026-05-12-path-walker-confetti';
+const CACHE_VERSION = 'v35-2026-05-12-chests-cosmetics-daily';
 const RUNTIME_CACHE = `cq-runtime-${CACHE_VERSION}`;
 const PRECACHE      = `cq-precache-${CACHE_VERSION}`;
 
@@ -19,14 +19,16 @@ const PRECACHE_URLS = [
   '/',
   '/index.html',
   '/path.html',
-  '/src/styles/main.css?v=30',
-  '/src/styles/desktop.css?v=30',
-  '/src/styles/path.css?v=2',
+  '/src/styles/main.css?v=31',
+  '/src/styles/desktop.css?v=31',
+  '/src/styles/path.css?v=3',
   '/src/stats.js?v=1',
   '/src/avatar.js?v=1',
   '/src/hearts.js?v=1',
+  '/src/cosmetics.js?v=1',
+  '/src/daily.js?v=1',
   '/src/menu.js?v=4',
-  '/src/path.js?v=2',
+  '/src/path.js?v=3',
   '/src/assets/icons/favicon-96.png?v=4',
   '/src/assets/icons/favicon-32.png?v=4',
   '/src/assets/icons/favicon-192.png?v=4',
