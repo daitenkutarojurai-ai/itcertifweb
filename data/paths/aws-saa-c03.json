@@ -12,26 +12,27 @@
         {
           "id": "c1-concept",
           "type": "concept",
-          "title": "S3: Key Ideas",
-          "content": "Quick primer on S3. Tap to flip cards covering the most-asked exam ideas in this domain.",
+          "title": "Amazon S3: Key Ideas",
+          "content": "S3 is AWS's object store — flat namespace of buckets containing objects, accessed via HTTP. It backs almost every AWS architecture: data lakes, static sites, backups, lambda triggers, CloudFront origins. The exam tests storage classes, encryption, access control, and event notifications.",
           "flashcards": [
             {
-              "front": "An application stores user-uploaded files in S3. Files are frequently accessed f?",
-              "back": "S3 Standard-IA charges lower per-GB storage rates than Standard but adds a per-GB retrieval fee — an ideal trade-off once objects transition from frequent to infrequent access after day 30. Expiring objects at day 90 (30 active + 60 infrequent = 90 total) eliminates any ongoing cost for data that will never be needed again. Option C (Glacier Deep Archive from day 1) imposes up to 12-hour retrieval delays during the first 30 days when files are frequently accessed, making retrieval fees and latency far worse than the storage savings during that initial window."
+              "front": "S3 storage classes — pick one for backups, one for hot data, one for archive.",
+              "back": "Hot: S3 Standard (high cost, instant access). Backups / infrequent: S3 Standard-IA (cheaper storage, retrieval fee). Archive: Glacier Deep Archive (cheapest storage, retrieval in hours). Lifecycle policies move objects between classes automatically based on age."
             },
             {
-              "front": "A global software vendor needs to publish product documentation, images, and dow?",
-              "back": "S3 provides durable, serverless object storage with no servers to patch or scale, and CloudFront distributes content from 400+ edge locations so visitors worldwide receive files from the nearest point of presence — achieving sub-100ms load times with no compute to operate. Multi-region EC2 in option A achieves geographic proximity but requires capacity planning, OS patching, Auto Scaling configuration, and 24/7 operations in each region, directly violating the 'no dedicated administrators' constraint. An Application Load Balancer (option D) cannot use S3 as a native origin, does not perform edge caching, and would still require backend compute to serve the files."
+              "front": "S3 bucket policy vs IAM policy vs ACL — which to use?",
+              "back": "IAM policy: 'this user/role can read bucket X'. Bucket policy: 'these principals can access this bucket' — required for cross-account and public access. ACL (legacy): per-object permissions, mostly avoided today. Use bucket policies for most cross-account, IAM for in-account."
             },
             {
-              "front": "A company runs a compliance archival system where regulatory documents are uploa?",
-              "back": "S3 Glacier Deep Archive is the lowest-cost S3 storage class at approximately $0.00099 per GB-month, designed for data accessed at most once or twice per year with a retrieval time of up to 12 hours. For annual compliance audits where retrieval latency is irrelevant, this is the cost-optimal choice. S3 Standard-IA costs more per GB and charges a per-retrieval fee that makes it expensive for unpredictable audit requests; One Zone-IA is cheaper than Standard-IA but more expensive than Glacier and sacrifices multi-AZ durability without offering archival-level pricing."
+              "front": "How do you make an S3 website (static-site hosting)?",
+              "back": "Enable static-website hosting on the bucket, upload index.html, set a bucket policy allowing public-read on objects, point a CloudFront distribution at it for HTTPS + edge caching. Don't expose the bucket directly — CloudFront with an OAC (Origin Access Control) is the canonical pattern."
             },
             {
-              "front": "A media sharing platform lets users upload large video files from a browser. Cur?",
-              "back": "A presigned PUT URL embeds the uploader's identity and an expiry timestamp into a cryptographically signed request URL. The application server generates the URL without touching any file data, then returns it to the browser; the browser PUTs the file directly to S3 — no upload data flows through EC2. Setting the expiry to 15 minutes satisfies the credential lifetime requirement. Option C (API Gateway proxy) replaces the EC2 bottleneck with an API Gateway bottleneck — the full file still transits a server, and API Gateway's 10 MB request body limit makes it unsuitable for large video files."
+              "front": "What's the difference between server-side and client-side encryption?",
+              "back": "SSE: data encrypted by S3 after upload. Variants: SSE-S3 (AWS-managed key, easiest), SSE-KMS (your KMS key, audit trail), SSE-C (you supply the key on each request). Client-side: you encrypt before upload — S3 only sees ciphertext. Pick SSE-KMS for compliance, SSE-S3 for default-on."
             }
-          ]
+          ],
+          "source": "concept-library"
         },
         {
           "id": "c1-game",
@@ -112,22 +113,23 @@
           "content": "Quick primer on Mixed Topics. Tap to flip cards covering the most-asked exam ideas in this domain.",
           "flashcards": [
             {
-              "front": "A DevOps engineer discovers that an EC2 web application is calling S3 using acce?",
+              "front": "A DevOps engineer discovers that an EC2 web application is calling S3 using access keys stored in a plaintext configuration file on the instance. The security team requires these long-lived credentials to be removed immediately while preserving S3 read access. What should the solutions architect recommend?",
               "back": "Attaching an IAM role to an EC2 instance causes the instance metadata service (IMDS) to vend temporary, automatically-rotated credentials — no static keys exist to be stolen or leaked. The application calls S3 using the same SDK calls with no code changes required. Option D still uses long-lived IAM user credentials stored on disk, which carries the same fundamental risk as the original config file; it improves secret discoverability but does not eliminate the static-credential exposure."
             },
             {
-              "front": "A company's security policy requires that IAM users cannot perform any AWS API a?",
+              "front": "A company's security policy requires that IAM users cannot perform any AWS API action in the current session unless they authenticated with their MFA device — not just their password — during that session. An IAM user who logs in with only username and password must be blocked from all API calls. Which control enforces this at the API request level?",
               "back": "An IAM policy with `Effect: Deny, Action: *` and condition `aws:MultiFactorAuthPresent: false` blocks all API calls in sessions where MFA was not used, regardless of what other policies allow. The user can authenticate but cannot take any action until they use their MFA device. A password policy can require MFA device registration during account setup, but it does not enforce per-request MFA at the API level after login."
             },
             {
-              "front": "A fintech company's SOC 2 audit requires that third-party auditors, who operate ?",
+              "front": "A fintech company's SOC 2 audit requires that third-party auditors, who operate their own separate AWS account, have read-only access to specific S3 buckets for a two-week review window. The security team's constraints are: no long-lived credentials may be created, and no bucket endpoint may be exposed to the public internet. What should they configure?",
               "back": "A cross-account IAM role with an S3 read-only policy and a trust policy scoped to the auditor's AWS account lets the auditors call sts:AssumeRole to obtain short-lived temporary credentials — no long-lived keys are created or shared. Deleting the role at the end of the review instantly revokes all access. Sharing IAM user access keys by email (option A) creates long-lived credentials that may be forwarded or cached, violating the no-permanent-credentials requirement. Presigned URLs (option C) are internet-accessible HTTPS endpoints — anyone who holds the URL can fetch the object — and cannot be scoped to another AWS account's identity, failing both security constraints."
             },
             {
-              "front": "A web application runs on an EC2 instance with an instance profile granting s3:*?",
+              "front": "A web application runs on an EC2 instance with an instance profile granting s3:* on all resources and ec2:* on all resources. A security review shows the application only ever performs object retrieval from a single S3 bucket named 'prod-assets'. The team wants to reduce the blast radius if the instance is compromised. Which IAM change should a solutions architect implement?",
               "back": "Least privilege requires granting only the exact permissions actually needed. Removing ec2:* entirely (the application makes no EC2 API calls) and replacing s3:* with s3:GetObject on the specific bucket ARN directly eliminates the excess permissions. Adding Deny statements is weaker because the broad Allow remains and implicit allow logic still grants everything not explicitly denied. A permissions boundary constrains the ceiling but does not grant or remove the underlying permissions—the role's policy still carries s3:* and ec2:*. IAM Access Analyzer flags findings but does not fix them."
             }
-          ]
+          ],
+          "source": "auto-derived"
         },
         {
           "id": "c2-quiz1",
@@ -316,7 +318,7 @@
     "timeMinutes": 27
   },
   "meta": {
-    "generatedAt": "2026-05-12T11:33:58.651Z",
+    "generatedAt": "2026-05-12T12:13:13.615Z",
     "totalNodes": 18,
     "totalQuestions": 60,
     "nodeTypes": [

@@ -12,26 +12,27 @@
         {
           "id": "c1-concept",
           "type": "concept",
-          "title": "Functions: Key Ideas",
-          "content": "Quick primer on Functions. Tap to flip cards covering the most-asked exam ideas in this domain.",
+          "title": "Serverless functions: Key Ideas",
+          "content": "Functions-as-a-Service (Lambda, Azure Functions, Cloud Functions) execute short-lived code in response to events. No servers, no patching, auto-scaling. The exam tests triggers, integration patterns, and the limits that bite at scale.",
           "flashcards": [
             {
-              "front": "What are Terraform built-in functions and give examples?",
-              "back": "Functions: called in expressions. Examples: cidrsubnet(var.vpc_cidr, 8, 0) (subnet calculation), format('Name: %s', var.name), lookup(var.ami_ids, var.region, 'default'), merge(var.default_tags, var.resource_tags), jsonencode({key='value'}), file('${path.module}/config.yaml'), toset([...]). No user-defined functions in HCL (use locals for complex expressions)."
+              "front": "Triggers — what fires a function?",
+              "back": "HTTP request (API Gateway, HTTP trigger), object storage event (file uploaded), queue message (SQS, Service Bus, Pub/Sub), schedule (cron / EventBridge), database stream (DynamoDB Streams, Change Feed). One function, many possible triggers — the runtime hands you the event payload."
             },
             {
-              "front": "What is the 'templatefile' function in Terraform?",
-              "back": "templatefile: templatefile('${path.module}/user_data.sh', { db_endpoint = aws_db_instance.main.endpoint, app_version = var.app_version }). Template syntax: ${var_name} for substitution, %{ if condition }...%{ endif }, %{ for item in list }${item}%{ endfor }. File must be valid template syntax. Cleaner than inline heredoc for complex templates."
+              "front": "What is the function's execution context?",
+              "back": "The runtime environment that persists between invocations on the same warm instance. Things defined OUTSIDE the handler (DB connections, cached secrets, imported modules) are reused on the next invocation — huge perf win. Anything inside the handler runs every time."
             },
             {
-              "front": "What is the 'try' function in Terraform?",
-              "back": "try(expr1, expr2, ...): evaluates left-to-right, returns first non-error result. Use for: optional attributes that may not exist on older resources, handling null values, defensive programming. Example: try(module.database.endpoint, 'localhost'). can() function: returns bool — can(expression) returns true if expression doesn't error. Both useful for optional/conditional configurations."
+              "front": "Idempotency — why does serverless need it?",
+              "back": "Most event sources retry on failure: SQS delivers at-least-once, S3 events can fire twice for a single upload, EventBridge retries on 5xx. Your function MUST tolerate the same event twice (use idempotency keys, conditional writes, dedup tables) or you'll double-charge a customer."
             },
             {
-              "front": "What is the 'one' function in Terraform?",
-              "back": "one(): one([]) = null, one(['value']) = 'value', one(['a','b']) = error (more than 1). Use when count-based resource creates 0 or 1 instances: one(aws_eip.nat[*].public_ip) — gets IP if NAT exists, null if count=0. Replaces index 0 access which errors if empty. Also: flatten, toset, tolist for collection manipulation."
+              "front": "Concurrency limits — what's the trap?",
+              "back": "AWS Lambda's account-level concurrency cap is 1000 by default. A sudden traffic spike can starve other functions in the account. Mitigations: reserved concurrency (guarantees a slice for a critical function), provisioned concurrency (pre-warmed instances), per-function quotas."
             }
-          ]
+          ],
+          "source": "concept-library"
         },
         {
           "id": "c1-quiz1",
@@ -162,26 +163,27 @@
         {
           "id": "c2-concept",
           "type": "concept",
-          "title": "CLI: Key Ideas",
-          "content": "Quick primer on CLI. Tap to flip cards covering the most-asked exam ideas in this domain.",
+          "title": "Command-line tooling: Key Ideas",
+          "content": "Most exam workflows involve `aws`, `az`, `gcloud`, or `kubectl`. Knowing the structure of each (resource → command → flags) saves you in the lab portion and in real life. They're all roughly the same shape with different naming conventions.",
           "flashcards": [
             {
-              "front": "What does 'terraform init' do?",
-              "back": "terraform init: always first command. Downloads: providers (to .terraform/providers), modules (to .terraform/modules). Backend init: configure remote state. Safe to run multiple times (idempotent). -upgrade flag: update providers to latest matching version. -backend=false: skip backend init."
+              "front": "How do you authenticate the AWS CLI?",
+              "back": "`aws configure` writes credentials to `~/.aws/credentials` (access key + secret) and `~/.aws/config` (region, output format). Use named profiles for multi-account: `aws s3 ls --profile prod`. Prefer `aws configure sso` or temporary STS credentials over long-lived access keys."
             },
             {
-              "front": "What does 'terraform plan' do?",
-              "back": "terraform plan: dry-run. Reads state, reads config, queries providers for current resource state, computes diff. Output: +create, -destroy, ~update in-place, -/+replace. Save plan: -out=plan.tfplan. Apply saved plan: terraform apply plan.tfplan. Use in CI/CD for review before applying."
+              "front": "What does `kubectl get` do, and what flags are essential?",
+              "back": "Lists resources of a kind: `kubectl get pods`, `kubectl get nodes`. Key flags: `-n <namespace>` (default is `default`), `-o wide` (more columns), `-o yaml` (full manifest), `--watch` (live updates), `-l label=value` (filter by label)."
             },
             {
-              "front": "What does 'terraform destroy' do and what are safer alternatives?",
-              "back": "terraform destroy: removes all resources in state. Asks confirmation. Useful for: dev environments, test cleanup, cost savings. Risky: production environments. Safer approach: use lifecycle { prevent_destroy = true } on critical resources, use -target for selective destruction, review plan output carefully before confirming."
+              "front": "Output formatting — JSON, table, text?",
+              "back": "AWS / Azure / gcloud all support `--output json|text|table|yaml`. JSON is for piping into `jq` for scripts. Table is for humans browsing in the terminal. Always set a default in your config so you don't squint at JSON when browsing."
             },
             {
-              "front": "What is the 'terraform validate' command?",
-              "back": "terraform validate: syntax and semantic validation. Does NOT: contact providers, check credentials, verify resource configuration validity against provider API (e.g., invalid region name passes validate). Use in CI/CD for fast syntax checking before more expensive plan. Prereq: must run init first (providers must be downloaded)."
+              "front": "How do you find a command's options without leaving the terminal?",
+              "back": "`aws <service> <command> help` (or `--help`), `kubectl <verb> --help`, `az <group> <command> --help`. These open built-in docs with every flag listed. Searching the official web docs is for concepts; for syntax, the local help is always current."
             }
-          ]
+          ],
+          "source": "concept-library"
         },
         {
           "id": "c2-quiz1",
@@ -304,7 +306,8 @@
               "front": "What is the Terraform state lock and when does it occur?",
               "back": "State locking: supported by most remote backends (S3+DynamoDB, Azure Blob, GCS, Terraform Cloud). Local backend: no locking. Lock timeout: -lock-timeout=10m. If lock not released (crash): force-unlock with ID from error message. Concurrent applies: second apply waits or fails depending on backend configuration. destroy, state operations), Terraform acquires a lock — prevents concurrent operations from corrupting state. With DynamoDB backend: creates lock entry. Lock released after operation completes. Force unlock: terraform force-unlock LOCK_ID (use with caution)"
             }
-          ]
+          ],
+          "source": "auto-derived"
         },
         {
           "id": "c3-game",
@@ -405,7 +408,8 @@
               "front": "What is 'terraform providers mirror'?",
               "back": "terraform providers mirror /path/to/mirror: downloads providers to local directory. Configure in ~/.terraformrc or %APPDATA%/terraform.rc: provider_installation { filesystem_mirror { path='/path/to/mirror', include=['registry.terraform.io/*/*'] }, direct { exclude=['registry.terraform.io/*/*'] } }. For air-gapped environments, regulated networks, or offline CI/CD."
             }
-          ]
+          ],
+          "source": "auto-derived"
         },
         {
           "id": "c4-game",
@@ -505,7 +509,8 @@
               "front": "What is Terraform's 'moved' block in a module?",
               "back": "Module-level moved: rename a module in root config without recreating resources. module.database (old) → module.rds (new): add moved { from=module.database, to=module.rds }. Apply: state updated (resource addresses renamed), no infrastructure changes. Remove moved block after all consumers have applied. Terraform 1.1+."
             }
-          ]
+          ],
+          "source": "auto-derived"
         },
         {
           "id": "c5-game",
@@ -602,7 +607,8 @@
               "front": "What is Terraform's ignore_changes lifecycle argument?",
               "back": "lifecycle { ignore_changes = [tags, user_data] }. Terraform still creates/destroys the resource but won't update it when these attributes change outside Terraform. Use carefully — ignoring too much defeats the purpose of IaC. ignore_changes = all: never update (use for imported resources temporarily)."
             }
-          ]
+          ],
+          "source": "auto-derived"
         },
         {
           "id": "c6-quiz1",
@@ -854,7 +860,7 @@
     "timeMinutes": 45
   },
   "meta": {
-    "generatedAt": "2026-05-12T11:33:58.682Z",
+    "generatedAt": "2026-05-12T12:13:13.649Z",
     "totalNodes": 45,
     "totalQuestions": 161,
     "nodeTypes": [

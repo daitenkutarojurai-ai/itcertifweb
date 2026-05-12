@@ -17,6 +17,20 @@ const path = require('path');
 
 const PACKS_DIR = path.join(__dirname, '..', 'data', 'free');
 const OUT_DIR = path.join(__dirname, '..', 'data', 'paths');
+const CONCEPT_LIB_PATH = path.join(__dirname, '..', 'data', 'concept-library.json');
+
+/* Hand-authored teaching content keyed by primary chapter tag.
+   Missing tag → falls back to auto-derived flashcards (full question
+   stem + explanation, no truncation). See data/concept-library.json
+   for the source. */
+let CONCEPT_LIBRARY = {};
+try {
+  const raw = JSON.parse(fs.readFileSync(CONCEPT_LIB_PATH, 'utf8'));
+  delete raw._meta;
+  CONCEPT_LIBRARY = raw;
+} catch (e) {
+  console.warn('  ⚠ concept-library.json missing or invalid — using auto-derived only');
+}
 
 const TARGET_CHAPTERS = 6;        // 5-7 is the sweet spot
 const QUIZ_NODE_SIZE = 5;         // questions per quiz node
@@ -99,18 +113,45 @@ function buildChapter(chap, chapIndex) {
   const title = tagToTitle(chap.tag);
   const nodes = [];
 
-  // 1) Concept-card node introducing the chapter
-  nodes.push({
-    id: `c${chapIndex + 1}-concept`,
-    type: 'concept',
-    title: `${title}: Key Ideas`,
-    /* placeholder content — Phase 3B will replace with AI-drafted markdown */
-    content: `Quick primer on ${title}. Tap to flip cards covering the most-asked exam ideas in this domain.`,
-    flashcards: chap.questions.slice(0, 4).map(q => ({
-      front: q.question.split('?')[0].slice(0, 80) + '?',
-      back: q.explanation || q.options[q.correct] || 'See exam guide'
-    }))
-  });
+  // 1) Concept-card node introducing the chapter.
+  //
+  // Preference order:
+  //   (a) Hand-authored content from data/concept-library.json keyed by
+  //       the chapter's primary tag (covers ~25 top tags, ~600+ Q's of
+  //       coverage as of 2026-05-12).
+  //   (b) Fallback: derive from the first few questions in the chapter,
+  //       using the FULL question stem (no 80-char slice — that was
+  //       cutting off in the middle of words like "...build, train, and
+  //       de?"). The explanation is the back of the card.
+  const libEntry = CONCEPT_LIBRARY[chap.tag];
+  let conceptNode;
+  if (libEntry && Array.isArray(libEntry.flashcards) && libEntry.flashcards.length) {
+    conceptNode = {
+      id: `c${chapIndex + 1}-concept`,
+      type: 'concept',
+      title: `${libEntry.title || title}: Key Ideas`,
+      content: libEntry.intro || `Quick primer on ${title}.`,
+      flashcards: libEntry.flashcards.slice(0, 4).map(c => ({
+        front: c.front,
+        back: c.back,
+      })),
+      // Marker so the renderer / audit can tell authored vs auto-derived
+      source: 'concept-library',
+    };
+  } else {
+    conceptNode = {
+      id: `c${chapIndex + 1}-concept`,
+      type: 'concept',
+      title: `${title}: Key Ideas`,
+      content: `Quick primer on ${title}. Tap to flip cards covering the most-asked exam ideas in this domain.`,
+      flashcards: chap.questions.slice(0, 4).map(q => ({
+        front: (q.question || '').trim() || 'See exam guide',
+        back: q.explanation || q.options[q.correct] || 'See exam guide',
+      })),
+      source: 'auto-derived',
+    };
+  }
+  nodes.push(conceptNode);
 
   // 2) Quiz nodes — 5 Qs each, easy/medium difficulty first
   const sorted = [...chap.questions].sort((a, b) => {

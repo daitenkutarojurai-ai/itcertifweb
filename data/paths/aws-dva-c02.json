@@ -12,26 +12,27 @@
         {
           "id": "c1-concept",
           "type": "concept",
-          "title": "Lambda: Key Ideas",
-          "content": "Quick primer on Lambda. Tap to flip cards covering the most-asked exam ideas in this domain.",
+          "title": "AWS Lambda: Key Ideas",
+          "content": "Lambda runs your code in response to events (API call, S3 upload, EventBridge schedule, SQS message). No servers to manage. You pay for invocations and execution time. The exam tests limits, cold starts, triggers, and the IAM execution role.",
           "flashcards": [
             {
-              "front": "A developer is building a Lambda function that processes S3 events. The function?",
-              "back": "Lambda's default timeout is 3 seconds, with a maximum of 15 minutes (900 seconds). Since the function runs 8 minutes but the default is only 3 seconds, it times out on every invocation. The fix is to set the timeout to at least 480 seconds. Lambda supports up to 10 GB of memory, so 3 GB is valid."
+              "front": "Lambda execution limits — memory, time, payload?",
+              "back": "Memory: 128 MB - 10 GB (CPU scales with memory). Timeout: max 15 minutes. Sync invocation payload: 6 MB. Async invocation payload: 256 KB. Deployment package (zipped): 50 MB direct upload, 250 MB via S3, 10 GB via container image."
             },
             {
-              "front": "A developer needs a Lambda function to access resources inside a private VPC (RD?",
-              "back": "When Lambda runs inside a VPC, it loses its default internet access. Without a NAT Gateway (for internet traffic) or VPC Endpoints (for private AWS service access), calls to public AWS API endpoints (DynamoDB, S3, etc.) fail. The fix is to add VPC Endpoints for the required services or route Lambda to a private subnet with a NAT Gateway. so traffic to AWS public endpoints has no route"
+              "front": "Cold start — what is it and how do you minimize it?",
+              "back": "First invocation of an idle function takes 100 ms - 2 s extra to load the runtime and your code. Mitigations: provisioned concurrency (pre-warmed instances), smaller deployment packages, native-compiled runtimes (Go, Rust), keeping connections out of the handler so they're reused across invocations."
             },
             {
-              "front": "A developer uses Lambda with a provisioned concurrency of 100. During a traffic ?",
-              "back": "Provisioned concurrency pre-warms a fixed number of Lambda instances to eliminate cold starts. When demand exceeds provisioned concurrency, Lambda scales additional instances from the standard on-demand pool (subject to account-level concurrency limits). Only if the account limit is also reached do requests get throttled with a 429 error."
+              "front": "Sync vs async vs poll-based invocation.",
+              "back": "Sync (API Gateway, ALB): caller waits for result. Async (S3, SNS, EventBridge): Lambda queues and retries on failure. Poll-based (SQS, Kinesis, DynamoDB Streams): Lambda pulls records, processes in batches, manages retries via the source. Each has different retry semantics — read the docs."
             },
             {
-              "front": "A developer needs to call an AWS Lambda function in Account B from Account A. Th?",
-              "back": "Lambda supports resource-based policies (like S3 bucket policies). Adding a policy on the Lambda function that allows `lambda:InvokeFunction` for the calling role's ARN (in Account A) grants cross-account access. The calling role also needs `lambda:InvokeFunction` in its identity-based policy. No VPC or PrivateLink configuration is needed for standard cross-account invocation."
+              "front": "How does Lambda get permissions to call other AWS services?",
+              "back": "Each function has an IAM execution role. The role's policies say what the function CAN do (read S3, write DynamoDB, decrypt KMS). Lambda assumes the role on every invocation and exposes temporary credentials to your code via the SDK."
             }
-          ]
+          ],
+          "source": "concept-library"
         },
         {
           "id": "c1-game",
@@ -118,22 +119,23 @@
           "content": "Quick primer on Dynamodb. Tap to flip cards covering the most-asked exam ideas in this domain.",
           "flashcards": [
             {
-              "front": "A company stores user session data in DynamoDB. The table has a partition key of?",
+              "front": "A company stores user session data in DynamoDB. The table has a partition key of `userId` and receives heavy read traffic from a small set of 'celebrity' users. The team observes hot partition throttling. What is the BEST solution?",
               "back": "DAX is an in-memory cache purpose-built for DynamoDB that delivers microsecond read performance. For 'hot key' patterns where a few items get the vast majority of reads, DAX absorbs repeated reads for the same keys, effectively eliminating hot partition throttling. Simply increasing RCU doesn't fix hot partitions — it just raises the absolute throttle ceiling."
             },
             {
-              "front": "A developer is designing a DynamoDB schema for an e-commerce application. Each o?",
+              "front": "A developer is designing a DynamoDB schema for an e-commerce application. Each order has an `orderId` (unique) and a `customerId`. Queries must efficiently retrieve ALL orders for a given customer, sorted by order date. Which schema design BEST supports this?",
               "back": "Setting `customerId` as the partition key and `orderDate` as the sort key allows a single Query operation to return all orders for a customer, sorted by date, with efficient range expressions (e.g., begins_with, between). Scans are expensive and don't scale. Storing orders in a single item attribute has a 400 KB item size limit."
             },
             {
-              "front": "A developer uses DynamoDB and needs to implement optimistic locking to prevent a?",
+              "front": "A developer uses DynamoDB and needs to implement optimistic locking to prevent a lost-update problem where two processes read an item and then both write different updates. Which DynamoDB feature provides this?",
               "back": "Optimistic locking in DynamoDB is implemented by adding a version number attribute to each item. When writing, use a ConditionExpression like `version = :expected_version`. If another process has already updated the item (incrementing the version), your write fails with ConditionalCheckFailedException, and you retry. TransactWriteItems lets you do this atomically across multiple items."
             },
             {
-              "front": "A developer needs to query items from a DynamoDB table where items may NOT have ?",
+              "front": "A developer needs to query items from a DynamoDB table where items may NOT have the attribute being filtered. For example, retrieving all orders with `status = 'PENDING'` where some items have no `status` attribute. Which operation is correct?",
               "back": "A full-table Scan with a FilterExpression evaluates each item after retrieval. Using `attribute_exists(#s) AND #s = :pending` (where `#s` maps to `status` via ExpressionAttributeNames) correctly handles items missing the attribute. A Query requires `status` to be a partition or sort key — it can't filter on non-key attributes alone."
             }
-          ]
+          ],
+          "source": "auto-derived"
         },
         {
           "id": "c2-game",
@@ -215,22 +217,23 @@
           "content": "Quick primer on Mixed Topics. Tap to flip cards covering the most-asked exam ideas in this domain.",
           "flashcards": [
             {
-              "front": "A developer needs to expose a REST API that invokes Lambda functions. The API mu?",
+              "front": "A developer needs to expose a REST API that invokes Lambda functions. The API must cache responses for 5 minutes per unique query string parameter combination. Which feature enables this?",
               "back": "API Gateway has a built-in response cache at the stage level. You enable it per stage, set a TTL (up to 3600s), and configure which request parameters (query strings, headers, path variables) are included in the cache key. This avoids invoking Lambda for identical repeated requests within the TTL window."
             },
             {
-              "front": "A developer implements a Cognito-protected REST API in API Gateway. The JWT from?",
+              "front": "A developer implements a Cognito-protected REST API in API Gateway. The JWT from Cognito User Pools must be validated before routing to the backend. Which integration achieves this with the LEAST custom code?",
               "back": "API Gateway has a native Cognito User Pool Authorizer integration. You configure it with the User Pool ARN and it automatically validates the JWT (issuer, signature, expiry, audience) using Cognito's JWKS endpoint. No custom Lambda code is required. The validated claims are forwarded to the backend in `$context.authorizer.claims`."
             },
             {
-              "front": "A developer builds an API Gateway REST API with Lambda proxy integration. The fr?",
+              "front": "A developer builds an API Gateway REST API with Lambda proxy integration. The frontend receives HTTP 502 errors for some requests. The Lambda function logs show it completed successfully. What is the MOST likely cause?",
               "back": "With Lambda proxy integration, API Gateway expects the Lambda function to return a specific JSON structure: `{\"statusCode\": 200, \"headers\": {}, \"body\": \"...\"}`. If the Lambda returns an invalid format (wrong field names, missing statusCode, unserializable body), API Gateway returns a 502 Bad Gateway error. The function itself succeeds — the failure is in the response serialization. headers, and body"
             },
             {
-              "front": "A developer is building a web application that needs to support thousands of con?",
+              "front": "A developer is building a web application that needs to support thousands of concurrent WebSocket connections for real-time notifications. The backend is serverless. Which AWS service handles persistent WebSocket connections natively without managing servers?",
               "back": "API Gateway WebSocket APIs maintain persistent WebSocket connections on behalf of your backend. Lambda functions handle `$connect`, `$disconnect`, and custom message routes. The backend can push messages back to connected clients using the API Gateway Management API (`POST /@connections/{connectionId}`). This is fully serverless — no EC2 or WebSocket servers to manage. disconnect, and message routes"
             }
-          ]
+          ],
+          "source": "auto-derived"
         },
         {
           "id": "c3-quiz1",
@@ -386,7 +389,7 @@
     "timeMinutes": 27
   },
   "meta": {
-    "generatedAt": "2026-05-12T11:33:58.650Z",
+    "generatedAt": "2026-05-12T12:13:13.614Z",
     "totalNodes": 19,
     "totalQuestions": 61,
     "nodeTypes": [
