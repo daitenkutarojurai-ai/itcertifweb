@@ -5,6 +5,7 @@
 import {
   createQuiz, answerQuestion, timeoutQuestion,
   nextQuestion, isComplete, getResults,
+  isMultiSelect, isAnswerCorrect,
 } from '../engine/quizEngine.js';
 import { canSeeExplanations, incrementQuizCount, shouldShowAd, shouldShowPopup } from '../engine/premium.js';
 import { saveQuizResult, getTotalQuizCount } from '../engine/progress.js';
@@ -28,6 +29,7 @@ let maxCombo           = 0;
 let sessionHearts      = 5;
 let keydownController  = null;   // AbortController for keydown listener — prevents accumulation
 let milestoneTimeouts  = [];     // Track milestone setTimeout ids so we can cancel them
+let multiSelected      = new Set(); // Indices currently checked on a multi-select question
 const TIMER_MAX        = 30;
 // True for any "no-pressure" mode — hides timer, skips heart loss, lets the user see explanations.
 const isStudyMode = () => quizMode === 'study' || quizMode === 'diagnostic';
@@ -97,6 +99,7 @@ function renderQuestion(container) {
   clearInterval(timerInterval);
   answered = false;
   timeLeft  = TIMER_MAX;
+  multiSelected = new Set();
 
   const q     = quiz.questions[quiz.current];
   const total = quiz.questions.length;
@@ -149,19 +152,27 @@ function renderQuestion(container) {
           <span class="question-num-label">Q${idx + 1}</span>
           <span class="badge badge-${q.difficulty}">${q.difficulty}</span>
           ${q.tags?.length ? `<span class="badge badge-tag">${q.tags[0]}</span>` : ''}
+          ${isMultiSelect(q) ? `<span class="badge badge-multi">Pick ${q.correct.length}</span>` : ''}
         </div>
         <div class="question-text">${q.question}</div>
+        ${isMultiSelect(q) ? `<div class="multi-hint">Select <b>${q.correct.length}</b> answers, then submit.</div>` : ''}
       </div>
 
-      <div class="options-area" id="options-area">
+      <div class="options-area ${isMultiSelect(q) ? 'multi-select' : ''}" id="options-area">
         ${q.options.map((opt, i) => `
-          <div class="answer-option" data-index="${i}" role="button" tabindex="0">
-            <span class="option-letter">${LETTERS[i]}</span>
+          <div class="answer-option" data-index="${i}" role="${isMultiSelect(q) ? 'checkbox' : 'button'}" aria-checked="false" tabindex="0">
+            <span class="option-letter">${isMultiSelect(q) ? '☐' : LETTERS[i]}</span>
             <span class="option-text">${opt}</span>
             <span class="option-check" id="check-${i}" style="display:none"></span>
           </div>
         `).join('')}
       </div>
+
+      ${isMultiSelect(q) ? `
+        <button class="btn-submit-multi" id="btn-submit-multi" disabled>
+          Submit (<span id="multi-count">0</span>/${q.correct.length})
+        </button>
+      ` : ''}
 
       <div id="xp-anchor" style="position:relative;height:0;overflow:visible"></div>
 
@@ -231,14 +242,17 @@ function handleTimeout(container) {
   revealAnswers(container, -1, 'timeout');
 }
 
-function handleAnswer(container, selectedIndex) {
+function handleAnswer(container, selected) {
   if (answered) return;
   clearInterval(timerInterval);
   answered = true;
 
   const q         = quiz.questions[quiz.current];
-  const isCorrect = selectedIndex === q.correct;
-  answerQuestion(quiz, selectedIndex);
+  const isCorrect = isAnswerCorrect(q.correct, selected);
+  answerQuestion(quiz, selected);
+
+  // For particle spawn / single-pick reveal we still need a representative index
+  const repIndex = Array.isArray(selected) ? (selected[0] ?? -1) : selected;
 
   if (isCorrect) {
     const { xpEarned, combo, multiplier, levelUp, newLevel } = onCorrectAnswer(q.difficulty);
@@ -247,32 +261,71 @@ function handleAnswer(container, selectedIndex) {
     if (combo >= 2) setTimeout(() => playCombo(combo), 200);
     if (levelUp)    setTimeout(() => { playLevelUp(); showLevelUpOverlay(container, newLevel); }, 500);
     spawnXpFloat(container, xpEarned, multiplier);
-    spawnParticles(container, selectedIndex);
+    if (repIndex >= 0) spawnParticles(container, repIndex);
     updateComboBadge(container, combo);
-    revealAnswers(container, selectedIndex, 'correct', combo);
+    revealAnswers(container, selected, 'correct', combo);
   } else {
     onWrongAnswer();
     playWrong();
     updateComboBadge(container, 0);
     if (!isStudyMode()) animateLoseHeart(container);
-    revealAnswers(container, selectedIndex, 'wrong');
+    revealAnswers(container, selected, 'wrong');
   }
 }
 
-function revealAnswers(container, selectedIndex, type, combo = 0) {
+function toggleMultiOption(container, idx) {
+  if (answered) return;
   const q = quiz.questions[quiz.current];
+  if (!isMultiSelect(q)) return;
+  const opt = container.querySelector(`.answer-option[data-index="${idx}"]`);
+  if (!opt || opt.classList.contains('disabled')) return;
+
+  if (multiSelected.has(idx)) {
+    multiSelected.delete(idx);
+    opt.classList.remove('multi-checked');
+    opt.setAttribute('aria-checked', 'false');
+    const letter = opt.querySelector('.option-letter');
+    if (letter) letter.textContent = '☐';
+  } else {
+    if (multiSelected.size >= q.correct.length) return; // cap at expected count
+    multiSelected.add(idx);
+    opt.classList.add('multi-checked');
+    opt.setAttribute('aria-checked', 'true');
+    const letter = opt.querySelector('.option-letter');
+    if (letter) letter.textContent = '☑';
+  }
+  const countEl = container.querySelector('#multi-count');
+  const submit  = container.querySelector('#btn-submit-multi');
+  if (countEl) countEl.textContent = multiSelected.size;
+  if (submit)  submit.disabled = multiSelected.size !== q.correct.length;
+}
+
+function revealAnswers(container, selected, type, combo = 0) {
+  const q = quiz.questions[quiz.current];
+  const correctSet  = new Set(Array.isArray(q.correct) ? q.correct : [q.correct]);
+  const selectedSet = new Set(
+    Array.isArray(selected) ? selected
+    : (typeof selected === 'number' && selected >= 0 ? [selected] : [])
+  );
 
   container.querySelectorAll('.answer-option').forEach((opt, i) => {
     opt.classList.add('disabled');
+    opt.classList.remove('multi-checked');
     const check = opt.querySelector(`#check-${i}`);
-    if (i === q.correct) {
-      opt.classList.add(type === 'correct' && selectedIndex === i ? 'correct' : 'reveal-correct');
+    const isCorrectOpt = correctSet.has(i);
+    const wasPicked    = selectedSet.has(i);
+    if (isCorrectOpt) {
+      opt.classList.add(wasPicked ? 'correct' : 'reveal-correct');
       if (check) { check.textContent = '✓'; check.style.display = ''; }
-    } else if (i === selectedIndex) {
+    } else if (wasPicked) {
       opt.classList.add('wrong');
       if (check) { check.textContent = '✗'; check.style.display = ''; }
     }
   });
+
+  // Hide the multi-select submit button now that the answer is locked
+  const submit = container.querySelector('#btn-submit-multi');
+  if (submit) submit.style.display = 'none';
 
   showFeedbackPanel(container, q, type, combo);
   animateProgressBar(container);
@@ -497,6 +550,22 @@ function finishQuiz() {
   shouldShowAd();
   shouldShowPopup();
 
+  // ─── Phase 2 player avatar: fire cq:session-complete ───
+  // src/stats.js listens and updates XP + level. Failure-safe: stats.js may
+  // not be loaded (e.g. embedded contexts), so we just dispatch — the DOM
+  // event has no harmful side-effect if nothing listens.
+  try {
+    window.dispatchEvent(new CustomEvent('cq:session-complete', {
+      detail: {
+        packId: packInfo.id,
+        secondsSpent: Math.round((results.totalTime || 0) / 1000),
+        questionsAnswered: results.total,
+        correct: results.score,
+        mode: quizMode
+      }
+    }));
+  } catch (_) { /* CustomEvent not supported in very old browsers — ignore */ }
+
   const doNavigate = () => navigateFn('results', {
     pack: packInfo, results, mode: quizMode,
     originalQuestions: originalQs, newAchievements, goalJustCompleted,
@@ -532,8 +601,20 @@ function attachQuizListeners(container) {
   });
   container.querySelector('#options-area')?.addEventListener('click', e => {
     const opt = e.target.closest('.answer-option');
-    if (opt && !opt.classList.contains('disabled'))
-      handleAnswer(container, parseInt(opt.dataset.index));
+    if (!opt || opt.classList.contains('disabled')) return;
+    const q = quiz.questions[quiz.current];
+    const idx = parseInt(opt.dataset.index);
+    if (isMultiSelect(q)) {
+      toggleMultiOption(container, idx);
+    } else {
+      handleAnswer(container, idx);
+    }
+  });
+  container.querySelector('#btn-submit-multi')?.addEventListener('click', () => {
+    const q = quiz.questions[quiz.current];
+    if (!isMultiSelect(q) || answered) return;
+    if (multiSelected.size !== q.correct.length) return;
+    handleAnswer(container, [...multiSelected]);
   });
   // Keyboard support: Enter / Space to submit, arrow keys to navigate options
   // Uses AbortController signal so this listener is removed before the next question renders
@@ -560,10 +641,18 @@ function attachQuizListeners(container) {
       prev?.focus();
     } else if ((e.key === 'Enter' || e.key === ' ') && focused) {
       e.preventDefault();
-      handleAnswer(container, parseInt(focused.dataset.index));
+      const q = quiz.questions[quiz.current];
+      const idx = parseInt(focused.dataset.index);
+      if (isMultiSelect(q)) toggleMultiOption(container, idx);
+      else handleAnswer(container, idx);
     } else if (['1','2','3','4'].includes(e.key)) {
       const idx = parseInt(e.key) - 1;
-      if (opts[idx]) handleAnswer(container, parseInt(opts[idx].dataset.index));
+      const q = quiz.questions[quiz.current];
+      if (opts[idx]) {
+        const optIdx = parseInt(opts[idx].dataset.index);
+        if (isMultiSelect(q)) toggleMultiOption(container, optIdx);
+        else handleAnswer(container, optIdx);
+      }
     }
   }, { signal });
   container.querySelector('#btn-next')?.addEventListener('click', () => goNext(container));
