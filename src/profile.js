@@ -290,6 +290,107 @@
     hero.insertAdjacentElement('afterend', banner);
   }
 
+  /* ───── Account section ────────────────────────────────────────────
+     Renders one of two states:
+       (a) signed-out: a "Sign in or create account" CTA that pops the
+           auth modal via window.cqAuthUi.openSignIn() (loaded by
+           src/auth-ui.js — silently no-op if absent).
+       (b) signed-in: email + sync-status line + Sign out + Delete-account.
+     Username is rendered into the hero row; edit pencil triggers an
+     inline rename via the update_my_username RPC. */
+  function renderAccount() {
+    var anon = $('profile-account-anon');
+    var signed = $('profile-account-signed');
+    var usernameRow = $('profile-username-row');
+    if (!anon || !signed) return;
+    var user = window.cqAuth && window.cqAuth.getUser();
+    if (user) {
+      anon.hidden = true;
+      signed.hidden = false;
+      $('profile-account-email').textContent = user.email || '(no email)';
+      // Username: prefer profile row pulled by sync.js, fall back to user_metadata
+      var uname = null;
+      try { uname = localStorage.getItem('cq-profile-username'); } catch (_) {}
+      if (!uname) {
+        var m = user.user_metadata || {};
+        uname = m.username || m.name || (user.email ? user.email.split('@')[0] : 'you');
+      }
+      $('profile-username').textContent = uname;
+      usernameRow.hidden = false;
+      var sync = $('profile-account-sync');
+      if (sync) {
+        var ready = window.cqSync && window.cqSync.isReady && window.cqSync.isReady();
+        sync.textContent = ready ? '✓ Synced to cloud' : 'Syncing…';
+      }
+    } else {
+      anon.hidden = false;
+      signed.hidden = true;
+      usernameRow.hidden = true;
+    }
+  }
+
+  /* Edit username — opens a tiny inline prompt, then calls the RPC. */
+  async function editUsername() {
+    if (!window.cqAuth || !window.cqAuth.isSignedIn()) return;
+    var current = $('profile-username').textContent;
+    var next = prompt('New username (max 40 chars):', current);
+    if (next == null) return;
+    next = next.trim();
+    if (!next || next === current) return;
+    var c = window.cqAuth._client;
+    var r = await c.rpc('update_my_username', { new_username: next });
+    if (r.error) {
+      alert('Could not save: ' + r.error.message);
+      return;
+    }
+    var saved = r.data || next;
+    try { localStorage.setItem('cq-profile-username', saved); } catch (_) {}
+    $('profile-username').textContent = saved;
+    // Trigger the header chip to redraw via the auth listener
+    window.dispatchEvent(new CustomEvent('cq:auth-changed', {
+      detail: { session: window.cqAuth.getSession() }
+    }));
+  }
+
+  /* Delete account — destructive; double-confirm with the email so a
+     mistaken tap on a phone can't wipe a real user. */
+  async function deleteAccount() {
+    if (!window.cqAuth || !window.cqAuth.isSignedIn()) return;
+    var user = window.cqAuth.getUser();
+    if (!user) return;
+    var emailEcho = prompt(
+      'This permanently deletes your account, all stats, hats, laurels, ' +
+      'and path progress on the cloud. This cannot be undone.\n\n' +
+      'Type your email (' + user.email + ') to confirm:'
+    );
+    if (!emailEcho || emailEcho.trim().toLowerCase() !== (user.email || '').toLowerCase()) {
+      if (emailEcho != null) alert('Email did not match. Cancelled.');
+      return;
+    }
+    var btn = $('profile-account-delete');
+    if (btn) { btn.disabled = true; btn.textContent = 'Deleting…'; }
+    var c = window.cqAuth._client;
+    var r = await c.rpc('delete_my_account');
+    if (r.error) {
+      if (btn) { btn.disabled = false; btn.textContent = 'Delete account & all data'; }
+      alert('Could not delete: ' + r.error.message);
+      return;
+    }
+    // Sign out + clear local progress; user lands as a fresh anonymous visitor.
+    try { await window.cqAuth.signOut(); } catch (_) {}
+    try {
+      localStorage.removeItem('cq-stats-v1');
+      localStorage.removeItem('cq-cosmetics-v1');
+      localStorage.removeItem('cq-hearts-v1');
+      localStorage.removeItem('cq-path-progress-v1');
+      localStorage.removeItem('cq-laurels-v1');
+      localStorage.removeItem('cq-daily-v1');
+      localStorage.removeItem('cq-profile-username');
+    } catch (_) {}
+    alert('Account deleted. You are now signed out.');
+    location.replace('/');
+  }
+
   function renderAll() {
     var stats = window.cqStats ? window.cqStats.get() : { level: 1, xp: 0 };
     renderHero(stats);
@@ -297,6 +398,7 @@
     renderHeatmap(stats);
     renderHats();
     renderLaurels();
+    renderAccount();
     maybeRenderEmptyState(stats);
   }
 
@@ -310,7 +412,7 @@
     $('profile-share-native').addEventListener('click', nativeShare);
 
     $('profile-reset').addEventListener('click', function () {
-      if (!confirm('Reset ALL progress? This cannot be undone.')) return;
+      if (!confirm('Reset local progress on this device? Your cloud copy (if signed in) is unaffected. This cannot be undone locally.')) return;
       try {
         localStorage.removeItem('cq-stats-v1');
         localStorage.removeItem('cq-cosmetics-v1');
@@ -321,9 +423,32 @@
       } catch (_) {}
       location.reload();
     });
+
+    /* Account section wiring */
+    var signinBtn = $('profile-account-signin');
+    if (signinBtn) {
+      signinBtn.addEventListener('click', function () {
+        if (window.cqAuthUi && window.cqAuthUi.openSignIn) window.cqAuthUi.openSignIn();
+      });
+    }
+    var signoutBtn = $('profile-account-signout');
+    if (signoutBtn) {
+      signoutBtn.addEventListener('click', async function () {
+        if (window.cqAuth) await window.cqAuth.signOut();
+      });
+    }
+    var deleteBtn = $('profile-account-delete');
+    if (deleteBtn) deleteBtn.addEventListener('click', deleteAccount);
+    var editBtn = $('profile-username-edit');
+    if (editBtn) editBtn.addEventListener('click', editUsername);
   });
 
   window.addEventListener('cq:stats-changed', renderAll);
   window.addEventListener('cq:cosmetic-changed', renderAll);
   window.addEventListener('cq:laurel-earned', renderAll);
+  /* Auth state changes redraw the account section + hide/show the
+     anonymous empty-state banner; sync events redraw stats hydrated
+     from cloud. Both end up in the same renderAll path. */
+  window.addEventListener('cq:auth-changed', renderAll);
+  window.addEventListener('cq:sync-hydrated', renderAll);
 })();
