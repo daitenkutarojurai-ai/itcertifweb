@@ -81,6 +81,68 @@
     return nodes.length; /* all done */
   }
 
+  /* Walker (player avatar standing on the current node) */
+  var walker = null;
+  function ensureWalker() {
+    if (walker) return walker;
+    walker = document.createElement('div');
+    walker.className = 'cq-path-walker';
+    walker.setAttribute('aria-hidden', 'true');
+    walker.innerHTML = '<span class="cq-path-walker-emoji">🥚</span><span class="cq-path-walker-shadow"></span>';
+    document.body.appendChild(walker);
+    return walker;
+  }
+  function setWalkerEmoji() {
+    var api = window.cqStats;
+    if (!api || !walker) return;
+    var s = api.get();
+    walker.querySelector('.cq-path-walker-emoji').textContent = api.stageEmojiForLevel(s.level || 1);
+  }
+  function positionWalker(nodeEl, animate) {
+    if (!walker || !nodeEl) return;
+    var rect = nodeEl.getBoundingClientRect();
+    var x = rect.left + rect.width / 2 + window.scrollX;
+    var y = rect.top + window.scrollY - 14; /* sit just above the node */
+    walker.style.transition = animate ? 'transform 0.7s cubic-bezier(0.6, 0.05, 0.2, 1)' : 'none';
+    walker.style.transform = 'translate(calc(' + x + 'px - 50%), ' + y + 'px)';
+    walker.classList.add('cq-path-walker--visible');
+  }
+  function walkTo(nodeEl) {
+    if (!walker || !nodeEl) return;
+    walker.classList.add('cq-path-walker--walking');
+    positionWalker(nodeEl, true);
+    setTimeout(function () { walker.classList.remove('cq-path-walker--walking'); }, 750);
+  }
+
+  /* Simple confetti — vanilla, no library */
+  function burstConfetti(opts) {
+    opts = opts || {};
+    var n = opts.count || 36;
+    var origin = opts.origin || { x: window.innerWidth / 2, y: window.innerHeight / 2 };
+    var colors = opts.colors || ['#60a5fa','#a78bfa','#4ade80','#fbbf24','#f472b6','#22d3ee'];
+    var container = document.createElement('div');
+    container.className = 'cq-confetti';
+    document.body.appendChild(container);
+    for (var i = 0; i < n; i++) {
+      var p = document.createElement('span');
+      p.className = 'cq-confetti-piece';
+      var color = colors[i % colors.length];
+      var dx = (Math.random() - 0.5) * 320;
+      var dy = -120 - Math.random() * 280;
+      var rot = (Math.random() - 0.5) * 720;
+      var dur = 1200 + Math.random() * 900;
+      p.style.left = origin.x + 'px';
+      p.style.top = origin.y + 'px';
+      p.style.background = color;
+      p.style.setProperty('--dx', dx + 'px');
+      p.style.setProperty('--dy', dy + 'px');
+      p.style.setProperty('--rot', rot + 'deg');
+      p.style.animationDuration = dur + 'ms';
+      container.appendChild(p);
+    }
+    setTimeout(function () { container.remove(); }, 2500);
+  }
+
   function renderMap(path) {
     var root = $('#path-map');
     root.innerHTML = '';
@@ -134,11 +196,52 @@
     var pct = Math.round((done / nodes.length) * 100);
     $('#path-progress').textContent = pct + '%';
 
-    /* Auto-scroll to current node so user lands on the action */
+    /* Auto-scroll to current node so user lands on the action,
+       then drop the walker on top of it */
     setTimeout(function () {
       var cur = root.querySelector('.path-node.is-current');
-      if (cur) cur.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      var target = cur || root.querySelector('.path-node.is-completed:last-of-type') || root.querySelector('.path-node');
+      if (target) target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      ensureWalker();
+      setWalkerEmoji();
+      setTimeout(function () { positionWalker(target, false); }, 350);
     }, 200);
+  }
+
+  /* When a chapter ends (last node in chapter just got completed), burst confetti */
+  function maybeBurstChapterEnd(prevNodes, newNodes, path) {
+    /* Find which node was just completed by comparing progress */
+    for (var i = 0; i < newNodes.length; i++) {
+      var wasComplete = prevNodes[i] && prevNodes[i].completed;
+      var nowComplete = newNodes[i] && newNodes[i].completed;
+      if (!wasComplete && nowComplete) {
+        var justFinished = newNodes[i];
+        var sameChapterNodes = newNodes.filter(function (n) { return n.chapterId === justFinished.chapterId; });
+        var allChapterDone = sameChapterNodes.every(function (n) { return n.completed; });
+        if (allChapterDone && sameChapterNodes.length > 1) {
+          /* Chapter complete! */
+          var nodeEl = $('#path-map').querySelectorAll('.path-node')[i];
+          var rect = nodeEl ? nodeEl.getBoundingClientRect() : { left: window.innerWidth/2, top: window.innerHeight/2, width: 0, height: 0 };
+          burstConfetti({
+            origin: { x: rect.left + rect.width/2, y: rect.top + rect.height/2 },
+            count: 50
+          });
+        }
+        if (justFinished.type === 'finalboss') {
+          /* Final boss → big party */
+          burstConfetti({ count: 100, origin: { x: window.innerWidth/2, y: window.innerHeight * 0.3 } });
+          setTimeout(function () { burstConfetti({ count: 60, origin: { x: window.innerWidth * 0.25, y: window.innerHeight * 0.4 } }); }, 250);
+          setTimeout(function () { burstConfetti({ count: 60, origin: { x: window.innerWidth * 0.75, y: window.innerHeight * 0.4 } }); }, 450);
+        }
+        break;
+      }
+    }
+  }
+
+  function snapshotProgress(path) {
+    return flattenNodes(path).map(function (n) {
+      return { id: n.id, completed: isComplete(path.packId, n.id), chapterId: n.chapterId };
+    });
   }
 
   /* ───── Bottom-sheet ───── */
@@ -242,6 +345,7 @@
       type: 'button',
       text: 'Mark complete (+5 XP) ✓',
       on: { click: function () {
+        var prev = snapshotProgress(sheetState.path);
         markComplete(sheetState.path.packId, sheetState.node.id, 100);
         try {
           window.dispatchEvent(new CustomEvent('cq:session-complete', { detail: {
@@ -251,6 +355,12 @@
         } catch (_) {}
         closeNodeSheet();
         renderMap(sheetState.path);
+        setTimeout(function () { maybeBurstChapterEnd(prev, snapshotProgress(sheetState.path), sheetState.path); }, 150);
+        /* Walker walks to next node */
+        setTimeout(function () {
+          var cur = $('#path-map').querySelector('.path-node.is-current');
+          if (cur) walkTo(cur);
+        }, 250);
       } }
     });
     wrap.appendChild(doneBtn);
@@ -301,6 +411,7 @@
           solved++;
           if (solved === prompts.length) {
             setTimeout(function () {
+              var prev = snapshotProgress(sheetState.path);
               markComplete(sheetState.path.packId, sheetState.node.id, 100);
               try {
                 window.dispatchEvent(new CustomEvent('cq:session-complete', { detail: {
@@ -310,6 +421,11 @@
               } catch (_) {}
               closeNodeSheet();
               renderMap(sheetState.path);
+              setTimeout(function () { maybeBurstChapterEnd(prev, snapshotProgress(sheetState.path), sheetState.path); }, 150);
+              setTimeout(function () {
+                var cur = $('#path-map').querySelector('.path-node.is-current');
+                if (cur) walkTo(cur);
+              }, 250);
             }, 600);
           }
         } else {
@@ -423,5 +539,25 @@
       }
       localStorage.setItem('cq-stats-v1-last-session-at', String(Date.now()));
     } catch (_) {}
+  });
+
+  /* Refresh walker emoji when player levels up (avatar evolves on the path too) */
+  window.addEventListener('cq:stats-changed', function () { setWalkerEmoji(); });
+  window.addEventListener('cq:level-up', function () {
+    setWalkerEmoji();
+    /* Burst confetti next to the avatar chip in the header */
+    var chip = document.querySelector('.cq-avatar-chip');
+    if (chip) {
+      var r = chip.getBoundingClientRect();
+      burstConfetti({ origin: { x: r.left + r.width/2, y: r.top + r.height/2 }, count: 40 });
+    }
+  });
+
+  /* Keep walker glued to the current node on resize */
+  window.addEventListener('resize', function () {
+    var cur = document.querySelector('.path-node.is-current') ||
+              document.querySelector('.path-node.is-completed:last-of-type') ||
+              document.querySelector('.path-node');
+    if (cur) positionWalker(cur, false);
   });
 })();
