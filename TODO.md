@@ -233,12 +233,29 @@ section). Each PR keeps the site shippable — no big-bang rewrite.
 - ✅ 3C.3 Shareable PNG — canvas-rendered 1080×1080, Web Share API + download
 - ✅ 3C.4 14-day streak heatmap — `sessionDates[]` in stats, today highlighted
 
-**3D — Accounts (Supabase)** — DEFERRED (user request: not yet)
-- [ ] 3D.1 Supabase project + tables (profiles, stats, pack_progress)
-- [ ] 3D.2 Magic-link auth UI
-- [ ] 3D.3 Anonymous → account sync on first sign-in
-- [ ] 3D.4 Google + GitHub OAuth
-- [ ] 3D.5 Multi-device hydration on load
+**3D — Accounts (Supabase)** — SHIPPED in 5 rounds (2026-05-12)
+- ✅ **3D.1 Supabase project + tables (profiles, stats, path_progress,
+       laurels, cosmetics, hearts, daily) + RLS** — Round 1.
+       Project `certquests` / `zhxnteqtiyqnyidfkivj`, 7 tables all
+       RLS-enabled with owner-only policies, handle_new_user trigger
+       on auth.users insert, set_updated_at trigger function.
+- ✅ **3D.2 Auth UI** — Rounds 1+2. Magic-link first, then email+password
+       in a tabbed modal, Google OAuth button. Header chip swaps signed-
+       in / signed-out. Capacitor-aware redirect (`capacitor://localhost`).
+- ✅ **3D.3 Anonymous → account sync on first sign-in** — Round 3.
+       `src/sync.js` bootstrap probes the cloud's stats row; if missing,
+       pushes every cq-* localStorage key to the corresponding table.
+- ✅ **3D.4 Google OAuth** — Round 2. (GitHub still optional — provider
+       toggle in Supabase dashboard, no code change needed beyond
+       calling `signInWithProvider('github')`.)
+- ✅ **3D.5 Multi-device hydration on load** — Round 3. On subsequent
+       sign-ins the same bootstrap pulls cloud → localStorage and fires
+       cq:*-changed events so the UI re-renders.
+- ✅ **3D.6 Profile-page account integration** — Round 4. Username edit
+       via `update_my_username` RPC, "Delete account & all data"
+       (cascade through 7 tables), sign-out, sync-status badge.
+- ✅ **3D.7 Password reset flow** — Round 5. `/reset-password.html`
+       callback page; "Forgot password?" link in the auth modal.
 
 **3E — Avatar Phase 2B (custom SVG art)** — DEFERRED
 - [ ] 3E.1 Design 30 SVG character stages (replace emoji placeholders)
@@ -274,7 +291,7 @@ section). Each PR keeps the site shippable — no big-bang rewrite.
 ### Remaining
 
 - [ ] **3B.7 AI concept content** — needs LLM API + ~$20 budget
-- [ ] **3D Supabase accounts** — full spec in §3.6 above
+- ✅ **3D Supabase accounts** — SHIPPED 2026-05-12 in 5 rounds (see above)
 - [ ] **3E custom SVG avatars** — 30 designs to replace emoji placeholders
 - [ ] **Resolve 6 merge-conflict question JSONs** —
       `data/free/{aws-saa-c03,aws-dva-c02,aws-cloud-practitioner,
