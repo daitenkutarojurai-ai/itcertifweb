@@ -272,6 +272,17 @@
   function openNodeSheet(path, node) {
     sheetState.path = path;
     sheetState.node = node;
+    /* RESET state from any previous open — otherwise the start button
+       stays hidden after the first concept/minigame/chest interaction,
+       and stale inline content (flashcards, match grids) persists. */
+    var panel = $('.node-sheet-panel');
+    if (panel) panel.querySelectorAll('.node-sheet-inline').forEach(function (n) { n.remove(); });
+    var startBtnReset = $('#node-sheet-start');
+    if (startBtnReset) {
+      startBtnReset.hidden = false;
+      delete startBtnReset.dataset.mode;
+    }
+
     var meta = NODE_META[node.type] || NODE_META.quiz;
     var completed = isComplete(path.packId, node.id);
     $('#node-sheet-icon').textContent = meta.icon;
@@ -324,6 +335,17 @@
     var node = sheetState.node, path = sheetState.path;
     if (!node || !path) return;
 
+    /* Dual-state Start button: if the button is currently in
+       "mark-complete" mode (set by renderConceptInline after the user
+       opened the cards), tapping it commits the completion instead of
+       re-rendering. */
+    var startBtn = $('#node-sheet-start');
+    if (startBtn && startBtn.dataset.mode === 'concept-mark-complete') {
+      delete startBtn.dataset.mode;
+      markConceptComplete();
+      return;
+    }
+
     if (node.type === 'concept') {
       renderConceptInline(node);
       return;
@@ -355,47 +377,67 @@
     location.href = url;
   }
 
-  /* ───── Inline concept (flashcards) ───── */
+  /* ───── Inline concept (flashcards) ─────
+     UX: when user taps "Start →", flashcards appear and the SAME button
+     transforms into "Mark complete (+5 XP) ✓" via data-mode='mark-complete'.
+     handleStart() branches on this mode so the user always has one
+     primary button at the bottom — no buried CTA, no orphaned Start. */
   function renderConceptInline(node) {
     var panel = $('.node-sheet-panel');
     panel.querySelectorAll('.node-sheet-inline').forEach(function (n) { n.remove(); });
     var wrap = el('div', { class: 'node-sheet-inline concept-cards' });
     (node.flashcards || []).forEach(function (fc, i) {
+      var front = el('div', { class: 'flashcard-front' });
+      front.innerHTML =
+        '<div class="flashcard-label">Question ' + (i + 1) + '</div>' +
+        '<div class="flashcard-body"></div>';
+      front.querySelector('.flashcard-body').textContent = fc.front;
+      var back = el('div', { class: 'flashcard-back' });
+      back.innerHTML =
+        '<div class="flashcard-label">Answer</div>' +
+        '<div class="flashcard-body"></div>';
+      back.querySelector('.flashcard-body').textContent = fc.back;
       var card = el('div', { class: 'flashcard' }, [
-        el('div', { class: 'flashcard-inner' }, [
-          el('div', { class: 'flashcard-front', text: fc.front }),
-          el('div', { class: 'flashcard-back',  text: fc.back })
-        ])
+        el('div', { class: 'flashcard-inner' }, [front, back])
       ]);
-      card.addEventListener('click', function () { card.classList.toggle('is-flipped'); });
+      card.setAttribute('role', 'button');
+      card.setAttribute('tabindex', '0');
+      card.setAttribute('aria-pressed', 'false');
+      function flip() {
+        card.classList.toggle('is-flipped');
+        card.setAttribute('aria-pressed', card.classList.contains('is-flipped') ? 'true' : 'false');
+      }
+      card.addEventListener('click', flip);
+      card.addEventListener('keydown', function (e) {
+        if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); flip(); }
+      });
       wrap.appendChild(card);
     });
-    var doneBtn = el('button', {
-      class: 'cta-primary',
-      type: 'button',
-      text: 'Mark complete (+5 XP) ✓',
-      on: { click: function () {
-        var prev = snapshotProgress(sheetState.path);
-        markComplete(sheetState.path.packId, sheetState.node.id, 100);
-        try {
-          window.dispatchEvent(new CustomEvent('cq:session-complete', { detail: {
-            packId: sheetState.path.packId,
-            secondsSpent: 60, questionsAnswered: 1, correct: 1, mode: 'path-concept'
-          }}));
-        } catch (_) {}
-        closeNodeSheet();
-        renderMap(sheetState.path);
-        setTimeout(function () { maybeBurstChapterEnd(prev, snapshotProgress(sheetState.path), sheetState.path); }, 150);
-        /* Walker walks to next node */
-        setTimeout(function () {
-          var cur = $('#path-map').querySelector('.path-node.is-current');
-          if (cur) walkTo(cur);
-        }, 250);
-      } }
-    });
-    wrap.appendChild(doneBtn);
     panel.appendChild(wrap);
-    $('#node-sheet-start').hidden = true;
+    /* Transform the existing primary button into "Mark complete" — no
+       new button to bury below the cards. */
+    var startBtn = $('#node-sheet-start');
+    startBtn.textContent = 'Mark complete (+5 XP) ✓';
+    startBtn.dataset.mode = 'concept-mark-complete';
+    startBtn.hidden = false;
+  }
+
+  function markConceptComplete() {
+    var prev = snapshotProgress(sheetState.path);
+    markComplete(sheetState.path.packId, sheetState.node.id, 100);
+    try {
+      window.dispatchEvent(new CustomEvent('cq:session-complete', { detail: {
+        packId: sheetState.path.packId,
+        secondsSpent: 60, questionsAnswered: 1, correct: 1, mode: 'path-concept'
+      }}));
+    } catch (_) {}
+    closeNodeSheet();
+    renderMap(sheetState.path);
+    setTimeout(function () { maybeBurstChapterEnd(prev, snapshotProgress(sheetState.path), sheetState.path); }, 150);
+    setTimeout(function () {
+      var cur = $('#path-map').querySelector('.path-node.is-current');
+      if (cur) walkTo(cur);
+    }, 250);
   }
 
   /* ───── Combo flash overlay (used by both mini-game types) ───── */
