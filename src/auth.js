@@ -1,19 +1,25 @@
 /**
- * src/auth.js — Phase 3D ticket 1: sign-in scaffold
+ * src/auth.js — Phase 3D auth module
  *
  * Loads the Supabase JS client from a pinned esm.sh URL, exposes a tiny
  * window.cqAuth API the rest of the codebase calls, and listens for
  * sign-in / sign-out events.
  *
- * V1 scope (this commit):
- *   - Magic-link email sign-in
- *   - Session detection on load
- *   - Auto-create local profile row on first sign-in
+ * Implemented:
+ *   - Email + password sign-up (with username metadata)
+ *   - Email + password sign-in
+ *   - Email confirmation callback (via detectSessionInUrl)
+ *   - Magic-link email sign-in (still supported, useful for reset flows)
+ *   - Google OAuth (provider enabled in Supabase dashboard)
+ *   - Session persistence + auto-refresh
  *   - Sign-out
- * V2+ (future):
- *   - Google + GitHub OAuth (uncomment placeholders below + enable in Supabase)
- *   - Push localStorage state to Supabase on sign-in (anonymous → account claim)
- *   - Pull Supabase state on load (multi-device hydration)
+ *   - Capacitor platform detection — uses native scheme redirect when
+ *     running inside the mobile app shell, web origin otherwise
+ *
+ * Future rounds:
+ *   - localStorage → Supabase sync on first sign-in (anonymous claim)
+ *   - Supabase → localStorage hydration on load (multi-device)
+ *   - Password reset email flow
  *
  * Security: only the publishable URL + anon JWT live here. RLS on every
  * table enforces per-user access. The service_role key NEVER appears in
@@ -43,40 +49,104 @@ if (window.__cqAuthInit) {
 
   let currentSession = null;
 
+  /* ───── Platform detection ─────────────────────────────────────────── */
+  // Capacitor injects window.Capacitor when the app is running inside the
+  // native shell. Web build keeps the existing origin redirect. The native
+  // redirect URL must be in Supabase's allowlist (capacitor://localhost is
+  // already configured per the project brief).
+  const isCapacitor = !!(window.Capacitor && typeof window.Capacitor.getPlatform === 'function');
+  function redirectBase() {
+    if (isCapacitor) return 'capacitor://localhost';
+    return window.location.origin + window.location.pathname;
+  }
+
   /* ───── Public API ─────────────────────────────────────────────────── */
 
   /**
-   * Send a magic-link email. The user clicks it, returns to the site, and
-   * supabase-js handles the callback via detectSessionInUrl above.
+   * Email + password sign-up. Sends a confirmation email; user lands back
+   * on the current page signed in after clicking the link (via detectSessionInUrl).
    *
    * @param {string} email
-   * @returns {Promise<{ok:boolean,error?:string}>}
+   * @param {string} password — 8+ chars enforced by Supabase
+   * @param {string} [username] — optional display name; falls back to email prefix
+   */
+  async function signUp(email, password, username) {
+    if (!email || !email.includes('@')) return { ok: false, error: 'Enter a valid email.' };
+    if (!password || password.length < 8) return { ok: false, error: 'Password must be at least 8 characters.' };
+    const meta = {};
+    if (username && username.trim()) meta.username = username.trim();
+    const { data, error } = await supabase.auth.signUp({
+      email, password,
+      options: {
+        data: meta,
+        emailRedirectTo: redirectBase(),
+      },
+    });
+    if (error) return { ok: false, error: error.message };
+    // If email-confirmation is required (it is in this project), the user
+    // is created but signed-out until they click the link. data.user exists,
+    // data.session is null. Caller should show "check your inbox".
+    return { ok: true, needsConfirmation: !data.session, user: data.user };
+  }
+
+  /**
+   * Email + password sign-in. Returns session immediately on success.
+   */
+  async function signInWithPassword(email, password) {
+    if (!email || !email.includes('@')) return { ok: false, error: 'Enter a valid email.' };
+    if (!password) return { ok: false, error: 'Enter your password.' };
+    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+    if (error) {
+      // Surface the common "email not confirmed" case specifically so the UI
+      // can offer a "resend confirmation" affordance.
+      const msg = error.message || '';
+      if (/email not confirmed/i.test(msg) || /not confirmed/i.test(msg)) {
+        return { ok: false, error: 'Email not confirmed yet — check your inbox for the confirmation link.', needsConfirmation: true };
+      }
+      return { ok: false, error: msg };
+    }
+    return { ok: true, session: data.session };
+  }
+
+  /**
+   * Send a magic-link email (passwordless). Still exposed for users who
+   * forgot their password or prefer not to remember one. Same callback
+   * mechanism as email confirmation.
    */
   async function signInWithEmail(email) {
-    if (!email || !email.includes('@')) {
-      return { ok: false, error: 'Enter a valid email.' };
-    }
+    if (!email || !email.includes('@')) return { ok: false, error: 'Enter a valid email.' };
     const { error } = await supabase.auth.signInWithOtp({
       email,
-      options: {
-        // After clicking the link, land back on whatever page they signed
-        // in from — preserves UX continuity (path map, profile, etc.).
-        emailRedirectTo: window.location.origin + window.location.pathname,
-      },
+      options: { emailRedirectTo: redirectBase() },
     });
     if (error) return { ok: false, error: error.message };
     return { ok: true };
   }
 
-  /* OAuth — Google / GitHub. Wire up when those providers are enabled in
-     the Supabase dashboard. The redirect lands back on the current page;
-     supabase-js extracts the code from the URL and finalizes the session. */
+  /**
+   * Resend the confirmation email (e.g., user clicked sign-in but hadn't
+   * confirmed yet). Supabase rate-limits this by default.
+   */
+  async function resendConfirmation(email) {
+    if (!email || !email.includes('@')) return { ok: false, error: 'Enter a valid email.' };
+    const { error } = await supabase.auth.resend({
+      type: 'signup',
+      email,
+      options: { emailRedirectTo: redirectBase() },
+    });
+    if (error) return { ok: false, error: error.message };
+    return { ok: true };
+  }
+
+  /**
+   * OAuth — Google (enabled in dashboard) or GitHub (enable to wire up).
+   * Redirects the browser to the provider; supabase-js extracts the code
+   * from the callback URL and finalizes the session via detectSessionInUrl.
+   */
   async function signInWithProvider(provider /* 'google' | 'github' */) {
     const { error } = await supabase.auth.signInWithOAuth({
       provider,
-      options: {
-        redirectTo: window.location.origin + window.location.pathname,
-      },
+      options: { redirectTo: redirectBase() },
     });
     if (error) return { ok: false, error: error.message };
     return { ok: true };
@@ -114,12 +184,16 @@ if (window.__cqAuthInit) {
 
   /* ───── Expose ─────────────────────────────────────────────────────── */
   window.cqAuth = {
-    signInWithEmail,
+    signUp,
+    signInWithPassword,
+    signInWithEmail,        // magic link — kept for the "forgot password" path
     signInWithProvider,
+    resendConfirmation,
     signOut,
     getSession,
     getUser,
     isSignedIn,
+    isCapacitor,
     // Escape hatch for advanced callers (e.g., stats sync in future round)
     _client: supabase,
   };
