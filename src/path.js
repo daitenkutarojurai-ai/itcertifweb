@@ -824,6 +824,83 @@
     });
   }
 
+  /* ───── End-of-path ceremony (fires on cq:laurel-earned) ───── */
+  function showFinalBossCeremony(packId) {
+    fetch('/data/paths/_index.json', { cache: 'no-cache' })
+      .then(function (r) { return r.ok ? r.json() : []; })
+      .then(function (idx) {
+        var pack = (idx || []).find(function (x) { return x.packId === packId; }) || { title: packId, brandColor: '#fbbf24' };
+        var overlay = document.createElement('div');
+        overlay.className = 'cq-ceremony';
+        overlay.setAttribute('role', 'dialog');
+        overlay.setAttribute('aria-modal', 'true');
+        overlay.setAttribute('aria-labelledby', 'cq-ceremony-title');
+        overlay.style.setProperty('--brand-color', pack.brandColor || '#fbbf24');
+        overlay.innerHTML =
+          '<div class="cq-ceremony-backdrop"></div>' +
+          '<div class="cq-ceremony-panel">' +
+            '<div class="cq-ceremony-rays" aria-hidden="true"></div>' +
+            '<div class="cq-ceremony-laurel" aria-hidden="true">🏆</div>' +
+            '<div class="cq-ceremony-eyebrow">CERTIFICATION SURVIVOR</div>' +
+            '<h2 id="cq-ceremony-title">' + (pack.title || packId) + '</h2>' +
+            '<p class="cq-ceremony-sub">You cleared every node on the path. The boss kneels.</p>' +
+            '<div class="cq-ceremony-actions">' +
+              '<button type="button" class="cq-ceremony-share">Get my survivor card →</button>' +
+              '<button type="button" class="cq-ceremony-dismiss">Continue</button>' +
+            '</div>' +
+          '</div>';
+        document.body.appendChild(overlay);
+        document.body.style.overflow = 'hidden';
+        setTimeout(function () { overlay.classList.add('is-open'); }, 10);
+
+        /* Cascade of confetti — gold/yellow first, then brand-colored bursts */
+        var goldColors = ['#fbbf24','#fef08a','#facc15','#f59e0b'];
+        burstConfetti({ count: 80, origin: { x: window.innerWidth/2, y: window.innerHeight*0.35 }, colors: goldColors });
+        setTimeout(function () { burstConfetti({ count: 50, origin: { x: window.innerWidth*0.22, y: window.innerHeight*0.45 } }); }, 280);
+        setTimeout(function () { burstConfetti({ count: 50, origin: { x: window.innerWidth*0.78, y: window.innerHeight*0.45 } }); }, 480);
+        setTimeout(function () { burstConfetti({ count: 60, origin: { x: window.innerWidth/2, y: window.innerHeight*0.30 }, colors: goldColors }); }, 900);
+
+        function close() {
+          overlay.classList.remove('is-open');
+          document.body.style.overflow = '';
+          setTimeout(function () { overlay.remove(); }, 350);
+        }
+        overlay.querySelector('.cq-ceremony-dismiss').addEventListener('click', close);
+        overlay.querySelector('.cq-ceremony-backdrop').addEventListener('click', close);
+        overlay.querySelector('.cq-ceremony-share').addEventListener('click', function () {
+          location.href = '/profile.html';
+        });
+        overlay.addEventListener('cq:a11y-escape', close);
+      });
+  }
+  window.addEventListener('cq:laurel-earned', function (e) {
+    var detail = (e && e.detail) || {};
+    if (detail.packId) showFinalBossCeremony(detail.packId);
+  });
+
+  /* ───── Keyboard nav on the path map ───── */
+  function setupKeyboardNav() {
+    document.addEventListener('keydown', function (e) {
+      var active = document.activeElement;
+      if (!active || !active.classList || !active.classList.contains('path-node')) return;
+      var allNodes = Array.prototype.slice.call(document.querySelectorAll('.path-node:not(.is-locked)'));
+      var idx = allNodes.indexOf(active);
+      if (idx < 0) return;
+      var nextIdx = -1;
+      if (e.key === 'ArrowDown' || e.key === 'ArrowRight' || e.key === 'j') nextIdx = Math.min(allNodes.length - 1, idx + 1);
+      else if (e.key === 'ArrowUp' || e.key === 'ArrowLeft' || e.key === 'k') nextIdx = Math.max(0, idx - 1);
+      else if (e.key === 'Home') nextIdx = 0;
+      else if (e.key === 'End') nextIdx = allNodes.length - 1;
+      if (nextIdx < 0 || nextIdx === idx) return;
+      e.preventDefault();
+      var target = allNodes[nextIdx];
+      target.focus();
+      target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    });
+  }
+  if (document.readyState !== 'loading') setupKeyboardNav();
+  else document.addEventListener('DOMContentLoaded', setupKeyboardNav);
+
   /* Refresh walker emoji + hat when player levels up or unlocks cosmetic */
   function refreshWalkerVisuals() {
     if (!walker) return;
