@@ -1,4 +1,4 @@
-/* CertQuests core bundle — generated 2026-05-12T12:42:27.846Z
+/* CertQuests core bundle — generated 2026-05-12T13:46:24.930Z
  *
  * This file is concatenated by scripts/build-core.js. Do not edit by hand;
  * edit the source modules in src/*.js and re-run `npm run build-core`.
@@ -389,12 +389,20 @@
       if (pending && pending.packId === detail.packId) {
         var prog = JSON.parse(localStorage.getItem('cq-path-progress-v1') || '{}');
         prog[pending.packId] = prog[pending.packId] || {};
+        var pendingScore = detail.correct != null ? detail.correct : null;
         prog[pending.packId][pending.nodeId] = {
           completed: true,
           completedAt: Date.now(),
-          score: detail.correct != null ? detail.correct : null
+          score: pendingScore
         };
         localStorage.setItem('cq-path-progress-v1', JSON.stringify(prog));
+        /* sync.js listens to this so the cloud row can be upserted in
+           the same tick as the localStorage write. Payload: just the
+           one row that changed — sync pushes a single row, not the
+           whole map. */
+        window.dispatchEvent(new CustomEvent('cq:path-progress-changed', {
+          detail: { packId: pending.packId, nodeId: pending.nodeId, score: pendingScore }
+        }));
         /* If this was the final boss → award the laurel here too */
         if (pending.nodeId === 'final-boss') {
           var laurels = JSON.parse(localStorage.getItem('cq-laurels-v1') || '[]');

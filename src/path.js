@@ -50,6 +50,11 @@
     var alreadyDone = !!p[packId][nodeId];
     p[packId][nodeId] = { completed: true, completedAt: Date.now(), score: score || null };
     saveProgress(p);
+    /* Inline node completion (concept / mini-game / chest) — fire the same
+       event the stats.js handshake fires so sync.js can upsert the row. */
+    window.dispatchEvent(new CustomEvent('cq:path-progress-changed', {
+      detail: { packId: packId, nodeId: nodeId, score: score || null }
+    }));
     /* If this is the final-boss node, award a "Cert Survivor" laurel */
     if (!alreadyDone && nodeId === 'final-boss') {
       try {
@@ -57,7 +62,7 @@
         if (!laurels.some(function (l) { return l.packId === packId; })) {
           laurels.push({ packId: packId, earnedAt: Date.now(), score: score || null });
           localStorage.setItem('cq-laurels-v1', JSON.stringify(laurels));
-          window.dispatchEvent(new CustomEvent('cq:laurel-earned', { detail: { packId: packId } }));
+          window.dispatchEvent(new CustomEvent('cq:laurel-earned', { detail: { packId: packId, score: score || null } }));
         }
       } catch (e) {
         if (window.cqDbg) window.cqDbg('[path] award-laurel failed', e);
