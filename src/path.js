@@ -675,11 +675,12 @@
       .then(function (r) { return r.json(); })
       .then(function (list) {
         loading.remove();
+        document.title = 'Cert Quest — CertQuests';
         var allProg = loadProgress();
         var header = el('header', { class: 'path-header path-index-header' }, [
-          el('div', { class: 'path-header-eyebrow', text: 'CertQuests · Learning Paths' }),
-          el('h1', { class: 'path-title', text: 'Pick your path' }),
-          el('p', { class: 'path-index-sub', text: 'A guided journey for each cert: concepts, drills, mini-games, sub-bosses, and a final mock exam. ' + list.length + ' paths available.' })
+          el('div', { class: 'path-header-eyebrow', text: '🗺️ Cert Quest · pick your journey' }),
+          el('h1', { class: 'path-title', text: 'Cert Quest' }),
+          el('p', { class: 'path-index-sub', text: 'A gamified path for each cert: concepts, drills, mini-games, sub-bosses, and a final boss. ' + list.length + ' quests available.' })
         ]);
         main.appendChild(header);
 
@@ -754,10 +755,10 @@
     fetchPath(packId)
       .then(function (pathDoc) {
         $('#path-title').textContent = pathDoc.title || packId;
-        $('#path-eyebrow').textContent = (pathDoc.brandName || 'Certification') + ' · Learning Path';
+        $('#path-eyebrow').textContent = (pathDoc.brandName || 'Certification') + ' · 🗺️ Cert Quest';
         $('#path-chapters').textContent = pathDoc.chapters.length + ' chapters';
         $('#path-nodes').textContent = pathDoc.meta.totalNodes + ' nodes';
-        document.title = pathDoc.title + ' — Learning Path · CertQuests';
+        document.title = pathDoc.title + ' — Cert Quest · CertQuests';
         hide('path-loading'); show('path-root');
         renderMap(pathDoc);
       })

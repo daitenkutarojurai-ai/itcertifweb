@@ -52,7 +52,7 @@
         '</button>' +
         '<div class="mobile-menu-eyebrow">Explore</div>' +
         '<a href="/path.html" class="mobile-menu-new">' +
-          '<span class="mobile-menu-emoji">🗺️</span>Learning paths' +
+          '<span class="mobile-menu-emoji">🗺️</span>Cert Quest' +
           '<span class="mobile-menu-pill">NEW</span>' +
         '</a>' +
         '<a href="/profile.html">' +

@@ -214,16 +214,33 @@ function buildPath(packId, pack) {
   const allQuestionIds = questions.map(q => q.id);
   const finalMockSize = Math.min(40, Math.max(20, Math.floor(allQuestionIds.length * 0.5)));
 
+  /* Pack metadata is nested: { meta: { name, vendor, … }, questions: [] } */
+  const meta = pack.meta || {};
+  const title = meta.name || pack.title || pack.name || packId;
+  const brandName = meta.vendor || pack.brand || pack.brandName || '';
+  /* Map vendors → brand colors (matches the homepage cert-card palette) */
+  const BRAND_COLORS = {
+    'Amazon': '#FF9900', 'AWS': '#FF9900',
+    'Microsoft': '#0078D4',
+    'Cisco': '#1D63ED',
+    'CompTIA': '#C7173F',
+    'Linux Foundation': '#22c55e', 'Linux': '#22c55e', 'Docker': '#2496ED',
+    'HashiCorp': '#7B42BC',
+    'Red Hat': '#EE0000', 'Fortinet': '#EF3E25', 'Palo Alto Networks': '#FA582D',
+    'ServiceNow': '#62D84E', 'Splunk': '#65A637',
+    'Google': '#4285F4', 'Google Cloud': '#4285F4',
+    'ISC2': '#7c3aed', 'Snowflake': '#29B5E8', 'GitHub': '#8b5cf6'
+  };
   return {
     packId,
-    title: pack.title || pack.name || packId,
-    brandName: pack.brand || pack.brandName || '',
-    brandColor: pack.brandColor || '#60a5fa',
+    title,
+    brandName,
+    brandColor: pack.brandColor || BRAND_COLORS[brandName] || '#60a5fa',
     chapters: builtChapters,
     finalBoss: {
       id: 'final-boss',
       type: 'finalboss',
-      title: `Final Exam: ${pack.title || packId}`,
+      title: `Final Exam: ${title}`,
       questionCount: finalMockSize,
       timeMinutes: Math.ceil(finalMockSize * 1.5)
     },

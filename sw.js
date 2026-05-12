@@ -10,7 +10,7 @@
  * Bump CACHE_VERSION to invalidate clients on next visit.
  */
 
-const CACHE_VERSION = 'v44-2026-05-12-laurel-ceremony-return-from-trainhtml';
+const CACHE_VERSION = 'v45-2026-05-12-cert-quest-rebrand-and-bugfix';
 const RUNTIME_CACHE = `cq-runtime-${CACHE_VERSION}`;
 const PRECACHE      = `cq-precache-${CACHE_VERSION}`;
 
@@ -23,10 +23,10 @@ const PRECACHE_URLS = [
   '/src/styles/main.css?v=32',
   '/src/styles/desktop.css?v=32',
   '/certifications/',
-  '/src/styles/path.css?v=5',
+  '/src/styles/path.css?v=6',
   '/src/styles/profile.css?v=1',
-  '/src/cq-core.js?v=4',
-  '/src/path.js?v=6',
+  '/src/cq-core.js?v=5',
+  '/src/path.js?v=7',
   '/src/profile.js?v=1',
   '/src/mascot-loader.js?v=1',
   '/data/cosmetics.json',

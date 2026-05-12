@@ -179,7 +179,7 @@ function renderGoalPicker(packs) {
       <a class="goal-button goal-button--featured" data-goal="path" href="/path.html">
         <span class="goal-pill">NEW</span>
         <span class="goal-icon">🗺️</span>
-        <strong>Learning path</strong>
+        <strong>Cert Quest</strong>
         <span class="goal-desc">Gamified · earn XP, level up, beat bosses</span>
         <span class="goal-arrow" aria-hidden="true">→</span>
       </a>
