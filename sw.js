@@ -10,7 +10,7 @@
  * Bump CACHE_VERSION to invalidate clients on next visit.
  */
 
-const CACHE_VERSION = 'v42-2026-05-12-cert-index-paths-everywhere';
+const CACHE_VERSION = 'v43-2026-05-12-protips-handshake-cardsizing-bugs';
 const RUNTIME_CACHE = `cq-runtime-${CACHE_VERSION}`;
 const PRECACHE      = `cq-precache-${CACHE_VERSION}`;
 
@@ -25,7 +25,7 @@ const PRECACHE_URLS = [
   '/certifications/',
   '/src/styles/path.css?v=5',
   '/src/styles/profile.css?v=1',
-  '/src/cq-core.js?v=2',
+  '/src/cq-core.js?v=3',
   '/src/path.js?v=5',
   '/src/profile.js?v=1',
   '/src/mascot-loader.js?v=1',

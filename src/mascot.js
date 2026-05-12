@@ -24,13 +24,13 @@
    */
   var TIPS = [
     { text: "20 minutes a day beats 4 hours once a week. 💪",
-      cta: "Start a 5-Q quiz →", href: "/train.html?autostart=quick" },
+      cta: "Start a learning path →", href: "/path.html" },
     { text: "Studying AWS? Start with Cloud Practitioner — it's the foundation.",
       cta: "Browse AWS exams →", href: "/certifications/aws.html" },
     { text: "Stuck on which cert to pick? Career roadmaps map it out.",
       cta: "Browse careers →", href: "/careers/" },
     { text: "Pro tip: do the Question of the Day first — quick warm-up.",
-      cta: "Try today's question →", href: "/#qotd-section" },
+      cta: "Try today's question →", href: "/" },
     { text: "Want Azure instead? AZ-900 is a friendly first step.",
       cta: "Browse Azure exams →", href: "/certifications/microsoft.html" },
     { text: "Network engineer track? Network+ → CCNA is the road.",

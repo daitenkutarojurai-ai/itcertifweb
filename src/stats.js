@@ -196,6 +196,36 @@
     var s = load();
     var res = applySession(s, detail);
     save(res.stats);
+    /* Set a global "last session at" timestamp so path.js can detect a
+       completed quiz on its next page load (the path-node handshake from
+       train.html → path.html). Must live in stats.js because train.html
+       doesn't load path.js. */
+    try { localStorage.setItem('cq-stats-v1-last-session-at', String(Date.now())); } catch (_) {}
+    /* Also resolve any cq-path-pending right here if it matches the packId
+       — this way the node marks complete the moment the quiz finishes,
+       not just when the user returns to the path map. */
+    try {
+      var pending = JSON.parse(localStorage.getItem('cq-path-pending') || 'null');
+      if (pending && pending.packId === detail.packId) {
+        var prog = JSON.parse(localStorage.getItem('cq-path-progress-v1') || '{}');
+        prog[pending.packId] = prog[pending.packId] || {};
+        prog[pending.packId][pending.nodeId] = {
+          completed: true,
+          completedAt: Date.now(),
+          score: detail.correct != null ? detail.correct : null
+        };
+        localStorage.setItem('cq-path-progress-v1', JSON.stringify(prog));
+        /* If this was the final boss → award the laurel here too */
+        if (pending.nodeId === 'final-boss') {
+          var laurels = JSON.parse(localStorage.getItem('cq-laurels-v1') || '[]');
+          if (!laurels.some(function (l) { return l.packId === pending.packId; })) {
+            laurels.push({ packId: pending.packId, earnedAt: Date.now(), score: detail.correct || null });
+            localStorage.setItem('cq-laurels-v1', JSON.stringify(laurels));
+          }
+        }
+        localStorage.removeItem('cq-path-pending');
+      }
+    } catch (_) {}
     /* eslint-disable no-console */
     console.log('[cq-stats] session-complete →', {
       packId: detail.packId, secondsSpent: detail.secondsSpent,

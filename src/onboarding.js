@@ -196,9 +196,9 @@ function renderGoalPicker(packs) {
         <span class="goal-arrow" aria-hidden="true">→</span>
       </a>
       <a class="goal-button" data-goal="news" href="/news/">
-        <span class="goal-icon">📰</span>
-        <strong>Latest tips</strong>
-        <span class="goal-desc">News, cheat sheets, war stories</span>
+        <span class="goal-icon">💡</span>
+        <strong>Pro tips</strong>
+        <span class="goal-desc">Cheatsheets, war stories, deep-dives</span>
         <span class="goal-arrow" aria-hidden="true">→</span>
       </a>
     </div>

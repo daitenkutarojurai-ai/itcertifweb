@@ -71,7 +71,7 @@
           '<span class="mobile-menu-emoji">📚</span>Free courses' +
         '</a>' +
         '<a href="/news/">' +
-          '<span class="mobile-menu-emoji">📰</span>News &amp; tips' +
+          '<span class="mobile-menu-emoji">💡</span>Pro tips' +
         '</a>' +
         '<a href="/stats.html">' +
           '<span class="mobile-menu-emoji">📊</span>Stats' +
