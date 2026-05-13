@@ -24,7 +24,8 @@ const ORDER = [
   'hearts.js',
   'cosmetics.js',
   'daily.js',
-  'menu.js'
+  'menu.js',
+  'hud.js'
 ];
 
 const SRC = path.join(__dirname, '..', 'src');
