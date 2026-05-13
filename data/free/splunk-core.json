@@ -6,7 +6,7 @@
     "version": "2.0.3",
     "question_count": 66,
     "last_updated": "2026-05-13",
-    "notes": " [splunk-core batch 1: 11 scenario rewrites + 1 FACTUAL FIX (splunk-011: len() vs length())] [splunk-core batch 2: 15 scenario rewrites] [splunk-core batch 3: 18 scenario rewrites]"
+    "notes": " [splunk-core batch 1: 11 scenario rewrites + 1 FACTUAL FIX (splunk-011: len() vs length())] [splunk-core batch 2: 15 scenario rewrites] [splunk-core batch 3: 18 scenario rewrites] [splunk-core batch 4 (final): 21 scenario rewrites]"
   },
   "questions": [
     {
@@ -897,396 +897,430 @@
     },
     {
       "id": "splunk-045",
-      "question": "What does the `outputlookup` command do?",
+      "question": "A scheduled saved-search computes daily aggregates and PERSISTS the results to a CSV lookup file `daily_totals.csv`. Subsequent dashboards read from the CSV via `| inputlookup daily_totals.csv`. The pipe that WRITES the search's current results into the lookup is `| outputlookup daily_totals.csv`. Which describes `outputlookup`?",
       "options": [
-        "Reads a lookup file and outputs its contents to the search results",
-        "Writes the current search results to a lookup CSV file or KV Store collection",
-        "Outputs the lookup configuration to the system admin",
-        "Exports a lookup table to an external database"
+        "Reads a lookup file — wrong; that's `inputlookup`",
+        "Writes current search results to a CSV lookup file or a KV-Store collection — `| outputlookup name.csv` or `| outputlookup name_collection`",
+        "Outputs lookup config to admin — wrong",
+        "Exports to external DB — wrong"
       ],
       "correct": 1,
       "explanation": "`outputlookup` writes search results to a CSV file or KV Store lookup table. This is used to create or update lookup files programmatically. For example, running a daily search that outputs a list of known bad IPs to a CSV, which is then used by `lookup` to enrich future events. Requires write permission on the lookup.",
       "tags": [
         "lookups",
-        "outputlookup"
+        "outputlookup",
+        "splunk-core"
       ],
       "difficulty": "intermediate",
-      "_normalized": true
+      "_normalized": true,
+      "rewritten": true
     },
     {
       "id": "splunk-046",
-      "question": "Which `eval` function would you use to return a value from a multivalue field at a specific index position?",
+      "question": "A search produces a multivalue field `tags` containing `['prod','db','primary']`. To extract the SECOND element (index 1 — Splunk multivalue indexes are 0-based), the analyst uses an eval function. Which?",
       "options": [
-        "mvget(field, index)",
-        "mvindex(field, index)",
-        "getmv(field, index)",
-        "field[index]"
+        "`mvget(field, idx)` — not a real Splunk eval function",
+        "`mvindex(field, 1)` — canonical Splunk eval to return the value at index 1 of the multivalue field (0-based; supports negative indexing)",
+        "`getmv(field, idx)` — not a real Splunk function",
+        "`field[idx]` — not Splunk SPL syntax"
       ],
       "correct": 1,
       "explanation": "`mvindex(field, start, end)` extracts a value (or range of values) from a multivalue field by position. Index 0 is the first element, negative indices count from the end (-1 is the last element). For example, `eval last_ip = mvindex(ips, -1)` retrieves the last IP in a multivalue `ips` field. This is commonly used when processing multivalue fields created by `split()`, `mvsort()`, or lookups.",
       "tags": [
-        "eval",
-        "multivalue-functions"
+        "spl",
+        "multivalue",
+        "splunk-core"
       ],
       "difficulty": "intermediate",
-      "_normalized": true
+      "_normalized": true,
+      "rewritten": true
     },
     {
       "id": "splunk-047",
-      "question": "How does Splunk determine the source type of incoming data when no source type is explicitly set?",
+      "question": "An ingest stanza sets no `sourcetype` for the input. How does Splunk DECIDE the sourcetype to assign at index time?",
       "options": [
-        "It uses automatic source type detection based on the file extension or content pattern matching in `props.conf`",
-        "The Universal Forwarder always sets the source type; it cannot be left unset",
-        "It inherits the source type from the index the data is sent to",
-        "It assigns 'unknown' to all data with no explicit source type"
+        "Automatic sourcetyping: Splunk pattern-matches the file extension + a sample of the content against props.conf `sourcetype` rules (built-in + custom). Falls back to `<unknown>` if no rule matches",
+        "Universal Forwarder always sets it — false; UF can leave it unset",
+        "Inherited from the index — false; index ≠ sourcetype",
+        "Always `unknown` — false; only the fallback"
       ],
       "correct": 0,
       "explanation": "Splunk can automatically detect source types using pattern matching. In `props.conf`, `[source::.../filename.log]` stanzas match by filename pattern. Splunk also has built-in rules for common file types (.csv, .json, Windows event logs, syslog, Apache access logs, etc.). If no rule matches, it falls back to `_json`, `_xml`, or `generic_single_line` based on content analysis.",
       "tags": [
-        "source-types",
-        "data-inputs"
+        "inputs",
+        "sourcetyping",
+        "splunk-core"
       ],
       "difficulty": "intermediate",
-      "_normalized": true
+      "_normalized": true,
+      "rewritten": true
     },
     {
       "id": "splunk-048",
-      "question": "What is the `appendcols` command used for?",
+      "question": "Two ways to JOIN two searches' results: (A) APPENDCOLS — runs a second search and pastes its result COLUMNS side-by-side with the first (matching by row position). (B) APPEND — runs a second search and STACKS its rows below the first (matching by column name). Which describes `appendcols`?",
       "options": [
-        "Adding new columns (fields) to events using eval expressions",
-        "Adding a new column to a lookup table",
-        "Appending rows from a second search to the first search's results",
-        "Running a second search and appending its columns alongside the first search's results"
+        "Adding new columns from eval — that's `eval`",
+        "Adding rows to a lookup — wrong (outputlookup adds to a lookup)",
+        "Appending ROWS from a second search — that's `append`, not `appendcols`",
+        "Runs a SECOND search and appends its COLUMNS side-by-side with the first search's results (row-position matched)"
       ],
       "correct": 3,
       "explanation": "`appendcols` runs a subsearch and appends the columns (fields) from the subsearch results alongside the main search results, row by row. Unlike `append` (which adds rows), `appendcols` adds columns. It's useful for combining two separate aggregations side-by-side. The number of rows in the subsearch should match the main search, or rows are filled with null.",
       "tags": [
         "spl",
-        "appendcols"
+        "appendcols",
+        "splunk-core"
       ],
       "difficulty": "advanced",
-      "_normalized": true
+      "_normalized": true,
+      "rewritten": true
     },
     {
       "id": "splunk-049",
-      "question": "When creating an alert in Splunk, what does the 'Real-time' schedule option do compared to 'Scheduled'?",
+      "question": "A Splunk alert has two scheduling modes. (Real-time) the alert search runs CONTINUOUSLY on a rolling time window (e.g., last 5 min) and trigger conditions are evaluated on every result update — most timely but most resource-heavy. (Scheduled) the alert search runs on a CRON schedule (every N minutes), trigger conditions evaluated after each completion — cheaper but less timely. Which describes Real-time vs Scheduled?",
       "options": [
-        "Real-time alerts can only use email actions; Scheduled alerts can use all action types",
-        "Real-time checks for results every second; Scheduled checks hourly",
-        "Real-time searches only look at live streaming data; Scheduled searches look at historical data",
-        "Real-time evaluates trigger conditions on a rolling time window continuously;."
+        "Real-time email-only — false; both modes support all action types",
+        "Real-time every second — false; the rolling window length is configurable",
+        "Real-time = streaming-only — false; both search live + historical depending on time window",
+        "Real-time = continuous rolling-window evaluation (most timely, resource-heavy); Scheduled = cron-based periodic evaluation (cheaper, less timely)"
       ],
       "correct": 3,
       "explanation": "Real-time alerts in Splunk continuously evaluate a rolling time window (e.g., always looking at the last 5 minutes of data). The trigger condition is checked as new events arrive. Scheduled alerts run the search at specific intervals (every 15 minutes, hourly, etc.) and check results at that point in time. Real-time alerts are resource-intensive and generally reserved for high-priority use cases. Scheduled runs the search at defined intervals",
       "tags": [
         "alerts",
-        "real-time"
+        "realtime-vs-scheduled",
+        "splunk-core"
       ],
       "difficulty": "intermediate",
       "_normalized": true,
-      "_lenbal": true
+      "_lenbal": true,
+      "rewritten": true
     },
     {
       "id": "splunk-050",
-      "question": "What is the `join` command in Splunk, and what is a common alternative?",
+      "question": "An analyst wants to enrich firewall events with user-email by JOINING to an LDAP-backed lookup. Splunk's `join` command does it but is RESOURCE-HEAVY (loads both result sets into memory) and has a default 50 000-row cap. A more efficient alternative is `stats` with `by` clauses or a lookup. What does `join` do?",
       "options": [
-        "join merges two result sets on a shared field;.",
-        "join combines multivalue fields into a single string; mvjoin is the alternative",
-        "join is deprecated in Splunk 8.x; stats with by clause replaces it",
-        "join connects to an external database to fetch additional data; inputlookup is the alternative"
+        "`join field=key …` — merges two result sets on a shared field; expensive at scale; common alternatives: `lookup` (when matching against a small static table) or `stats … by` (when both result sets come from `index=…`)",
+        "Combines multivalue into string — that's `mvjoin`",
+        "Deprecated in 8.x — false; still supported",
+        "Connects to external DB — different (DB Connect app)"
       ],
       "correct": 0,
       "explanation": "The `join` command performs a SQL-style join between the main search results and a subsearch on a shared field. It's functionally correct but slow on large datasets. Better alternatives: use `lookup` for enrichment from reference tables (much faster), `stats` for aggregation-based joins, or `append + stats` for union-style operations. Avoid `join` in performance-sensitive searches. subsearch or lookup are usually better alternatives for performance",
       "tags": [
         "spl",
         "join",
-        "performance"
+        "splunk-core"
       ],
       "difficulty": "advanced",
       "_normalized": true,
-      "_lenbal": true
+      "_lenbal": true,
+      "rewritten": true
     },
     {
       "id": "splunk-051",
-      "question": "What does `earliest=-60m@m latest=@m` mean as a time range?",
+      "question": "Splunk time modifier `earliest=-60m@m latest=@m` snaps both bounds to the START of a minute. So `-60m@m` means 60 minutes ago snapped down to that minute's :00 seconds; `@m` means the current minute's :00 seconds. Effective range = the previous 60 minutes (start-of-minute aligned). Which describes this?",
       "options": [
-        "The last full hour (from one full hour ago to the start of the current hour)",
-        "From 60 minutes ago to right now",
-        "From midnight 60 minutes ago to the current midnight",
-        "From 60 minutes ago (snapped to the start of that minute) to the start of the current minute"
+        "Last full hour with hour-snap — false; uses minute-snap (`@m`), not hour-snap (`@h`)",
+        "60 min ago to now — partial; doesn't capture the snap-to-minute",
+        "60 min ago midnight to now midnight — wrong unit (it's `@d` not `@m`)",
+        "From 60 minutes ago snapped to that minute's start to the current minute's start — a rolling 60-minute window aligned on the minute boundary"
       ],
       "correct": 3,
       "explanation": "`earliest=-60m@m` means 60 minutes ago, then snap back to the start of that minute (i.e., the minute boundary 60 minutes ago). `latest=@m` means the start of the current minute. Together this gives you a clean rolling 60-minute window aligned to minute boundaries, useful for reporting where you don't want partial minutes at the edges.",
       "tags": [
-        "spl",
         "time",
-        "relative-time"
+        "modifiers",
+        "splunk-core"
       ],
       "difficulty": "advanced",
-      "_normalized": true
+      "_normalized": true,
+      "rewritten": true
     },
     {
       "id": "splunk-052",
-      "question": "In Splunk, what is the 'summary index' technique used for?",
+      "question": "A reporting team needs 3 years of MONTHLY firewall-event aggregates without storing 3 years of raw events. They schedule a search every night that AGGREGATES the day's events with `stats count by …` and writes the SUMMARY ROWS to a dedicated index (e.g., `summary`). Dashboards query the summary index → fast. Which technique?",
       "options": [
-        "A technique to write aggregated search results to a dedicated index for efficient long-term trend reporting",
-        "The main index that holds all search-time field extraction definitions",
-        "An index automatically created by Splunk to store alert trigger history",
-        "An index that stores only field names and cardinality statistics for fast field lookup"
+        "Summary indexing — write aggregated search results to a dedicated `summary` index nightly; long-term trend reporting reads aggregates, not raw data; orders-of-magnitude faster + cheaper retention",
+        "Main index — wrong; that's the live data store",
+        "Alert-history index — wrong purpose",
+        "Field-stats index — not a real Splunk index"
       ],
       "correct": 0,
       "explanation": "Summary indexing writes aggregated results (e.g., hourly counts, daily totals) to a separate Splunk index using `collect` or `sichart`/`sistats` commands. This allows very fast querying of long-term trends by searching pre-aggregated data instead of raw events, dramatically reducing search time and resource consumption for reporting on months of data.",
       "tags": [
-        "performance",
-        "summary-index"
+        "acceleration",
+        "summary-indexing",
+        "splunk-core"
       ],
       "difficulty": "advanced",
-      "_normalized": true
+      "_normalized": true,
+      "rewritten": true
     },
     {
       "id": "splunk-053",
-      "question": "Which command would you use to split a single-value field containing a comma-separated string into a multivalue field?",
+      "question": "An event has `tags=\"prod,db,primary\"` as a STRING. To convert it into a Splunk multivalue field so per-element commands (`mvexpand`, `mvindex`) work, the analyst splits the string on comma. Which SPL idiom?",
       "options": [
-        "makemv field delim=\",\"",
-        "eval field = split(field, \",\")",
-        "fields split(field, \",\")",
-        "mvexpand field delimiter=\",\""
+        "`| makemv field delim=\",\"` — VALID (makemv) but the eval-based approach is more general",
+        "`| eval tags = split(tags, \",\")` — uses the eval `split()` function to convert comma-separated string into a multivalue field; canonical SPL pattern",
+        "`| fields split(tags, \",\")` — wrong; `fields` doesn't run functions",
+        "`| mvexpand tags delimiter=\",\"` — wrong syntax; `mvexpand` expects an already-multivalue field"
       ],
       "correct": 1,
       "explanation": "The `eval split(field, delimiter)` function splits a string into a multivalue field using the specified delimiter. `eval apps = split(app_list, \",\")` creates a multivalue `apps` field from a comma-separated string. The `makemv` command (also correct for some formats) is used for fields that are already stored as multivalue strings with a delimiter.",
       "tags": [
-        "eval",
-        "multivalue-functions"
+        "spl",
+        "multivalue",
+        "splunk-core"
       ],
       "difficulty": "intermediate",
-      "_normalized": true
+      "_normalized": true,
+      "rewritten": true
     },
     {
       "id": "splunk-054",
-      "question": "What does the `mvexpand` command do?",
+      "question": "An event has a multivalue field `users = ['alice','bob','carol']`. The analyst wants ONE row per user (3 rows total) so they can `stats` per user. Which SPL command?",
       "options": [
-        "Takes a multivalue field and creates one event per value",
-        "Splits a single event into multiple events based on a delimiter",
-        "Expands macro variables in a search string",
-        "Expands a compressed data model summary for searching"
+        "`mvexpand users` — takes a multivalue field and emits ONE event per value (3 events for 3 values); the canonical multivalue → event-row converter",
+        "Splits a single event into multiple by delimiter — that's `split` (eval) followed by `mvexpand`",
+        "Expands macro variables — wrong command (that's macro substitution at parse time)",
+        "Expands data-model summary — different concept"
       ],
       "correct": 0,
       "explanation": "`mvexpand` takes a multivalue field and creates a separate event for each value in that field. For example, if an event has `ports=[80, 443, 8080]`, `| mvexpand ports` creates three events — one for each port value. This is the inverse of `stats values()` — useful for un-grouping multivalue data for further processing.",
       "tags": [
         "spl",
-        "multivalue",
-        "mvexpand"
+        "mvexpand",
+        "splunk-core"
       ],
       "difficulty": "intermediate",
-      "_normalized": true
+      "_normalized": true,
+      "rewritten": true
     },
     {
       "id": "splunk-055",
-      "question": "What is a Splunk data model, and what are its main components?",
+      "question": "Splunk's data model knowledge object is a HIERARCHICAL definition of: ROOT EVENT (a base search defining the dataset), CHILD events / transactions (filtered subsets), CONSTRAINTS (`eval`, `lookup`, calculated fields per dataset). Used by pivot reports + accelerated by tstats. Which describes a data model?",
       "options": [
-        "A visual schema of your data sources; components are indexes, source types, and fields",
-        "A hierarchical knowledge object that categorizes event data into structured datasets with defined field constraints;.",
-        "A CIM extension that adds industry-specific fields; components are schemas and field aliases",
-        "A configuration file defining how raw data maps to indexes; components are transforms and props stanzas"
+        "Visual schema; components are indexes / sourcetypes / fields — too vague",
+        "Hierarchical knowledge object defining datasets (root + child events / transactions / search) with per-dataset CONSTRAINTS (filters, eval, lookup, calc fields); powers Pivot reports + tstats acceleration",
+        "CIM extension only — partial; CIM IS a set of data models, but data models in general are broader",
+        "A config file mapping raw data to indexes — that's `props.conf` + `transforms.conf`, not a data model"
       ],
       "correct": 1,
       "explanation": "A data model is a hierarchical knowledge object that organizes data into structured datasets (event-based, search-based, or transaction-based). Root datasets define the top-level search constraint; child datasets inherit and add constraints. Each dataset has defined fields (attributes). Data models can be accelerated (stored as TSIDX files) for fast `tstats` queries. The CIM ships several pre-built data models. components are root datasets, child datasets, and field definitions",
       "tags": [
         "data-models",
-        "knowledge-objects"
+        "fundamentals",
+        "splunk-core"
       ],
       "difficulty": "intermediate",
       "_normalized": true,
-      "_lenbal": true
+      "_lenbal": true,
+      "rewritten": true
     },
     {
       "id": "splunk-056",
-      "question": "What does `streamstats` do differently from `stats`?",
+      "question": "An analyst needs RUNNING / CUMULATIVE statistics as events flow through the pipeline in time order: e.g., 'running sum of bytes per host'. `stats` produces ONE row per group (collapses events); the streaming alternative keeps each event AND adds a new field with the running aggregate. Which command?",
       "options": [
-        "streamstats calculates running/cumulative statistics as events are processed in time order,.",
-        "streamstats uses streaming algorithms; stats uses batch processing",
-        "streamstats is faster; stats is more accurate",
-        "streamstats works on real-time data; stats works on historical data"
+        "`streamstats sum(bytes) AS running_bytes BY host` — computes running / cumulative stats as events stream through; KEEPS each event AND adds the aggregate field; useful for windowed analysis",
+        "Streaming algorithms — true at implementation level but not the user-facing distinction",
+        "Faster — context-dependent",
+        "Real-time only — false; streamstats works on historical too"
       ],
       "correct": 0,
       "explanation": "`streamstats` computes statistics in a running/cumulative fashion, adding the stat as a field to each event — the result still has the same number of rows as the input. For example, `streamstats sum(bytes) as cumulative_bytes by session_id` adds a running byte total per session to each event. `stats` collapses all events into a summary table. `streamstats` is ideal for detecting rate changes or running totals. adding stats fields to each event without collapsing results into a summary table",
       "tags": [
         "spl",
-        "streamstats"
+        "streamstats",
+        "splunk-core"
       ],
       "difficulty": "advanced",
       "_normalized": true,
-      "_lenbal": true
+      "_lenbal": true,
+      "rewritten": true
     },
     {
       "id": "splunk-057",
-      "question": "What is the difference between `index-time` and `search-time` field extraction in Splunk?",
+      "question": "Splunk extracts fields in TWO architectural stages. (A) INDEX-TIME — fields stored alongside raw event in the index; reading the field doesn't require regex execution; FASTER searches but BIGGER index storage. (B) SEARCH-TIME — fields extracted at query time via regex / delimiter; ZERO storage cost but per-query CPU. Which describes the trade-off?",
       "options": [
-        "Index-time extraction uses regex; search-time extraction uses key=value parsing only",
-        "They are architecturally the same; the distinction is just documentation terminology",
-        "Index-time extraction stores field values in the index for faster searching;.",
-        "Index-time extraction is only for structured data; search-time extraction is for unstructured data"
+        "Index-time regex; search-time key=value only — false (both use regex)",
+        "Just docs terminology — false; meaningful architectural difference",
+        "Index-time stores field values in the index (faster search, larger storage, irreversible without re-indexing); Search-time extracts on query (no storage cost, more CPU per search, fully reversible)",
+        "Structured vs unstructured — partial; both can apply"
       ],
       "correct": 2,
       "explanation": "Splunk recommends search-time field extraction for almost all use cases. **Index-time** extraction permanently writes field values into the index (increasing storage) — only use for fields needed in very high-performance searches. **Search-time** extraction happens when a search runs, extracting fields from the raw `_raw` text on the fly using regex defined in `props.conf`. This is flexible and storage-efficient. search-time extraction happens on-the-fly when a search is run",
       "tags": [
+        "fundamentals",
         "field-extraction",
-        "architecture"
+        "splunk-core"
       ],
       "difficulty": "intermediate",
       "_normalized": true,
-      "_lenbal": true
+      "_lenbal": true,
+      "rewritten": true
     },
     {
       "id": "splunk-058",
-      "question": "You want to find events where a URL contains the string '/admin'. Which search is most efficient?",
+      "question": "An analyst searches for HTTP requests where the URL contains `/admin`. The MOST efficient SPL pattern uses indexed-field matching with a wildcard (lets Splunk push the search to the indexer's lispy engine, NOT post-process via `where`/`regex`). Which?",
       "options": [
-        "index=web url=*admin*",
-        "index=web | eval match=if(match(url, \"/admin\"), 1, 0) | where match=1",
-        "index=web | search url=*admin*",
-        "index=web | regex url=\"/admin\""
+        "`index=web url=*admin*` — wildcard on an extracted field; the indexer pushes the predicate down and avoids loading every event for post-filter",
+        "`| eval match=if(match(url,\"/admin\"),1,0) | where match=1` — post-process every event; far slower",
+        "`| search url=*admin*` — works but the leading `index=web` already supports it inline; same engine path",
+        "`| regex url=\"/admin\"` — works but `regex` is post-process and slower than indexed wildcard match"
       ],
       "correct": 0,
       "explanation": "Placing `url=*admin*` directly in the main search string (before the first pipe) uses index-aware optimization and can narrow the event set using bloom filters and bucket elimination where possible. Using `search` after a pipe, `regex`, or `eval/where` all operate on the full result set after the initial retrieval. Note that wildcard-only searches (`*admin*`) still scan raw events but are faster than post-pipe filtering for initial event reduction.",
       "tags": [
-        "spl",
         "performance",
-        "search-optimization"
+        "search-efficiency",
+        "splunk-core"
       ],
       "difficulty": "intermediate",
-      "_normalized": true
+      "_normalized": true,
+      "rewritten": true
     },
     {
       "id": "splunk-059",
-      "question": "What does the `bin` (or `bucket`) command do in Splunk?",
+      "question": "An analyst has events with continuous numeric `response_ms` ranging 0-5000. They want to bucket events into ranges (`0-99`, `100-499`, `500-999`, `1000+`) for histogram visualization. The SPL command that DISCRETISES continuous numeric (or time) fields into buckets is `bin` (alias `bucket`). Which describes `bin`?",
       "options": [
-        "Marks events for deletion in a specific retention bucket",
-        "Groups continuous numeric or time field values into discrete buckets for aggregation",
-        "Distributes search processing across multiple buckets on indexers",
-        "Stores events in compressed binary format for long-term retention"
+        "Marks events for deletion — wrong",
+        "`bin span=100 response_ms` — discretises continuous values into buckets; `bin` is the canonical aggregation helper before `stats by`",
+        "Distributes search to buckets — wrong (those are indexer buckets, unrelated)",
+        "Compresses to binary — wrong"
       ],
       "correct": 1,
       "explanation": "`bin` (alias: `bucket`) groups continuous field values into discrete ranges for aggregation. Common use: `bin _time span=1h` creates hourly time buckets for use with `stats`. Example: `bin bytes span=1024` creates 1KB buckets. After `bin`, use `stats count by` the binned field to get histograms. `timechart` uses `bin` internally on `_time`.",
       "tags": [
         "spl",
         "bin",
-        "bucket"
+        "splunk-core"
       ],
       "difficulty": "intermediate",
-      "_normalized": true
+      "_normalized": true,
+      "rewritten": true
     },
     {
       "id": "splunk-060",
-      "question": "Which of the following is a valid use of the `eval` `if()` function?",
+      "question": "Which is a valid Splunk SPL `eval if(...)` form? Splunk's `if(cond, true_val, false_val)` is COMMA-SEPARATED, NOT keyword-based, and uses `==` for equality comparison.",
       "options": [
-        "eval result = if(status=200) then \"OK\" else \"Not OK\"",
-        "eval result = case(status=200, \"OK\", true(), \"Not OK\")",
-        "eval result = if(status==200, \"OK\", \"Not OK\")",
-        "eval result = if(status=200, \"OK\", \"Not OK\")"
+        "`if(status=200) then ... else ...` — wrong; Splunk doesn't use then/else syntax",
+        "`case(status=200, \"OK\", true(), \"Not OK\")` — this is `case()` not `if()`; question asks about if(); case() with =, not ==",
+        "`if(status==200, \"OK\", \"Not OK\")` — canonical eval if: comma-separated (cond, true, false); use `==` for equality",
+        "`if(status=200, \"OK\", \"Not OK\")` — `=` is assignment in Splunk eval; equality uses `==`"
       ],
       "correct": 2,
       "explanation": "In Splunk `eval`, the `if()` function uses comparison operators: `==` for equality, `!=` for not equal, `>`, `<`, `>=`, `<=`. The syntax is `if(condition, true_value, false_value)`. Note that in the `search` command you use single `=` for field matching, but in `eval` expressions you must use `==` for equality comparison. Option A would cause an error in eval context.",
       "tags": [
-        "eval",
-        "if-function"
+        "spl",
+        "eval-if",
+        "splunk-core"
       ],
       "difficulty": "intermediate",
-      "_normalized": true
+      "_normalized": true,
+      "rewritten": true
     },
     {
       "id": "splunk-061",
-      "question": "What does the `table` command do, and how is it different from `fields`?",
+      "question": "Two SPL commands to select fields. (A) `fields` — includes / excludes fields from the pipeline but does NOT guarantee column ORDER in the final output. (B) `table` — selects fields AND preserves the specified COLUMN ORDER in the final result table. Which describes the difference?",
       "options": [
-        "table adds a visualization layer; fields only affects the underlying data",
-        "They are identical; table is just the UI alias for fields",
-        "table creates a formatted table view with only specified columns and preserves column order;.",
-        "table is a transforming command; fields is a streaming command — they differ in execution location"
+        "table = visualisation layer — false; both control output, neither is visualisation",
+        "Identical — false",
+        "`table` creates a FORMATTED table preserving the specified column order (and is a TRANSFORMING command); `fields` includes/excludes fields but doesn't pin column order (and is a STREAMING command)",
+        "Execution-location difference only — partial; the user-facing difference is column-order behaviour"
       ],
       "correct": 2,
       "explanation": "`table` is a transforming command that creates a table displaying only the specified fields in the specified column order. `fields` is a streaming command that includes or excludes fields but doesn't control display order. `table field1, field2, field3` both selects fields AND defines their left-to-right order in the results table. `table` converts the output to a structured table view, consuming results. fields includes/excludes fields but doesn't define column order",
       "tags": [
         "spl",
-        "table",
-        "fields"
+        "table-vs-fields",
+        "splunk-core"
       ],
       "difficulty": "intermediate",
       "_normalized": true,
-      "_lenbal": true
+      "_lenbal": true,
+      "rewritten": true
     },
     {
       "id": "splunk-062",
-      "question": "What is report acceleration in Splunk, and what is its requirement?",
+      "question": "Splunk supports REPORT ACCELERATION: a saved REPORT (search) is registered for acceleration, and Splunk PRE-COMPUTES summaries for that report's time range (every 10 min by default). Subsequent runs of the SAME report read the summaries — orders-of-magnitude faster than re-running raw. Which describes report acceleration?",
       "options": [
-        "Indexes search results in memory for fast re-retrieval; requires at least 8 GB RAM per search head",
-        "Pre-computes summaries for a saved report so subsequent runs are faster;.",
-        "A premium feature that compiles SPL to native code; requires Splunk Enterprise license",
-        "Distributes report execution across all indexers; requires distributed search to be configured"
+        "In-memory cache; needs 8 GB RAM — false; uses summary files on disk",
+        "Pre-computes summaries for a saved report; subsequent runs of the SAME REPORT read pre-computed summaries; requires the report's search to use a transforming command (`stats`, `tstats`, `chart`, `timechart`)",
+        "Native-code compilation — false; not how it works",
+        "Distributes to indexers — partial; acceleration runs ON the indexers but it's not the same as distributed search"
       ],
       "correct": 1,
       "explanation": "Report acceleration pre-builds summaries for a saved report by running it continuously in the background, storing partial results that speed up future runs. Requirements: (1) the report must contain transforming commands, (2) it should run regularly (daily or more frequent), and (3) acceleration must be enabled in the report settings. The acceleration summaries are stored separately from the main index. requires the report to use transforming commands and to be on a regular schedule",
       "tags": [
-        "reports",
         "acceleration",
-        "performance"
+        "report-acceleration",
+        "splunk-core"
       ],
       "difficulty": "advanced",
       "_normalized": true,
-      "_lenbal": true
+      "_lenbal": true,
+      "rewritten": true
     },
     {
       "id": "splunk-063",
-      "question": "A search returns 0 results when using a lookup, but the lookup CSV file has matching entries. What is the most likely cause?",
+      "question": "An analyst runs `| lookup customers customer_id AS user_id OUTPUT name` but gets ZERO matched rows even though the CSV has matching entries. The CSV has a column `customer_id` and events have `user_id`. Most likely cause?",
       "options": [
-        "The lookup needs to be rebuilt after any CSV change",
-        "The input field name in the lookup definition doesn't match the field name in the events",
-        "CSV lookups don't support case-sensitive matching",
-        "The lookup file is too large and was truncated"
+        "Lookup needs rebuild after CSV change — partially true but the cause here is naming mismatch, not refresh",
+        "INPUT field name in the lookup definition doesn't match the event field name — `AS` clause maps event field to lookup field; if the mapping is missing or wrong, no matches",
+        "CSV lookups can't be case-sensitive — false; case-sensitivity is configurable",
+        "File too large + truncated — different failure mode"
       ],
       "correct": 1,
       "explanation": "The most common cause of lookup returning 0 enrichment results is a mismatch between the input field name in the lookup definition and the field name that actually exists in the events. For example, if the lookup definition specifies input field `src_ip` but events have the field as `src`, the lookup won't find matches. Check the field name exactly. Case sensitivity of values is the second most common issue (default lookups are case-sensitive).",
       "tags": [
         "lookups",
-        "troubleshooting"
+        "troubleshooting",
+        "splunk-core"
       ],
       "difficulty": "intermediate",
-      "_normalized": true
+      "_normalized": true,
+      "rewritten": true
     },
     {
       "id": "splunk-064",
-      "question": "What is the `geostats` command used for?",
+      "question": "An analyst wants to PLOT geo-distributed events on a Splunk choropleth (region) map or cluster (lat/lng) map. The data has src_ip → geo lat/lng (via iplocation). The command that aggregates events into the lat/lng grid format consumed by map visualisations is `geostats`. Which?",
       "options": [
-        "Extracting geographic data from IP addresses using a GeoIP lookup",
-        "Calculating geographic distances between IP addresses",
-        "Generating aggregated statistics suitable for mapping on a Splunk choropleth or cluster map visualization",
-        "Computing statistical significance of geographic trends in data"
+        "Extracts geo from IP — that's `iplocation`",
+        "Calculates distances — wrong concept",
+        "Generates aggregated stats SUITABLE FOR MAPPING on Splunk choropleth / cluster-map visualisations (lat/lng grid aggregation)",
+        "Statistical significance of geo trends — different concept"
       ],
       "correct": 2,
       "explanation": "`geostats` is a transforming command that generates statistics for geographic map visualizations. It aggregates data by latitude/longitude coordinates into grid cells at the appropriate zoom level. It requires latitude and longitude fields (often derived from iplocation). The output feeds Splunk's map visualization for plotting density or counts geographically. Example: `iplocation src_ip | geostats count by action`.",
       "tags": [
         "spl",
         "geostats",
-        "visualization"
+        "splunk-core"
       ],
       "difficulty": "intermediate",
-      "_normalized": true
+      "_normalized": true,
+      "rewritten": true
     },
     {
       "id": "splunk-065",
-      "question": "When should you use `eventstats` instead of `stats` in Splunk?",
+      "question": "An analyst wants to compute `avg(response_ms) BY host` but KEEP EACH ORIGINAL EVENT AND add the per-host average as a new field on each event (so they can compare each event to the host average). `stats` collapses to one row per host. The streaming alternative preserves events. Which command?",
       "options": [
-        "When you want to add aggregate statistics as new fields to each original event without collapsing the results",
-        "When searching across multiple indexes simultaneously",
-        "When you need statistical functions that stats doesn't support",
-        "When you need to aggregate real-time events instead of historical events"
+        "`eventstats avg(response_ms) AS avg_by_host BY host` — adds the aggregate as a new field on EACH original event WITHOUT collapsing; canonical eventstats use",
+        "Search across multiple indexes — `eventstats` is unrelated to that",
+        "Functions stats doesn't support — false; same function set",
+        "Real-time only — false"
       ],
       "correct": 0,
       "explanation": "`eventstats` computes aggregate statistics and adds them as new fields to every original event — the result has the same number of rows as the input. `stats` collapses all events into a summary table. Example: `eventstats avg(bytes) as avg_bytes` adds the overall average as a field to each event, allowing `where bytes > avg_bytes` to filter above-average events. This pattern is very common in security analytics.",
       "tags": [
         "spl",
-        "eventstats"
+        "eventstats",
+        "splunk-core"
       ],
       "difficulty": "intermediate",
-      "_normalized": true
+      "_normalized": true,
+      "rewritten": true
     },
     {
       "id": "splunk-multi-1",

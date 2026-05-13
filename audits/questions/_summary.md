@@ -1,6 +1,6 @@
 # Question-bank audit
 
-Generated: 2026-05-13T18:08:19.134Z
+Generated: 2026-05-13T18:09:51.568Z
 Packs scanned: **49** · questions scanned: **2692** · flagged: **2050** (76.2%)
 
 ## Methodology
@@ -23,7 +23,7 @@ Packs scanned: **49** · questions scanned: **2692** · flagged: **2050** (76.2%
 | `ccnp` | 101 | 101 | 100% | 97 | 100 | 1 | 1 |
 | `snowpro-core` | 10 | 10 | 100% | 3 | 3 | 8 | 0 |
 | `comptia-a-plus` | 101 | 99 | 98% | 94 | 92 | 1 | 0 |
-| `splunk-core` | 66 | 64 | 97% | 53 | 45 | 20 | 0 |
+| `splunk-core` | 66 | 64 | 97% | 60 | 64 | 2 | 0 |
 | `az-900` | 91 | 88 | 97% | 84 | 82 | 1 | 3 |
 | `terraform-003` | 161 | 155 | 96% | 146 | 106 | 150 | 1 |
 | `comptia-network-plus` | 91 | 86 | 95% | 67 | 81 | 1 | 1 |
