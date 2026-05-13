@@ -1,7 +1,7 @@
 # Question-bank audit
 
-Generated: 2026-05-13T16:57:46.916Z
-Packs scanned: **49** · questions scanned: **2692** · flagged: **2052** (76.2%)
+Generated: 2026-05-13T16:59:30.787Z
+Packs scanned: **49** · questions scanned: **2692** · flagged: **2051** (76.2%)
 
 ## Methodology
 
@@ -32,7 +32,7 @@ Packs scanned: **49** · questions scanned: **2692** · flagged: **2052** (76.2%
 | `splunk-core` | 66 | 61 | 92% | 34 | 13 | 49 | 0 |
 | `ms-900` | 60 | 55 | 92% | 17 | 19 | 3 | 49 |
 | `docker-dca` | 61 | 54 | 89% | 13 | 12 | 47 | 2 |
-| `ccna` | 112 | 93 | 83% | 43 | 30 | 65 | 34 |
+| `ccna` | 112 | 92 | 82% | 37 | 29 | 58 | 28 |
 | `ccnp-security` | 60 | 49 | 82% | 43 | 29 | 3 | 9 |
 | `az-500` | 61 | 49 | 80% | 17 | 44 | 1 | 0 |
 | `aws-sap-c02` | 10 | 8 | 80% | 0 | 8 | 0 | 0 |
