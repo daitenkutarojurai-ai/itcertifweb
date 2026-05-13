@@ -1,7 +1,7 @@
 # Question-bank audit
 
-Generated: 2026-05-13T18:03:12.594Z
-Packs scanned: **49** · questions scanned: **2692** · flagged: **2064** (76.7%)
+Generated: 2026-05-13T18:04:08.602Z
+Packs scanned: **49** · questions scanned: **2692** · flagged: **2047** (76.0%)
 
 ## Methodology
 
@@ -21,7 +21,6 @@ Packs scanned: **49** · questions scanned: **2692** · flagged: **2064** (76.7%
 | `aws-clf-c02` | 98 | 98 | 100% | 80 | 90 | 0 | 0 |
 | `ccnp-encor` | 40 | 40 | 100% | 40 | 40 | 0 | 0 |
 | `ccnp` | 101 | 101 | 100% | 97 | 100 | 1 | 1 |
-| `gcp-pde` | 60 | 60 | 100% | 5 | 43 | 0 | 59 |
 | `snowpro-core` | 10 | 10 | 100% | 3 | 3 | 8 | 0 |
 | `comptia-a-plus` | 101 | 99 | 98% | 94 | 92 | 1 | 0 |
 | `az-900` | 91 | 88 | 97% | 84 | 82 | 1 | 3 |
@@ -45,6 +44,7 @@ Packs scanned: **49** · questions scanned: **2692** · flagged: **2064** (76.7%
 | `aws-soa-c02` | 60 | 45 | 75% | 25 | 34 | 0 | 0 |
 | `aws-dva-c02` | 61 | 45 | 74% | 28 | 32 | 1 | 1 |
 | `comptia-pentest` | 61 | 44 | 72% | 23 | 29 | 5 | 0 |
+| `gcp-pde` | 60 | 43 | 72% | 5 | 42 | 0 | 0 |
 | `aws-dea-c01` | 10 | 7 | 70% | 0 | 7 | 0 | 0 |
 | `aws-mla-c01` | 10 | 7 | 70% | 0 | 7 | 0 | 0 |
 | `servicenow-csa` | 61 | 42 | 69% | 23 | 37 | 1 | 0 |
