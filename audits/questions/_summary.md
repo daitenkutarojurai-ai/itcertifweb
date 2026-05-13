@@ -1,7 +1,7 @@
 # Question-bank audit
 
-Generated: 2026-05-13T18:04:08.602Z
-Packs scanned: **49** · questions scanned: **2692** · flagged: **2047** (76.0%)
+Generated: 2026-05-13T18:05:46.530Z
+Packs scanned: **49** · questions scanned: **2692** · flagged: **2048** (76.1%)
 
 ## Methodology
 
@@ -26,9 +26,9 @@ Packs scanned: **49** · questions scanned: **2692** · flagged: **2047** (76.0%
 | `az-900` | 91 | 88 | 97% | 84 | 82 | 1 | 3 |
 | `terraform-003` | 161 | 155 | 96% | 146 | 106 | 150 | 1 |
 | `comptia-network-plus` | 91 | 86 | 95% | 67 | 81 | 1 | 1 |
+| `splunk-core` | 66 | 62 | 94% | 39 | 22 | 40 | 0 |
 | `rhcsa` | 61 | 57 | 93% | 50 | 57 | 0 | 0 |
 | `aws-ans-c01` | 60 | 56 | 93% | 43 | 39 | 0 | 25 |
-| `splunk-core` | 66 | 61 | 92% | 34 | 13 | 49 | 0 |
 | `ms-900` | 60 | 55 | 92% | 17 | 19 | 3 | 49 |
 | `az-104` | 56 | 51 | 91% | 32 | 47 | 0 | 0 |
 | `docker-dca` | 61 | 54 | 89% | 13 | 12 | 47 | 2 |

@@ -5,211 +5,230 @@
     "vendor": "Splunk",
     "version": "2.0.3",
     "question_count": 66,
-    "last_updated": "2026-05-03"
+    "last_updated": "2026-05-13",
+    "notes": " [splunk-core batch 1: 11 scenario rewrites + 1 FACTUAL FIX (splunk-011: len() vs length())]"
   },
   "questions": [
     {
       "id": "splunk-001",
-      "question": "Which Splunk search command is used to remove duplicate events based on a specified field?",
+      "question": "A Splunk SOC analyst pulls a search returning many duplicate events that share the same `src_ip` + `dest_port`. They want ONE event PER unique (src_ip, dest_port) pair (keep the first). Which SPL command does this?",
       "options": [
-        "deduplicate",
-        "unique",
-        "dedup",
-        "distinct"
+        "`deduplicate` — NOT a real Splunk SPL command",
+        "`unique` — NOT a real Splunk SPL command",
+        "`dedup src_ip, dest_port` — keeps the FIRST event per unique combination of the listed fields; the canonical Splunk dedup command",
+        "`distinct` — NOT a real Splunk SPL command"
       ],
       "correct": 2,
       "explanation": "The `dedup` command removes duplicate events that share the same value for a specified field. For example, `dedup src_ip` keeps only the first event for each unique source IP. You can use `dedup N fieldname` to keep the first N events per unique value.",
       "tags": [
         "spl",
-        "filtering"
+        "filtering",
+        "splunk-core"
       ],
       "difficulty": "easy",
-      "_normalized": true
+      "_normalized": true,
+      "rewritten": true
     },
     {
       "id": "splunk-002",
-      "question": "What does the `stats count by host` command return?",
+      "question": "A Splunk admin counts events per host with `index=main | stats count by host`. What does this exact pipeline return?",
       "options": [
-        "The total number of events in the index",
-        "The number of unique hosts across all events",
-        "A list of all hosts with their field values",
-        "A count of events grouped by the host field"
+        "Total number of events in the index — false; would be `stats count` without `by`",
+        "Number of unique hosts — false; that would be `stats dc(host)` or `stats values(host) | stats count`",
+        "List of all hosts with their field values — false; that would be `table host *`",
+        "A count of events GROUPED BY the host field — one row per host with column `count` = events for that host"
       ],
       "correct": 3,
       "explanation": "The `stats count by host` command is a transforming command that returns a table with each unique value of `host` and the count of events that have that value. The `by` clause specifies the field(s) to group by.",
       "tags": [
         "spl",
         "stats",
-        "transforming"
+        "splunk-core"
       ],
       "difficulty": "easy",
-      "_normalized": true
+      "_normalized": true,
+      "rewritten": true
     },
     {
       "id": "splunk-003",
-      "question": "In Splunk SPL, what is the correct syntax to search for events where the status field is 404 OR 500?",
+      "question": "A Splunk SPL search must match events where `status` is 404 OR 500 (both are valid HTTP error codes the SOC is investigating). Which forms are valid SPL syntax?",
       "options": [
-        "status=(404 OR 500)",
-        "All of the above are valid",
-        "status=404 OR status=500",
-        "status IN (404, 500)"
+        "`status=(404 OR 500)` — VALID; parenthesised boolean inside a field comparison",
+        "All three of these forms are valid SPL syntax to match `status` = 404 or 500",
+        "`status=404 OR status=500` — VALID; two field=value tests joined by Boolean OR",
+        "`status IN (404, 500)` — VALID since Splunk 6.5+; SQL-like IN clause"
       ],
       "correct": 1,
       "explanation": "All three syntaxes are valid in Splunk SPL. The `IN` operator (introduced in Splunk 6.3) is a shorthand for multiple OR conditions on the same field. `status IN (404, 500)` is equivalent to `status=404 OR status=500` and also to `status=(404 OR 500)`.",
       "tags": [
         "spl",
         "search",
-        "filtering"
+        "splunk-core"
       ],
       "difficulty": "easy",
-      "_normalized": true
+      "_normalized": true,
+      "rewritten": true
     },
     {
       "id": "splunk-004",
-      "question": "Which command would you use to rename a field `src_ip` to `SourceIP` in your search results?",
+      "question": "After a search, an analyst wants the result column `src_ip` to display as `SourceIP` (purely a rename of the result column, no data change). Which SPL command?",
       "options": [
-        "alias src_ip=SourceIP",
-        "fields src_ip AS SourceIP",
-        "rename src_ip AS SourceIP",
-        "eval SourceIP=src_ip | fields - src_ip"
+        "`| alias src_ip=SourceIP` — `alias` is not an SPL renaming command",
+        "`| fields src_ip AS SourceIP` — `fields` selects columns; doesn't rename",
+        "`| rename src_ip AS SourceIP` — renames `src_ip` to `SourceIP` in the result set; canonical Splunk rename",
+        "`| eval SourceIP=src_ip | fields - src_ip` — works as a side-effect but is more verbose than `rename`"
       ],
       "correct": 2,
       "explanation": "The `rename` command renames a field. `rename src_ip AS SourceIP` (the AS keyword is case-insensitive) renames the field in the results. Note that after renaming, you must use the new name in subsequent pipeline commands. The `eval` + `fields` approach also works but is less clean.",
       "tags": [
         "spl",
-        "fields"
+        "fields",
+        "splunk-core"
       ],
       "difficulty": "easy",
-      "_normalized": true
+      "_normalized": true,
+      "rewritten": true
     },
     {
       "id": "splunk-005",
-      "question": "What is the purpose of the `eval` command in Splunk?",
+      "question": "An SPL search computes a NEW result-column at query time: `... | eval response_kb = response_bytes / 1024`. Which describes the `eval` command's purpose in Splunk?",
       "options": [
-        "To evaluate whether search results match a condition and filter them out",
-        "To evaluate dashboard panel expressions at display time",
-        "To run external scripts against search results",
-        "To calculate and create new fields or modify existing field values using expressions"
+        "Filters events matching a condition — false; that's `where` (which uses eval-style expressions but is filter, not column-creator)",
+        "Evaluates dashboard panel expressions at display time — false; that's the dashboard XML / Studio renderer",
+        "Runs external scripts against results — false; that's `script` or custom search commands",
+        "Calculates / creates new fields, or modifies existing field values, using expressions (math, string, boolean) — the canonical `eval` purpose"
       ],
       "correct": 3,
       "explanation": "The `eval` command calculates an expression and puts the resulting value into a new or existing field. For example, `eval total_mb = bytes / 1048576` creates a `total_mb` field. `eval` supports mathematical, string, boolean, and comparison operators as well as dozens of built-in functions.",
       "tags": [
         "spl",
-        "eval"
+        "eval",
+        "splunk-core"
       ],
       "difficulty": "easy",
-      "_normalized": true
+      "_normalized": true,
+      "rewritten": true
     },
     {
       "id": "splunk-006",
-      "question": "Which time modifier in Splunk represents 'the beginning of the current day'?",
+      "question": "An analyst runs a search with `earliest=??? latest=now`. The required earliest is 'the BEGINNING (00:00:00) of the current day'. Splunk's time-modifier syntax uses `@` to snap to the START of a unit. Which `earliest` value?",
       "options": [
-        "earliest=-1d",
-        "earliest=now/d",
-        "earliest=0d",
-        "earliest=@d"
+        "`earliest=-1d` — 24 hours ago (rolling), NOT the start of today",
+        "`earliest=now/d` — not Splunk's syntax (that's Elasticsearch's)",
+        "`earliest=0d` — NOT valid; no '0d' form in Splunk time modifiers",
+        "`earliest=@d` — `@d` snaps to the START of the current day (00:00:00.000); canonical Splunk syntax"
       ],
       "correct": 3,
       "explanation": "In Splunk relative time modifiers, the `@` character snaps to the nearest time unit boundary. `earliest=@d` means 'snap back to the start of the current day (midnight)'. Similarly, `earliest=-7d@d` means '7 days ago, snapped back to midnight of that day'.",
       "tags": [
-        "spl",
-        "time"
+        "time",
+        "modifiers",
+        "splunk-core"
       ],
       "difficulty": "intermediate",
-      "_normalized": true
+      "_normalized": true,
+      "rewritten": true
     },
     {
       "id": "splunk-007",
-      "question": "What does the `timechart` command do differently from `chart`?",
+      "question": "A Splunk analyst is choosing between `chart` and `timechart` for time-series aggregation. The key difference: ONE automatically uses `_time` as the X-axis and creates time bins (defaulting based on the search time range); the other lets the analyst pick any field as the X-axis. Which describes `timechart`?",
       "options": [
-        "timechart supports more statistical functions than chart",
-        "timechart is faster and uses less memory",
-        "timechart automatically uses _time as the X-axis and creates time-based buckets",
-        "timechart can only be used with line chart visualizations"
+        "`timechart` supports more stats functions — false; same function set as `chart`",
+        "`timechart` faster + less memory — false; performance comparable",
+        "`timechart` automatically uses `_time` as the X-axis and creates time-bucket bins (span defaults from time range); designed for time-series",
+        "`timechart` only line charts — false; works with multiple visualisation types"
       ],
       "correct": 2,
       "explanation": "The `timechart` command is a specialized version of `chart` where `_time` is always the X-axis (split-by column). It automatically creates time buckets based on the search time range. `chart` requires you to specify both X and Y axes. Both are transforming commands.",
       "tags": [
         "spl",
-        "transforming",
-        "timechart"
+        "timechart",
+        "splunk-core"
       ],
       "difficulty": "intermediate",
-      "_normalized": true
+      "_normalized": true,
+      "rewritten": true
     },
     {
       "id": "splunk-008",
-      "question": "Which SPL command returns only the top 10 most common values of a field, along with their count and percentage?",
+      "question": "An analyst wants the TOP-10 most common values of the `user_agent` field along with their count + relative-frequency percent. Which SPL command produces this in one line?",
       "options": [
-        "topvalues field",
-        "stats top(field)",
-        "top field",
-        "rare field"
+        "`topvalues user_agent` — not a real SPL command",
+        "`stats top(user_agent)` — not the correct syntax (no `top()` stats function)",
+        "`top user_agent` — canonical SPL: returns the top-10 by default, with `count` and `percent` columns",
+        "`rare user_agent` — returns LEAST-common values, the OPPOSITE of what's needed"
       ],
       "correct": 2,
       "explanation": "The `top` command returns the most common values of a field with count and percentage columns. By default it shows 10 results. Use `top limit=N field` to change the limit. The `rare` command does the opposite — it shows the least common values.",
       "tags": [
         "spl",
-        "transforming",
-        "top"
+        "top",
+        "splunk-core"
       ],
       "difficulty": "easy",
-      "_normalized": true
+      "_normalized": true,
+      "rewritten": true
     },
     {
       "id": "splunk-009",
-      "question": "In Splunk, what is the difference between `search` mode Fast, Smart, and Verbose?",
+      "question": "Splunk search has THREE modes: (Fast) disables field discovery, only `_raw` and default fields are populated; fastest. (Smart) field discovery happens only if needed (default); balance of speed + features. (Verbose) all fields discovered + all event-time transforms applied; slowest, richest. Which describes Fast vs Smart vs Verbose?",
       "options": [
-        "Fast disables field discovery and event rendering for speed; Verbose builds all fields and tags;.",
-        "Fast runs on indexers; Smart runs on search heads; Verbose runs on heavy forwarders",
-        "They differ only in how many events are returned per page",
-        "Fast returns raw events only; Smart enables field discovery; Verbose builds the full knowledge base"
+        "Fast = no field discovery / no rendering, max speed; Smart = balanced (default); Verbose = full field discovery + transforms (slowest, most features)",
+        "Fast on indexers / Smart on search heads / Verbose on heavy forwarders — false; modes affect WHAT'S COMPUTED, not WHERE",
+        "Differ only in pagination — false",
+        "Verbose builds knowledge base — false; lookups + extractions are configured separately"
       ],
       "correct": 0,
       "explanation": "Splunk search modes: **Fast** disables field discovery and event rendering for maximum performance; **Verbose** builds all fields, event types, and tags (slowest but most complete); **Smart** (default) switches behavior based on whether the search uses transforming commands — if so, it acts like Fast; if not, it acts like Verbose. Smart auto-selects based on command type",
       "tags": [
-        "search-modes",
-        "performance"
+        "spl",
+        "modes",
+        "splunk-core"
       ],
       "difficulty": "intermediate",
       "_normalized": true,
-      "_lenbal": true
+      "_lenbal": true,
+      "rewritten": true
     },
     {
       "id": "splunk-010",
-      "question": "What does a subsearch do in Splunk, and what is the syntax for it?",
+      "question": "An SPL analyst needs to PARAMETERISE a search using the result of another search. For instance: 'find all events with src_ip in the list returned by a separate search for failed-login source IPs'. Splunk supports embedding one search inside another. Which describes the syntax and semantics?",
       "options": [
-        "A subsearch runs after the main search completes; syntax: | subsearch [...]",
-        "A subsearch is enclosed in square brackets and its results are passed as arguments to the outer search",
-        "A subsearch runs a second search in a new tab; syntax: [new search: ...]",
-        "A subsearch is a saved search referenced by name; syntax: (saved_search_name)"
+        "Subsearch runs AFTER the main search — false; it runs FIRST (the outer search uses the subsearch result)",
+        "A subsearch is enclosed in square brackets and its RESULTS are passed as arguments to the outer search (e.g. `... [search ... | return src_ip]`)",
+        "Subsearch in a new tab — false; subsearch is inline",
+        "Saved search reference — that's `loadjob`, not subsearch syntax"
       ],
       "correct": 1,
       "explanation": "A subsearch is a search within a search, enclosed in square brackets `[...]`. It runs first and its results are passed to the outer search as filter criteria. For example: `index=main [search index=threat_intel | fields src_ip]` finds events where src_ip matches any value in the threat_intel index. By default, subsearches have a 60-second timeout and return max 10,000 results.",
       "tags": [
         "spl",
-        "subsearch"
+        "subsearch",
+        "splunk-core"
       ],
       "difficulty": "intermediate",
-      "_normalized": true
+      "_normalized": true,
+      "rewritten": true
     },
     {
       "id": "splunk-011",
-      "question": "Which function in the `eval` command returns the number of characters in a string field?",
+      "question": "A Splunk SPL search needs to add a new field that holds the CHARACTER LENGTH of the `url` string field from each event. The team plans `... | eval url_length = ???(url)`. Which Splunk eval function returns the character count of a string?",
       "options": [
-        "length(field)",
-        "strlen(field)",
-        "len(field)",
-        "count(field)"
+        "`length(field)` — NOT a Splunk eval function (that's PHP / Java's `length()`); Splunk eval doesn't expose `length()`",
+        "`strlen(field)` — NOT a Splunk eval function (that's C); Splunk eval doesn't expose `strlen()`",
+        "`len(field)` — the Splunk eval string-length function; returns the number of characters",
+        "`count(field)` — `count` is a stats function (counts events), not an eval string-length function"
       ],
-      "correct": 0,
-      "explanation": "The `length(field)` function in Splunk's `eval` command returns the number of characters in a string. For example, `eval url_length = length(url)`. Note: in Splunk, the function is `length()`, not `strlen()` (which is common in C/PHP) or `len()` (which is common in Python).",
+      "correct": 2,
+      "explanation": "Splunk SPL's eval string-length function is `len(X)` (e.g. `eval url_length = len(url)`). There is no `length()` or `strlen()` in Splunk eval. `count()` is a stats aggregator, not a string function. PRIOR VERSION marked `length()` as correct, which is factually wrong — fixed 2026-05-13.",
       "tags": [
         "eval",
-        "string-functions"
+        "string-functions",
+        "splunk-core"
       ],
       "difficulty": "intermediate",
-      "_normalized": true
+      "_normalized": true,
+      "rewritten": true
     },
     {
       "id": "splunk-012",
