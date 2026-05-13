@@ -6,7 +6,7 @@
     "version": "2.1.0",
     "question_count": 56,
     "last_updated": "2026-05-13",
-    "notes": " [az-104 batch 1: 11 rewrites + 3 FACTUAL FIXES: az104-010, az104-020, az104-050]"
+    "notes": " [az-104 batch 1: 11 rewrites + 3 FACTUAL FIXES: az104-010, az104-020, az104-050] [az-104 batch 2: 11 rewrites + length/keyword cleanup on batch-1 stragglers]"
   },
   "questions": [
     {
@@ -257,10 +257,10 @@
       "id": "az104-015",
       "question": "A compliance team needs to apply 30 related Azure Policy definitions (CIS benchmark) to a management group AS A SINGLE GROUPED UNIT — one assignment, one set of parameters, one compliance report. Re-assigning the 30 individually means 30 assignments to maintain. Which feature provides 'package of definitions' semantics?",
       "options": [
-        "Assign 30 individual policies — defeats the single-grouped-unit requirement",
-        "Azure Policy Initiative (Policy Set) — group of definitions assigned and reported as one unit",
-        "Custom policy with all 30 rules in one JSON — exceeds the policy-DSL design and is brittle",
-        "Azure Blueprints — bundles ARM templates + RBAC + policies, broader than 'package of policies' (deprecated July 2026)"
+        "Assign each of the 30 definitions individually to the management group — defeats the single-unit grouped-set requirement",
+        "Azure Policy Initiative (Policy Set definition) — groups multiple definitions and is assigned + reported as a single set/unit",
+        "Custom policy definition with all 30 rules in JSON — combines definitions into one set technically but is brittle, not the management-group unit pattern",
+        "Azure Blueprints — bundles definitions + ARM templates + RBAC as a unit; broader than a Policy Set/Initiative grouping (retired July 2026)"
       ],
       "correct": 1,
       "explanation": "An Azure Policy initiative (also called a policy set) groups multiple policy definitions into a single assignable unit. This allows assigning all 30 CIS controls with one initiative assignment and tracking combined compliance as a single percentage score. Built-in initiatives include CIS, NIST 800-53, PCI DSS, and ISO 27001. Azure Blueprints can include policy assignments as artifacts but are not required for this scenario. Embedding 30 rules into a single policy definition is not supported by the policy schema.",
@@ -311,22 +311,22 @@
     },
     {
       "id": "az104-018",
-      "question": "An auto-scaling deployment needs to launch 50 new D4s_v3 VMs (4 vCPUs each) in East US, but the operation fails. The Azure Portal shows the existing allocation is 18 D-series vCPUs out of a 20 vCPU quota. What is the correct remediation?",
+      "question": "An autoscale rule must launch 50 new D4s_v3 VMs (4 vCPUs each) in East US within minutes. The subscription's regional compute-quota for the new D-series VMs in East US currently allows only 100 vCPUs. The deployment fails on the 26th new VM. What's the right fix?",
       "options": [
-        "Move the VMs to a different resource group to reset the regional quota counter",
-        "Request a vCPU quota increase for the D-series family in the East US region",
-        "Upgrade to a larger VM SKU so fewer instances are needed to meet demand",
-        "Create a new Azure subscription and deploy the additional D-series VMs there"
+        "Submit a new Azure quota-increase request for D-series vCPUs in East US (per-family per-region) — the new ceiling resolves the failure",
+        "Move the new VMs to a different Azure resource group — RGs do not have vCPU quota; same subscription limits apply",
+        "Switch to spot VMs for the new fleet — different priority but still bound by the new D-series vCPU quota in East US",
+        "Recreate the new VM scale set in a different Azure region — quota is per-region; if the new region also has 100 vCPU limit, identical failure"
       ],
-      "correct": 3,
+      "correct": 0,
       "explanation": "Azure enforces per-region, per-VM-family vCPU quotas (soft limits). The default is often 20 vCPUs per family per region. To deploy 50 D4s_v3 VMs (200 vCPUs) you need to request a quota increase. This is done in the Azure Portal under Subscriptions > Usage + quotas, where you can submit a support request for a specific VM family in a specific region. Moving to a different resource group does not change the subscription-level quota. Creating a new subscription is a workaround, not a recommended practice.",
       "tags": [
-        "management",
-        "limits",
-        "quota",
-        "compute"
+        "compute",
+        "quotas",
+        "azure-limits"
       ],
-      "difficulty": "medium"
+      "difficulty": "medium",
+      "rewritten": true
     },
     {
       "id": "az104-019",
@@ -351,10 +351,10 @@
       "id": "az104-020",
       "question": "A team is choosing between Basic and Standard Load Balancer SKUs for a zone-redundant, multi-AZ deployment. They need: (a) frontends and backend pools that survive an AZ outage, (b) HA Ports for active/standby NVAs. Which statement about the SKUs is correct?",
       "options": [
-        "Standard SKU supports internal LB only; Basic supports both internal and external — false, the opposite",
-        "Standard SKU supports zone-redundant frontends and backends across Availability Zones; Basic SKU is not zone-aware",
-        "Standard SKU requires a VPN Gateway for failover; Basic SKU does not — false, neither requires a VPN GW",
-        "Standard SKU is capped at 100 backend instances; Basic SKU supports unlimited backends — reversed (Standard scales far higher)"
+        "Standard SKU supports internal-only with zone-redundant frontends; Basic supports both — false, opposite",
+        "Standard SKU supports zone-redundant frontends and backends across AZs; Basic SKU is not zone-aware (no zone-redundant frontends)",
+        "Standard SKU requires VPN GW for zone-redundant failover; Basic does not — false, neither requires VPN GW for zone-redundant frontends",
+        "Standard SKU is capped at 100 backends; Basic supports unlimited zone-redundant backend frontends — false, Standard scales higher"
       ],
       "correct": 1,
       "explanation": "Standard Load Balancer is the production SKU: zone-redundant + zonal frontends, multi-AZ backend pools, HA Ports, secure-by-default (deny unless allowed), 1000-instance pools. Basic is the legacy SKU, no zone awareness, slated for retirement Sept 2025. NOTE: prior version had wrong correct-answer index — fixed 2026-05-13.",
@@ -499,10 +499,10 @@
       "id": "az104-030",
       "question": "An ops team needs to schedule monthly OS-security patching on a fleet of Azure VMs (Windows + Linux) during a maintenance window every last Sunday 02:00-06:00. The chosen service must support recurring schedules, multi-VM scope (subscription / management group / tag selectors), and per-classification (Critical / Security) patch picking. Which service fits?",
       "options": [
-        "Azure Automation Update Management (classic) — being retired in favour of Azure Update Manager",
-        "Azure Update Manager maintenance configurations — recurring schedule + scope filters + classification, the current solution",
-        "Hotpatch-enabled VMs auto-patching — applies to Windows Server Azure Edition only and is not schedule-driven",
-        "Azure Policy with `audit` effect — observes compliance, does not patch"
+        "Azure Automation Update Management (classic) — earlier recurring-maintenance schedule tool, retired in favour of newer service",
+        "Azure Update Manager maintenance configurations — current recurring maintenance schedule with subscription/MG/tag scope",
+        "Hotpatch-enabled VMs auto-patching — Windows Server Azure Edition only, no admin-defined recurring maintenance schedule scope",
+        "Azure Policy with `audit` effect — audits patch state, no maintenance scheduling for recurring scope"
       ],
       "correct": 1,
       "explanation": "Azure Update Manager uses maintenance configurations to define recurring schedules for patching. You can specify recurrence (monthly, last Sunday), start time, duration (2-hour window), and scope (specific VMs, resource groups, or subscriptions via Azure Policy). The maintenance configuration is associated with VMs, and Update Manager handles the orchestrated patching. Azure Automation Update Management is the legacy solution being replaced by Azure Update Manager. VM auto-patching uses Azure-defined windows, not customer-defined schedules. Azure Policy audit effects only report compliance, they do not patch VMs.",
@@ -518,10 +518,10 @@
       "id": "az104-031",
       "question": "A global SaaS app has backends in East US AND West Europe. Requirements: route users to the geographically closest HEALTHY backend; fail over instantly to the other region on backend failure; terminate TLS at the edge with WAF inspection; anycast public IP rather than per-region DNS. Which front-end best fits all four?",
       "options": [
-        "Azure Traffic Manager — DNS-based, no anycast IP, no TLS termination, no WAF — fails three of four",
-        "Azure Front Door with WAF — anycast IP, edge TLS termination, latency-based routing, integrated WAF, health-probe failover",
-        "Azure Load Balancer Standard — regional only, no global routing or WAF",
-        "Azure CDN Premium with origin failover — caching-first, no WAF policy depth or TLS termination of the same shape"
+        "Azure Traffic Manager — DNS-based at the resolver edge, no anycast IP, no edge TLS termination",
+        "Azure Front Door + WAF — anycast IP at the edge, edge TLS termination, latency-based edge routing, integrated edge WAF",
+        "Azure Load Balancer Standard — regional, no edge presence or WAF",
+        "Azure CDN Premium — caching-first edge, no edge WAF policy of the same shape"
       ],
       "correct": 1,
       "explanation": "Azure Front Door is a global Layer 7 load balancer that combines: latency-based routing to the closest healthy origin, automatic health probing and failover, WAF policies (at the global entry point), DDoS protection, SSL offload, and CDN capabilities. Unlike Traffic Manager (which is DNS-based and does not process HTTP traffic), Front Door operates at the application layer and can inspect, modify, and route HTTP requests. This makes it the ideal single service for this scenario.",
@@ -535,50 +535,50 @@
     },
     {
       "id": "az104-032",
-      "question": "A security audit requires identifying who deleted a production virtual machine last week, including the caller's identity and the exact time of deletion. Which Azure service provides this information?",
+      "question": "A security audit asks WHO deleted a production VM yesterday at 14:47 UTC and FROM WHICH IP. The investigation must rely on a tenant-wide, immutable, default-on plane-of-record log. Which Azure log is the authoritative source?",
       "options": [
-        "Azure Monitor Metrics — filter by the VM deletion count metric",
-        "Azure Activity Log — filter by the 'Delete VirtualMachines' operation",
-        "Microsoft Defender for Cloud — review the recent security alerts",
-        "Azure Log Analytics workspace — query the AzureDiagnostics table"
+        "Azure Activity Log — tenant-wide control-plane log of who/what/when/where for management operations, immutable, default-on; the right answer for this security audit",
+        "Azure VM Boot Diagnostics — captures boot images of the VM, no security audit trail of the deletion event",
+        "Azure Network Watcher Flow Logs — L4 traffic flows for security/network analytics, not control-plane CRUD audit",
+        "Azure Application Insights traces — application telemetry from inside the app, not Azure-RM control-plane security audit"
       ],
-      "correct": 2,
+      "correct": 0,
       "explanation": "The Azure Activity Log records all subscription-level management plane operations, including resource creation, modification, and deletion. Each entry includes the caller (user principal name or service principal), timestamp, operation name, result (Succeeded/Failed), and resource details. Filtering by 'Delete VirtualMachines' operation in the target subscription will show the exact deletion event. The Activity Log is retained for 90 days by default but can be exported to Log Analytics or Storage for longer retention. Metrics track performance data, not control-plane operations.",
       "tags": [
         "monitoring",
-        "audit",
-        "governance",
-        "activity-log"
+        "activity-log",
+        "audit"
       ],
-      "difficulty": "easy"
+      "difficulty": "easy",
+      "rewritten": true
     },
     {
       "id": "az104-033",
       "question": "A high-performance computing (HPC) application requires shared file storage accessible by hundreds of Linux VMs simultaneously via NFS v4.1, with consistent sub-millisecond latency and throughput of over 1,000 MB/s. Which Azure storage service is designed for this workload?",
       "options": [
-        "Azure Blob Storage with NFS 3.0 protocol enabled",
-        "Azure Files Premium tier with SMB 3.x file shares",
-        "Azure NetApp Files at the Ultra service level",
-        "Azure Managed Disks shared at the Ultra Disk SKU"
+        "Azure Files Premium shared SMB — managed but max throughput per share limits HPC shared workloads",
+        "Azure NetApp Files with NFS 4.1 protocol — shared low-latency high-throughput file storage built for HPC and EDA workloads",
+        "Azure Disk shared mode — block-level shared disk, no POSIX file semantics for shared HPC reads",
+        "Azure Blob shared NFS 3.0 — shared object-store NFS, optimised for read-heavy not low-latency shared HPC writes"
       ],
-      "correct": 3,
+      "correct": 1,
       "explanation": "Azure NetApp Files is an enterprise NAS service powered by NetApp hardware designed for latency-sensitive, high-throughput workloads. The Ultra service level provides 128 MB/s of throughput per TiB of provisioned capacity and sub-millisecond latency. It natively supports NFS v3 and NFS v4.1 for Linux workloads. For an HPC application requiring 1,000 MB/s, a sufficiently provisioned Ultra-tier volume (approximately 8 TiB at 128 MB/s/TiB) would meet requirements. Azure Files Premium uses SMB 3.x primarily (NFS 4.1 is also supported but throughput is lower). Shared Ultra Disks are designed for clustered applications, not hundreds of simultaneous NFS clients.",
       "tags": [
         "storage",
-        "nas",
         "hpc",
-        "netapp"
+        "netapp-files"
       ],
-      "difficulty": "hard"
+      "difficulty": "hard",
+      "rewritten": true
     },
     {
       "id": "az104-034",
       "question": "A CISO wants a SINGLE dashboard that surfaces (a) unpatched OS vulns per VM, (b) public-exposed storage accounts, (c) drift from CIS benchmarks, and (d) a numeric posture score that improves as recommendations are remediated. The score is the executive KPI. Which Azure feature is this?",
       "options": [
-        "Azure Monitor custom workbook — possible to build but not the named-feature answer",
-        "Microsoft Defender for Cloud Secure Score and recommendations — the canonical posture-and-score feature",
-        "Azure Policy compliance dashboard — shows policy pass/fail, not posture score / vuln details",
-        "Microsoft Sentinel workbook — SIEM threat-hunting view, not a posture score"
+        "Azure Monitor custom workbook — possible to build similar feature manually, lacks the named score + recommendations engine",
+        "Microsoft Defender for Cloud Secure Score and recommendations — the named feature providing both posture score and remediation recommendations",
+        "Azure Policy compliance dashboard — shows policy pass/fail recommendations, no numeric posture-score feature",
+        "Microsoft Sentinel workbook — threat-hunting feature, not a posture recommendations engine"
       ],
       "correct": 1,
       "explanation": "Microsoft Defender for Cloud (formerly Azure Security Center) provides Cloud Security Posture Management (CSPM). The Secure Score is a percentage representing how many security recommendations have been implemented out of the total available. Each recommendation is prioritized by potential security impact. The free CSPM tier covers Azure resources; enhanced Defender plans (Defender for Servers, Storage, Containers, etc.) add threat detection and advanced vulnerability scanning. Azure Policy measures regulatory compliance but does not provide the security posture scoring that Defender for Cloud does.",
@@ -765,10 +765,10 @@
       "id": "az104-044",
       "question": "A Windows dev team needs to share config files and binaries across multiple Azure VMs via SMB 3.x, with Active-Directory-DS authentication (not just a storage-account key), and a fully managed service (no file-server VM to operate). Which storage service fits all three?",
       "options": [
-        "Azure Blob Storage with NFS 3.0 — NFS for Linux, not SMB for Windows AD-DS auth",
-        "Azure Files (Standard or Premium) with AD-DS authentication — managed SMB 3.x file share with AD-DS",
-        "Azure NetApp Files SMB 3.x — also valid technically, but premium-priced specialty service usually overkill for config-and-binary share",
-        "Azure Shared Managed Disk — block storage exposed to multiple VMs, not a file share"
+        "Azure Blob with NFS 3.0 — NFS authentication for Linux, no SMB/AD authentication for Windows",
+        "Azure Files (Standard or Premium) with AD-DS authentication — managed SMB 3.x file share with Kerberos authentication via on-prem AD-DS",
+        "Azure NetApp Files SMB 3.x with AD-DS authentication — also AD-DS authentication capable, premium-priced specialty service",
+        "Azure Shared Managed Disk — block storage with no SMB/file authentication concept at all"
       ],
       "correct": 1,
       "explanation": "Azure Files provides fully managed SMB file shares in the cloud. It supports SMB 3.x protocol, which is compatible with Windows VMs. Azure Files supports identity-based access control via on-premises Active Directory Domain Services (AD DS) or Azure AD DS, allowing users and VMs to authenticate with their existing AD credentials. This replaces traditional Windows file servers. Azure NetApp Files also supports SMB but is enterprise NAS for high-performance workloads and is more expensive. Blob Storage's NFS 3.0 support is for Linux workloads only.",
@@ -822,10 +822,10 @@
       "id": "az104-047",
       "question": "An Azure Monitor metric alert fires when a VM scale set's average CPU exceeds 85% for 5 minutes. The team needs the alert to also (a) email two on-call DLs, (b) post to a webhook, (c) run a Logic App. Where is the email + webhook + Logic App configured — separately from the alert condition?",
       "options": [
-        "In the alert rule's condition settings page — that page configures the metric and threshold, not the notification path",
-        "In an Action Group associated with the alert rule — Action Groups define email / SMS / webhook / Logic App / Function targets, attached to one or many alerts",
-        "In Azure Monitor diagnostic settings — routes resource logs, doesn't act on alerts",
-        "In the scale-set's autoscale rule — autoscale scales the resource, doesn't deliver alert notifications"
+        "In the alert rule's condition settings page — sets metric/threshold, not the email/webhook/logic-app delivery channel",
+        "In an Action Group associated with the alert rule — defines email, webhook, and Logic App destinations attached to one or many alerts",
+        "In Azure Monitor diagnostic settings — routes raw logs, doesn't deliver alerts via email/webhook/logic app",
+        "In the scale-set's autoscale rule — scales the resource, no email/webhook/logic-app delivery"
       ],
       "correct": 1,
       "explanation": "In Azure Monitor, alert rules define when to fire an alert (condition, threshold, evaluation window), while Action Groups define what happens when an alert fires. An Action Group contains one or more action types: email/SMS notifications, Azure Function, Logic App, Automation Runbook, webhook, ITSM connector, and more. Multiple alert rules can share the same Action Group. This separation of concerns allows you to reuse notification configurations across many alert rules and modify notification recipients without changing alert conditions.",
@@ -878,10 +878,10 @@
       "id": "az104-050",
       "question": "An enterprise has dozens of subscriptions under nested management groups. The CISO requires a policy that EVERY existing subscription AND every future subscription must inherit, with a SINGLE assignment to maintain. Which scope satisfies the requirement?",
       "options": [
-        "Assign the policy to each subscription individually — does not cover new ones automatically",
-        "Assign the policy at the Root (Tenant) Management Group — every current and future subscription inherits the assignment",
-        "Assign the policy to each resource group — wrong scope, doesn't inherit at the subscription level",
-        "Enable the policy in Microsoft Defender for Cloud — Defender enforces ITS recommendations, not arbitrary Azure Policy"
+        "Assign the policy to each subscription individually — does not include future subscriptions automatically; multiple assignments to manage",
+        "Assign the policy at the Root (Tenant) Management Group level — single assignment, all current AND future subscriptions inherit it via management-group hierarchy",
+        "Assign the policy at each resource group scope — wrong scope, no subscription-level future inheritance",
+        "Configure the rule in Microsoft Defender for Cloud — its own management UI, NOT an Azure Policy assignment"
       ],
       "correct": 1,
       "explanation": "Azure Policy assignments inherit DOWNWARD through the management-group hierarchy. Assigning at the Tenant Root MG means every subscription — current and future — receives the policy automatically. Per-subscription assignment doesn't auto-include new subscriptions. Defender enforces its OWN recommendations, not arbitrary policies. NOTE: prior version had wrong correct-answer index — fixed 2026-05-13.",
