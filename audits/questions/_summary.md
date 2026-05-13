@@ -1,7 +1,7 @@
 # Question-bank audit
 
-Generated: 2026-05-13T16:40:37.913Z
-Packs scanned: **49** · questions scanned: **2692** · flagged: **2088** (77.6%)
+Generated: 2026-05-13T16:44:04.790Z
+Packs scanned: **49** · questions scanned: **2692** · flagged: **2071** (76.9%)
 
 ## Methodology
 
@@ -64,9 +64,9 @@ Packs scanned: **49** · questions scanned: **2692** · flagged: **2088** (77.6%
 | `ai-900` | 20 | 8 | 40% | 0 | 7 | 1 | 0 |
 | `github-actions` | 10 | 4 | 40% | 0 | 4 | 0 | 0 |
 | `kcna` | 10 | 4 | 40% | 0 | 4 | 0 | 0 |
-| `aws-saa-c03` | 60 | 23 | 38% | 0 | 23 | 0 | 0 |
 | `isc2-cc` | 10 | 3 | 30% | 0 | 3 | 0 | 0 |
 | `comptia-linux` | 61 | 17 | 28% | 11 | 7 | 3 | 0 |
+| `aws-saa-c03` | 60 | 6 | 10% | 0 | 6 | 0 | 0 |
 
 ## Per-pack CSVs
 

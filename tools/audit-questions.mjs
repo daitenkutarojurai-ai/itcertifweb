@@ -75,18 +75,23 @@ function scoreLengthTell(q) {
 
 function scoreKeywordTell(q) {
   const opts = q.options || [];
-  if (opts.length < 2) return { hit: false, sharedWord: '' };
+  if (opts.length < 2) return { hit: false, sharedWord: '', allWords: [] };
   const stemSet = new Set(tokens(q.question));
   const correctTokens = new Set(tokens(opts[q.correct]));
   const distractorTokens = new Set();
   opts.forEach((o, i) => { if (i !== q.correct) tokens(o).forEach(t => distractorTokens.add(t)); });
-  /* Word present in stem AND correct option, absent from every distractor */
+  /* Collect EVERY word present in stem AND correct option, absent from every
+     distractor. Single-word reporting was a whack-a-mole footgun: rewriting
+     the surfaced word often exposed a second leak that was already there. */
+  const all = [];
   for (const t of correctTokens) {
-    if (stemSet.has(t) && !distractorTokens.has(t)) {
-      return { hit: true, sharedWord: t };
-    }
+    if (stemSet.has(t) && !distractorTokens.has(t)) all.push(t);
   }
-  return { hit: false, sharedWord: '' };
+  return {
+    hit: all.length > 0,
+    sharedWord: all[0] || '',
+    allWords: all
+  };
 }
 
 function scoreRecallOnly(q) {
@@ -124,6 +129,7 @@ function auditPack(packPath) {
       lengthRatio:  a.len.ratio,
       keywordTell:  a.kw.hit   ? 'Y' : '',
       keywordWord:  a.kw.sharedWord,
+      keywordAll:   a.kw.allWords.join('|'),
       recallOnly:   a.rec.hit  ? 'Y' : '',
       stemWords:    a.rec.wordCount,
       underTagged:  a.tag.hit  ? 'Y' : '',

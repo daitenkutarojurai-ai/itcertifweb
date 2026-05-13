@@ -6,7 +6,7 @@
     "version": "2.0.3",
     "question_count": 61,
     "last_updated": "2026-05-13",
-    "notes": " [2026-05-13 phase5-rewrite: keyword-tell neutralization for 5 worst-offender Qs]"
+    "notes": " [2026-05-13 phase5-rewrite: keyword-tell neutralization for 5 worst-offender Qs] [batch 2: saa-016/017/041/042/059 keyword-tell rebalance] [batch 3: secondary-tell cleanup on saa-017/041/042] [batch 3.1: complete multi-keyword fix on saa-017 + saa-042] [batch 4: saa-003/011/053/054/060 multi-keyword rebalance] [batch 4: saa-005/025/036/044/057] [batch 5: saa-006/030/032/036/045/056]"
   },
   "questions": [
     {
@@ -56,10 +56,10 @@
       "id": "saa-003",
       "question": "An application stores user-uploaded files in S3. Files are frequently accessed for the first 30 days, rarely accessed for the next 60 days, then never needed again. Which S3 lifecycle configuration minimizes storage cost?",
       "options": [
-        "S3 Standard with no lifecycle policy, retaining objects indefinitely",
+        "S3 Standard with no lifecycle policy, retaining objects for all 90+ days indefinitely",
         "Transition to S3 Standard-IA at day 30; expire at 90 days total",
-        "Store all objects in S3 Glacier Deep Archive from day 1 of upload",
-        "Apply S3 Intelligent-Tiering to manage storage class automatically"
+        "Store all objects in S3 Glacier Deep Archive from day 1 — including the first 30 days",
+        "Apply S3 Intelligent-Tiering across all 90 days to auto-manage storage class"
       ],
       "correct": 1,
       "explanation": "S3 Standard-IA charges lower per-GB storage rates than Standard but adds a per-GB retrieval fee — an ideal trade-off once objects transition from frequent to infrequent access after day 30. Expiring objects at day 90 (30 active + 60 infrequent = 90 total) eliminates any ongoing cost for data that will never be needed again. Option C (Glacier Deep Archive from day 1) imposes up to 12-hour retrieval delays during the first 30 days when files are frequently accessed, making retrieval fees and latency far worse than the storage savings during that initial window.",
@@ -99,9 +99,9 @@
       "question": "A DevOps engineer discovers that an EC2 web application is calling S3 using access keys stored in a plaintext configuration file on the instance. The security team requires these long-lived credentials to be removed immediately while preserving S3 read access. What should the solutions architect recommend?",
       "options": [
         "Attach an IAM role to the instance and remove all hard-coded access keys",
-        "Create a dedicated IAM user and reference credentials through environment variables",
-        "Store the credentials as SecureString parameters in AWS Systems Manager",
-        "Rotate the access keys and redeploy the application with updated credential values"
+        "Create a dedicated IAM user, deploy its credentials to the instance via environment variables",
+        "Store the credentials as SecureString parameters in SSM and pull them on each instance boot",
+        "Rotate the access keys and redeploy the instance image with updated credential values"
       ],
       "correct": 0,
       "explanation": "Attaching an IAM role to an EC2 instance causes the instance metadata service (IMDS) to vend temporary, automatically-rotated credentials — no static keys exist to be stolen or leaked. The application calls S3 using the same SDK calls with no code changes required. Option D still uses long-lived IAM user credentials stored on disk, which carries the same fundamental risk as the original config file; it improves secret discoverability but does not eliminate the static-credential exposure.",
@@ -119,10 +119,10 @@
       "id": "saa-006",
       "question": "A SaaS company's CRM application uses Amazon RDS MySQL as its primary database. A newly deployed analytics dashboard runs complex GROUP BY queries across three years of interaction records, pushing primary instance CPU to 90% during business hours and causing response time degradation for transactional users. Writes must continue on the primary without interruption. Which solution isolates the analytics workload without affecting transactional performance?",
       "options": [
-        "Upgrade the primary instance to the next larger size tier to absorb both workloads",
-        "Add an RDS Read Replica and direct the analytics dashboard to its endpoint",
-        "Route analytics queries to the Multi-AZ standby via its read-only endpoint and connection string",
-        "Enable RDS Performance Insights and configure automatic query termination for slow statements"
+        "Upgrade the primary instance to absorb the dashboard workload alongside transactional traffic",
+        "Add an RDS Read Replica and point the analytics dashboard at the replica endpoint",
+        "Route the dashboard's analytics queries to the Multi-AZ standby's read-only endpoint",
+        "Enable RDS Performance Insights and auto-terminate slow dashboard queries"
       ],
       "correct": 1,
       "explanation": "An RDS Read Replica receives asynchronous replication from the primary and exposes a separate endpoint — heavy analytics queries run against the replica, leaving primary CPU available for transactional writes. The Multi-AZ standby in option A is a synchronous failover replica maintained solely for high availability; it does not accept query traffic and has no addressable read endpoint, so routing analytics connections to it is not supported by RDS. Upgrading the primary instance class (option D) reduces per-query CPU headroom but does not isolate the workloads — a 40-second analytics scan still competes with transactional queries for shared CPU and I/O, and the benefit erodes as data volume grows.",
@@ -227,9 +227,9 @@
       "question": "A financial services firm transfers 4 TB of market-data feeds per day from its co-located on-premises data center to Amazon S3 in us-east-1. The architecture team requires consistent, predictable throughput of at least 1 Gbps. Compliance policy mandates that data must not traverse the public internet. The firm already has a cross-connect available at a colocation facility. Which connectivity solution satisfies all three requirements?",
       "options": [
         "AWS Direct Connect with a 1 Gbps circuit terminating at the colocation cross-connect",
-        "S3 Transfer Acceleration routing uploads through CloudFront edge nodes to the target region",
-        "AWS Site-to-Site VPN with BGP routing over the corporate internet connection and an AWS-provided certificate",
-        "AWS Client VPN with split tunneling configured for S3-bound traffic only"
+        "S3 Transfer Acceleration over public CloudFront edges, sized for a 1 Gbps sustained colocation upload",
+        "AWS Site-to-Site VPN over the corporate internet with a 1 Gbps tunnel from the colocation cross-connect",
+        "AWS Client VPN at the colocation site with split tunneling and a 1 Gbps cross-connect to AWS"
       ],
       "correct": 0,
       "explanation": "Direct Connect provisions a private physical circuit between the on-premises data center and AWS over the colocation cross-connect, providing guaranteed bandwidth entirely outside the public internet — the only option that simultaneously satisfies the throughput, predictability, and no-public-internet requirements. Site-to-Site VPN is an IPsec tunnel that terminates on public AWS endpoints; even with BGP routing, traffic crosses the public internet, violating the compliance mandate. S3 Transfer Acceleration routes uploads through CloudFront edge locations over the public internet, failing the same requirement and offering no throughput guarantee.",
@@ -330,10 +330,10 @@
       "id": "saa-016",
       "question": "A financial reporting service writes an account balance to DynamoDB and immediately performs a read to return the updated value to the client. Testers consistently observe stale values — the read returns the pre-update balance. The development team wants to fix this in code without changing the table design or data model. What change should they make?",
       "options": [
-        "Switch reads to a Global Secondary Index scoped to the account partition",
-        "Set ConsistentRead=true on every GetItem and Query call for this table",
-        "Enable DynamoDB Accelerator (DAX) for microsecond caching on reads",
-        "Replace GetItem with a Query that uses a FilterExpression on the balance attribute"
+        "Switch table reads to a Global Secondary Index scoped to the account partition",
+        "Set ConsistentRead=true on every GetItem and Query call against the table",
+        "Enable DynamoDB Accelerator (DAX) in front of the table for cached reads",
+        "Replace GetItem with a Query that uses a FilterExpression on the balance attribute of the same table"
       ],
       "correct": 1,
       "explanation": "Setting ConsistentRead=true forces DynamoDB to read from the partition's leader node and return data that reflects all writes acknowledged before the read, eliminating stale-read windows that exist under eventually consistent (default) mode. DAX caches reads in memory and would worsen the problem — it would serve the cached pre-update value until its TTL expires, not the freshly written value. Global Secondary Indexes do not support strongly consistent reads at all, regardless of the ConsistentRead flag.",
@@ -351,10 +351,10 @@
       "id": "saa-017",
       "question": "A media sharing platform lets users upload large video files from a browser. Currently all uploads pass through the application server tier before being written to S3, creating bandwidth bottlenecks and high EC2 costs during peak hours. The security team requires that upload credentials expire no more than 15 minutes after issuance. Which solution removes the application server from the upload data path while meeting the security requirement?",
       "options": [
-        "Deploy AWS Transfer Family with SFTP to accept browser-based file uploads",
-        "Route uploads through an API Gateway integration that proxies the data to S3",
-        "Open the S3 bucket for public PUT access and have the browser upload directly",
-        "Generate a presigned S3 PUT URL (15-minute TTL) in the application server"
+        "Deploy AWS Transfer Family with SFTP on the application server fleet to receive browser uploads",
+        "Route uploads through an API Gateway integration that proxies browser data via the application server",
+        "Open the S3 bucket for public PUT access; bypass the application server with a static 15-minute token",
+        "Have the application server generate a presigned S3 PUT URL (15-minute TTL) and return it to the browser"
       ],
       "correct": 3,
       "explanation": "A presigned PUT URL embeds the uploader's identity and an expiry timestamp into a cryptographically signed request URL. The application server generates the URL without touching any file data, then returns it to the browser; the browser PUTs the file directly to S3 — no upload data flows through EC2. Setting the expiry to 15 minutes satisfies the credential lifetime requirement. Option C (API Gateway proxy) replaces the EC2 bottleneck with an API Gateway bottleneck — the full file still transits a server, and API Gateway's 10 MB request body limit makes it unsuitable for large video files.",
@@ -518,9 +518,9 @@
       "id": "saa-025",
       "question": "A mobile app startup has an existing Cognito User Pool for authentication. The development team is building HTTP endpoints that invoke Lambda functions for business logic — all without maintaining EC2 instances or patching servers. The team wants token validation to happen before Lambda is invoked, with no custom authorizer code to maintain. Which AWS service combination satisfies all three constraints?",
       "options": [
-        "AWS AppSync GraphQL endpoint → Lambda resolvers → Cognito auth provider",
-        "Application Load Balancer → Lambda target group → Cognito hosted-UI redirect",
-        "CloudFront distribution → Lambda@Edge → custom header inspection per edge location",
+        "AWS AppSync GraphQL endpoint → Lambda resolvers → Cognito User Pool authorizer at the resolver layer",
+        "Application Load Balancer → Lambda target group → Cognito User Pool hosted-UI redirect; ALB authorizer rule",
+        "CloudFront distribution → Lambda@Edge → custom authorizer code per edge, no user pool integration",
         "API Gateway REST API → Lambda function → Cognito User Pool Authorizer"
       ],
       "correct": 3,
@@ -621,10 +621,10 @@
       "id": "saa-030",
       "question": "A financial services company stores sensitive compliance reports in an S3 bucket that is accessed from multiple AWS accounts within the same AWS Organization. After an internal audit, the security team needs a control that prevents any principal outside the organization from accessing the bucket — even if an IAM policy in a member account is later misconfigured. Which S3 feature most directly satisfies this requirement?",
       "options": [
-        "S3 Object Ownership set to Bucket Owner Enforced mode",
+        "S3 Object Ownership set to Bucket Owner Enforced mode with no resource policy change",
         "S3 bucket policy with the aws:PrincipalOrgID condition key",
-        "IAM permission boundaries applied to every user in the organization",
-        "S3 Block Public Access enabled at the organization's management account"
+        "IAM permission boundary policy applied to every user across the AWS Organization",
+        "S3 Block Public Access policy enabled at the AWS Organization's management account"
       ],
       "correct": 1,
       "explanation": "A bucket policy using the aws:PrincipalOrgID global condition key restricts access so that only principals belonging to the specified AWS Organization can make requests, acting as an organization-wide perimeter regardless of individual IAM grants. IAM permission boundaries constrain what a single IAM entity can do but cannot enforce cross-account access restrictions for every account in an organization. S3 Block Public Access prevents anonymous (unauthenticated) access but does not block authenticated requests from principals outside the organization.",
@@ -662,10 +662,10 @@
       "id": "saa-032",
       "question": "A startup operates 50 Lambda functions and an EC2 Auto Scaling group, all of which retrieve database credentials and API keys at startup. The security team requires KMS encryption per value, individual CloudTrail access logging, and version history for rollback. The team must store 500 config values and wants to minimize monthly AWS spend. Which service best meets all three requirements?",
       "options": [
-        "AWS Secrets Manager — charges $0.40 per secret per month",
-        "AWS Systems Manager Parameter Store with SecureString",
-        "Amazon S3 with server-side SSE-KMS and object versioning",
-        "Amazon DynamoDB table encrypted with a customer-managed KMS key"
+        "AWS Secrets Manager — store each value as a secret ($0.40/secret/month)",
+        "AWS Systems Manager Parameter Store with SecureString — KMS-encrypted, versioned, audited",
+        "Amazon S3 store with server-side SSE-KMS and object versioning per config value",
+        "Amazon DynamoDB table acting as a config store, encrypted with a customer-managed KMS key"
       ],
       "correct": 1,
       "explanation": "AWS Systems Manager Parameter Store SecureString parameters are encrypted with KMS, every access call is logged in CloudTrail (including caller identity and parameter name), and each parameter keeps a full version history — all at no charge for the standard tier, making it zero additional cost for 500 values. AWS Secrets Manager also provides encryption and auditing, but charges $0.40 per secret per month — $200/month for 500 secrets. Amazon S3 can store encrypted files but lacks parameter-level access control or native versioning designed for secrets.",
@@ -743,10 +743,10 @@
       "id": "saa-036",
       "question": "A company's analytics portal lets users request custom PDF reports that take 8–12 minutes to generate. The architecture must return an immediate acknowledgment to the browser, continue generating the report in the background, and notify the user via SNS when the report is ready. API Gateway has a hard 29-second integration timeout. Which pattern meets all three requirements?",
       "options": [
-        "HTTP long-poll connection held open until report finishes",
-        "API Gateway integration timeout extended past 29 seconds",
-        "Async SQS queue with worker and SNS completion alert",
-        "Browser polls a Lambda status endpoint every 10 seconds"
+        "HTTP long-poll connection held open until report finishes; user sees a spinner the whole time",
+        "Extend API Gateway integration timeout past 29 s; user request blocks until report is done",
+        "Async SQS queue with worker plus an SNS completion topic that emails the user",
+        "Browser polls a Lambda status endpoint every 10 s and shows status to the user"
       ],
       "correct": 2,
       "explanation": "An SQS-backed async pattern decouples the browser request from the long-running job: the frontend enqueues the request and immediately receives a job ID, a background worker processes the PDF, and SNS sends a notification on completion. API Gateway's 29-second integration timeout makes options B and D impossible for a task that takes 8–12 minutes — the connection would be terminated before the job finishes. Polling every 10 seconds works but wastes compute and still requires a separate notification mechanism.",
@@ -845,10 +845,10 @@
       "id": "saa-041",
       "question": "A SaaS company wants to enforce HTTPS on its public web application. Users who access the plain HTTP URL in their browser should automatically be sent to the HTTPS version. The change must be applied at the load balancer with no modifications to the application servers. Which load balancer type and configuration achieves this?",
       "options": [
-        "Network Load Balancer with port forwarding from TCP 80 to TCP 443",
-        "Application Load Balancer with an HTTP listener redirect action",
-        "Classic Load Balancer with an HTTP listener and SSL offloading",
-        "Gateway Load Balancer with inline traffic forwarding rules"
+        "Network Load Balancer with TCP 80→443 forwarding for application users",
+        "Application Load Balancer with an HTTP listener redirect action for users",
+        "Classic Load Balancer with HTTP listener and SSL offloading for application users",
+        "Gateway Load Balancer with inline forwarding rules applied to user traffic"
       ],
       "correct": 1,
       "explanation": "Application Load Balancer (ALB) is the only AWS load balancer that can inspect Layer-7 HTTP content and respond with a redirect action — for example, returning an HTTP 301 on port 80 that points the browser to the HTTPS endpoint on port 443. This is configured as a listener rule on the port-80 listener and involves no backend instances. Network Load Balancer operates at Layer 4 (TCP) and cannot read or modify HTTP headers, so it cannot issue a protocol-level redirect. Classic Load Balancer supports SSL termination but lacks listener rule actions for automatic HTTP-to-HTTPS promotion.",
@@ -865,10 +865,10 @@
       "id": "saa-042",
       "question": "A bank's compliance team must ensure that API audit logs shipped to an S3 bucket cannot be modified or deleted by anyone — including administrators and the root account — before a mandatory 90-day hold expires. They also need cryptographic proof that each log file has not been altered since delivery. Which two controls together satisfy both requirements?",
       "options": [
-        "Enable S3 MFA Delete and turn on bucket versioning for the log bucket",
-        "Enable log file validation and apply S3 Object Lock in Compliance mode",
-        "Encrypt logs with a KMS CMK and restrict key usage to the security team",
-        "Add a bucket policy Deny on s3:DeleteObject for all IAM principals"
+        "Enable S3 MFA Delete and bucket versioning so each log file's prior versions cannot be removed",
+        "Enable CloudTrail log file validation and apply S3 Object Lock in Compliance mode",
+        "Encrypt every log file with a KMS CMK and restrict key use to the compliance team",
+        "Add a bucket policy Deny on s3:DeleteObject for all IAM principals covering every log file in the bucket"
       ],
       "correct": 1,
       "explanation": "S3 Object Lock in Compliance mode creates a WORM hold that even the root account cannot override before the retention period ends, satisfying the deletion-prevention requirement. CloudTrail log file validation generates an hourly SHA-256 digest chain; any post-delivery tampering breaks the chain and is immediately detectable, providing the cryptographic integrity proof. KMS encryption (option C) protects confidentiality but not integrity — an administrator with key access could still delete the objects. MFA Delete (option A) can be disabled by the root user, so it does not provide the same ironclad guarantee as Object Lock Compliance mode.",
@@ -906,10 +906,10 @@
       "id": "saa-044",
       "question": "A financial company's on-premises Oracle 19c database is written to 24/7 and must be migrated to Amazon Aurora PostgreSQL with fewer than 4 hours of application downtime. The database is 2 TB. Which migration approach satisfies this requirement?",
       "options": [
-        "AWS DMS with CDC replication to Aurora PostgreSQL",
-        "Oracle Data Pump with a scheduled maintenance window",
-        "AWS Snowball physical transfer for the 2 TB export",
-        "AWS SCT schema conversion running as standalone migration"
+        "AWS DMS with CDC replication into Aurora PostgreSQL",
+        "Oracle Data Pump export/import into Aurora PostgreSQL during a scheduled maintenance window",
+        "AWS Snowball physical transfer of the 2 TB Oracle export, then a one-shot load into Aurora PostgreSQL",
+        "AWS SCT schema conversion to Aurora PostgreSQL only, with no data-replication tier"
       ],
       "correct": 0,
       "explanation": "AWS Database Migration Service (DMS) performs a full initial load, then uses Change Data Capture (CDC) to replicate ongoing transactions to the Aurora target while the Oracle source remains online — shrinking the cutover window to minutes. Oracle Data Pump requires pausing writes during export, which cannot meet a 4-hour constraint for a 2 TB actively-written database. AWS Snowball handles bulk data transport but provides no mechanism for live replication. AWS Schema Conversion Tool converts schemas and code objects but does not migrate data on its own.",
@@ -926,10 +926,10 @@
       "id": "saa-045",
       "question": "An enterprise manages a central networking account containing a VPC with carefully segmented subnets. Twenty application accounts in the same AWS Organization need to deploy EC2 instances and RDS clusters using those centrally managed subnets, without owning their own VPCs. Which AWS capability enables this?",
       "options": [
-        "AWS Resource Access Manager shared subnets",
-        "AWS Transit Gateway with cross-account attachments",
-        "VPC Peering from the hub account to each spoke",
-        "AWS PrivateLink endpoint services per spoke VPC"
+        "AWS Resource Access Manager sharing the centrally managed subnets across accounts",
+        "AWS Transit Gateway with cross-account attachments — each spoke keeps its own VPC and subnets",
+        "VPC Peering from the hub account to each spoke account's own VPC and subnets",
+        "AWS PrivateLink endpoint services per spoke VPC, each spoke owning its own subnets"
       ],
       "correct": 0,
       "explanation": "AWS Resource Access Manager (RAM) lets the subnet-owning account share specific subnets with participant accounts in the same AWS Organization. Participants can launch EC2, RDS, and other resources directly into those shared subnets while the network team retains control of routing, NACLs, and security groups. AWS Transit Gateway interconnects separate VPCs at the routing level but does not let participant accounts deploy into a single shared subnet. VPC Peering links two separate VPCs without granting subnet-level access to a participant account. PrivateLink exposes specific services, not shared network segments.",
@@ -1087,10 +1087,10 @@
       "id": "saa-053",
       "question": "A fintech startup's web API sits behind an Application Load Balancer. A penetration test finds the application is vulnerable to injection attacks via crafted HTTP query strings and request bodies. The CISO wants a control that inspects Layer 7 HTTP content and blocks malicious request patterns before they reach the EC2 backend — without modifying the application code. Which service should the team attach directly to the ALB?",
       "options": [
-        "Amazon GuardDuty with VPC Flow Logs and DNS threat detection",
-        "AWS Network Firewall deployed in a dedicated inspection VPC",
+        "Amazon GuardDuty with VPC Flow Logs and DNS threat detection for the web tier",
+        "AWS Network Firewall deployed in a dedicated inspection VPC in front of the web ALB",
         "AWS WAF with managed rule groups for common web exploits",
-        "AWS Shield Advanced with proactive DDoS response engagement"
+        "AWS Shield Advanced with proactive DDoS response engagement for the web fleet"
       ],
       "correct": 2,
       "explanation": "AWS WAF attaches directly to an ALB (or CloudFront, API Gateway) and inspects HTTP request headers, URI, query strings, and body against rule groups — including the AWS Managed Rules set for common web exploits (SQLi, XSS, path traversal). Rules can block matching requests before they reach the backend, with no application code changes. GuardDuty is a threat-detection service that analyzes logs and network metadata to surface findings; it does not block HTTP traffic in real time. AWS Network Firewall operates at the VPC perimeter and inspects network traffic but does not attach to an ALB or inspect HTTP payloads at Layer 7 in the same way. Shield Advanced mitigates volumetric DDoS attacks at Layers 3 and 4 and is not designed for blocking application-layer injection patterns.",
@@ -1107,10 +1107,10 @@
       "id": "saa-054",
       "question": "A three-tier e-commerce application runs web servers, app servers, and an RDS MySQL database in separate subnets. A security audit finds the RDS instance accepts connections on port 3306 from the full VPC CIDR (10.0.0.0/16). The team must restrict database access to only the app-tier EC2 instances in a way that remains accurate as instances are replaced or the fleet scales without manual IP updates. What should they configure?",
       "options": [
-        "Update the RDS security group to allow port 3306 from the app subnet CIDR",
+        "Update the RDS security group to allow port 3306 from the app-tier subnet CIDR",
         "Reference the app-tier security group in the RDS security group inbound rule",
-        "Apply a subnet NACL on the RDS subnet blocking all traffic except from the app subnet",
-        "Move the RDS instance to an isolated VPC connected to the app tier via PrivateLink"
+        "Apply a subnet NACL on the RDS subnet blocking all traffic except from the app-tier subnet",
+        "Move the RDS instance to an isolated VPC and connect it to the app-tier via PrivateLink"
       ],
       "correct": 1,
       "explanation": "Referencing a security group ID in an inbound rule grants access to all instances carrying that group at the time of each request — when app-tier instances are replaced or scale out, new EC2s inherit the security group and immediately gain database access without any manual rule update. Restricting to the app subnet CIDR (option A) allows any EC2 in that subnet — monitoring agents, developer tools, or a compromised instance — not just the app-tier application, violating least-privilege isolation. NACLs (option C) are stateless: an inbound allow for port 3306 also requires an explicit outbound rule covering ephemeral reply ports (1024–65535), doubling maintenance overhead and increasing the chance of misconfiguration that locks out valid traffic.",
@@ -1147,10 +1147,10 @@
       "id": "saa-056",
       "question": "A web application runs on an EC2 instance with an instance profile granting s3:* on all resources and ec2:* on all resources. A security review shows the application only ever performs object retrieval from a single S3 bucket named 'prod-assets'. The team wants to reduce the blast radius if the instance is compromised. Which IAM change should a solutions architect implement?",
       "options": [
-        "Remove ec2:* entirely and replace s3:* with s3:GetObject scoped to the specific bucket ARN",
-        "Add an explicit Deny policy for all s3:PutObject, s3:DeleteObject, and all ec2:Modify* actions",
-        "Attach a permissions boundary to the instance profile that limits effective permissions to S3 read-only",
-        "Enable IAM Access Analyzer on the account and create an archive rule for the instance profile findings"
+        "Remove ec2:* entirely and replace s3:* with s3:GetObject scoped to the 'prod-assets' bucket ARN",
+        "Add an explicit Deny on s3:PutObject and s3:DeleteObject for the bucket plus ec2:Modify* actions",
+        "Attach a permissions boundary that limits the instance to S3 read-only on any bucket",
+        "Enable IAM Access Analyzer and archive bucket findings for the instance profile"
       ],
       "correct": 0,
       "explanation": "Least privilege requires granting only the exact permissions actually needed. Removing ec2:* entirely (the application makes no EC2 API calls) and replacing s3:* with s3:GetObject on the specific bucket ARN directly eliminates the excess permissions. Adding Deny statements is weaker because the broad Allow remains and implicit allow logic still grants everything not explicitly denied. A permissions boundary constrains the ceiling but does not grant or remove the underlying permissions—the role's policy still carries s3:* and ec2:*. IAM Access Analyzer flags findings but does not fix them.",
@@ -1167,10 +1167,10 @@
       "id": "saa-057",
       "question": "A company runs an active-passive disaster-recovery configuration across two AWS regions. The RTO target is 15 minutes and the RPO target is 1 minute. The operations team is evaluating database replication options for the primary workload. Which approach can reliably meet the RPO target?",
       "options": [
-        "RDS automated snapshots replicated hourly to the secondary region",
-        "RDS Multi-AZ standby with automatic failover in the primary region",
-        "RDS cross-region read replica promoted manually on failure",
-        "Aurora Global Database with an always-on secondary cluster"
+        "RDS automated database snapshots replicated hourly to the secondary region",
+        "RDS Multi-AZ standby database with automatic failover, primary region only",
+        "RDS cross-region read replica database promoted manually on failure",
+        "Aurora Global Database with an always-on secondary database cluster"
       ],
       "correct": 3,
       "explanation": "Aurora Global Database replicates data to a secondary region with typical latency under one second — well within the 1-minute RPO — using dedicated replication infrastructure independent of the database engine. RDS automated snapshots are taken at most hourly, yielding an RPO of up to 60 minutes, which far exceeds the target. RDS Multi-AZ provides high availability within a single region via synchronous replication to a standby, but does not address cross-region DR. RDS cross-region read replicas use asynchronous replication whose lag can exceed one minute under sustained write load, making RPO compliance unreliable.",
@@ -1207,10 +1207,10 @@
       "id": "saa-059",
       "question": "A financial services firm must satisfy a compliance mandate that all AWS API activity — including read-only calls — be retained for 7 years with cryptographic proof that no log has been altered or deleted after delivery. The team routes logs to a dedicated S3 archive bucket. Which combination of CloudTrail and S3 settings satisfies all three requirements?",
       "options": [
-        "Log file validation enabled; S3 Standard storage with a 7-year lifecycle rule",
-        "Log file validation enabled; S3 Object Lock in Compliance mode (7-year hold)",
-        "KMS CMK encryption; S3 Glacier Deep Archive with a 7-year expiry policy",
-        "MFA Delete and S3 versioning enabled; S3 Standard-IA with a 7-year lifecycle rule"
+        "CloudTrail log file validation; S3 Standard storage with a 7-year lifecycle rule meeting the compliance retention",
+        "CloudTrail log file validation; S3 Object Lock in Compliance mode with a 7-year hold",
+        "KMS CMK encryption for each log; Glacier Deep Archive with a 7-year compliance expiry policy",
+        "S3 MFA Delete plus versioning; Standard-IA with a 7-year lifecycle rule documented in the compliance binder"
       ],
       "correct": 1,
       "explanation": "CloudTrail log file validation generates an hourly SHA-256 digest chain; any modification to a log file or its digest after delivery breaks the chain, providing cryptographic proof of integrity. S3 Object Lock in Compliance mode creates a WORM hold for the full retention period that even the root account cannot override, guaranteeing 7-year immutability and satisfying the tamper-proof requirement. Option A enables log file validation but stores objects in S3 Standard without Object Lock — an administrator can still delete the files, failing the deletion-prevention requirement. KMS encryption (option C) protects confidentiality but not integrity; a user with key access could still delete objects. MFA Delete (option D) can be disabled by the root account and does not provide the same ironclad protection as Object Lock Compliance mode.",
@@ -1228,10 +1228,10 @@
       "id": "saa-060",
       "question": "A development team is decomposing a monolithic order platform into ECS Fargate microservices. The checkout flow must call an inventory service to verify stock and a payments service to charge the customer—in sequence—before returning a confirmation to the user. Both downstream calls must complete before the response is sent, and the end-to-end latency budget is 80 ms within the same VPC. Which communication architecture should the team adopt?",
       "options": [
-        "Use Amazon SQS FIFO queues between each service pair with a correlation ID and a dedicated reply queue",
-        "Use an internal Application Load Balancer routing HTTP requests to ECS services by URL path",
-        "Publish each request to an Amazon SNS topic and subscribe the downstream service to receive it",
-        "Use Amazon Kinesis Data Streams with a dedicated shard per service to pass ordered messages"
+        "Use Amazon SQS FIFO queues between each ECS service pair with a correlation ID and reply queue",
+        "Use an internal Application Load Balancer routing HTTP requests to the ECS services by URL path",
+        "Publish each request to an Amazon SNS topic and subscribe the downstream ECS service to receive it",
+        "Use Amazon Kinesis Data Streams with a shard per ECS service to pass ordered messages"
       ],
       "correct": 1,
       "explanation": "An internal Application Load Balancer provides synchronous request-response semantics within the VPC, with path-based routing to separate ECS target groups for inventory and payments. Round-trips over an internal ALB are typically single-digit milliseconds, well within the 80 ms budget. SQS is asynchronous—achieving request-response with SQS requires a correlation ID and polling a reply queue, adding latency and complexity. SNS is a pub/sub fan-out system, not a request-response mechanism. Kinesis is designed for ordered event streaming and consumer polling, not synchronous RPC-style calls.",
