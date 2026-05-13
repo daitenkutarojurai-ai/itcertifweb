@@ -1,0 +1,152 @@
+{
+  "meta": {
+    "id": "aws-sap-c02",
+    "name": "AWS Solutions Architect Professional (SAP-C02)",
+    "vendor": "Amazon AWS",
+    "version": "1.0.0",
+    "question_count": 10,
+    "last_updated": "2026-05-13"
+  },
+  "questions": [
+    {
+      "id": "aws-sap-c02-001",
+      "question": "A multi-account organization uses AWS Organizations across 50 member accounts. Security requires that no member account principal can ever disable AWS CloudTrail, while still allowing local admins to manage other services. Which approach scales best?",
+      "options": [
+        "Attach a Service Control Policy at the organization root that denies the CloudTrail stop, delete, and update API actions across all member accounts",
+        "Create an explicit-deny IAM policy in each member account and attach it manually to every existing user and role to block CloudTrail changes",
+        "Use AWS Config rules in every account that detect when CloudTrail is disabled and trigger a Lambda function to re-enable the trail after the fact",
+        "Replace each account's CloudTrail with a nightly CloudFormation StackSet redeployment so any disablement is reversed the next morning by automation"
+      ],
+      "correct": 0,
+      "explanation": "Service Control Policies are preventive guardrails enforced by AWS Organizations at the account level. An SCP at the root denying cloudtrail:StopLogging, cloudtrail:DeleteTrail, and cloudtrail:UpdateTrail applies to every existing and future member account without per-account toil. Per-account IAM denies require manual attachment to every principal and miss new identities. Config plus Lambda is reactive, not preventive, and leaves a gap where logging is off. Nightly StackSet redeploys are also reactive and waste effort recreating resources.",
+      "tags": ["organizations", "scp", "governance", "domain-1"],
+      "difficulty": "intermediate"
+    },
+    {
+      "id": "aws-sap-c02-002",
+      "question": "A SaaS team operates 30 workload accounts that all need IP-routable access to a shared services VPC for Active Directory, DNS, and central logging. The networking team wants to manage routing in a single account. Which design fits best?",
+      "options": [
+        "Peer every workload VPC directly with the shared services VPC and modify route tables individually in each account whenever topology changes occur",
+        "Build a Transit Gateway in the networking account, share it with each workload account via AWS RAM, and attach each VPC to that Transit Gateway",
+        "Establish AWS Site-to-Site VPN tunnels from every workload VPC to the shared services VPC so traffic is encrypted across the public internet",
+        "Duplicate the shared services VPC into every workload account and keep AD, DNS, and logging data in sync via scheduled cross-account exports"
+      ],
+      "correct": 1,
+      "explanation": "Transit Gateway shared via AWS Resource Access Manager is the canonical hub-and-spoke pattern: routing lives centrally in the networking account, each workload VPC is one attachment, and new accounts onboard by sharing rather than mesh peering. Full-mesh VPC peering does not scale across 30 accounts and forces route table edits everywhere. Internet VPNs add latency and per-tunnel management. Duplicating the shared services per account loses single-source-of-truth and breaks identity directories.",
+      "tags": ["networking", "transit-gateway", "multi-account", "domain-1"],
+      "difficulty": "intermediate"
+    },
+    {
+      "id": "aws-sap-c02-003",
+      "question": "An on-premises application requires NFS access and low-latency reads against a working set of a 200 TB file dataset that the team wants to standardize on Amazon S3. Which approach minimizes operational overhead?",
+      "options": [
+        "Replicate the entire S3 dataset nightly to a local NAS appliance with AWS DataSync and have the application read from the on-premises NAS device",
+        "Deploy AWS Storage Gateway as a File Gateway on-premises, backed by the S3 bucket, so hot files stay cached locally for low-latency NFS reads",
+        "Mount the S3 bucket directly on each application server with s3fs-fuse and rely on the operating system page cache to absorb read latency for clients",
+        "Provision an AWS Snowball Edge appliance on-premises and point the application at that appliance instead of going to S3 for every single read request"
+      ],
+      "correct": 1,
+      "explanation": "File Gateway exposes an S3 bucket as an NFS or SMB share on-premises, transparently caches frequently accessed files locally for low-latency reads, and writes new data through to S3. The dataset lives durably in S3 as the source of truth without nightly bulk replication. DataSync mirroring duplicates 200 TB and runs ongoing data drift. s3fs-fuse is fragile under heavy NFS-style use and is not officially supported for production workloads. Snowball Edge is a one-time offline transfer device, not a steady-state file service.",
+      "tags": ["storage", "hybrid", "storage-gateway", "domain-2"],
+      "difficulty": "intermediate"
+    },
+    {
+      "id": "aws-sap-c02-004",
+      "question": "A trading platform requires single-digit-millisecond writes from users in two AWS regions and must keep accepting writes if either region fails, with no manual failover step. Which data layer best meets these requirements?",
+      "options": [
+        "An Amazon Aurora global database with a single writer in the primary region and a read-only Aurora replica running in the secondary region for reads",
+        "An Amazon DynamoDB global table with active replicas in both regions, accepting writes locally in either region under last-writer-wins resolution rules",
+        "Amazon RDS for PostgreSQL Multi-AZ in the primary region plus a cross-region read replica that operators promote during a regional outage by runbook",
+        "Amazon S3 cross-region replication of database write-ahead log files between the two regions, with application-side reconciliation logic on failover"
+      ],
+      "correct": 1,
+      "explanation": "DynamoDB global tables are multi-master: every replica region accepts writes locally and replication is eventually consistent with last-writer-wins. If one region fails the others keep serving without any manual failover, satisfying the active-active requirement. Aurora global databases have only one writer region; the secondary is read-only until a managed failover that takes minutes. RDS cross-region replicas require an operator-triggered promotion, breaking the no-manual-failover requirement. Replicating WAL files via S3 is not a primary database design and forces custom reconciliation.",
+      "tags": ["multi-region", "high-availability", "dynamodb", "domain-2"],
+      "difficulty": "advanced"
+    },
+    {
+      "id": "aws-sap-c02-005",
+      "question": "A nightly bioinformatics batch job runs for six hours on 200 EC2 instances and tolerates interruption. A web tier runs continuously on 50 instances and must keep predictable performance. Which purchase mix minimizes spend?",
+      "options": [
+        "Buy three-year all-upfront Reserved Instances for both the batch and the web workloads to lock in the deepest possible discount on every running instance",
+        "Run the batch workload on EC2 Spot Instances and cover the web tier's steady baseline capacity with a Compute Savings Plan commitment over one or three years",
+        "Keep the batch workload on On-Demand to guarantee it finishes overnight and place the always-on web tier onto Spot to cut the largest cost line on the bill",
+        "Run both the batch and web workloads entirely on Spot Instances and accept occasional web-tier outages because the cost savings outweigh the user impact"
+      ],
+      "correct": 1,
+      "explanation": "Spot Instances offer up to about 90 percent off on-demand pricing and are the right fit for interruption-tolerant batch work. Compute Savings Plans cover predictable always-on capacity at a steep discount while remaining flexible across instance family and region. Three-year RIs on a six-hour-per-day batch fleet wastes commitment 18 hours a day. Running production web on Spot risks reclamation during the most visible workload, which violates the predictable-performance requirement. On-Demand for batch overspends compared to Spot.",
+      "tags": ["cost-optimization", "spot", "savings-plans", "domain-2"],
+      "difficulty": "intermediate"
+    },
+    {
+      "id": "aws-sap-c02-006",
+      "question": "An Amazon RDS for PostgreSQL writer shows CPU spikes during business hours that trace to a few heavy reporting queries, and OLTP latency suffers. Which improvement is most cost-effective for restoring transactional performance?",
+      "options": [
+        "Vertically scale the writer to the next-larger instance class so the reporting workload no longer impacts OLTP transaction latency for end users during peak",
+        "Move the reporting workload onto a PostgreSQL read replica and point the reporting application's connection string at the replica endpoint going forward",
+        "Re-architect the application so both transactional writes and analytical reporting run together against a single Amazon Redshift cluster from now on",
+        "Place an ElastiCache for Redis cluster in front of every reporting query so repeated reports are served from cache and never reach the writer at all"
+      ],
+      "correct": 1,
+      "explanation": "Read replicas offload analytical queries from the writer with near-zero application change beyond a connection string, and the replica can be a smaller instance class than the writer. Vertically scaling the writer doubles the bill without fixing workload isolation. Moving OLTP into Redshift breaks the transactional workload entirely since Redshift is an analytical column store. ElastiCache helps repeat key-value lookups but cannot transparently cache ad-hoc reporting SQL, and reports are typically not point-lookups.",
+      "tags": ["performance", "rds", "read-replica", "domain-3"],
+      "difficulty": "easy"
+    },
+    {
+      "id": "aws-sap-c02-007",
+      "question": "A security audit finds an existing 30 TB S3 bucket containing tens of millions of unencrypted objects. The bucket must remain available to live applications while existing data is encrypted at rest. Which approach is best?",
+      "options": [
+        "Run an S3 Batch Operations Copy job that overwrites each existing object in place using SSE-KMS encryption, while applications continue reading and writing online",
+        "Halt all application writes for 48 hours, download every object to a local server, encrypt the files with GPG, and re-upload the resulting ciphertext to the bucket",
+        "Provision a brand-new bucket with default encryption enabled, point applications at it, and dual-write to both the old and the new buckets for a full month",
+        "Enable Default Encryption on the existing bucket and rely on the setting to encrypt all existing objects transparently over time as background tasks run later"
+      ],
+      "correct": 0,
+      "explanation": "S3 Batch Operations Copy can rewrite billions of objects in place with a new encryption setting and runs in the background while applications keep using the bucket. Default Encryption only applies to new puts and leaves existing objects unencrypted, so it does not solve the audit finding alone. Halting writes for 48 hours is unacceptable for a live application, and offline GPG encryption is the wrong tool for SSE-KMS. A dual-write migration adds complexity for a problem already solved by Batch Operations.",
+      "tags": ["security", "encryption", "s3", "domain-3"],
+      "difficulty": "intermediate"
+    },
+    {
+      "id": "aws-sap-c02-008",
+      "question": "A microservice has intermittent 5xx errors that reproduce only in production. Engineers need to identify which downstream call is failing without modifying the service's source code. What should they do first?",
+      "options": [
+        "Enable detailed CloudWatch instance monitoring on the EC2 fleet and inspect aggregated CPU and network graphs across all of the service's running instances",
+        "Turn on AWS X-Ray active tracing for the service and inspect the resulting distributed traces to pinpoint the downstream span that is returning 5xx responses",
+        "Ship the service logs into Amazon S3 and use a manual grep workflow across all log files captured during the last 24 hours to find error strings in raw text",
+        "Add custom CloudWatch metrics emitted from every method in the service so that each failure path appears as a new dimension on a metric graph for engineers"
+      ],
+      "correct": 1,
+      "explanation": "X-Ray active tracing collects per-request distributed traces that show each downstream call as a span with latency and HTTP status, making intermittent 5xx errors visible end to end without modifying business logic. CloudWatch instance metrics show host-level health, not request-level failures across services. Grep on raw logs is slow and lacks request correlation. Adding custom metrics requires the code change the team is explicitly trying to avoid in this first step.",
+      "tags": ["observability", "x-ray", "operations", "domain-3"],
+      "difficulty": "easy"
+    },
+    {
+      "id": "aws-sap-c02-009",
+      "question": "A company must migrate 800 TB of archival data from its data center to Amazon S3 within four weeks. The site has a 200 Mbps internet link that is also used by production traffic. Which transfer approach meets the deadline?",
+      "options": [
+        "Order multiple AWS Snowball Edge devices, copy the archive onto them on-premises in parallel, and ship the appliances back to AWS for direct ingest into S3",
+        "Use AWS DataSync over the existing 200 Mbps link, running transfers continuously around the clock including during peak business hours for production traffic",
+        "Build an AWS Site-to-Site VPN over the internet link and rsync the files into S3 via s3fs-fuse mounted on a bastion host running inside the company's VPC",
+        "Compress the dataset with gzip on-premises and stream it via AWS CLI multipart uploads over the 200 Mbps link only during off-business hours each weeknight"
+      ],
+      "correct": 0,
+      "explanation": "At 200 Mbps and a shared link, 800 TB would take many months even at full utilization, which the production traffic does not allow. Snowball Edge is purpose-built for petabyte-scale offline migrations: multiple appliances in parallel cover 800 TB in days, not months. DataSync over the existing link cannot beat the physical bandwidth ceiling. Bastion-host rsync over VPN inherits the same bottleneck plus operational fragility. Compression helps somewhat but the link is still the limit.",
+      "tags": ["migration", "snowball", "data-transfer", "domain-4"],
+      "difficulty": "easy"
+    },
+    {
+      "id": "aws-sap-c02-010",
+      "question": "A monolithic .NET Framework application on Windows EC2 instances needs to scale rapidly under traffic and reduce Windows licensing cost. The team can rewrite small portions but not the whole codebase. Which approach balances effort and benefit?",
+      "options": [
+        "Re-host the monolith unchanged on larger Windows EC2 instances and rely on EC2 Auto Scaling at the instance level to handle spiky traffic patterns over time",
+        "Re-platform the application onto AWS Elastic Beanstalk for Windows .NET so AWS manages the instances while the application's codebase and Windows OS remain unchanged",
+        "Re-architect the latency-sensitive endpoints into containerized .NET 8 services running on Amazon ECS with AWS Fargate on Linux, leaving the rest of the monolith on EC2",
+        "Rewrite the entire application as AWS Lambda functions in Node.js in a single migration phase to eliminate all servers from the architecture and reduce overhead"
+      ],
+      "correct": 2,
+      "explanation": "Carving the hot, latency-sensitive endpoints out of the monolith into containerized .NET 8 services on ECS Fargate gives elastic scaling at the request level and runs on Linux, removing Windows Server licensing on those services. The rest of the monolith continues unchanged on EC2 during the gradual migration. Re-host on bigger Windows EC2 does not help cost or per-endpoint scale. Beanstalk for Windows .NET keeps the Windows license cost. A full rewrite to Lambda in Node.js exceeds the stated scope of small partial rewrites.",
+      "tags": ["modernization", "containers", "fargate", "domain-4"],
+      "difficulty": "advanced"
+    }
+  ]
+}
