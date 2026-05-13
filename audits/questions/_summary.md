@@ -1,7 +1,7 @@
 # Question-bank audit
 
-Generated: 2026-05-13T17:03:19.740Z
-Packs scanned: **49** · questions scanned: **2692** · flagged: **2048** (76.1%)
+Generated: 2026-05-13T17:04:27.793Z
+Packs scanned: **49** · questions scanned: **2692** · flagged: **2046** (76.0%)
 
 ## Methodology
 
@@ -36,8 +36,8 @@ Packs scanned: **49** · questions scanned: **2692** · flagged: **2048** (76.1%
 | `az-500` | 61 | 49 | 80% | 17 | 44 | 1 | 0 |
 | `aws-sap-c02` | 10 | 8 | 80% | 0 | 8 | 0 | 0 |
 | `dp-900` | 10 | 8 | 80% | 0 | 5 | 5 | 0 |
-| `ccna` | 112 | 89 | 79% | 39 | 52 | 24 | 15 |
 | `comptia-cysa` | 66 | 52 | 79% | 36 | 19 | 19 | 0 |
+| `ccna` | 112 | 87 | 78% | 45 | 62 | 12 | 7 |
 | `sc-900` | 60 | 46 | 77% | 28 | 32 | 8 | 0 |
 | `vault-002` | 51 | 39 | 76% | 22 | 17 | 23 | 0 |
 | `cissp` | 25 | 19 | 76% | 3 | 19 | 0 | 0 |
