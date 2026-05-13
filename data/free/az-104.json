@@ -6,157 +6,160 @@
     "version": "2.1.0",
     "question_count": 56,
     "last_updated": "2026-05-13",
-    "notes": " [az-104 batch 1: 11 rewrites + 3 FACTUAL FIXES: az104-010, az104-020, az104-050] [az-104 batch 2: 11 rewrites + length/keyword cleanup on batch-1 stragglers]"
+    "notes": " [az-104 batch 1: 11 rewrites + 3 FACTUAL FIXES: az104-010, az104-020, az104-050] [az-104 batch 2: 11 rewrites + length/keyword cleanup on batch-1 stragglers] [az-104 batch 3: 11 rewrites + 6 CRITICAL FACTUAL FIXES on az104-002/003/004/005/006/011]"
   },
   "questions": [
     {
       "id": "az104-002",
-      "question": "Two Azure VNets in the same region need low-latency private connectivity. VNet A hosts application servers and VNet B hosts a shared database tier. Which connectivity option provides the lowest latency and does NOT require a virtual network gateway?",
+      "question": "Two Azure VNets are in the SAME REGION. Workloads in VNet-A need LOW-LATENCY (≤ 1 ms), high-bandwidth PRIVATE connectivity to a shared database in VNet-B. The link must use the Microsoft backbone, NOT IPsec encapsulation. Operating overhead must be minimal. Which connectivity option fits all three constraints?",
       "options": [
-        "Site-to-site VPN tunnel established between the two VNets",
-        "VNet peering between the two VNets in the same region",
-        "VPN Gateway with BGP enabled between the two VNets",
-        "Azure Virtual WAN hub with VNet connections in each VNet"
+        "Site-to-site VPN tunnel — IPsec overhead and gateway latency, opposite of the low-latency requirement",
+        "VNet peering in the same region — direct on-backbone routing, sub-millisecond latency, no gateway in the path",
+        "VPN Gateway with BGP — IPsec + gateway hop adds latency and cost; not the right fit for same-region",
+        "Azure Virtual WAN hub — designed for global multi-region transit, overkill and adds hub-hop latency"
       ],
-      "correct": 2,
-      "explanation": "VNet peering provides private, low-latency connectivity over the Azure backbone without needing a virtual network gateway. Traffic never traverses the public internet. VNet peering is non-transitive: if A peers with B and B peers with C, A cannot reach C without a separate peering or a hub-and-spoke design with NVA routing. VPN Gateway introduces encryption overhead and requires gateway resources, adding latency compared to peering.",
+      "correct": 1,
+      "explanation": "Same-region VNet peering is the canonical low-latency, high-bandwidth private connection — traffic stays on the Microsoft backbone with no gateway between VNets. VPN/ExpressRoute add a gateway hop. Virtual WAN is for global transit. NOTE: prior version had wrong correct-answer index (marked VPN-GW-with-BGP as the same-region low-latency answer) — fixed 2026-05-13.",
       "tags": [
         "networking",
-        "vnet",
-        "peering"
+        "vnet-peering",
+        "connectivity"
       ],
-      "difficulty": "easy"
+      "difficulty": "easy",
+      "rewritten": true
     },
     {
       "id": "az104-003",
-      "question": "An NSG is attached to both a subnet and a NIC belonging to a VM in that subnet. Inbound traffic to port 443 arrives at the VM. In what order are the NSG rules evaluated?",
+      "question": "A VM has both a SUBNET NSG and a NIC NSG attached. An INBOUND packet to port 443 arrives at the VM. In what order are the two NSGs evaluated for the inbound direction?",
       "options": [
-        "NIC NSG evaluated first, then the subnet NSG is evaluated",
-        "Subnet NSG evaluated first, then the NIC NSG is evaluated",
-        "The most specific NSG (NIC) is evaluated and the other ignored",
-        "Both NSGs evaluated in parallel and the more permissive rule wins"
+        "NIC NSG first then subnet NSG — that is the OUTBOUND order, not inbound",
+        "Subnet NSG first then NIC NSG — the documented INBOUND evaluation order",
+        "Most specific NSG (NIC) is evaluated and the other ignored — both are always evaluated",
+        "Both NSGs in parallel, most permissive wins — both must allow; either deny blocks"
       ],
-      "correct": 0,
-      "explanation": "For inbound traffic, Azure evaluates the subnet NSG first, then the NIC NSG. For outbound traffic the order is reversed: NIC NSG first, then subnet NSG. Both NSGs must allow the traffic for it to reach the VM — a deny rule in either NSG blocks the packet. This layered evaluation enables defense-in-depth: the subnet NSG can enforce coarse network-level rules while the NIC NSG enforces VM-specific rules.",
+      "correct": 1,
+      "explanation": "Inbound: Subnet NSG → NIC NSG. Outbound: NIC NSG → Subnet NSG. Both must allow; either deny drops the packet. NOTE: prior version had wrong correct-answer index for the inbound direction — fixed 2026-05-13.",
       "tags": [
         "networking",
-        "security",
-        "nsg"
+        "nsg",
+        "security"
       ],
-      "difficulty": "medium"
+      "difficulty": "medium",
+      "rewritten": true
     },
     {
       "id": "az104-004",
-      "question": "Your organization requires browser-based RDP access to Windows VMs without exposing port 3389 to the internet or deploying additional VMs. Which Azure service meets these requirements?",
+      "question": "A team needs browser-based, SSH/RDP access to Azure VMs WITHOUT (a) opening port 22/3389 to the internet, (b) deploying or operating any additional VMs (jump-boxes), and (c) installing client software. Which Azure service meets all three?",
       "options": [
-        "Deploy a jump-box VM in the VNet with a public IP and RDP open",
-        "Enable Just-in-Time VM access via Microsoft Defender for Cloud",
-        "Deploy Azure Bastion as a managed service in the workload VNet",
-        "Configure an NSG rule to allow RDP from the corporate IP range"
+        "Deploy a jump-box VM with public IP and RDP open — violates (a) open port and (b) extra VM",
+        "Enable Just-in-Time VM access via Defender for Cloud — still requires public RDP/SSH listeners and the user's client",
+        "Azure Bastion — managed PaaS service that brokers browser-based RDP/SSH over TLS from the portal, no public 3389/22, no jump-box",
+        "NSG rule allowing RDP from the corporate IP range — still exposes RDP publicly, just narrower"
       ],
-      "correct": 0,
-      "explanation": "Azure Bastion is a managed PaaS service that provides browser-based RDP and SSH over HTTPS (port 443) directly from the Azure Portal. VMs require no public IP and no open RDP/SSH ports in the NSG. Unlike a jump box, Bastion is fully managed, always available, and requires no patching. Just-in-Time access still requires a public IP and opens port 3389 temporarily — it does not eliminate the exposure entirely.",
+      "correct": 2,
+      "explanation": "Azure Bastion is a managed PaaS bastion host: the user opens the VM in the Azure portal, Bastion proxies RDP/SSH through TLS from the browser, ports 22/3389 are NEVER public, and no jump-box is required. NOTE: prior version had wrong correct-answer index (marked jump-box deployment, which violates the requirements) — fixed 2026-05-13.",
       "tags": [
-        "security",
         "networking",
-        "bastion"
+        "bastion",
+        "secure-access"
       ],
-      "difficulty": "easy"
+      "difficulty": "easy",
+      "rewritten": true
     },
     {
       "id": "az104-005",
-      "question": "A company deploys two Windows VMs to host a web application and wants to achieve the 99.95% SLA. Both VMs must tolerate planned maintenance (patching) without both going offline simultaneously. Which configuration achieves this?",
+      "question": "Two Windows VMs hosting a web tier in a single region need to meet Microsoft's 99.95% VM SLA. The SLA requires the two VMs be deployed in a configuration that protects against planned maintenance + unplanned hardware failures within the region. Which configuration is the MINIMUM that meets 99.95%?",
       "options": [
-        "Deploy both VMs into a single Availability Zone in the same region",
-        "Deploy both VMs into a single Availability Set in the same region",
-        "Deploy both VMs into two different regions fronted by Traffic Manager",
-        "Deploy both VMs onto Premium SSD managed disks for higher IOPS"
+        "Deploy both VMs into a single Availability Zone — 99.95% SLA needs DIFFERENT zones",
+        "Deploy both VMs into an Availability Set (different fault and update domains) — the documented configuration for 99.95% within one region",
+        "Deploy both VMs into two different regions fronted by Traffic Manager — exceeds the SLA (99.99%+) but is far more than the minimum",
+        "Deploy both VMs on Premium SSD disks — disk SLA, not the VM SLA"
       ],
-      "correct": 2,
-      "explanation": "Availability Sets distribute VMs across up to 3 fault domains (separate physical racks with independent power and network) and up to 20 update domains (VMs not rebooted together during planned maintenance). With 2+ VMs in the same Availability Set, Azure guarantees at least one VM is available during planned maintenance, meeting the 99.95% SLA. Availability Zones provide stronger isolation (separate buildings) but the question specifies toleration of planned maintenance, which Availability Sets directly address.",
+      "correct": 1,
+      "explanation": "Two or more VMs in an Availability Set across distinct fault + update domains gives the 99.95% VM SLA. Availability Zones give 99.99% (one VM per zone, ≥2 zones). Two-region + TM is multi-region DR. The QUESTION asks the MINIMUM for 99.95%, which is Availability Set. NOTE: prior version marked two-region (overkill) as the minimum — fixed 2026-05-13.",
       "tags": [
         "compute",
-        "ha",
-        "vm",
-        "availability"
+        "availability",
+        "sla"
       ],
-      "difficulty": "medium"
+      "difficulty": "medium",
+      "rewritten": true
     },
     {
       "id": "az104-006",
-      "question": "A database workload requires consistent sub-millisecond latency with the ability to dynamically adjust IOPS and throughput at runtime without redeploying the disk. Which managed disk type should you choose?",
+      "question": "A latency-sensitive workload needs (a) consistent sub-millisecond disk latency, (b) up to 160 000 IOPS and 4 000 MB/s throughput, (c) the ability to ADJUST IOPS and throughput AT RUNTIME WITHOUT restarting the VM or detaching the disk. Which Azure managed disk SKU supports ALL three?",
       "options": [
-        "Premium SSD v2 managed disk",
-        "Standard SSD managed disk",
-        "Ultra Disk managed disk",
-        "Premium SSD (v1) managed disk"
+        "Premium SSD v2 — supports independent IOPS/throughput dimensions and sub-ms latency, very close fit",
+        "Standard SSD — performance class too low for sub-ms / 160k IOPS",
+        "Ultra Disk — sub-ms latency, up to 160k IOPS / 4 GB/s, IOPS + throughput tunable AT RUNTIME without VM restart",
+        "Premium SSD v1 — IOPS is FIXED by disk size tier (P1, P10, P30...); cannot tune at runtime independently"
       ],
-      "correct": 3,
-      "explanation": "Ultra Disk is the only managed disk type that allows you to independently configure and adjust IOPS and throughput at runtime without detaching or redeploying the disk. It delivers sub-millisecond latency and supports up to 160,000 IOPS and 4,000 MB/s throughput. Premium SSD v2 offers similar capabilities but Ultra Disk is the established choice for the most demanding latency-sensitive workloads like SAP HANA. Standard SSD is not suited for high-performance database use.",
+      "correct": 2,
+      "explanation": "Ultra Disk is the original SKU supporting fully independent and online-adjustable IOPS + throughput, sub-ms latency, and the highest performance ceiling. Premium SSD v2 is similar and is the modern competitor, but Premium SSD v1 has fixed IOPS per size tier and cannot be tuned online. NOTE: prior version had wrong correct-answer index (marked Premium SSD v1 as the online-tunable IOPS SKU) — fixed 2026-05-13.",
       "tags": [
         "storage",
-        "vm",
-        "performance",
-        "disk"
+        "disks",
+        "ultra-disk"
       ],
-      "difficulty": "medium"
+      "difficulty": "medium",
+      "rewritten": true
     },
     {
       "id": "az104-007",
-      "question": "An enterprise runs on-premises Active Directory and wants users to sign in to Microsoft 365 and Azure with their on-premises credentials. The security team requires that password hashes never leave the corporate network. Which Azure AD Connect authentication method satisfies this requirement?",
+      "question": "An organisation runs on-prem Active Directory and wants employees to sign in to Microsoft 365 with their on-prem credentials, with PASSWORD VALIDATION HAPPENING AGAINST THE ON-PREM AD DOMAIN CONTROLLER (no password hashes synced to Azure AD). Which Azure AD Connect sign-in method fits this constraint?",
       "options": [
-        "Password Hash Synchronization (PHS) via Azure AD Connect",
-        "Pass-through Authentication (PTA) via Azure AD Connect",
-        "Federation with AD FS deployed on-premises by the company",
-        "Azure AD Connect cloud sync provisioned via the agent"
+        "Password Hash Synchronization (PHS) — Azure AD validates against the SYNCED HASH, not against the on-prem DC",
+        "Pass-through Authentication (PTA) — Azure AD Connect agent forwards the auth attempt to an on-prem DC for validation; no hashes stored in Azure AD",
+        "Federation with AD FS — also validates on-prem but requires running AD FS farm; PTA is the lightweight alternative",
+        "Azure AD Connect cloud sync only — sync agent, but PHS is the actual sign-in method behind cloud sync"
       ],
       "correct": 1,
       "explanation": "Pass-through Authentication (PTA) validates passwords directly against on-premises AD in real time without storing any password hash in Azure AD. An on-premises agent receives the authentication request from Azure AD, validates it locally, and returns the result. This satisfies the requirement that password hashes never leave the corporate network. PHS stores a hash of the hash in Azure AD, which fails the requirement. AD FS also keeps authentication on-premises but requires additional infrastructure.",
       "tags": [
         "identity",
-        "hybrid",
-        "active-directory",
-        "aad-connect"
+        "aad-connect",
+        "pta"
       ],
-      "difficulty": "hard"
+      "difficulty": "hard",
+      "rewritten": true
     },
     {
       "id": "az104-008",
-      "question": "A subnet hosts application VMs and all outbound internet traffic must pass through a third-party firewall NVA before leaving Azure. The NVA has a private IP of 10.0.1.4. Which configuration enforces this?",
+      "question": "An app subnet must force ALL outbound internet-bound traffic through a third-party firewall NVA at 10.0.1.4 before it leaves Azure. The NVA must intercept and inspect, then forward out. Which configuration achieves this?",
       "options": [
-        "Configure an NSG outbound deny rule for 0.0.0.0/0 on the application subnet to drop egress traffic",
-        "Create a UDR for 0.0.0.0/0 with next hop Virtual Appliance 10.0.1.4 and associate it with the subnet",
-        "Enable IP forwarding on the application VM NICs so outbound packets are routed through the NVA",
-        "Create a VNet peering between the application subnet and the NVA subnet with gateway transit enabled"
+        "Outbound NSG deny `0.0.0.0/0` on the subnet — silently drops egress, doesn't route via NVA",
+        "User-Defined Route (UDR) for `0.0.0.0/0` with next hop `Virtual Appliance` 10.0.1.4 associated to the subnet — forces traffic through the NVA",
+        "Enable IP forwarding only on the VM NICs — flag is needed ON THE NVA, but alone doesn't route the app subnet's egress through it",
+        "VNet peering with gateway transit — connectivity feature, not an egress-forcing route"
       ],
       "correct": 1,
       "explanation": "A User Defined Route (UDR) in a route table overrides Azure's default system routes. Setting a route for 0.0.0.0/0 with next hop type 'Virtual Appliance' and next hop IP 10.0.1.4 forces all internet-bound traffic through the NVA. The route table must be associated with the application subnet. IP forwarding must be enabled on the NVA's NIC (not the application VMs). NSG rules filter traffic but cannot redirect it to another device.",
       "tags": [
         "networking",
-        "routing",
         "udr",
         "nva"
       ],
-      "difficulty": "hard"
+      "difficulty": "hard",
+      "rewritten": true
     },
     {
       "id": "az104-009",
-      "question": "A web application running behind Azure Application Gateway is experiencing SQL injection attempts. The security team wants to block these attacks without writing custom rules. The current WAF mode is Detection. What change is needed to actively block the attacks?",
+      "question": "An app behind a STANDARD-tier Application Gateway is being SQL-injected. The team wants to block injection patterns at the load-balancer tier (no app-code change). The Standard SKU does NOT include WAF. Which upgrade enables a managed OWASP rule set in front of the app?",
       "options": [
-        "Switch the WAF policy from Detection mode to Prevention mode",
-        "Upgrade the Application Gateway SKU from Standard_v2 to WAF_v2",
-        "Enable Azure DDoS Network Protection on the Application Gateway VNet",
-        "Add an NSG rule to block the source IP addresses running the attacks"
+        "Switch WAF policy mode from Detection to Prevention — requires the WAF SKU first, which Standard does not have",
+        "Upgrade the Application Gateway SKU from Standard_v2 to WAF_v2 — adds OWASP CRS managed rules, switchable to Prevention mode",
+        "Enable Azure DDoS Network Protection — L3/L4 protection, not application-layer SQLi",
+        "Add NSG rules blocking source IPs — reactive, not preventive at the WAF layer"
       ],
       "correct": 1,
       "explanation": "Azure Application Gateway WAF operates in two modes: Detection (logs threats but does not block) and Prevention (actively blocks requests matching OWASP rules, including SQL injection). Switching to Prevention mode causes the WAF to block and log requests matching managed rule sets like OWASP 3.2. The WAF_v2 SKU already supports WAF policies; upgrading SKU is not the issue. DDoS Standard protects against volumetric attacks, not application-layer injection. NSG rules cannot inspect HTTP payload content.",
       "tags": [
-        "networking",
         "security",
         "waf",
         "application-gateway"
       ],
-      "difficulty": "easy"
+      "difficulty": "easy",
+      "rewritten": true
     },
     {
       "id": "az104-010",
@@ -179,41 +182,41 @@
     },
     {
       "id": "az104-011",
-      "question": "A company stores compliance archive data in Azure Blob Storage that must be retained for 7 years and will almost never be accessed. Cost must be minimized. When occasional access is needed, a retrieval latency of up to 15 hours is acceptable. Which access tier is most appropriate?",
+      "question": "A company stores 7-year compliance archives in Azure Blob Storage. Access frequency is near zero (rare audit retrieval, hours-of-restore latency is acceptable). MINIMUM storage cost is the priority. Which blob access tier should they use?",
       "options": [
-        "Hot blob access tier",
-        "Cool blob access tier",
-        "Cold blob access tier",
-        "Archive blob access tier"
+        "Hot — frequent access pricing, highest storage cost, lowest retrieval cost",
+        "Cool — infrequent access (≥30 days), cheaper than hot, more expensive than cold/archive",
+        "Cold — rare access (≥90 days), cheaper than cool, more expensive than archive",
+        "Archive — offline tier with rehydration delay (hours), CHEAPEST storage cost, ideal for 7-year compliance retention rarely retrieved"
       ],
-      "correct": 2,
-      "explanation": "The Archive tier provides the lowest storage cost and is designed for data that is rarely if ever accessed, with retrieval latencies of hours. Data in Archive must be rehydrated to Hot or Cool before it can be read; standard rehydration takes up to 15 hours. Hot tier is most expensive for storage. Cool tier has lower storage costs but higher access costs and is suited for data accessed a few times per month. For 7-year compliance retention with near-zero access, Archive minimizes cost.",
+      "correct": 3,
+      "explanation": "Archive is the cheapest blob storage tier and is designed precisely for compliance / legal-hold data that is rarely retrieved and tolerates hours of rehydration latency. Cold is for rare access but still online; Cool for monthly access; Hot for frequent. NOTE: prior version had wrong correct-answer index (marked Cold as cheapest; Archive is) — fixed 2026-05-13.",
       "tags": [
         "storage",
-        "cost",
-        "blob",
-        "access-tier"
+        "blob-tiers",
+        "compliance"
       ],
-      "difficulty": "medium"
+      "difficulty": "medium",
+      "rewritten": true
     },
     {
       "id": "az104-012",
-      "question": "A company needs VMs in their Azure VNet to access an Azure Storage account privately, with traffic never traversing the public internet. The storage account must also be accessible from their on-premises network via ExpressRoute. Which feature should be used?",
+      "question": "VMs in a VNet must access an Azure Storage account so that (a) traffic travels via the Azure backbone with a PRIVATE IP, (b) the storage account is reachable on a private DNS name from within the VNet, and (c) public storage endpoints can be blocked entirely. Which feature satisfies all three?",
       "options": [
-        "Storage Service Endpoint linked to a VNet rule",
-        "A Private Endpoint for the storage account",
-        "Storage account firewall with trusted services exception",
-        "Azure VPN Gateway with forced tunneling enabled"
+        "Storage Service Endpoint with VNet rule — keeps traffic on backbone but the storage account still has a public DNS, no private IP into the VNet",
+        "Private Endpoint for the storage account — gives the storage account a private NIC in the VNet with a private IP and private-DNS name; public endpoint can be disabled",
+        "Storage firewall with `trusted Azure services` exception — exception only for select Microsoft services, not the VM scenario",
+        "VPN Gateway with forced tunneling — VPN feature, irrelevant to PaaS-storage private access"
       ],
       "correct": 1,
       "explanation": "A Private Endpoint creates a private IP address inside your VNet that maps to the storage account. DNS resolves the storage account FQDN to this private IP, so all traffic (including from on-premises via ExpressRoute) stays on private networks. A Service Endpoint keeps traffic on the Azure backbone but the storage account still has a public endpoint and the private IP is not accessible from on-premises without additional DNS configuration. Private Endpoints support on-premises access natively when DNS is configured correctly.",
       "tags": [
-        "networking",
-        "security",
         "storage",
-        "private-endpoint"
+        "private-endpoint",
+        "networking"
       ],
-      "difficulty": "hard"
+      "difficulty": "hard",
+      "rewritten": true
     },
     {
       "id": "az104-013",
