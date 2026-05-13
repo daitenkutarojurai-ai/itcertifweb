@@ -1,7 +1,7 @@
 # Question-bank audit
 
-Generated: 2026-05-13T16:56:33.796Z
-Packs scanned: **49** · questions scanned: **2692** · flagged: **2053** (76.3%)
+Generated: 2026-05-13T16:57:46.916Z
+Packs scanned: **49** · questions scanned: **2692** · flagged: **2052** (76.2%)
 
 ## Methodology
 
@@ -47,8 +47,8 @@ Packs scanned: **49** · questions scanned: **2692** · flagged: **2053** (76.3%
 | `aws-dea-c01` | 10 | 7 | 70% | 0 | 7 | 0 | 0 |
 | `aws-mla-c01` | 10 | 7 | 70% | 0 | 7 | 0 | 0 |
 | `servicenow-csa` | 61 | 42 | 69% | 23 | 37 | 1 | 0 |
-| `comptia-security-plus` | 92 | 62 | 67% | 12 | 51 | 8 | 0 |
 | `cka` | 61 | 41 | 67% | 28 | 29 | 3 | 0 |
+| `comptia-security-plus` | 92 | 61 | 66% | 17 | 58 | 0 | 0 |
 | `gcp-pca` | 61 | 40 | 66% | 23 | 34 | 0 | 1 |
 | `aws-aif-c01` | 20 | 13 | 65% | 4 | 4 | 10 | 0 |
 | `aws-scs-c02` | 61 | 39 | 64% | 17 | 35 | 0 | 0 |
