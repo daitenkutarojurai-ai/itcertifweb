@@ -5,155 +5,159 @@
     "vendor": "Docker",
     "version": "1.0.3",
     "question_count": 61,
-    "last_updated": "2026-05-03",
-    "notes": " [bulk-tag pass: added `docker-dca` tag to 61 questions]"
+    "last_updated": "2026-05-13",
+    "notes": " [bulk-tag pass: added `docker-dca` tag to 61 questions] [dca batch 1: 18 scenario rewrites]"
   },
   "questions": [
     {
       "id": "dca-001",
-      "question": "What is the difference between a Docker image and a Docker container?",
+      "question": "A developer asks 'are an image and a container the same thing?'. The SR engineer explains: ONE is a READ-ONLY artifact built from layered filesystem snapshots (stored in the registry / on disk). The OTHER is a RUNNING (or stopped) INSTANCE of that artifact with its own writable filesystem layer, namespaced PID + network, mounts, etc. Which mapping?",
       "options": [
-        "An image is a read-only template with layers;.",
-        "They are the same — containers are just renamed images",
-        "Images are used in development; containers are used in production only",
-        "A container is stored on disk; an image runs in memory"
+        "Image = read-only layered filesystem template (registry artifact); Container = runtime instance of the image with its own writable layer + namespaces + cgroups",
+        "Same thing — false",
+        "Image dev / container prod — false; same concepts in any env",
+        "Container on disk / image in memory — reversed"
       ],
       "correct": 0,
       "explanation": "A Docker image is an immutable, layered filesystem snapshot (read-only). A container is a live, running instance of that image with an additional thin writable layer (copy-on-write). Many containers can share the same underlying image layers, saving disk space. When a container is deleted, its writable layer is lost unless committed or using a volume. a container is a running instance of an image with a writable layer on top",
       "tags": [
         "fundamentals",
-        "images",
-        "containers",
+        "image-vs-container",
         "docker-dca"
       ],
       "difficulty": "easy",
       "_normalized": true,
-      "_lenbal": true
+      "_lenbal": true,
+      "rewritten": true
     },
     {
       "id": "dca-002",
-      "question": "Which Dockerfile instruction sets the default command that runs when a container starts, but can be overridden at runtime?",
+      "question": "A Dockerfile has both `ENTRYPOINT [\"python\"]` and `CMD [\"app.py\"]`. The container is run as `docker run myimg main.py`. The user-provided `main.py` REPLACES CMD's default `app.py`. ENTRYPOINT stays. Net result: `python main.py`. Which Dockerfile instruction provides the DEFAULT command that gets OVERRIDDEN by run-args?",
       "options": [
-        "CMD",
-        "EXEC",
-        "ENTRYPOINT",
-        "RUN"
+        "`CMD` — sets the DEFAULT command (or arguments to ENTRYPOINT); OVERRIDDEN by `docker run image <args>`",
+        "`EXEC` — not a Dockerfile instruction",
+        "`ENTRYPOINT` — sets the ALWAYS-run executable; only overridden with `--entrypoint`",
+        "`RUN` — executes a command DURING image build, not at container start"
       ],
       "correct": 0,
       "explanation": "CMD sets the default command and/or arguments for a container. It can be completely overridden by providing a command at `docker run`. ENTRYPOINT sets the main executable and is harder to override (requires --entrypoint flag). RUN executes commands during image build. EXEC is not a Dockerfile instruction.",
       "tags": [
         "dockerfile",
-        "images",
+        "cmd-vs-entrypoint",
         "docker-dca"
       ],
       "difficulty": "easy",
-      "_normalized": true
+      "_normalized": true,
+      "rewritten": true
     },
     {
       "id": "dca-003",
-      "question": "You want to run a container in the background and have it automatically restart if it crashes. Which `docker run` flags achieve this?",
+      "question": "An admin starts `nginx` and wants: (a) it runs DETACHED (no terminal attached), (b) it automatically restarts if the container crashes, AND (c) it restarts when the Docker daemon restarts (e.g., after host reboot). Which `docker run` flags?",
       "options": [
-        "-d --restart=always",
-        "--daemon --always-restart",
-        "--background --restart=on-failure",
-        "-d --keep-alive"
+        "`docker run -d --restart=always nginx` — `-d` detached; `--restart=always` restarts on crash + on daemon restart (host reboot)",
+        "`--daemon --always-restart` — not real flags",
+        "`--background --restart=on-failure` — `--background` not a flag; `on-failure` only on non-zero exit, not on stop",
+        "`-d --keep-alive` — `--keep-alive` not a flag"
       ],
       "correct": 0,
       "explanation": "-d (detach) runs the container in the background. --restart=always restarts the container regardless of exit code, including after Docker daemon restarts. Other policies: --restart=on-failure (only on non-zero exit), --restart=unless-stopped (always except when manually stopped).",
       "tags": [
-        "containers",
-        "runtime",
+        "cli",
+        "restart-policy",
         "docker-dca"
       ],
       "difficulty": "easy",
-      "_normalized": true
+      "_normalized": true,
+      "rewritten": true
     },
     {
       "id": "dca-004",
-      "question": "What command shows only the IDs of all running containers?",
+      "question": "An admin wants to PIPE only the container IDs (just the IDs, one per line, no header) to `xargs` for batch operations like `docker rm`. Which `docker ps` invocation prints only IDs?",
       "options": [
-        "docker ps -q",
-        "docker list --quiet",
-        "docker container show --id-only",
-        "docker container ls --ids"
+        "`docker ps -q` — `-q` (`--quiet`) prints only container IDs, one per line; perfect for `xargs`",
+        "`docker list --quiet` — `list` is not a verb; it's `ps` or `container ls`",
+        "`docker container show --id-only` — `show` is not the right verb",
+        "`docker container ls --ids` — `--ids` is not a real flag"
       ],
       "correct": 0,
       "explanation": "docker ps -q (or docker container ls -q) outputs only container IDs of running containers. Useful for piping: `docker stop $(docker ps -q)` stops all running containers. Add -a to include stopped containers: `docker ps -aq`.",
       "tags": [
         "cli",
-        "containers",
+        "docker-ps",
         "docker-dca"
       ],
       "difficulty": "easy",
-      "_normalized": true
+      "_normalized": true,
+      "rewritten": true
     },
     {
       "id": "dca-005",
-      "question": "Which command removes all stopped containers, dangling images, unused networks, and build cache in one operation?",
+      "question": "A Docker host has built up cruft over time: stopped containers, dangling images (untagged), unused networks, unused build cache. One command CLEANS ALL OF THIS in a single confirmation prompt. Which?",
       "options": [
-        "docker clean all",
-        "docker rm --all && docker rmi --all",
-        "docker system prune",
-        "docker purge --system"
+        "`docker clean all` — not a real command",
+        "`docker rm --all && docker rmi --all` — `--all` is not a flag; would also require listing",
+        "`docker system prune` — removes stopped containers, dangling images, unused networks, and unused build cache; `--volumes` also clears unused volumes (separate flag)",
+        "`docker purge --system` — not a real command"
       ],
       "correct": 2,
       "explanation": "`docker system prune` removes all stopped containers, all networks not used by at least one container, all dangling images, and all build cache. Add -a to also remove unused images (not just dangling). Add --volumes to also remove unused volumes. This is the recommended cleanup command.",
       "tags": [
         "cli",
-        "maintenance",
+        "docker-prune",
         "docker-dca"
       ],
       "difficulty": "easy",
-      "_normalized": true
+      "_normalized": true,
+      "rewritten": true
     },
     {
       "id": "dca-006",
-      "question": "What is the purpose of a `.dockerignore` file?",
+      "question": "A `Dockerfile` is in a repository alongside `node_modules/` (200 MB), `.git/` (50 MB), `*.log` files. Running `docker build .` sends ALL of those to the Docker daemon (the 'build context'). A file lets you EXCLUDE files from the build context (similar to `.gitignore`). Which?",
       "options": [
-        "It specifies files and directories to exclude from the build context sent to the Docker daemon",
-        "It defines environment variables that are hidden from the container",
-        "It prevents specific Dockerfile instructions from executing",
-        "It lists images that should not be pulled from Docker Hub"
+        "`.dockerignore` — specifies patterns of files / directories to EXCLUDE from the build context sent to the Docker daemon; speeds builds, keeps secrets out, reduces image size",
+        "Hidden env vars — different concept (env vars are runtime, not build-context)",
+        "Prevent Dockerfile instructions — wrong concept",
+        "Block image pulls — wrong concept"
       ],
       "correct": 0,
       "explanation": "The .dockerignore file works like .gitignore — it tells the Docker CLI which files and directories to exclude when sending the build context to the daemon. This speeds up builds (smaller context), prevents accidentally including secrets (e.g., .env, credentials), and avoids cache-busting from unrelated file changes.",
       "tags": [
-        "dockerfile",
         "build",
-        "best-practices",
+        "dockerignore",
         "docker-dca"
       ],
       "difficulty": "easy",
-      "_normalized": true
+      "_normalized": true,
+      "rewritten": true
     },
     {
       "id": "dca-007",
-      "question": "What is a multi-stage Dockerfile build and what is its primary benefit?",
+      "question": "A Go service builds with `go build` into a 50 MB statically-linked binary. The build dependencies (go toolchain) are 800 MB. A SINGLE-stage Dockerfile produces an 800 MB image that includes the build toolchain. A MULTI-stage Dockerfile uses multiple FROM instructions: stage 1 builds the binary (uses the toolchain), stage 2 starts FROM scratch and COPYs ONLY the binary. The final image is ~50 MB. Which describes multi-stage builds?",
       "options": [
-        "It builds multiple images from a single Dockerfile in parallel",
-        "It uses multiple FROM instructions to separate build and runtime stages.",
-        "It allows building images for multiple operating systems simultaneously",
-        "It enables conditional logic in Dockerfiles using IF/ELSE stages"
+        "Builds multiple images in parallel — false; multiple FROMs in ONE Dockerfile produce ONE final image",
+        "Multiple FROM instructions in one Dockerfile separating build + runtime stages; `COPY --from=<stage>` brings artifacts forward; final image excludes build toolchain → MUCH smaller",
+        "Multiple OS targets — false; that's `--platform` build flag",
+        "Conditional logic — false; multi-stage isn't an if/else feature"
       ],
       "correct": 1,
       "explanation": "Multi-stage builds use multiple FROM instructions. Build stages compile/test code with all required build tools. The final stage copies only the compiled artifacts, resulting in a minimal image without compilers, test frameworks, or intermediate files. For example, a Go app: stage 1 uses golang:alpine to compile, stage 2 uses scratch or alpine and copies just the binary — reducing image size from GB to MB. producing a smaller final image without build tools",
       "tags": [
-        "dockerfile",
         "build",
-        "best-practices",
+        "multi-stage",
         "docker-dca"
       ],
       "difficulty": "medium",
-      "_normalized": true
+      "_normalized": true,
+      "rewritten": true
     },
     {
       "id": "dca-008",
-      "question": "A container needs to persist data that survives container removal. Which storage type is recommended for production?",
+      "question": "A MySQL container's data must SURVIVE: (a) container restart, (b) container removal, (c) Docker daemon restart, (d) host reboot. The data should live on the host's disk but be MANAGED by Docker (path, lifecycle, permissions). Which mount type?",
       "options": [
-        "Container layer (default writable layer)",
-        "Named Docker volume",
-        "tmpfs mount",
-        "Bind mount to the host's /tmp directory"
+        "Container writable layer — wiped on container removal; OPPOSITE of persistence",
+        "Named Docker volume — managed-by-Docker persistent storage; survives container removal; portable across containers; the canonical persistent storage",
+        "tmpfs mount — RAM-backed, lost on container stop",
+        "Bind mount to /tmp — host-managed bind mount works for persistence but /tmp is volatile on many distros (cleared at reboot); not the recommended approach"
       ],
       "correct": 1,
       "explanation": "Named Docker volumes are managed by Docker, portable, easy to back up, and work across different host paths. Bind mounts couple the container to a specific host path, reducing portability. tmpfs mounts are in-memory and lost when the container stops. The container's writable layer is removed with the container. Named volumes are the recommended production storage solution.",
@@ -163,201 +167,209 @@
         "docker-dca"
       ],
       "difficulty": "easy",
-      "_normalized": true
+      "_normalized": true,
+      "rewritten": true
     },
     {
       "id": "dca-009",
-      "question": "What is the difference between COPY and ADD in a Dockerfile?",
+      "question": "Two Dockerfile instructions for putting files into an image: `COPY` is straightforward (copies from local context to image). `ADD` does the same BUT ALSO fetches remote URLs AND AUTO-EXTRACTS recognized tar archives (.tar / .tar.gz / .tar.bz2). Best-practice guidance prefers `COPY` unless URL/auto-extract is specifically needed. Which describes the difference?",
       "options": [
-        "COPY preserves file permissions; ADD does not",
-        "They are identical; ADD was deprecated in favor of COPY",
-        "ADD can fetch from URLs and auto-extract tar archives;.",
-        "COPY is for files; ADD is for directories only"
+        "Permissions differ — false; both preserve permissions",
+        "Identical / ADD deprecated — false; both supported, but COPY preferred for clarity",
+        "`ADD` can fetch HTTP URLs AND auto-extracts tarballs; `COPY` only does local file/directory copy. Best practice: prefer `COPY` for predictability; use `ADD` only when URL fetch or tar auto-extract is genuinely needed",
+        "COPY = files only / ADD = directories — false; both handle files and directories"
       ],
       "correct": 2,
       "explanation": "COPY simply copies files/directories from the build context into the image. ADD additionally: (1) can fetch files from remote URLs, (2) automatically extracts local tar archives (.tar, .tar.gz, etc.) into the destination. Best practice: use COPY by default. Use ADD only when you specifically need URL fetching or tar extraction — its implicit behavior can cause unexpected results. COPY only copies local files/directories — COPY is preferred when you don't need ADD's extra features",
       "tags": [
         "dockerfile",
+        "copy-vs-add",
         "docker-dca"
       ],
       "difficulty": "medium",
       "_normalized": true,
-      "_lenbal": true
+      "_lenbal": true,
+      "rewritten": true
     },
     {
       "id": "dca-010",
-      "question": "You need to inspect the detailed metadata of a Docker image, including its layers, environment variables, and entrypoint. Which command do you use?",
+      "question": "An ops engineer needs to see EVERYTHING about an image: layer-by-layer history, environment variables, exposed ports, entrypoint + CMD, default user, working directory, labels, config-blob digest. The image's METADATA (not the image content) is what they want. Which command?",
       "options": [
-        "docker inspect IMAGE",
-        "docker image history IMAGE",
-        "docker image info IMAGE",
-        "docker image describe IMAGE"
+        "`docker inspect <image>` — dumps the complete JSON metadata of the image (config + rootfs + history); the canonical inspector",
+        "`docker image history <image>` — shows layer-by-layer history but NOT the full config metadata",
+        "`docker image info` — not a real command",
+        "`docker image describe` — not a real command"
       ],
       "correct": 0,
       "explanation": "`docker inspect IMAGE` (or `docker image inspect IMAGE`) returns a JSON document with full image metadata: ID, created date, labels, environment variables, exposed ports, entrypoint, cmd, layers, and more. `docker image history` shows the build layers and their sizes. `docker inspect` works on both images and containers.",
       "tags": [
-        "images",
         "cli",
+        "docker-inspect",
         "docker-dca"
       ],
       "difficulty": "easy",
-      "_normalized": true
+      "_normalized": true,
+      "rewritten": true
     },
     {
       "id": "dca-011",
-      "question": "What network driver creates an isolated network for containers on a single host with NAT-based internet access?",
+      "question": "By default, when you `docker run nginx` without specifying a network, the container is attached to the `bridge` network. This is the standard SINGLE-HOST containerised network using a Linux bridge + iptables NAT for outbound and port-publish for inbound. Which network driver provides this single-host NAT-based behaviour?",
       "options": [
-        "none",
-        "bridge",
-        "overlay",
-        "host"
+        "`none` driver — isolates the container with no network at all",
+        "`bridge` driver — isolated network on a single host with NAT to host network; default when no `--network` is specified",
+        "`overlay` driver — multi-host (Swarm) network; not single-host",
+        "`host` driver — shares the host's network namespace; no isolation"
       ],
       "correct": 1,
       "explanation": "The bridge driver (default for single-host) creates an isolated virtual network. Containers get private IPs and can communicate within the bridge network. Docker performs NAT so containers can reach the internet via the host. The host driver removes network isolation (container shares host's network stack). The overlay driver is for multi-host Swarm networking. none disables networking.",
       "tags": [
         "networking",
-        "network-drivers",
+        "bridge-driver",
         "docker-dca"
       ],
       "difficulty": "easy",
-      "_normalized": true
+      "_normalized": true,
+      "rewritten": true
     },
     {
       "id": "dca-012",
-      "question": "Containers on the same custom bridge network communicate using container names. Why doesn't this work on the default bridge network?",
+      "question": "Two containers on the SAME custom bridge network `mynet` can connect using `nslookup web` (each other by container name). The SAME two on the DEFAULT bridge network can NOT — name resolution fails. The reason is a fundamental difference between user-defined bridges and the default bridge. Which?",
       "options": [
-        "The default bridge network does not provide automatic DNS resolution by container name — only user-defined networks do",
-        "The default bridge network uses IPv6 only",
-        "Container name resolution requires Docker Compose",
-        "It does work on the default bridge network — there is no difference"
+        "The default `bridge` network does NOT have automatic DNS resolution by container name — only USER-DEFINED bridge networks provide built-in DNS-based service discovery between containers",
+        "Default bridge is IPv6-only — false",
+        "Requires Docker Compose — false; Compose just creates a user-defined network automatically",
+        "It does work on default bridge — false"
       ],
       "correct": 0,
       "explanation": "User-defined bridge networks include an embedded DNS server that resolves container names to their IPs. The default bridge network (docker0) does not have this — containers must use --link (deprecated) or IP addresses to communicate. This is a key reason to always create custom networks: automatic service discovery by name, better isolation, and network-level container grouping.",
       "tags": [
         "networking",
-        "dns",
+        "default-bridge",
         "docker-dca"
       ],
       "difficulty": "medium",
-      "_normalized": true
+      "_normalized": true,
+      "rewritten": true
     },
     {
       "id": "dca-013",
-      "question": "What does the overlay network driver provide in Docker Swarm?",
+      "question": "A Docker SWARM has 3 manager + 5 worker nodes. A service deploys 10 replicas across the nodes. The replicas need to communicate as if on the same Layer-2 broadcast domain — but they're on DIFFERENT physical hosts. The Swarm-aware network driver builds an L2 OVERLAY by encapsulating frames in VXLAN. Which driver?",
       "options": [
-        "A flat network that connects containers to the host network directly",
-        "A multi-host network that allows containers running on different Swarm nodes to communicate as if on the same network",
-        "A CDN-backed network for external traffic distribution",
-        "A network isolated to a single node with encrypted traffic"
+        "`host` driver — direct host networking, no multi-host overlay",
+        "`overlay` driver — Swarm multi-host network; encapsulates Ethernet frames in VXLAN (UDP) so containers on different nodes appear on the same L2 broadcast domain",
+        "CDN-backed network — wrong concept",
+        "Single-node encrypted network — partial; overlay supports encryption (`--opt encrypted=true`), but the defining feature is multi-host"
       ],
       "correct": 1,
       "explanation": "Overlay networks span multiple Docker hosts (Swarm nodes), enabling containers on different physical/virtual machines to communicate using private IPs. Docker encapsulates traffic in VXLAN packets for host-to-host transport. Overlay networks are the foundation of Swarm service discovery and load balancing. They can be encrypted with --opt encrypted for node-to-node TLS.",
       "tags": [
         "networking",
-        "swarm",
-        "overlay",
+        "overlay-driver",
         "docker-dca"
       ],
       "difficulty": "medium",
-      "_normalized": true
+      "_normalized": true,
+      "rewritten": true
     },
     {
       "id": "dca-014",
-      "question": "Which command creates a Docker Swarm and makes the current node a manager?",
+      "question": "A Docker host is about to become the FIRST manager of a new Swarm cluster. The admin runs a single command on that host: it generates the join tokens for future manager + worker nodes, initialises the Raft cluster, and the current node becomes the leader. Which command?",
       "options": [
-        "docker swarm create --advertise-addr IP",
-        "docker cluster create --mode manager",
-        "docker swarm start --manager",
-        "docker swarm init"
+        "`docker swarm create --advertise-addr IP` — wrong verb (it's `init`, not `create`)",
+        "`docker cluster create --mode manager` — not a real command",
+        "`docker swarm start --manager` — not a real verb",
+        "`docker swarm init [--advertise-addr <ip>]` — initialises a new Swarm, makes the current node the first manager, generates `swarm join-token manager` and `swarm join-token worker` tokens"
       ],
       "correct": 3,
       "explanation": "`docker swarm init` initializes a new Swarm and promotes the current node to manager. On machines with multiple network interfaces, add `--advertise-addr IP` to specify the manager's address for other nodes to join. After init, Docker outputs a `docker swarm join --token` command for adding worker nodes.",
       "tags": [
         "swarm",
-        "orchestration",
+        "init",
         "docker-dca"
       ],
       "difficulty": "easy",
-      "_normalized": true
+      "_normalized": true,
+      "rewritten": true
     },
     {
       "id": "dca-015",
-      "question": "In Docker Swarm, what is the difference between a service and a task?",
+      "question": "In Docker Swarm: a SERVICE is a DECLARATIVE deployment description — image, replica count, resources, networks, secrets, restart policy. The Swarm scheduler converts that into TASKS — each task is ONE container instance on a node. Tasks are the imperative scheduling unit; services are the desired state. Which describes the difference?",
       "options": [
-        "A service defines the desired state (image.",
-        "Tasks are stateless; services maintain state",
-        "A service is a single container; a task is a group of containers",
-        "They are synonymous — Docker uses both terms for the same concept"
+        "A service defines the desired state (image, replicas, resources, networks, secrets); a TASK is one container scheduled by Swarm to a node to satisfy that desired state",
+        "Tasks stateless / services state — wrong distinction",
+        "Service = 1 container / task = group — reversed",
+        "Synonyms — false"
       ],
       "correct": 0,
       "explanation": "A Swarm service declares desired state: which image to run, how many replicas, resource limits, placement constraints, update policies, etc. The Swarm manager decomposes the service into tasks — each task maps to exactly one container on one node. If a task fails, the manager creates a replacement task to maintain desired replica count. replicas, ports, constraints); a task is the atomic unit of scheduling — one container instance running the service on a specific node",
       "tags": [
         "swarm",
-        "services",
-        "orchestration",
+        "service-vs-task",
         "docker-dca"
       ],
       "difficulty": "medium",
-      "_normalized": true
+      "_normalized": true,
+      "rewritten": true
     },
     {
       "id": "dca-016",
-      "question": "How do you scale a running Swarm service named 'webapp' to 5 replicas?",
+      "question": "A running Swarm service `webapp` currently has 3 replicas. The team wants to scale it to 5. The Swarm scheduler will start 2 more tasks on appropriate nodes. Which command syntax?",
       "options": [
-        "docker swarm scale webapp 5",
-        "docker service resize webapp --replicas=5",
-        "docker service update webapp --count=5",
-        "docker service scale webapp=5"
+        "`docker swarm scale webapp 5` — wrong verb (the scale verb is on `service`, not `swarm`)",
+        "`docker service resize webapp --replicas=5` — wrong verb (`resize` not real)",
+        "`docker service update webapp --count=5` — wrong flag (`--count` not real; use `--replicas` with `update`)",
+        "`docker service scale webapp=5` — the canonical scale syntax for a single service"
       ],
       "correct": 3,
       "explanation": "`docker service scale webapp=5` sets the replica count for the 'webapp' service to 5. You can scale multiple services at once: `docker service scale webapp=5 api=3`. Alternatively: `docker service update --replicas=5 webapp`. The Swarm manager will schedule new tasks on available nodes or terminate tasks if scaling down.",
       "tags": [
         "swarm",
-        "scaling",
-        "cli",
+        "service-scale",
         "docker-dca"
       ],
       "difficulty": "easy",
-      "_normalized": true
+      "_normalized": true,
+      "rewritten": true
     },
     {
       "id": "dca-017",
-      "question": "What is Docker Content Trust (DCT) and what does it protect against?",
+      "question": "Docker Content Trust (DCT) protects against TAMPERING and IMPERSONATION of images. When DCT is enabled (`DOCKER_CONTENT_TRUST=1`), Docker only pulls / runs images whose tag is SIGNED by a trusted publisher. Notary is the signing backend. The signing key chain protects against man-in-the-middle or compromised registry attacks. Which describes DCT?",
       "options": [
-        "It encrypts images at rest in Docker Hub to prevent unauthorized access",
-        "It requires two-factor authentication for all Docker Hub pushes",
-        "It uses digital signatures to verify that images have not been tampered with since they were published — protecting against pull-time image substitution attacks",
-        "It scans images for known CVEs before allowing them to be pulled"
+        "Encrypts at rest in Hub — different concern (data-at-rest, not authenticity)",
+        "Requires 2FA — different surface (account auth, not image-trust)",
+        "Uses digital signatures (via Notary) to verify images haven't been tampered with since publication — protects against image-tampering / MITM / compromised-registry attacks",
+        "Scans for CVEs — that's image vulnerability scanning (different feature, e.g., Snyk / Trivy / Hub scanning)"
       ],
       "correct": 2,
       "explanation": "Docker Content Trust (DCT) uses The Update Framework (TUF) and Notary to sign and verify images. When enabled (DOCKER_CONTENT_TRUST=1), Docker only pulls/runs images with valid signatures. It protects against: man-in-the-middle attacks substituting a legitimate image, running unverified third-party images, and supply chain tampering. Signers use offline root keys and online targets keys.",
       "tags": [
         "security",
-        "dct",
-        "image-signing",
+        "content-trust",
         "docker-dca"
       ],
       "difficulty": "medium",
-      "_normalized": true
+      "_normalized": true,
+      "rewritten": true
     },
     {
       "id": "dca-018",
-      "question": "A container must NOT have network access. Which network driver should you use?",
+      "question": "A security-tested container must run with NO NETWORK ACCESS WHATSOEVER — no DNS, no outbound, no inbound. The container should have a loopback interface only. Which Docker network driver?",
       "options": [
-        "bridge with --icc=false",
-        "none",
-        "isolated",
-        "host"
+        "`bridge --icc=false` — disables container-to-container, but the container can still reach external networks",
+        "`none` driver — gives the container ONLY a loopback interface; no external networking at all",
+        "`isolated` — not a real driver name",
+        "`host` driver — exposes ALL host networking; OPPOSITE of no-network"
       ],
       "correct": 1,
       "explanation": "The 'none' network driver completely disables networking for the container. The container has only a loopback interface. Use it for containers processing local data with no network requirements (batch jobs, file processing), security-sensitive workloads, or containers that should not communicate with anything. `docker run --network=none myimage`.",
       "tags": [
         "networking",
-        "security",
+        "none-driver",
         "docker-dca"
       ],
       "difficulty": "easy",
-      "_normalized": true
+      "_normalized": true,
+      "rewritten": true
     },
     {
       "id": "dca-019",
