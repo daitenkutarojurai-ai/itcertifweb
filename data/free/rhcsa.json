@@ -5,185 +5,190 @@
     "vendor": "Red Hat",
     "version": "2.0.3",
     "question_count": 61,
-    "last_updated": "2026-05-03"
+    "last_updated": "2026-05-13",
+    "notes": " [rhcsa batch 1: 18 scenario rewrites]"
   },
   "questions": [
     {
       "id": "rhcsa-001",
-      "question": "What command sets a file permission to rwxr-xr-- for owner, group, others?",
+      "question": "A sysadmin sets file permissions for an audit-logged shell script: OWNER must have full read+write+execute, GROUP must have read+execute (no write), OTHER must have read only (no execute, no write). The mode is written as a 3-digit octal. Which command sets the permissions correctly?",
       "options": [
-        "chmod 755 file",
-        "chmod 777 file",
-        "chmod 644 file",
-        "chmod 754 file"
+        "`chmod 755 file` — sets `rwxr-xr-x` (group + other can execute); doesn't match (other should NOT execute)",
+        "`chmod 777 file` — sets `rwxrwxrwx` (everyone can write); too permissive",
+        "`chmod 644 file` — sets `rw-r--r--` (no exec for owner); too restrictive",
+        "`chmod 754 file` — owner 7 (rwx) + group 5 (r-x) + other 4 (r--) → exactly the rwxr-xr-- target"
       ],
       "correct": 3,
       "explanation": "Octal permissions: owner(rwx=7), group(r-x=5), others(r--=4) = 754. chmod 754 file sets this. Alternatively: chmod u=rwx,g=rx,o=r file. Use ls -l to verify.",
       "tags": [
-        "permissions",
-        "filesystem"
+        "filesystem",
+        "chmod"
       ],
       "difficulty": "easy",
-      "_normalized": true
+      "_normalized": true,
+      "rewritten": true
     },
     {
       "id": "rhcsa-002",
-      "question": "How do you make a systemd service start automatically at boot?",
+      "question": "A custom systemd unit `myapp.service` is installed in `/etc/systemd/system/`. It's started manually with `systemctl start myapp` and works fine, BUT after reboot it doesn't start. The admin wants it to start automatically at boot. Which command creates the symlink in the WantedBy target so it starts at boot?",
       "options": [
-        "systemctl activate service",
-        "systemctl enable service",
-        "systemctl start service",
-        "service enable service"
+        "`systemctl activate myapp.service` — invalid; `activate` is not a systemctl verb",
+        "`systemctl enable myapp.service` — creates the symlink under `/etc/systemd/system/<target>.wants/` so the unit starts at boot",
+        "`systemctl start myapp.service` — starts ONCE for the current session; doesn't persist across reboots",
+        "`service myapp enable` — SysVinit-style, not systemd-native; on RHEL systemd is the init"
       ],
       "correct": 1,
       "explanation": "systemctl enable service: creates symlinks in /etc/systemd/system/multi-user.target.wants/ so service starts at boot. systemctl enable --now service: enable AND start immediately. systemctl disable: remove autostart. systemctl is-enabled: check status.",
       "tags": [
         "systemd",
-        "services"
+        "enable"
       ],
       "difficulty": "easy",
-      "_normalized": true
+      "_normalized": true,
+      "rewritten": true
     },
     {
       "id": "rhcsa-003",
-      "question": "What command creates a logical volume of 5G named 'data' in VG 'vg0'?",
+      "question": "A volume group `vg0` has 50 GB of free extents. The admin needs to create a LOGICAL VOLUME of 5 GB named `data` from `vg0`. Which command is the canonical syntax?",
       "options": [
-        "lvcreate -L 5G -n data vg0",
-        "lvmkdir -s 5G vg0/data",
-        "mkvolume -L 5G -n data vg0",
-        "lvcreate -s 5G data vg0"
+        "`lvcreate -L 5G -n data vg0` — creates a 5 GiB LV named `data` in VG `vg0` (canonical)",
+        "`lvmkdir -s 5G vg0/data` — not a real lvm command",
+        "`mkvolume -L 5G -n data vg0` — not a real lvm command",
+        "`lvcreate -s 5G data vg0` — `-s` is for snapshots, and arguments are out of order"
       ],
       "correct": 0,
       "explanation": "lvcreate -L 5G -n data vg0: -L size, -n name, vg0 is the volume group. After: mkfs.xfs /dev/vg0/data then mount. -l for LE units: -l 100%FREE uses all free space. lvs: list logical volumes.",
       "tags": [
         "lvm",
-        "storage"
+        "logical-volumes"
       ],
       "difficulty": "easy",
-      "_normalized": true
+      "_normalized": true,
+      "rewritten": true
     },
     {
       "id": "rhcsa-004",
-      "question": "How do you persistently mount /dev/vg0/data to /mnt/data with xfs filesystem?",
+      "question": "An XFS filesystem on `/dev/vg0/data` is currently mounted on `/mnt/data` via the command line. To survive a reboot, the mount must be PERSISTENT. Which configuration file should the admin edit, and what line?",
       "options": [
-        "Add '/dev/vg0/data /mnt/data xfs defaults 0 0' to /etc/fstab",
-        "mountd --persistent /dev/vg0/data /mnt/data",
-        "echo 'mount /dev/vg0/data' >> /etc/rc.local",
-        "mount /dev/vg0/data /mnt/data"
+        "Append to `/etc/fstab`: `/dev/vg0/data /mnt/data xfs defaults 0 0` — the canonical persistent mount entry",
+        "`mountd --persistent` — not a real command",
+        "Append `mount …` to `/etc/rc.local` — discouraged on RHEL 7+; fstab is the canonical method",
+        "Run `mount /dev/vg0/data /mnt/data` — does NOT persist across reboots"
       ],
       "correct": 0,
       "explanation": "/etc/fstab format: device mountpoint filesystem options dump pass. defaults = rw,suid,dev,exec,auto,nouser,async. 0 0 = no dump, no fsck. After editing: mount -a to test without reboot. Use blkid to get UUID for more reliable mounting.",
       "tags": [
-        "storage",
-        "fstab",
-        "mounting"
+        "filesystem",
+        "fstab"
       ],
       "difficulty": "easy",
-      "_normalized": true
+      "_normalized": true,
+      "rewritten": true
     },
     {
       "id": "rhcsa-005",
-      "question": "What is SELinux and what are its three modes?",
+      "question": "RHEL ships SELinux enabled by default. SELinux enforces MANDATORY ACCESS CONTROL (MAC) on top of DAC — every process + file has a label (`type:role:user`) and policy decides which transitions are allowed. SELinux has THREE modes set via `/etc/selinux/config` or `setenforce`. Which describes SELinux and its modes?",
       "options": [
-        "A firewall system — Enable, Disable, Audit",
-        "Mandatory access control.",
-        "A kernel module manager — Install, Remove, List",
-        "An authentication system — Strict, Loose, None"
+        "A firewall — false; SELinux is a MAC layer, not a packet filter",
+        "Mandatory access control with three modes: Enforcing (block + log violations), Permissive (log only, allow), Disabled (off entirely)",
+        "Kernel module manager — false; that's lsmod / modprobe",
+        "An authentication system — false; SELinux is authorization, not authentication"
       ],
       "correct": 1,
       "explanation": "SELinux: mandatory access control beyond DAC (discretionary). Enforcing: production mode, violations blocked. Permissive: troubleshooting, logs denials but doesn't block. Disabled: requires reboot to change. /etc/selinux/config for persistent change. semanage, restorecon, ausearch -m avc: key tools. Enforcing, Permissive, Disabled",
       "tags": [
-        "selinux",
-        "security"
+        "security",
+        "selinux"
       ],
       "difficulty": "medium",
       "_normalized": true,
-      "_lenbal": true
+      "_lenbal": true,
+      "rewritten": true
     },
     {
       "id": "rhcsa-006",
-      "question": "How do you find all files owned by user 'alice' under /var?",
+      "question": "A sysadmin needs to find EVERY file under `/var` owned by user `alice` (not group, but owner uid mapping to alice). Which command is correct?",
       "options": [
-        "find /var -user alice",
-        "grep -r alice /var",
-        "ls -la /var | grep alice",
-        "locate -user alice /var"
+        "`find /var -user alice` — searches recursively under /var for files whose owner is the user `alice`",
+        "`grep -r alice /var` — searches file CONTENTS for the literal string 'alice', not ownership",
+        "`ls -la /var | grep alice` — only the top-level directory of /var, doesn't recurse, and matches any literal text including filename",
+        "`locate -user alice /var` — locate doesn't have a `-user` flag"
       ],
       "correct": 0,
       "explanation": "find /var -user alice: finds all files owned by alice. find /var -group devs: by group. find /var -perm /4000: find SUID files. find /var -mtime -7: modified in last 7 days. find /var -size +100M: files > 100MB. -exec rm {} \\; to act on results.",
       "tags": [
-        "find",
         "filesystem",
-        "users"
+        "find"
       ],
       "difficulty": "easy",
-      "_normalized": true
+      "_normalized": true,
+      "rewritten": true
     },
     {
       "id": "rhcsa-007",
-      "question": "What command shows currently open firewall ports using firewalld?",
+      "question": "A RHEL host runs `firewalld`. The admin needs to LIST the active firewall config: enabled zones, allowed services/ports, sources, masquerade settings — all in one human-readable view. Which `firewall-cmd` invocation produces this?",
       "options": [
-        "iptables -L",
-        "netstat -tuln",
-        "firewall-cmd --list-all",
-        "ss -tulnp"
+        "`iptables -L` — shows iptables rules; firewalld has its own data model on top",
+        "`netstat -tuln` — shows LISTENING sockets, not firewall config",
+        "`firewall-cmd --list-all` — dumps the default zone's full active firewalld config (services / ports / masquerade / sources)",
+        "`ss -tulnp` — shows sockets + processes, not firewall rules"
       ],
       "correct": 2,
       "explanation": "firewall-cmd --list-all: shows active zone, interfaces, sources, services, ports. --list-ports: ports only. --list-services: services only. Add port: firewall-cmd --add-port=8080/tcp --permanent then --reload. firewall-cmd --zone=public --add-service=http --permanent.",
       "tags": [
-        "firewalld",
-        "networking",
-        "security"
+        "security",
+        "firewalld"
       ],
       "difficulty": "easy",
-      "_normalized": true
+      "_normalized": true,
+      "rewritten": true
     },
     {
       "id": "rhcsa-008",
-      "question": "How do you extend an existing XFS filesystem after expanding the LV?",
+      "question": "An XFS filesystem mounted at `/mnt/data` lives on an LV that was just extended by 10 GiB (`lvextend -L +10G vg0/data`). The filesystem itself still reports the old size. Which command grows the XFS to fill the LV?",
       "options": [
-        "xfs_growfs /mnt/data",
-        "xfs_expand /mnt/data",
-        "resize2fs /mnt/data",
-        "fsck -r /mnt/data"
+        "`xfs_growfs /mnt/data` — extends the XFS filesystem to use the new LV size (xfs can only grow, never shrink)",
+        "`xfs_expand /mnt/data` — not a real command",
+        "`resize2fs /mnt/data` — wrong filesystem; resize2fs is for ext2/3/4",
+        "`fsck -r /mnt/data` — filesystem check, doesn't resize"
       ],
       "correct": 0,
       "explanation": "Expand LV: lvextend -L +10G /dev/vg0/data. Extend XFS: xfs_growfs /mnt/data (use mount point, not device). XFS can be grown while mounted. ext4: resize2fs /dev/vg0/data (use device). Always expand LV first, then filesystem.",
       "tags": [
-        "lvm",
         "filesystem",
-        "xfs"
+        "xfs-growfs"
       ],
       "difficulty": "medium",
-      "_normalized": true
+      "_normalized": true,
+      "rewritten": true
     },
     {
       "id": "rhcsa-009",
-      "question": "What is the purpose of cron and how do you edit the crontab?",
+      "question": "A sysadmin wants a `nightly-backup.sh` to run every night at 02:30. The user-level scheduling subsystem in RHEL is `cron`. Which describes the purpose AND the canonical command to edit the current user's crontab?",
       "options": [
-        "A backup-only scheduler — backup -c to configure",
-        "Schedule recurring tasks.",
-        "An init system replacement — systemd-cron -e",
-        "Schedule network tasks — netcron -e to edit"
+        "Backup-only scheduler — false; cron schedules any command",
+        "Schedule recurring tasks (minute / hour / day-of-month / month / day-of-week + command); edit with `crontab -e` (per-user) or `/etc/crontab` (system-wide)",
+        "Init-system replacement — false; cron is a scheduler, not an init",
+        "Network-only scheduler — false; cron is general-purpose"
       ],
       "correct": 1,
       "explanation": "crontab format: */5 * * * * /path/to/script (every 5 min). Fields: min(0-59) hour(0-23) day(1-31) month(1-12) weekday(0-7). crontab -l: list. crontab -r: remove. /etc/crontab: system cron with user field. /etc/cron.d/: additional cron files. systemd timers: modern alternative. crontab -e, format: min hour day month weekday cmd",
       "tags": [
-        "cron",
         "scheduling",
-        "automation"
+        "cron"
       ],
       "difficulty": "easy",
-      "_normalized": true
+      "_normalized": true,
+      "rewritten": true
     },
     {
       "id": "rhcsa-010",
-      "question": "How do you create a user 'bob' with UID 1500, home directory /home/bob, and shell /bin/bash?",
+      "question": "Create a new user `bob` with UID 1500, default shell `/bin/bash`, and a home directory `/home/bob`. The home directory should be created automatically with the user. Which `useradd` invocation is correct?",
       "options": [
-        "useradd bob --uid 1500 --home /home/bob",
-        "useradd -u 1500 -m -s /bin/bash bob",
-        "adduser -uid 1500 bob",
-        "usermod -u 1500 -s /bin/bash bob"
+        "`useradd bob --uid 1500 --home /home/bob` — `--uid` and `--home` aren't the standard short flags; missing shell + create-home",
+        "`useradd -u 1500 -m -s /bin/bash bob` — `-u` UID, `-m` create home, `-s` shell, then the username; canonical RHEL invocation",
+        "`adduser -uid 1500 bob` — `adduser` is a wrapper on some distros; flag isn't `-uid`",
+        "`usermod -u 1500 -s /bin/bash bob` — modifies an existing user; `useradd` creates"
       ],
       "correct": 1,
       "explanation": "useradd -u 1500 -m -s /bin/bash bob: -u UID, -m create home, -s shell. Set password: passwd bob. -g primary group: -g groupname. -G supplementary groups: -G wheel,docker. View: id bob. Modify existing user: usermod. Delete: userdel -r bob (remove home).",
@@ -192,160 +197,161 @@
         "useradd"
       ],
       "difficulty": "easy",
-      "_normalized": true
+      "_normalized": true,
+      "rewritten": true
     },
     {
       "id": "rhcsa-011",
-      "question": "What does the sticky bit do on a directory?",
+      "question": "A shared `/tmp` directory has world-writable permissions (1777). Without an extra flag, any user could delete any other user's files in `/tmp`. The 'sticky bit' on a directory restricts this so ONLY the file's owner (or root) can delete it. Which describes the sticky bit's effect?",
       "options": [
-        "Only the file owner or root can delete files in that directory",
-        "Prevents anyone from writing to the directory",
-        "Sets SGID automatically on newly created files",
-        "Makes the directory contents immutable"
+        "Only the owner (or root) can DELETE files in that directory — even with world-write, others can't `rm` them",
+        "Prevents anyone from writing — false; that's a permission, not the sticky bit",
+        "Sets SGID on new files — that's the SGID bit, not sticky",
+        "Makes contents immutable — false; that's `chattr +i`"
       ],
       "correct": 0,
       "explanation": "Sticky bit (chmod +t or mode 1xxx): files in directory can only be deleted by: file owner, directory owner, or root. Common on /tmp (world-writable but users can't delete each other's files). ls -ld shows 't' in others execute position. chmod 1777 /shared sets sticky+rwxrwxrwx.",
       "tags": [
-        "permissions",
-        "sticky-bit",
-        "filesystem"
+        "filesystem",
+        "sticky-bit"
       ],
       "difficulty": "medium",
-      "_normalized": true
+      "_normalized": true,
+      "rewritten": true
     },
     {
       "id": "rhcsa-012",
-      "question": "How do you configure a static IP on RHEL/CentOS using nmcli?",
+      "question": "Set a STATIC IP `192.168.1.10/24` with gateway `192.168.1.1` and DNS `8.8.8.8` on interface `eth0` using NetworkManager. The change must persist across reboots. Which commands?",
       "options": [
-        "nmcli con mod eth0 ipv4.addresses 192.168.1.10/24 ipv4.method manual; nmcli con up eth0",
-        "ip addr add 192.168.1.10/24 dev eth0",
-        "ifconfig eth0 192.168.1.10 netmask 255.255.255.0",
-        "vi /etc/network/interfaces"
+        "`nmcli con mod eth0 ipv4.addresses 192.168.1.10/24 ipv4.gateway 192.168.1.1 ipv4.dns 8.8.8.8 ipv4.method manual` then `nmcli con up eth0` — persistent via NetworkManager",
+        "`ip addr add 192.168.1.10/24 dev eth0` — temporary, lost on reboot",
+        "`ifconfig eth0 192.168.1.10 netmask 255.255.255.0` — `ifconfig` is deprecated, temporary",
+        "`vi /etc/network/interfaces` — Debian/Ubuntu file, not used by RHEL/NetworkManager"
       ],
       "correct": 0,
       "explanation": "nmcli con mod CONNECTION ipv4.addresses IP/MASK ipv4.gateway GW ipv4.dns DNS ipv4.method manual. Then nmcli con up CONNECTION. Persistent. nmcli con show: list connections. nmcli device status: device states. Alternatively: edit /etc/NetworkManager/system-connections/CONNECTION.nmconnection.",
       "tags": [
         "networking",
-        "nmcli",
-        "ip-configuration"
+        "nmcli"
       ],
       "difficulty": "medium",
-      "_normalized": true
+      "_normalized": true,
+      "rewritten": true
     },
     {
       "id": "rhcsa-013",
-      "question": "What command displays all systemd service logs in real-time?",
+      "question": "A systemd-running RHEL host. The admin wants LIVE tailing of ALL systemd journal entries (kernel + services + user) as they happen — so they can watch a service starting in another terminal. Which command?",
       "options": [
-        "tail -f /var/log/messages",
-        "journalctl -f",
-        "dmesg --follow",
-        "cat /var/log/syslog"
+        "`tail -f /var/log/messages` — legacy rsyslog file; doesn't cover all systemd-journald entries on modern RHEL",
+        "`journalctl -f` — follow mode on systemd-journald; live tailing of ALL units + kernel + user entries",
+        "`dmesg --follow` — only kernel ring buffer, not systemd units",
+        "`cat /var/log/syslog` — Debian/Ubuntu file, not RHEL"
       ],
       "correct": 1,
       "explanation": "journalctl -f: follow (like tail -f). journalctl -u nginx: logs for specific unit. journalctl -xe: recent logs with explanations. journalctl --since '1 hour ago': time filter. journalctl -p err: error level and above. journalctl --disk-usage: storage used. /var/log/messages: traditional syslog, may still exist.",
       "tags": [
-        "journalctl",
         "logging",
-        "systemd"
+        "journalctl"
       ],
       "difficulty": "easy",
-      "_normalized": true
+      "_normalized": true,
+      "rewritten": true
     },
     {
       "id": "rhcsa-014",
-      "question": "How do you schedule a one-time task to run at 3pm today?",
+      "question": "Schedule a ONE-OFF (not recurring) task to run a backup script at 15:00 today. After running, it should NOT re-run. Which utility is correct?",
       "options": [
-        "systemd-run --on-calendar='15:00' command",
-        "crontab -e; add '0 15 * * * command'",
-        "once --time=15:00 command",
-        "at 15:00; command; Ctrl+D"
+        "`systemd-run --on-calendar='15:00' …` — runs once but creates a transient unit; works but isn't the classical RHCSA answer",
+        "`crontab -e` + `0 15 * * *` — that's RECURRING every day at 15:00, not one-off",
+        "`once --time=15:00 …` — not a real command",
+        "`at 15:00` then enter the command and press Ctrl+D — the canonical one-off scheduler (`at` daemon)"
       ],
       "correct": 3,
       "explanation": "at command: at 15:00 (enter commands, Ctrl+D to finish). at now + 1 hour. atq: list scheduled at jobs. atrm JOB_NUM: remove. Service: atd must be running. For recurring: use cron. at is for one-time delayed execution.",
       "tags": [
         "scheduling",
-        "at",
-        "one-time"
+        "at"
       ],
       "difficulty": "easy",
-      "_normalized": true
+      "_normalized": true,
+      "rewritten": true
     },
     {
       "id": "rhcsa-015",
-      "question": "What is the purpose of /etc/sudoers and how do you safely edit it?",
+      "question": "The `/etc/sudoers` file defines which users can run which commands as root. Editing it directly with `vi` is DANGEROUS — a syntax error locks out sudo. A wrapper tool opens the file in an editor, validates syntax on save, and rejects bad edits. Which tool, and what's `/etc/sudoers` for?",
       "options": [
-        "Configure firewall rules — edit with firewall-cmd",
-        "Configure PAM authentication — edit with authconfig",
-        "Configure SSH authorized keys — edit with ssh-keygen",
-        "Configure sudo access — always edit with visudo to validate syntax first"
+        "Firewall — wrong file",
+        "PAM auth — different file",
+        "SSH authorized_keys — different file",
+        "`/etc/sudoers` defines sudo privileges per user / group; ALWAYS edit with `visudo` which validates syntax before saving"
       ],
       "correct": 3,
       "explanation": "visudo: opens /etc/sudoers in editor with syntax checking — prevents saving invalid syntax that would break sudo for all users. %wheel ALL=(ALL) ALL: all wheel group members can sudo. User bob can restart nginx without password: bob ALL=(ALL) NOPASSWD: /bin/systemctl restart nginx. /etc/sudoers.d/: drop-in files.",
       "tags": [
-        "sudo",
         "security",
-        "users"
+        "sudoers"
       ],
       "difficulty": "medium",
-      "_normalized": true
+      "_normalized": true,
+      "rewritten": true
     },
     {
       "id": "rhcsa-016",
-      "question": "How do you list all available SELinux booleans related to httpd?",
+      "question": "An SELinux policy admin wants to LIST every SELinux boolean related to `httpd` (e.g., `httpd_can_network_connect`, `httpd_enable_homedirs`). The output must include current ON/OFF state. Which command?",
       "options": [
-        "selinux list httpd",
-        "getsebool -a | grep httpd",
-        "sestatus --booleans httpd",
-        "ls /etc/selinux/booleans/httpd"
+        "`selinux list httpd` — not a real subcommand",
+        "`getsebool -a | grep httpd` — lists ALL SELinux booleans + state; grep filters to httpd-related",
+        "`sestatus --booleans httpd` — not a sestatus flag",
+        "`ls /etc/selinux/booleans/httpd` — wrong path / wrong layout"
       ],
       "correct": 1,
       "explanation": "getsebool -a: list all booleans with current values. getsebool httpd_can_network_connect: specific boolean. setsebool -P httpd_can_network_connect on: set persistently (-P). Common booleans: httpd_can_network_connect (allow Apache to make outbound connections), httpd_use_nfs (allow serving NFS-mounted content).",
       "tags": [
         "selinux",
-        "booleans",
-        "httpd"
+        "booleans"
       ],
       "difficulty": "medium",
-      "_normalized": true
+      "_normalized": true,
+      "rewritten": true
     },
     {
       "id": "rhcsa-017",
-      "question": "What command adds a user to the supplementary group 'wheel'?",
+      "question": "An admin needs to add user `alice` to the existing supplementary group `wheel` (so she gains sudo privileges) WITHOUT removing her from any other groups. Which command preserves existing group memberships and adds wheel?",
       "options": [
-        "groupadd wheel username",
-        "addgroup username wheel",
-        "usermod -aG wheel username",
-        "gpasswd -a wheel username"
+        "`groupadd wheel alice` — `groupadd` creates groups, doesn't add users",
+        "`addgroup alice wheel` — Debian/Ubuntu syntax, not RHEL",
+        "`usermod -aG wheel alice` — `-a` appends, `-G` group; preserves existing supplementary memberships",
+        "`gpasswd -a wheel alice` — argument order reversed; correct order is `gpasswd -a alice wheel`"
       ],
       "correct": 2,
       "explanation": "usermod -aG wheel username: -a (append, don't replace other groups), -G (supplementary group). Without -a: replaces ALL supplementary groups! gpasswd -a username wheel: alternative. id username: verify. User needs to re-login for group change to take effect (or: newgrp wheel in current session).",
       "tags": [
         "users",
-        "groups",
         "usermod"
       ],
       "difficulty": "easy",
-      "_normalized": true
+      "_normalized": true,
+      "rewritten": true
     },
     {
       "id": "rhcsa-018",
-      "question": "How do you create a swap partition and enable it persistently?",
+      "question": "An admin partitions a spare disk as `/dev/sdb2` and wants to add it as additional swap space — both ACTIVATED NOW and PERSISTED across reboots. Which sequence?",
       "options": [
-        "swapformat /dev/sdb2 && swapon",
-        "fdisk /dev/sdb2 --swap",
-        "mkswap /dev/sdb2; swapon /dev/sdb2;.",
-        "mkswap + swapd restart"
+        "`swapformat /dev/sdb2 && swapon` — not a real command",
+        "`fdisk /dev/sdb2 --swap` — fdisk doesn't have `--swap`",
+        "`mkswap /dev/sdb2` (format as swap), `swapon /dev/sdb2` (activate now), then add `/dev/sdb2 swap swap defaults 0 0` to `/etc/fstab` (persistent)",
+        "`mkswap` then `systemctl restart swapd` — `swapd` is not a service"
       ],
       "correct": 2,
       "explanation": "Steps: (1) fdisk/parted to create partition with type 82 (Linux swap). (2) mkswap /dev/sdb2. (3) swapon /dev/sdb2 (immediate). (4) /etc/fstab: '/dev/sdb2 swap swap defaults 0 0'. swapon -s: show active swap. free -h: memory + swap stats. swapfile: dd + mkswap + swapon works too. add to /etc/fstab",
       "tags": [
-        "swap",
         "storage",
-        "fstab"
+        "swap"
       ],
       "difficulty": "medium",
       "_normalized": true,
-      "_lenbal": true
+      "_lenbal": true,
+      "rewritten": true
     },
     {
       "id": "rhcsa-019",
