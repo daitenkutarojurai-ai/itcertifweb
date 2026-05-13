@@ -106,6 +106,25 @@
     return nodes.length; /* all done */
   }
 
+  /* Locked-node toast — fired when user taps a locked node on mobile,
+     where there's no hover cue to explain why it won't open. */
+  var lockedToastEl = null;
+  var lockedToastTimer = null;
+  function showLockedToast() {
+    if (!lockedToastEl) {
+      lockedToastEl = document.createElement('div');
+      lockedToastEl.className = 'cq-locked-toast';
+      lockedToastEl.setAttribute('role', 'status');
+      lockedToastEl.textContent = '🔒 Beat the previous boss to unlock this node.';
+      document.body.appendChild(lockedToastEl);
+    }
+    lockedToastEl.classList.add('is-visible');
+    clearTimeout(lockedToastTimer);
+    lockedToastTimer = setTimeout(function () {
+      lockedToastEl.classList.remove('is-visible');
+    }, 2400);
+  }
+
   /* Walker (player avatar standing on the current node) */
   var walker = null;
   function ensureWalker() {
@@ -229,7 +248,10 @@
         'aria-label': `${meta.label}: ${node.title}` + (completed ? ' (completed)' : locked ? ' (locked)' : ''),
         style: `--node-color:${meta.color}`,
         on: {
-          click: function () { if (!locked) openNodeSheet(path, node); }
+          click: function () {
+            if (locked) { showLockedToast(); return; }
+            openNodeSheet(path, node);
+          }
         }
       };
       // Locked nodes shouldn't be in the Tab order or activatable via Enter/Space.
@@ -1018,13 +1040,16 @@
       if (node.cosmeticKey && window.cqCosmetics) {
         window.cqCosmetics.ensureCatalog().then(function (cat) {
           var hat = (cat.hats || []).find(function (h) { return h.key === node.cosmeticKey; });
-          var newlyUnlocked = hat && window.cqCosmetics.unlock(node.cosmeticKey);
-          if (hat && newlyUnlocked) {
-            rewardEl.querySelector('.cq-chest-cos').hidden = false;
-            rewardEl.querySelector('.cq-chest-cos').innerHTML =
-              '<span class="cq-chest-cos-emoji">' + hat.emoji + '</span>' +
-              '<span class="cq-chest-cos-name">' + hat.name + '<br><small>unlocked!</small></span>';
-          }
+          if (!hat) return;
+          var newlyUnlocked = window.cqCosmetics.unlock(node.cosmeticKey);
+          /* Always reveal the hat — on replays we still want the user to
+             see what's inside, just labeled "already in inventory". */
+          var cosEl = rewardEl.querySelector('.cq-chest-cos');
+          cosEl.hidden = false;
+          cosEl.innerHTML =
+            '<span class="cq-chest-cos-emoji">' + hat.emoji + '</span>' +
+            '<span class="cq-chest-cos-name">' + hat.name +
+            '<br><small>' + (newlyUnlocked ? 'unlocked!' : 'already in inventory') + '</small></span>';
         });
       }
 

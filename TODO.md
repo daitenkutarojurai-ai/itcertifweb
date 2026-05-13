@@ -120,35 +120,31 @@ Each node type defines:
 - [ ] Define the `NodeHandler` interface every node type implements
 - [ ] Rebuild bundle to include the split modules
 
-**4.3.2 — Inline quiz engine (1-2 days)**
-- [ ] Extract from `src/screens/quiz.js` the question-rendering bits
-      into `src/quiz-core.js` (no DOM coupling)
-- [ ] Wire path-nodes/quiz.js to use it: load `questionIds`, fetch
-      pack questions, render one at a time in the sheet
-- [ ] Hearts decrement on wrong answer
-- [ ] Session-complete dispatch on finish
-- [ ] Quiz node UX: 5-Q quiz inline, no redirect
+**4.3.2 — Inline quiz engine ✅ SHIPPED 2026-05-13**
+- [x] ✅ `renderQuizInline()` in `src/path.js` — loads pack, renders MCQs,
+      decrements hearts, fires `cq:session-complete`, summary card.
+- [x] ✅ Wired quiz / subboss / finalboss to inline path (no redirect).
+- [x] ✅ Pending: extract shared bits to `src/quiz-core.js` (deferred —
+      can be done as a refactor once 4.3.1 lands).
 
-**4.3.3 — Mini-game fixes (1 day)**
-- [ ] TF: investigate click-not-firing bug (add console log, raise
-      timer to 8 s, verify pointer-events)
-- [ ] Match: long-text overflow, ensure pairs always have a winning
-      match (defensive against duplicate answers)
-- [ ] Both: combo flash, hearts deplete on wrong, retry on heart-out
+**4.3.3 — Mini-game fixes — OBSOLETED**
+> TF + match were replaced with a single Yes/No quick drill (`renderYesNoInline`,
+> CLAUDE.md Phase 3B). The TF click bug + match overflow no longer apply.
+> Remaining work folded into 4.3.5 polish.
 
-**4.3.4 — Sub-boss + Final-boss inline (1-2 days)**
-- [ ] Sub-boss = path-nodes/quiz.js with 20 hardest Qs (already filter
-      sorted in gen-paths)
-- [ ] Final boss = path-nodes/quiz.js with 40-Q exam mode + countdown
-      timer (pulls from finalBoss.questionCount)
-- [ ] Both fire the survivor-ceremony / level-up moments as before
+**4.3.4 — Sub-boss + Final-boss inline ✅ SHIPPED 2026-05-13**
+- [x] ✅ Sub-boss renders inline via `renderQuizInline` (questionIds).
+- [x] ✅ Final boss picks `questionCount` random Qs from the bank.
+- [ ] Countdown timer for final-boss mock (deferred — bank doesn't
+      enforce time pressure yet).
+- [x] ✅ Survivor / level-up ceremony continues to fire via the
+      `cq:laurel-earned` + `cq:level-up` event bus.
 
-**4.3.5 — Walker / visual polish (half day)**
-- [ ] Walker re-positions on scroll (use IntersectionObserver +
-      scroll listener)
-- [ ] Lock badge always visible on mobile (no hover gate)
-- [ ] Locked-node tooltip on tap ("Beat the previous boss to unlock")
-- [ ] Hide daily quest banner on /path.html?pack=… (keep on index only)
+**4.3.5 — Walker / visual polish ✅ SHIPPED 2026-05-13**
+- [x] ✅ Walker re-positions on scroll + resize + ResizeObserver.
+- [x] ✅ Lock badge visible on mobile via `@media (hover: hover)` gate.
+- [x] ✅ Locked-node tap-toast on mobile ("Beat the previous boss…").
+- [x] ✅ Daily quest banner hidden on `/path.html?pack=…` (per daily.js).
 
 **4.3.6 — Tests (half day)**
 - [ ] Unit tests for path-progress.js (mark, isComplete, snapshot,
