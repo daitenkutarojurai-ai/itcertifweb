@@ -6,7 +6,7 @@
     "version": "2.1.0",
     "question_count": 56,
     "last_updated": "2026-05-13",
-    "notes": " [az-104 batch 1: 11 rewrites + 3 FACTUAL FIXES: az104-010, az104-020, az104-050] [az-104 batch 2: 11 rewrites + length/keyword cleanup on batch-1 stragglers] [az-104 batch 3: 11 rewrites + 6 CRITICAL FACTUAL FIXES on az104-002/003/004/005/006/011] [az-104 batch 4: 9 rewrites + 8 MORE CRITICAL FACTUAL FIXES — az104-013/016/019/021/022/024/025/026/028. Pack heavily corrupted.] [az-104 batch 5: 17 rewrites + EIGHT MORE FACTUAL FIXES: az104-029/036/038/040/042/043/045/051/054/056. Total AZ-104 factual repairs: 17.]"
+    "notes": " [az-104 batch 1: 11 rewrites + 3 FACTUAL FIXES: az104-010, az104-020, az104-050] [az-104 batch 2: 11 rewrites + length/keyword cleanup on batch-1 stragglers] [az-104 batch 3: 11 rewrites + 6 CRITICAL FACTUAL FIXES on az104-002/003/004/005/006/011] [az-104 batch 4: 9 rewrites + 8 MORE CRITICAL FACTUAL FIXES — az104-013/016/019/021/022/024/025/026/028. Pack heavily corrupted.] [az-104 batch 5: 17 rewrites + EIGHT MORE FACTUAL FIXES: az104-029/036/038/040/042/043/045/051/054/056. Total AZ-104 factual repairs: 17.] [az-104 batch 6: 6 rewrites + 2 MORE FACTUAL FIXES: az104-014 (DSC vs Policy), az104-059 (FIDO2 vs Authenticator). AZ-104 factual repairs total: 19.]"
   },
   "questions": [
     {
@@ -239,22 +239,22 @@
     },
     {
       "id": "az104-014",
-      "question": "An organization needs to ensure that all Windows VMs in Azure automatically have a specific set of Windows features installed and services running. When a VM drifts from this configuration, it should be automatically corrected. Which service provides this capability?",
+      "question": "Windows VMs in Azure must AUTOMATICALLY have a specific set of Windows features installed + services running. When a VM drifts from this in-OS configuration (someone disables a service, uninstalls a feature), the platform must AUTOMATICALLY restore it. Which Azure service runs the drift-detection-and-correction agent INSIDE the guest OS?",
       "options": [
-        "Azure Policy with the DeployIfNotExists effect",
-        "Azure Automation Desired State Configuration (DSC)",
-        "Azure Update Manager maintenance configurations",
-        "Custom Script Extension assigned to each VM"
+        "Azure Policy with DeployIfNotExists effect — deploys missing RESOURCES at the Azure-RM layer, not in-OS config drift",
+        "Azure Automation Desired State Configuration (DSC) / Guest Configuration — runs an in-OS agent that detects drift and re-applies the configuration",
+        "Azure Update Manager maintenance configurations — patches the OS on schedule, not config-drift remediation",
+        "Custom Script Extension assigned per VM — runs ONCE at deploy, no continuous drift correction"
       ],
-      "correct": 0,
-      "explanation": "Azure Automation DSC is a pull-based configuration management service. You define the desired state (installed features, running services, registry settings) in a PowerShell DSC configuration, publish it to an Automation account, and register VMs as nodes. Nodes check in every 15–30 minutes, compare their current state to the desired state, and automatically correct any drift. Azure Policy can deploy configurations but does not provide the continuous compliance loop. Custom Script Extension runs once at deployment and does not monitor or correct drift.",
+      "correct": 1,
+      "explanation": "Desired State Configuration / Guest Configuration runs an agent INSIDE the guest OS that continuously evaluates the declared configuration and remediates drift. Azure Policy DeployIfNotExists is for missing Azure-RM resources, not for OS-side config. Custom Script Extension runs once. PRIOR VERSION HAD WRONG CORRECT-ANSWER INDEX — fixed 2026-05-13.",
       "tags": [
-        "management",
-        "automation",
+        "operations",
         "dsc",
-        "configuration"
+        "guest-configuration"
       ],
-      "difficulty": "hard"
+      "difficulty": "hard",
+      "rewritten": true
     },
     {
       "id": "az104-015",
@@ -296,22 +296,22 @@
     },
     {
       "id": "az104-017",
-      "question": "A Conditional Access policy is configured to require MFA when users sign in from outside the corporate network. A user successfully completes MFA from home. The next day, the same user signs in from the corporate office (a Named Location marked as trusted). What happens?",
+      "question": "A Conditional Access policy requires MFA when users sign in from OUTSIDE the corporate network (corporate IP range added as a Trusted Named Location with MFA exclusion). A user signs in from the office (within the trusted IP range) and is NOT challenged for MFA. The admin confirms this is expected behaviour. Why?",
       "options": [
-        "The user is challenged for MFA on this sign-in regardless of network location",
-        "The policy excludes the trusted Named Location, so MFA is not triggered",
-        "The user must re-authenticate with MFA because a fresh session is starting",
-        "Conditional Access is bypassed because the user completed MFA within 24 hours"
+        "MFA is required regardless of location — would be true if the trusted location were not configured as an exclusion",
+        "The policy excludes the trusted Named Location from the MFA condition, so corporate-network sign-ins skip MFA",
+        "MFA is bypassed because the user's session is fresh — CA does not auto-bypass for fresh sessions",
+        "MFA was completed within 24 h elsewhere — CA's 'remember MFA' feature would still log a satisfied claim, not bypass"
       ],
       "correct": 1,
       "explanation": "Conditional Access policies evaluate signals at sign-in time. If the Named Location (corporate office IP range) is marked as trusted and the policy condition requires MFA only when signing in from outside trusted locations, the policy's condition is not met for corporate office sign-ins, so MFA is not triggered. This is the intended behavior: Named Locations let organizations define trusted network ranges that are excluded from certain CA requirements, reducing friction for on-site employees.",
       "tags": [
         "identity",
-        "security",
         "conditional-access",
-        "mfa"
+        "named-locations"
       ],
-      "difficulty": "medium"
+      "difficulty": "medium",
+      "rewritten": true
     },
     {
       "id": "az104-018",
@@ -999,82 +999,79 @@
     },
     {
       "id": "az104-057",
-      "question": "An Azure VM backup policy needs to meet the following requirements: daily backups retained for 30 days, weekly backups (Sunday) retained for 12 weeks, and monthly backups retained for 12 months. Which backup policy type and tier supports all of these retention rules in a single policy?",
+      "question": "A VM backup policy must support: daily snapshots retained 30 days, weekly (Sunday) retained 12 weeks, monthly (1st Sunday) retained 18 months, yearly (1st Sunday of January) retained 7 years, AND multiple-backups-per-day. Which Azure VM backup policy SUBTYPE supports all of these in one policy?",
       "options": [
-        "Standard backup policy with the Enhanced tier subtype",
-        "Enhanced backup policy with Vault-Standard tier subtype",
-        "Standard backup policy with daily recovery points only",
-        "Custom backup policy created via Azure Backup Center"
+        "Standard backup policy with the Enhanced tier subtype — that mix-and-match doesn't exist; Standard and Enhanced are distinct policy types",
+        "Enhanced backup policy with Vault-Standard tier — Enhanced is required for sub-daily backup; daily+weekly+monthly+yearly retention rules are built-in",
+        "Standard backup policy with daily-only recovery points — covers daily but not multi-per-day or the GFS retention tier mix",
+        "Custom backup policy via Azure Backup Center — the Center is a portal view; the policy type is still Standard or Enhanced"
       ],
       "correct": 1,
       "explanation": "Azure VM backup supports Enhanced policies (also called policy sub-type 'Enhanced') that are required for features like multiple daily backups and tiering. However, for the specific combination of daily/weekly/monthly retention tiers in a single policy, the Standard backup policy already supports GFS (Grandfather-Father-Son) retention with daily, weekly, monthly, and yearly retention points. The Enhanced policy additionally supports hourly backups and tiering to Vault-Archive for long-term retention cost savings. For this scenario, a standard policy with GFS retention rules covers all three retention requirements.",
       "tags": [
         "backup",
-        "recovery",
-        "retention-policy",
-        "vm-backup"
+        "policies",
+        "gfs-retention"
       ],
-      "difficulty": "hard"
+      "difficulty": "hard",
+      "rewritten": true
     },
     {
       "id": "az104-058",
-      "question": "An Azure Firewall is deployed in a hub VNet to inspect all traffic between spoke VNets and the internet. However, VMs in the spoke VNets are still bypassing the firewall and routing directly to the internet. What configuration is missing?",
+      "question": "Azure Firewall is deployed in a hub VNet to inspect all spoke traffic. Spoke VMs are STILL reaching the internet directly (egress not going through the firewall). The hub-and-spoke peering is in place. Which configuration forces spoke internet egress through the firewall?",
       "options": [
-        "An NSG on the Azure Firewall subnet blocking direct internet egress from the spokes",
-        "A UDR for 0.0.0.0/0 pointing at the Azure Firewall private IP, attached to each spoke",
-        "A VNet peering between the hub and spoke VNets with gateway transit enabled",
-        "An Application Rule collection in the Azure Firewall allowing internet traffic out"
+        "An NSG on the firewall subnet — controls subnet-level inbound/outbound but cannot reroute spoke egress to the hub",
+        "A User-Defined Route for 0.0.0.0/0 with next-hop = the firewall's private IP, applied to each spoke subnet's route table",
+        "VNet peering with gateway transit — peers the VNets but doesn't force internet-bound traffic through the hub firewall",
+        "An Application Rule collection in the firewall — defines what the firewall ALLOWS, doesn't change egress routing"
       ],
       "correct": 1,
       "explanation": "Azure Firewall sits in the hub VNet but VMs in spoke VNets use Azure's default system routes, which route 0.0.0.0/0 directly to the internet gateway. To force traffic through Azure Firewall, you must create a User Defined Route (UDR) with a 0.0.0.0/0 route and set the next hop to the Azure Firewall's private IP address. This route table must be associated with each spoke subnet that should have its traffic inspected. The VNet peering must already exist for connectivity, but without the UDR, traffic bypasses the firewall.",
       "tags": [
         "networking",
-        "firewall",
-        "udr",
-        "routing",
-        "hub-spoke"
+        "azure-firewall",
+        "udr"
       ],
-      "difficulty": "hard"
+      "difficulty": "hard",
+      "rewritten": true
     },
     {
       "id": "az104-059",
-      "question": "An administrator needs to register authentication methods for Azure AD Multi-Factor Authentication. The organization requires the most phishing-resistant MFA method available in Azure AD. Which authentication method should be prioritized?",
+      "question": "An organisation registering Azure AD MFA methods wants the MOST PHISHING-RESISTANT method available — one that cryptographically binds the authentication to the legitimate origin so a phishing site cannot replay the credential. Which method does Microsoft classify as phishing-resistant?",
       "options": [
-        "SMS one-time passcode sent to a registered mobile phone",
-        "Microsoft Authenticator app push notifications and TOTP",
-        "FIDO2 hardware security keys (such as YubiKey)",
-        "Voice call approval to a registered phone number"
+        "SMS one-time passcode — phishable: an attacker proxying a fake page can capture the code",
+        "Microsoft Authenticator with number-match push — phishing-resistant against many flows but Microsoft lists FIDO2 as the highest tier",
+        "FIDO2 hardware security keys (or platform passkeys) — public-key, origin-bound, on Microsoft's documented PHISHING-RESISTANT MFA tier",
+        "Voice call approval — phishable like SMS"
       ],
-      "correct": 1,
-      "explanation": "FIDO2 security keys (hardware keys like YubiKey) provide the strongest phishing resistance of all MFA methods available in Azure AD. They use public-key cryptography bound to the specific origin (domain), so a phishing site on a different domain cannot capture or replay the credential. Microsoft Authenticator push notifications and TOTP codes are strong but can be compromised by real-time phishing proxy attacks (adversary-in-the-middle attacks). SMS is the weakest MFA method due to SIM swapping and SS7 vulnerabilities. FIDO2 is part of the passwordless authentication stack.",
+      "correct": 2,
+      "explanation": "Microsoft's published 'phishing-resistant MFA' tier is FIDO2 / Windows Hello for Business / certificate-based authentication — they cryptographically bind the authentication to the relying-party origin so a phishing site cannot collect a usable credential. Authenticator app with number-match is strong but in a lower tier. SMS and voice are explicitly NOT phishing-resistant. PRIOR VERSION HAD WRONG CORRECT-ANSWER INDEX (marked Authenticator) — fixed 2026-05-13.",
       "tags": [
         "identity",
         "mfa",
-        "fido2",
-        "security",
         "phishing-resistant"
       ],
-      "difficulty": "medium"
+      "difficulty": "medium",
+      "rewritten": true
     },
     {
       "id": "az104-060",
-      "question": "An Azure VM running a critical application becomes unresponsive. The administrator cannot RDP or SSH into the VM, and Azure Bastion also fails to connect. The boot diagnostics show the VM is stuck at a 'Applying computer settings' screen. Which Azure feature allows the administrator to view the VM's serial console output and send keyboard input without a network connection?",
+      "question": "A production Azure VM is unresponsive — RDP/SSH fail, the VM agent is unreachable, Azure Bastion can't connect. The admin needs to reach the VM's CONSOLE (the equivalent of plugging a serial cable into a physical machine) to see boot output and run recovery commands. Which Azure feature provides this?",
       "options": [
-        "Azure Bastion Standard tier with ShareableLink",
-        "Azure VM Run Command extension feature",
-        "Azure Serial Console with Boot Diagnostics",
-        "Re-imaging the VM from a custom OS snapshot"
+        "Azure Bastion Standard tier ShareableLink — still requires the in-VM RDP/SSH agent to be responsive",
+        "VM Run Command extension — runs commands via the VM agent, which is also unreachable in this scenario",
+        "Azure Serial Console with Boot Diagnostics enabled — text-mode access to the VM serial port via the Azure portal, works even when the OS is hung",
+        "Re-image from a custom snapshot — destructive last resort, not a console-access feature"
       ],
       "correct": 2,
       "explanation": "Azure Serial Console provides text-based console access to a VM through the VM's serial port (COM1), bypassing the network stack entirely. It works even when the OS is unresponsive at the network level, as long as the VM's hypervisor can communicate with the serial port. From the Serial Console, administrators can interrupt the boot process, run diagnostic commands, fix boot configuration, or access a rescue shell. It requires Boot Diagnostics to be enabled with a storage account or managed storage. The Run Command feature sends commands to the VM agent, which also requires the OS to be running properly.",
       "tags": [
-        "compute",
-        "vm",
-        "troubleshooting",
+        "operations",
         "serial-console",
-        "boot-diagnostics"
+        "troubleshooting"
       ],
-      "difficulty": "medium"
+      "difficulty": "medium",
+      "rewritten": true
     }
   ]
 }
