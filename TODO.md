@@ -16,9 +16,9 @@ up when there's time.
 ### 4.1 — Bugs found so far (live audit)
 
 **Architectural / state bugs**
-- [ ] Quiz nodes redirect to `/train.html?qids=…` but **train.html ignores
-      qids entirely** — user gets random pack questions, not the focused
-      chapter subset. `qids` parameter never read in `src/screens/home.js`.
+- [x] ✅ Quiz nodes redirect to `/train.html?qids=…` — `home.js:284`
+      now parses qids and calls `autostartFocused()` to load only the
+      focused question subset (verified shipped 2026-05-13).
 - [x] ✅ Path-node handshake broke when user left to train.html (stats.js
       now resolves cq-path-pending — fixed 2026-05-12)
 - [x] ✅ Survivor laurel ceremony only fires if user is on path.html when
@@ -46,14 +46,12 @@ up when there's time.
       the survivor ceremony unless they specifically return to /path.html
 
 **Walker / map bugs**
-- [ ] Walker position drifts on scroll because it's body-attached with
-      JS-computed top — Resize observer triggers but scroll doesn't.
-      Walker should be `position: sticky` on the current node container
-      OR re-positioned on scroll events.
+- [x] ✅ Walker repins on scroll + resize + ResizeObserver (path.js:1019,
+      page-relative coords via scrollX/Y — shipped 2026-05-13).
 - [ ] Walker emoji doesn't update immediately on level-up (stale stats
       ref in path.js — race with cosmetics.ensureCatalog)
-- [ ] Confetti can pile up if user triggers many completions quickly
-      (no cleanup of old burst containers)
+- [x] ✅ Confetti capped at MAX_CONFETTI_CONTAINERS, oldest evicted
+      (path.js:156 — shipped 2026-05-13).
 
 **Visual / UX bugs**
 - [x] ✅ Path header was max-width: 560px (fixed 2026-05-12 — full width)
@@ -61,13 +59,12 @@ up when there's time.
       to flashcards
 - [ ] Sub-boss / Final-boss node visuals are large but the bottom-sheet
       "Start →" is misleading (sends to a different page, no preview)
-- [ ] Locked-node lock badge (🔒) only shows on hover — on mobile (no
-      hover), users don't know why a node won't open
-- [ ] Path index page: titles now correct but **brand names show
-      duplicates** (e.g., "AWS Solutions Architect Associate" + "Amazon
-      AWS" — the title already contains the brand, redundant)
-- [ ] Daily quest banner clutters /path.html — should only appear on
-      the index page, not inside an active path
+- [x] ✅ Locked-node 🔒 badge visible on mobile via `@media (hover: hover)`
+      gate (path.css:1219 — shipped 2026-05-13).
+- [x] ✅ Path index brand-name dedupe: brand label hidden when title already
+      contains the first brand word (path.js:751 — shipped 2026-05-13).
+- [x] ✅ Daily quest banner hidden on `/path.html?pack=…` — already gated
+      in `src/daily.js` (per CLAUDE.md, verified 2026-05-13).
 
 ### 4.2 — Architectural decisions for the rework
 

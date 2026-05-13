@@ -748,7 +748,16 @@
             href: '/path.html?pack=' + encodeURIComponent(p.packId),
             style: '--brand-color:' + (p.brandColor || '#60a5fa')
           }, [
-            el('div', { class: 'path-index-brand', text: p.brandName || 'Certification' }),
+            (function () {
+              /* Suppress brand label when it's already inside the title (e.g.
+                 title="AWS Solutions Architect Associate" + brand="Amazon AWS"
+                 would duplicate "AWS"). Compare on lowercased first token. */
+              var brand = (p.brandName || '').trim();
+              var title = (p.title || '').trim();
+              var firstBrandWord = brand.split(/\s+/)[0].toLowerCase();
+              var redundant = brand && firstBrandWord && title.toLowerCase().indexOf(firstBrandWord) >= 0;
+              return el('div', { class: 'path-index-brand', text: redundant ? '' : (brand || 'Certification') });
+            })(),
             el('div', { class: 'path-index-title', text: p.title }),
             el('div', { class: 'path-index-meta' }, [
               el('span', { text: p.chapters + ' chapters' }),
