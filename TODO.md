@@ -917,16 +917,24 @@ Pick by traffic × candidate stakes. Roughly:
 
 ### Where the audit script should go
 
-Add `tools/audit-questions.mjs` (a Node script) that:
-- Reads each `data/free/*.json`
-- For each pack, computes per-question signals (correct length vs
-  distractor mean, keyword-tell score, scenario-shape, tag count)
-- Outputs a CSV ranked worst-to-best so the rewrite team can start at
-  the top of the list
+**✅ SHIPPED 2026-05-13** — `tools/audit-questions.mjs`:
 
-Don't ship the audit until after the first pack rewrite — having the
-script first means rewriting against numbers, not against the user
-experience.
+- Reads each `data/free/*.json`
+- Per-question signals: `lengthTell`, `keywordTell` (with the
+  shared word surfaced), `recallOnly` (< 18-word stem),
+  `underTagged` (< 2 tags)
+- Output: `audits/questions/_summary.md` (per-pack ranking,
+  worst-first) + `audits/questions/<packId>.csv` (per-question,
+  sortable in any spreadsheet)
+- First run: **49 packs · 2 692 questions · 2 093 flagged (77.7 %)**
+- High-leverage start: `aws-saa-c03` (47 % flagged, all
+  keyword-tells), `comptia-security-plus` (87 %), `ccna` (45 %),
+  `az-104` (48 %).
+
+Reversal of the original ordering: the script *is* shipped before
+the first rewrite, but as a tool only. Use it to pick the next
+batch — do not treat its scores as ground truth, treat them as a
+suggestion ranked worst-first.
 
 ### How to track progress
 
