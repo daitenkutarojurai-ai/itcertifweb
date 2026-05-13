@@ -77,9 +77,6 @@
         '<a href="/news/">' +
           '<span class="mobile-menu-emoji">💡</span>Pro tips' +
         '</a>' +
-        '<a href="/stats.html">' +
-          '<span class="mobile-menu-emoji">📊</span>Stats' +
-        '</a>' +
         '<div class="mobile-menu-divider"></div>' +
         '<a href="/contact.html">' +
           '<span class="mobile-menu-emoji">✉️</span>Contact' +
