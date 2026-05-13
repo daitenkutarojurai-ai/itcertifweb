@@ -1,6 +1,6 @@
 # Question-bank audit
 
-Generated: 2026-05-13T17:46:27.634Z
+Generated: 2026-05-13T17:47:45.598Z
 Packs scanned: **49** · questions scanned: **2692** · flagged: **2069** (76.9%)
 
 ## Methodology
@@ -20,7 +20,7 @@ Packs scanned: **49** · questions scanned: **2692** · flagged: **2069** (76.9%
 |---|---:|---:|---:|---:|---:|---:|---:|
 | `aws-clf-c02` | 98 | 98 | 100% | 80 | 90 | 0 | 0 |
 | `ccnp-encor` | 40 | 40 | 100% | 37 | 25 | 40 | 4 |
-| `ccnp` | 101 | 101 | 100% | 97 | 99 | 17 | 4 |
+| `ccnp` | 101 | 101 | 100% | 97 | 100 | 1 | 1 |
 | `comptia-a-plus` | 101 | 101 | 100% | 5 | 30 | 101 | 1 |
 | `gcp-pde` | 60 | 60 | 100% | 5 | 43 | 0 | 59 |
 | `snowpro-core` | 10 | 10 | 100% | 3 | 3 | 8 | 0 |
