@@ -1,7 +1,7 @@
 # Question-bank audit
 
-Generated: 2026-05-13T17:09:45.148Z
-Packs scanned: **49** · questions scanned: **2692** · flagged: **2049** (76.1%)
+Generated: 2026-05-13T17:12:04.482Z
+Packs scanned: **49** · questions scanned: **2692** · flagged: **2055** (76.3%)
 
 ## Methodology
 
@@ -47,6 +47,7 @@ Packs scanned: **49** · questions scanned: **2692** · flagged: **2049** (76.1%
 | `aws-dea-c01` | 10 | 7 | 70% | 0 | 7 | 0 | 0 |
 | `aws-mla-c01` | 10 | 7 | 70% | 0 | 7 | 0 | 0 |
 | `servicenow-csa` | 61 | 42 | 69% | 23 | 37 | 1 | 0 |
+| `az-104` | 56 | 38 | 68% | 19 | 34 | 0 | 0 |
 | `cka` | 61 | 41 | 67% | 28 | 29 | 3 | 0 |
 | `comptia-security-plus` | 92 | 61 | 66% | 17 | 58 | 0 | 0 |
 | `gcp-pca` | 61 | 40 | 66% | 23 | 34 | 0 | 1 |
@@ -55,7 +56,6 @@ Packs scanned: **49** · questions scanned: **2692** · flagged: **2049** (76.1%
 | `az-204` | 20 | 12 | 60% | 0 | 10 | 4 | 0 |
 | `nse4` | 61 | 36 | 59% | 9 | 31 | 1 | 0 |
 | `cks` | 61 | 35 | 57% | 10 | 19 | 13 | 0 |
-| `az-104` | 56 | 32 | 57% | 15 | 28 | 0 | 0 |
 | `az-305` | 61 | 34 | 56% | 16 | 27 | 0 | 0 |
 | `pcnsa` | 61 | 34 | 56% | 10 | 25 | 4 | 0 |
 | `ckad` | 61 | 31 | 51% | 21 | 18 | 1 | 0 |
