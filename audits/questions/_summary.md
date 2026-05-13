@@ -1,7 +1,7 @@
 # Question-bank audit
 
-Generated: 2026-05-13T16:38:18.218Z
-Packs scanned: **49** · questions scanned: **2692** · flagged: **2093** (77.7%)
+Generated: 2026-05-13T16:40:37.913Z
+Packs scanned: **49** · questions scanned: **2692** · flagged: **2088** (77.6%)
 
 ## Methodology
 
@@ -60,11 +60,11 @@ Packs scanned: **49** · questions scanned: **2692** · flagged: **2093** (77.7%
 | `ckad` | 61 | 31 | 51% | 21 | 18 | 1 | 0 |
 | `aws-dop-c02` | 10 | 5 | 50% | 0 | 5 | 0 | 0 |
 | `az-104` | 56 | 27 | 48% | 0 | 27 | 0 | 0 |
-| `aws-saa-c03` | 60 | 28 | 47% | 0 | 28 | 0 | 0 |
 | `gcp-ace` | 56 | 25 | 45% | 0 | 11 | 14 | 0 |
 | `ai-900` | 20 | 8 | 40% | 0 | 7 | 1 | 0 |
 | `github-actions` | 10 | 4 | 40% | 0 | 4 | 0 | 0 |
 | `kcna` | 10 | 4 | 40% | 0 | 4 | 0 | 0 |
+| `aws-saa-c03` | 60 | 23 | 38% | 0 | 23 | 0 | 0 |
 | `isc2-cc` | 10 | 3 | 30% | 0 | 3 | 0 | 0 |
 | `comptia-linux` | 61 | 17 | 28% | 11 | 7 | 3 | 0 |
 
