@@ -6,7 +6,7 @@
     "version": "2.0.3",
     "question_count": 66,
     "last_updated": "2026-05-13",
-    "notes": " [splunk-core batch 1: 11 scenario rewrites + 1 FACTUAL FIX (splunk-011: len() vs length())]"
+    "notes": " [splunk-core batch 1: 11 scenario rewrites + 1 FACTUAL FIX (splunk-011: len() vs length())] [splunk-core batch 2: 15 scenario rewrites]"
   },
   "questions": [
     {
@@ -232,279 +232,305 @@
     },
     {
       "id": "splunk-012",
-      "question": "What is the correct SPL syntax to use the `rex` command to extract a field named `user` from events that contain `user=<value>`?",
+      "question": "An analyst wants to EXTRACT a field `user` from raw event text containing `user=alice@example.com`. They use the `rex` command at search time with a named-capture regex. Which Splunk SPL syntax is correct?",
       "options": [
-        "rex field_extract user=\"user=.*\"",
-        "rex \"user=(?P<user>[^\\s]+)\"",
-        "rex extract user from \"user=<user>\"",
-        "rex field=_raw \"user=(?<user>[^\\s]+)\""
+        "`rex field_extract user=\"user=.*\"` — wrong: no `field_extract` parameter in `rex`",
+        "`rex \"user=(?P<user>[^\\s]+)\"` — wrong: that's Python-style named capture; Splunk uses `(?<name>...)` without the P",
+        "`rex extract user from \"user=<user>\"` — wrong: not Splunk SPL syntax",
+        "`rex field=_raw \"user=(?<user>[^\\s]+)\"` — canonical Splunk: `field=` (default _raw), regex with `(?<name>...)` named capture"
       ],
       "correct": 3,
       "explanation": "The `rex` command uses regular expressions with named capture groups in the format `(?<fieldname>regex)` to extract fields. `rex field=_raw \"user=(?<user>[^\\s]+)\"` extracts everything after 'user=' up to the first whitespace into a field called `user`. The `field=_raw` parameter tells `rex` which field to match against (default is `_raw`).",
       "tags": [
         "spl",
         "rex",
-        "field-extraction"
+        "splunk-core"
       ],
       "difficulty": "intermediate",
-      "_normalized": true
+      "_normalized": true,
+      "rewritten": true
     },
     {
       "id": "splunk-013",
-      "question": "You want to create an alert that fires when the count of failed logins from a single IP exceeds 10 within 5 minutes. Which alert trigger condition should you use?",
+      "question": "An admin sets up an alert: 'fire when the COUNT of failed logins from a single IP exceeds 10 in any rolling 15-minute window'. The Splunk alert condition selector lets them pick the trigger type. Which option fits?",
       "options": [
-        "Number of events > 10",
-        "Number of results > 10",
-        "Custom condition: count > 10",
-        "Number of hosts > 10"
+        "Number of events > 10 — refers to raw event count, not the aggregated `stats count by src_ip` result rows",
+        "Number of results > 10 — the alert fires when the SEARCH RETURNS more than 10 result rows (each row is an IP with count > 10 after the `where` filter)",
+        "Custom condition: `count > 10` — works but rendered as 'Number of Results' in the UI",
+        "Number of hosts > 10 — counts distinct hosts, wrong dimension here (IPs)"
       ],
       "correct": 1,
       "explanation": "For a stats-based search like `stats count by src_ip | where count > 10`, the alert trigger 'Number of results > 0' fires when any row passes the `where` filter. If using a raw event count without stats, use 'Number of events > 10'. The key distinction: 'results' counts rows in a table, 'events' counts raw events in a non-transforming search.",
       "tags": [
         "alerts",
-        "trigger-conditions"
+        "monitoring",
+        "splunk-core"
       ],
       "difficulty": "intermediate",
-      "_normalized": true
+      "_normalized": true,
+      "rewritten": true
     },
     {
       "id": "splunk-014",
-      "question": "What is a Splunk lookup, and what does the `inputlookup` command do?",
+      "question": "An analyst wants to ENRICH search results with data from an external CSV (`asset_owners.csv`) — joining on a key field. The CSV is loaded as a Splunk knowledge object that can be referenced in searches. Plus a SPL command lets you load the CSV contents directly into the search pipeline (no event correlation, just rows). Which describes Splunk lookups + `inputlookup`?",
       "options": [
-        "A lookup enriches events with data from an external file;.",
-        "A lookup maps index names to readable labels; inputlookup lists all lookups",
-        "A lookup is a field alias table; inputlookup shows current field mappings",
-        "A lookup is a saved search; inputlookup runs that saved search"
+        "Lookups enrich events with data from external CSV/KV/Geo; `inputlookup <name>` loads the lookup's contents directly as result rows (useful for joining or seeding searches)",
+        "Lookups map index names to labels; `inputlookup` lists all defined lookups — wrong",
+        "Lookups are field-alias tables; `inputlookup` shows mappings — wrong",
+        "Lookups are saved searches; `inputlookup` runs them — wrong"
       ],
       "correct": 0,
       "explanation": "A Splunk lookup enriches events with additional fields by matching a lookup key field to rows in an external CSV or KV store. The `lookup` command performs this enrichment mid-search. The `inputlookup` command reads the entire lookup table as a search result set, useful for inspecting or joining lookup data directly. inputlookup reads the lookup file as a search source",
       "tags": [
         "lookups",
-        "knowledge-objects"
+        "splunk-core"
       ],
       "difficulty": "intermediate",
       "_normalized": true,
-      "_lenbal": true
+      "_lenbal": true,
+      "rewritten": true
     },
     {
       "id": "splunk-015",
-      "question": "Which of the following correctly defines an automatic lookup in Splunk?",
+      "question": "Splunk supports AUTOMATIC LOOKUPS: a lookup configured in `Settings → Lookups → Automatic lookups` so it's applied to EVERY search against a specified host / source / sourcetype WITHOUT requiring `| lookup …` in the SPL. Which describes this?",
       "options": [
-        "A lookup that runs as a scheduled report to populate a KV store",
-        "A lookup that runs automatically every 24 hours to refresh cached results",
-        "A lookup configured in Settings that is applied automatically to all search results without requiring the lookup command in SPL",
-        "A lookup that automatically creates new entries when unmatched keys are found"
+        "A lookup that runs as a scheduled report — wrong (that's saved search + lookup)",
+        "A lookup refreshing cached results every 24h — wrong concept",
+        "A lookup configured in Settings that is automatically applied to search results matching the configured host/source/sourcetype, without `| lookup` in the SPL",
+        "A lookup auto-creating new entries — wrong; lookups don't auto-write"
       ],
       "correct": 2,
       "explanation": "An automatic lookup (configured in Settings > Lookups > Automatic Lookups) is applied automatically at search time whenever events contain the lookup's input field — without requiring `| lookup` in the search string. This is useful for enriching events at index time or universally, such as automatically adding hostname from IP using a DNS lookup table.",
       "tags": [
         "lookups",
-        "automatic-lookup"
+        "automatic",
+        "splunk-core"
       ],
       "difficulty": "intermediate",
-      "_normalized": true
+      "_normalized": true,
+      "rewritten": true
     },
     {
       "id": "splunk-016",
-      "question": "What is the difference between `values()` and `list()` in the `stats` command?",
+      "question": "In Splunk's `stats` command, two functions both aggregate the unique values of a field into a list. (A) Returns a SET (deduplicated, sorted). (B) Returns a LIST (keeps duplicates, preserves order). Which is `values()` vs `list()`?",
       "options": [
-        "values() deduplicates; list() keeps all occurrences including duplicates",
-        "values() sorts alphabetically; list() preserves event order",
-        "list() deduplicates; values() keeps all occurrences including duplicates",
-        "They are identical and interchangeable"
+        "`values(field)` deduplicates + sorts; `list(field)` keeps every occurrence (including duplicates) in event order",
+        "values sorts alphabetically; list preserves event order — partial; missing the dedup distinction",
+        "list deduplicates; values keeps all — REVERSED",
+        "Identical — false"
       ],
       "correct": 0,
       "explanation": "`values(field)` returns a multivalue field with the distinct (deduplicated) values for the grouped events, sorted lexicographically. `list(field)` returns all values in the order they appear, including duplicates. Use `values()` when you want unique entries; use `list()` when ordering or duplicates matter.",
       "tags": [
-        "stats",
-        "aggregation-functions"
+        "spl",
+        "stats-functions",
+        "splunk-core"
       ],
       "difficulty": "intermediate",
-      "_normalized": true
+      "_normalized": true,
+      "rewritten": true
     },
     {
       "id": "splunk-017",
-      "question": "You run the search `index=web | stats avg(bytes) as avg_bytes by status`. The result shows status=200 with avg_bytes=15234. What does this tell you?",
+      "question": "A search `index=web | stats avg(bytes) AS avg_bytes BY status` returns a row `status=200 avg_bytes=15234`. What does that row mean?",
       "options": [
-        "Status 200 occurred 15,234 times per minute on average",
-        "The average response size for HTTP 200 responses was 15,234 bytes",
-        "There were 15,234 events with status 200",
-        "15,234 is the median bytes transferred for status 200"
+        "Status 200 occurred 15234 times/min — wrong; avg is computed across bytes not time",
+        "The AVERAGE response size in bytes for status=200 was 15234 bytes",
+        "15234 events had status=200 — that would be `count` not `avg(bytes)`",
+        "15234 = median bytes — wrong; avg ≠ median"
       ],
       "correct": 1,
       "explanation": "The `avg()` statistical function in `stats` calculates the arithmetic mean of the specified field. Combined with `by status`, it groups events by the status field and computes the average `bytes` for each group. A result of 15,234 for status=200 means HTTP 200 responses averaged 15,234 bytes in size.",
       "tags": [
+        "spl",
         "stats",
-        "aggregation-functions"
+        "splunk-core"
       ],
       "difficulty": "easy",
-      "_normalized": true
+      "_normalized": true,
+      "rewritten": true
     },
     {
       "id": "splunk-018",
-      "question": "Which SPL command would you use to display the first 20 events from a search result?",
+      "question": "An analyst wants to SAMPLE only the FIRST 20 events from a search (in returned order, before any sort). Which SPL command?",
       "options": [
-        "first 20",
-        "head 20",
-        "limit 20",
-        "top 20"
+        "`first 20` — not a real SPL command",
+        "`head 20` — returns the first N events from the pipeline; the canonical 'first 20' equivalent",
+        "`limit 20` — not a real Splunk SPL command (that's SQL-style)",
+        "`top 20` — returns the top 20 BY FREQUENCY of a field, not first-in-pipeline"
       ],
       "correct": 1,
       "explanation": "The `head` command returns the first N events from a search. `head 20` returns the first 20 events. The `tail` command returns the last N events. `top` is a transforming command that finds the most common values of a field — unrelated to limiting results to N events.",
       "tags": [
         "spl",
-        "filtering"
+        "head",
+        "splunk-core"
       ],
       "difficulty": "easy",
-      "_normalized": true
+      "_normalized": true,
+      "rewritten": true
     },
     {
       "id": "splunk-019",
-      "question": "In Splunk, what is a field alias?",
+      "question": "An admin wants `clientip` to be queryable as ANOTHER name (e.g. `src_ip`) so legacy dashboards using `src_ip` continue to work without changing the data. Splunk supports defining `src_ip → clientip` as a search-time mapping. Both names refer to the same underlying field. Which Splunk knowledge object is this?",
       "options": [
-        "A placeholder field created by eval that aliases another field's value",
-        "A nickname for a saved search that can be referenced in other searches",
-        "An alternative name assigned to an existing field so both names work in searches",
-        "A secondary name for an index that makes it easier to search"
+        "Placeholder created by eval — different mechanism (eval creates new fields)",
+        "Nickname for a saved search — wrong concept",
+        "Field alias — alternative name assigned to an existing field; both names work in searches/dashboards",
+        "Index nickname — different concept (Splunk doesn't expose index aliases)"
       ],
       "correct": 2,
       "explanation": "A field alias creates an alternative name for an existing field. Both the original and alias names can be used interchangeably in searches. Field aliases are configured in Settings > Fields > Field Aliases and are applied per source type. They are useful for normalizing field names across different data sources (e.g., aliasing `src` to `src_ip` across various source types).",
       "tags": [
         "knowledge-objects",
-        "field-aliases"
+        "field-alias",
+        "splunk-core"
       ],
       "difficulty": "intermediate",
-      "_normalized": true
+      "_normalized": true,
+      "rewritten": true
     },
     {
       "id": "splunk-020",
-      "question": "What does `dc()` (or `distinct_count()`) do in the `stats` command?",
+      "question": "An SPL pipeline counts UNIQUE values: `index=web | stats dc(user_agent)`. Which describes the `dc()` (or `distinct_count()`) function?",
       "options": [
-        "It calculates the statistical deviation of numeric field values",
-        "It counts the total number of events",
-        "It counts the number of distinct (unique) values in a field",
-        "It creates a distribution chart of field values"
+        "Statistical deviation — that's `stdev()`",
+        "Counts total events — that's `count`",
+        "Counts the number of DISTINCT (unique) values in the field — the canonical `dc()` / `distinct_count()` semantics",
+        "Creates a distribution chart — different (visualisation, not aggregation)"
       ],
       "correct": 2,
       "explanation": "`dc(field)` (short for `distinct_count(field)`) counts the number of unique values in a field across the grouped events. For example, `stats dc(src_ip) as unique_IPs by dest_port` tells you how many unique source IPs connected to each destination port. This is different from `count()` which counts total events.",
       "tags": [
-        "stats",
-        "aggregation-functions"
+        "spl",
+        "stats-functions",
+        "splunk-core"
       ],
       "difficulty": "intermediate",
-      "_normalized": true
+      "_normalized": true,
+      "rewritten": true
     },
     {
       "id": "splunk-021",
-      "question": "Which Splunk knowledge object maps raw event text to a set of fields and is used to categorize events?",
+      "question": "A SOC wants to CATEGORISE events at search time without modifying the raw data. They define a SEARCH expression (e.g. `index=fw action=blocked` → category 'firewall_deny'). Any event matching the search inherits the category tag. Which Splunk knowledge object?",
       "options": [
-        "Lookup",
-        "Event type",
-        "Field alias",
-        "Tag"
+        "Lookup — different (external file enrichment)",
+        "Event type — search-based category applied to matching events; e.g. eventtype=firewall_deny",
+        "Field alias — different (renames existing fields)",
+        "Tag — applies to field VALUES not search expressions"
       ],
       "correct": 1,
       "explanation": "An event type is a search expression saved as a knowledge object that categorizes events based on field-value pairs or search terms. Events matching an event type get an `eventtype` field with the event type's name. Tags can then be applied to event types. Event types are useful for grouping similar events across data sources.",
       "tags": [
         "knowledge-objects",
-        "event-types"
+        "event-type",
+        "splunk-core"
       ],
       "difficulty": "intermediate",
-      "_normalized": true
+      "_normalized": true,
+      "rewritten": true
     },
     {
       "id": "splunk-022",
-      "question": "What is a Splunk tag, and how does it differ from an event type?",
+      "question": "Splunk has two related knowledge objects. (A) TAGS — apply to specific field=value pairs (e.g., `host=web01` gets tag `production`). (B) EVENT TYPES — defined by a SEARCH expression; events matching the search inherit the event-type label. Tags can be APPLIED to event types as well. Which describes tags vs event types?",
       "options": [
-        "Tags are user-defined labels for search results; event types are system-defined categories",
-        "Tags apply to knowledge objects in the UI; event types apply to raw data at index time",
-        "Tags apply to raw events; event types apply to indexed fields. They are otherwise identical",
-        "Tags are metadata labels applied to field values; event types are search-based categories."
+        "Tags = result-only labels; event types = system-defined — false",
+        "Tags = UI-only; event types = at index-time — false; both are search-time knowledge objects",
+        "Tags = raw events; event types = indexed fields — false",
+        "Tags = metadata labels applied to field VALUES; event types = search-based categories of events; tags can also be applied to event types"
       ],
       "correct": 3,
       "explanation": "A tag is a label applied to a specific field=value pair (e.g., tag the value 'sshd' in the 'process' field as 'authentication'). Tags are searched using `tag=<tagname>`. An event type is a categorization saved as a search — events matching the search get tagged with the event type name. Both help normalize and categorize data, and work well together. Tags are searched with tag=<value>",
       "tags": [
         "knowledge-objects",
-        "tags"
+        "tags-vs-event-types",
+        "splunk-core"
       ],
       "difficulty": "intermediate",
       "_normalized": true,
-      "_lenbal": true
+      "_lenbal": true,
+      "rewritten": true
     },
     {
       "id": "splunk-023",
-      "question": "You want to create a Splunk macro called `failed_logins` that takes one argument (the index name) and runs `index=$index$ action=failure`. What is the correct macro definition?",
+      "question": "A reusable SPL fragment `failed_logins` takes ONE argument (the index name). When called as `\\`failed_logins(security)\\``, it should expand to `index=security action=failure`. Splunk's macro syntax uses `$arg$` for argument substitution inside the macro definition. Which definition?",
       "options": [
-        "Define the macro as: `index={index} action=failure` with argument count 1",
-        "Define the macro as: `index=$index$ action=failure` with argument count 1",
-        "Define the macro as: `index=$$index$$ action=failure` with no arguments",
-        "Define the macro as: `index=%index% action=failure` with argument count 1"
+        "`index={index} action=failure` arg-count 1 — `{}` is not Splunk macro syntax",
+        "`index=$index$ action=failure` with argument count = 1 — canonical Splunk macro with single named argument substituted via `$index$`",
+        "`index=$$index$$ action=failure` with 0 args — wrong: 0 args means no parameter",
+        "`index=%index%` — `%%` isn't Splunk macro syntax"
       ],
       "correct": 1,
       "explanation": "Splunk search macros use `$argument_name$` syntax for arguments. The macro definition would contain `index=$index$ action=failure`, and you'd set the argument count to 1. The macro is invoked with backtick syntax: `` `failed_logins(main)` `` which expands to `index=main action=failure`. Argument names must match between the definition and the invocation.",
       "tags": [
+        "knowledge-objects",
         "macros",
-        "knowledge-objects"
+        "splunk-core"
       ],
       "difficulty": "advanced",
-      "_normalized": true
+      "_normalized": true,
+      "rewritten": true
     },
     {
       "id": "splunk-024",
-      "question": "In the Splunk `chart` command, what does the `over` clause specify?",
+      "question": "An SPL `chart count BY status OVER host` produces a 2-D matrix. The `over` clause specifies which field becomes the X-AXIS (rows in the output table) — the OTHER field (`status`) becomes the columns (series). Which describes `over`?",
       "options": [
-        "The threshold value for display",
-        "The time range to chart data over",
-        "The field to use as the X-axis (rows)",
-        "The maximum number of series to display"
+        "Threshold for display — wrong",
+        "Time range — wrong (chart isn't time-specific)",
+        "The field used as the X-axis (rows in the table); the `BY` field becomes the columns (series)",
+        "Max series to display — that's the `limit` option"
       ],
       "correct": 2,
       "explanation": "In the `chart` command, the `over` clause defines the X-axis (the row field). The `by` clause defines the column series. For example, `chart count over host by status` creates a table where each row is a host, each column is a status code, and each cell contains the count. The `over` and `by` clauses together define the two dimensions of the chart.",
       "tags": [
         "spl",
         "chart",
-        "transforming"
+        "splunk-core"
       ],
       "difficulty": "intermediate",
-      "_normalized": true
+      "_normalized": true,
+      "rewritten": true
     },
     {
       "id": "splunk-025",
-      "question": "What is the `where` command used for, and how does it differ from using search terms in the `search` command?",
+      "question": "Two filtering primitives in SPL: (A) `search` — appears at the START of pipelines and after pipes; uses keyword + field=value matches; FAST because it can use indexed fields. (B) `where` — appears after pipes; uses eval-style boolean expressions like `where bytes > 1000 AND http_method=\"POST\"`. Which describes `where` and the difference?",
       "options": [
-        "where operates before field extraction; search operates after field extraction",
-        "where filters using eval-style boolean expressions and can operate on computed fields;.",
-        "where and search are identical; where is just an alias",
-        "where is used for non-indexed fields only; search requires indexed fields"
+        "`where` operates before field extraction — false; both are search-time",
+        "`where` filters using eval-style boolean expressions on COMPUTED OR REGULAR fields (e.g. comparisons, math, multivalue checks); slower than indexed `search` term filtering, but more powerful for derived fields",
+        "Identical — false",
+        "`where` for non-indexed only — partial; `where` works on any field"
       ],
       "correct": 1,
       "explanation": "The `where` command uses eval-style boolean expressions and can reference fields computed by previous pipeline commands. For example, `where length(url) > 200` or `where count > avg_count`. The `search` command in the middle of a pipeline matches against raw event text or explicit field=value pairs but cannot evaluate expressions on computed/aggregated fields. search only matches raw text or field=value pairs",
       "tags": [
         "spl",
-        "filtering",
-        "where"
+        "where-vs-search",
+        "splunk-core"
       ],
       "difficulty": "intermediate",
       "_normalized": true,
-      "_lenbal": true
+      "_lenbal": true,
+      "rewritten": true
     },
     {
       "id": "splunk-026",
-      "question": "Which Splunk data input method is used to monitor log files on a local or remote system and send data to Splunk?",
+      "question": "A Splunk admin wants to MONITOR a log file (`/var/log/auth.log`) on a Linux host and ship its new lines to the Splunk indexer. The standard mechanism uses a stanza in `inputs.conf` (`[monitor:///var/log/auth.log]`) loaded by a Universal Forwarder or directly on the indexer. Which input type?",
       "options": [
-        "Scripted input",
-        "File monitor input (via Universal Forwarder or monitor stanza)",
-        "TCP/UDP input",
-        "HTTP Event Collector (HEC)"
+        "Scripted input — different (runs a script periodically, captures stdout)",
+        "File monitor input — `[monitor://path]` stanza in `inputs.conf`; ingests new lines as the file grows; canonical for log-file monitoring",
+        "TCP/UDP input — for syslog / network senders, not file monitoring",
+        "HEC (HTTP Event Collector) — REST endpoint for app-pushed events, not file monitoring"
       ],
       "correct": 1,
       "explanation": "File monitor inputs use the `[monitor://path]` stanza in `inputs.conf` to tail (continuously read new data from) log files. This is the most common data input method, typically deployed via Universal Forwarder on endpoints. UF watches files and forwards new data to indexers. This differs from scripted inputs (run a script to generate data), TCP/UDP (receive network data), and HEC (HTTP POST).",
       "tags": [
-        "data-inputs",
-        "forwarders"
+        "inputs",
+        "file-monitor",
+        "splunk-core"
       ],
       "difficulty": "intermediate",
-      "_normalized": true
+      "_normalized": true,
+      "rewritten": true
     },
     {
       "id": "splunk-027",
