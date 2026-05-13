@@ -1,6 +1,6 @@
 # Question-bank audit
 
-Generated: 2026-05-13T17:35:31.785Z
+Generated: 2026-05-13T17:36:37.652Z
 Packs scanned: **49** · questions scanned: **2692** · flagged: **2069** (76.9%)
 
 ## Methodology
@@ -27,7 +27,7 @@ Packs scanned: **49** · questions scanned: **2692** · flagged: **2069** (76.9%
 | `rhcsa` | 61 | 60 | 98% | 20 | 12 | 60 | 0 |
 | `az-900` | 91 | 88 | 97% | 84 | 82 | 1 | 3 |
 | `terraform-003` | 161 | 155 | 96% | 146 | 106 | 150 | 1 |
-| `comptia-network-plus` | 91 | 86 | 95% | 26 | 45 | 47 | 2 |
+| `comptia-network-plus` | 91 | 86 | 95% | 36 | 53 | 33 | 1 |
 | `aws-ans-c01` | 60 | 56 | 93% | 43 | 39 | 0 | 25 |
 | `splunk-core` | 66 | 61 | 92% | 34 | 13 | 49 | 0 |
 | `ms-900` | 60 | 55 | 92% | 17 | 19 | 3 | 49 |
