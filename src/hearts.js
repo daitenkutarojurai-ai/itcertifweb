@@ -73,13 +73,39 @@
     else document.addEventListener('DOMContentLoaded', fn);
   }
 
+  /* Phase 5.6 — Hearts render as a 5-segment health bar (chess-kombat
+     style). Data model unchanged (cq-hearts-v1, MAX=5). Visual: bar
+     with one filled segment per heart; color band shifts from green
+     (>60 %) → amber (30-60 %) → red (<30 %). */
+  function healthBarHtml(count) {
+    var segs = '';
+    for (var i = 0; i < MAX; i++) {
+      segs += '<span class="cq-health-seg' + (i < count ? ' is-filled' : '') + '"></span>';
+    }
+    return '<span class="cq-health-bar" data-count="' + count + '">' + segs + '</span>';
+  }
+  function healthBandClass(count) {
+    var pct = (count / MAX) * 100;
+    if (pct >= 60) return 'cq-health--ok';
+    if (pct >= 30) return 'cq-health--warn';
+    return 'cq-health--low';
+  }
   function render() {
     var chip = document.getElementById('cq-hearts-chip');
     if (!chip) return;
     var s = get();
     chip.dataset.count = s.hearts;
-    chip.querySelector('.cq-hearts-count').textContent = s.hearts;
+    /* Re-paint the bar each time so segments + band update together */
+    chip.innerHTML =
+      '<span class="cq-hearts-icon" aria-hidden="true">♥</span>' +
+      healthBarHtml(s.hearts) +
+      '<span class="cq-hearts-count">' + s.hearts + '/' + MAX + '</span>';
     chip.classList.toggle('cq-hearts-chip--empty', s.hearts === 0);
+    chip.classList.remove('cq-health--ok', 'cq-health--warn', 'cq-health--low');
+    chip.classList.add(healthBandClass(s.hearts));
+    chip.setAttribute('aria-label',
+      'Health: ' + s.hearts + ' of ' + MAX +
+      (s.hearts < MAX ? ' — next regen in ' + fmtMs(nextRegenMs()) : ''));
   }
 
   function fmtMs(ms) {
@@ -101,12 +127,10 @@
       '<div class="cq-hearts-backdrop"></div>' +
       '<div class="cq-hearts-panel">' +
         '<button type="button" class="cq-hearts-close" aria-label="Close">✕</button>' +
-        '<div class="cq-hearts-row" aria-hidden="true">' +
-          Array(MAX).fill(0).map(function (_, i) {
-            return '<span class="cq-heart' + (i < s.hearts ? ' cq-heart--full' : '') + '">♥</span>';
-          }).join('') +
+        '<div class="cq-hearts-row ' + healthBandClass(s.hearts) + '" aria-hidden="true">' +
+          healthBarHtml(s.hearts) +
         '</div>' +
-        '<h2>' + s.hearts + ' of ' + MAX + ' hearts</h2>' +
+        '<h2>' + s.hearts + ' / ' + MAX + ' health</h2>' +
         '<p class="cq-hearts-msg">' + (s.hearts === 0
           ? "You're out of hearts. Next regenerates in <strong>" + fmtMs(nextRegenMs()) + "</strong>."
           : s.hearts < MAX
