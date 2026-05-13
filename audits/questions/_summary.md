@@ -1,7 +1,7 @@
 # Question-bank audit
 
-Generated: 2026-05-13T18:15:36.029Z
-Packs scanned: **49** · questions scanned: **2692** · flagged: **2020** (75.0%)
+Generated: 2026-05-13T18:17:06.440Z
+Packs scanned: **49** · questions scanned: **2692** · flagged: **2024** (75.2%)
 
 ## Methodology
 
@@ -21,13 +21,13 @@ Packs scanned: **49** · questions scanned: **2692** · flagged: **2020** (75.0%
 | `aws-clf-c02` | 98 | 98 | 100% | 80 | 90 | 0 | 0 |
 | `ccnp-encor` | 40 | 40 | 100% | 40 | 40 | 0 | 0 |
 | `ccnp` | 101 | 101 | 100% | 97 | 100 | 1 | 1 |
+| `docker-dca` | 61 | 61 | 100% | 55 | 58 | 1 | 0 |
 | `snowpro-core` | 10 | 10 | 100% | 3 | 3 | 8 | 0 |
 | `comptia-a-plus` | 101 | 99 | 98% | 94 | 92 | 1 | 0 |
 | `splunk-core` | 66 | 64 | 97% | 60 | 64 | 2 | 0 |
 | `az-900` | 91 | 88 | 97% | 84 | 82 | 1 | 3 |
 | `terraform-003` | 161 | 155 | 96% | 146 | 106 | 150 | 0 |
 | `comptia-network-plus` | 91 | 86 | 95% | 67 | 81 | 1 | 1 |
-| `docker-dca` | 61 | 57 | 93% | 39 | 42 | 17 | 0 |
 | `rhcsa` | 61 | 57 | 93% | 50 | 57 | 0 | 0 |
 | `az-104` | 56 | 51 | 91% | 32 | 47 | 0 | 0 |
 | `aws-ans-c01` | 60 | 52 | 87% | 43 | 39 | 0 | 0 |

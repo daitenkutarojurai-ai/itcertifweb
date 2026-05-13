@@ -6,7 +6,7 @@
     "version": "1.0.3",
     "question_count": 61,
     "last_updated": "2026-05-13",
-    "notes": " [bulk-tag pass: added `docker-dca` tag to 61 questions] [dca batch 1: 18 scenario rewrites] [dca batch 2: 20 scenario rewrites]"
+    "notes": " [bulk-tag pass: added `docker-dca` tag to 61 questions] [dca batch 1: 18 scenario rewrites] [dca batch 2: 20 scenario rewrites] [dca batch 3 (final): 22 scenario rewrites]"
   },
   "questions": [
     {
@@ -779,287 +779,294 @@
     },
     {
       "id": "dca-039",
-      "question": "You need to limit a container to use at most 256 MB of memory and 0.5 CPUs. What are the correct flags?",
+      "question": "A web container must be capped at 256 MB of memory and 0.5 vCPU (half a core). Which `docker run` flags?",
       "options": [
-        "--memory=256m --cpus=0.5",
-        "--mem-limit=256mb --cpu-quota=50",
-        "--ram=256M --cpu=half",
-        "--memory=256 --cpu-shares=0.5"
+        "`--memory=256m --cpus=0.5` — canonical Docker resource limits; `--memory` (mem cap), `--cpus` (CPU quota as fraction of a core)",
+        "`--mem-limit --cpu-quota=50` — wrong flag names",
+        "`--ram --cpu=half` — wrong flag names",
+        "`--memory=256 --cpu-shares=0.5` — wrong: `--memory` without unit is BYTES; `--cpu-shares` is a relative weight, not absolute cap"
       ],
       "correct": 0,
       "explanation": "--memory=256m sets a hard memory limit (container OOM-killed if exceeded). --cpus=0.5 limits to half a CPU (equivalent to --cpu-quota=50000 --cpu-period=100000). Other useful flags: --memory-swap (total memory+swap limit), --cpu-shares (relative weight, soft limit), --oom-kill-disable (don't OOM kill, but risky). Always set memory limits in production to prevent one container starving others.",
       "tags": [
         "resources",
-        "cgroups",
-        "cli",
+        "limits",
         "docker-dca"
       ],
       "difficulty": "medium",
-      "_normalized": true
+      "_normalized": true,
+      "rewritten": true
     },
     {
       "id": "dca-040",
-      "question": "What does `docker image prune -a` do?",
+      "question": "An ops engineer wants to delete UNUSED IMAGES on a Docker host — not just dangling (untagged) but ALSO tagged images that no container references. Which `docker image prune` invocation?",
       "options": [
-        "Removes all images older than 24 hours",
-        "Removes dangling images (untagged, not referenced by any container) only",
-        "Removes all unused images (not referenced by any container).",
-        "Removes all images including those currently used by running containers"
+        "Removes images older than 24 h — false; no such default policy",
+        "Removes ONLY dangling — that's `docker image prune` (without `-a`)",
+        "`docker image prune -a` — removes ALL unused images (dangling AND tagged-but-not-referenced); `--filter` can scope by age, label, etc.",
+        "Removes images in use — false; never removes running-container images"
       ],
       "correct": 2,
       "explanation": "`docker image prune` (without -a) only removes dangling images — untagged layers with no name. `-a` (--all) removes all images not currently used by at least one container (running or stopped). This reclaims significant disk space on CI/CD servers. Use `--filter` to narrow scope: `docker image prune -a --filter until=24h` removes images older than 24 hours. including tagged images not just dangling ones",
       "tags": [
-        "images",
-        "maintenance",
         "cli",
+        "image-prune",
         "docker-dca"
       ],
       "difficulty": "medium",
-      "_normalized": true
+      "_normalized": true,
+      "rewritten": true
     },
     {
       "id": "dca-041",
-      "question": "In Docker Compose, what does the `depends_on` key control?",
+      "question": "A `docker-compose.yml` lists a web service with `depends_on: [db]`. The team expects Compose to wait until the DB is READY (accepting connections) before starting `web`. They run `docker compose up` and `web` starts BEFORE the DB is ready — failing. What does `depends_on` actually do?",
       "options": [
-        "It ensures the dependent service is healthy before starting the dependent container",
-        "It creates a network link between the services for name resolution",
-        "It copies configuration from one service to another",
-        "It controls startup order only."
+        "Waits for healthy — false by default; only with `condition: service_healthy` AND a HEALTHCHECK does this work",
+        "Network link — false; networks are separate",
+        "Copies config — false; wrong concept",
+        "Controls startup ORDER only (`web` starts after the DB container starts) — but NOT health; the DB may not be accepting connections yet. For health-gated dependency use `depends_on: db: condition: service_healthy` plus a HEALTHCHECK in the `db` service"
       ],
       "correct": 3,
       "explanation": "`depends_on` controls startup and shutdown ORDER — it does not wait for a service to be 'ready'. For example, a web app with `depends_on: [db]` will start AFTER the db container starts, but not after PostgreSQL is ready to accept connections. For readiness: use `depends_on` with `condition: service_healthy` combined with a HEALTHCHECK, or implement retry logic in the application. Docker starts services in dependency order, but does not wait for a service to be ready/healthy",
       "tags": [
         "compose",
-        "orchestration",
+        "depends-on",
         "docker-dca"
       ],
       "difficulty": "medium",
-      "_normalized": true
+      "_normalized": true,
+      "rewritten": true
     },
     {
       "id": "dca-042",
-      "question": "What is the purpose of the `EXPOSE` instruction in a Dockerfile?",
+      "question": "A Dockerfile has `EXPOSE 80`. The admin runs `docker run myimage` and is surprised port 80 is NOT mapped to the host. They learn EXPOSE doesn't publish ports — it's only DOCUMENTATION. To actually map host:container ports you need `-p` or `-P`. Which describes EXPOSE?",
       "options": [
-        "It configures the firewall to allow traffic on the specified port",
-        "It opens the specified port on the host and maps it to the container",
-        "It documents which ports the container application listens on.",
-        "It exposes environment variables to external processes"
+        "Configures firewall — false",
+        "Opens + maps to host — false; EXPOSE alone doesn't map",
+        "Documents which ports the container application listens on at runtime (consumed by tools like `docker inspect` + `docker run -P` for automatic random-port mapping); does NOT actually publish ports",
+        "Exposes env vars — wrong concept"
       ],
       "correct": 2,
       "explanation": "EXPOSE is documentation — it tells users and orchestration systems which ports the container application intends to listen on. It does NOT publish the port to the host. To actually publish: `docker run -p HOST_PORT:CONTAINER_PORT` (explicit) or `docker run -P` (auto-publish all EXPOSEd ports to random host ports). Kubernetes and Swarm use EXPOSE metadata for service mesh configuration. does not actually publish ports to the host",
       "tags": [
         "dockerfile",
-        "networking",
+        "expose",
         "docker-dca"
       ],
       "difficulty": "medium",
-      "_normalized": true
+      "_normalized": true,
+      "rewritten": true
     },
     {
       "id": "dca-043",
-      "question": "What Linux kernel feature provides process, network, mount, and user isolation for containers?",
+      "question": "A container running on a Linux host sees its OWN process IDs (PID 1 is the container's entrypoint), its OWN network interfaces, its OWN filesystem root, its OWN user IDs. The Linux kernel feature providing each of these ISOLATED VIEWS is namespaces (PID, NET, MNT, USER, UTS, IPC, CGROUP). Which feature?",
       "options": [
-        "Control groups (cgroups)",
-        "AppArmor",
-        "seccomp",
-        "Linux namespaces"
+        "cgroups — provide METERING / LIMITS, not isolation",
+        "AppArmor — MAC layer for syscall / file restriction, not namespace isolation",
+        "seccomp — syscall filter, not namespace isolation",
+        "Linux namespaces — provide isolated views of PID / NET / MNT / USER / UTS / IPC / CGROUP; the foundation of container isolation"
       ],
       "correct": 3,
       "explanation": "Linux namespaces provide isolation at the kernel level. Docker uses: PID namespace (isolated process tree), Network namespace (isolated network stack, interfaces), Mount namespace (isolated filesystem), UTS namespace (isolated hostname), IPC namespace (isolated shared memory), User namespace (map container root to unprivileged host UID). Cgroups limit resources. seccomp limits syscalls. AppArmor/SELinux enforce access control policies.",
       "tags": [
-        "security",
+        "kernel",
         "namespaces",
-        "linux",
         "docker-dca"
       ],
       "difficulty": "medium",
-      "_normalized": true
+      "_normalized": true,
+      "rewritten": true
     },
     {
       "id": "dca-044",
-      "question": "A service in Docker Swarm needs access to configuration that varies between environments (dev/staging/prod). What is the best approach?",
+      "question": "A Swarm service `webapp` needs an `nginx.conf` that DIFFERS between dev / staging / prod. The config is NON-sensitive (no secrets). It should be mounted into the container as a file and managed centrally by Swarm — without rebuilding the image. Which Swarm feature?",
       "options": [
-        "Use bind mounts from a shared NFS volume",
-        "Use environment variables in the Dockerfile",
-        "Use Docker Configs to store non-sensitive configuration data in the Swarm and mount it into services",
-        "Build separate images per environment with configurations baked in"
+        "Bind mounts from NFS — possible but not Swarm-native",
+        "Env vars in Dockerfile — bakes config into image (anti-pattern for env-specific config)",
+        "Docker Configs — Swarm-native non-sensitive configuration object; created via `docker config create`, mounted into services at runtime; similar to Secrets but UNENCRYPTED",
+        "Per-env images — anti-pattern; rebuilds violate immutable-image principle"
       ],
       "correct": 2,
       "explanation": "Docker Configs (introduced in Docker 17.06) store non-sensitive configuration files in the Swarm's Raft log and mount them into containers at a specified path (similar to Secrets but for non-sensitive data). `docker config create nginx.conf nginx.conf` then `docker service create --config source=nginx.conf,target=/etc/nginx/nginx.conf nginx`. Configs are immutable; update by creating a new config version.",
       "tags": [
         "swarm",
         "configs",
-        "best-practices",
         "docker-dca"
       ],
       "difficulty": "hard",
-      "_normalized": true
+      "_normalized": true,
+      "rewritten": true
     },
     {
       "id": "dca-045",
-      "question": "What is the purpose of the `--read-only` flag when running a container?",
+      "question": "A defence-in-depth pattern runs the container with its ROOT FILESYSTEM mounted READ-ONLY. The application writes to `tmpfs` mounts or volumes only. An attacker who gains code execution in the container CANNOT write to the rootfs (no malware drop, no log tampering). Which flag?",
       "options": [
-        "It mounts the container's root filesystem as read-only.",
-        "It makes the Docker image read-only so it cannot be tagged or modified",
-        "It prevents other containers from reading this container's files",
-        "It makes the container's configuration immutable"
+        "`--read-only` — mounts the container's root filesystem as read-only; combine with `--tmpfs /tmp` or named volumes for writable areas; key defence-in-depth control",
+        "Image read-only — false; image is naturally read-only",
+        "Prevents other containers reading — wrong concept",
+        "Configuration immutable — false; runtime config can still be inspected"
       ],
       "correct": 0,
       "explanation": "`docker run --read-only myimage` mounts the container's root filesystem read-only. Any attempt to write to the container filesystem fails. This is a strong security control: (1) prevents malware from writing persistence mechanisms, (2) ensures all state is explicitly in volumes, (3) makes container behavior more predictable. Combine with `--tmpfs /tmp` for applications that need a temporary writable area. preventing any writes to the container layer — improves security and forces explicit volume usage for writable data",
       "tags": [
         "security",
-        "containers",
+        "read-only-rootfs",
         "docker-dca"
       ],
       "difficulty": "hard",
-      "_normalized": true
+      "_normalized": true,
+      "rewritten": true
     },
     {
       "id": "dca-046",
-      "question": "How do you view real-time resource usage (CPU, memory, network I/O) for all running containers?",
+      "question": "An ops engineer wants a LIVE TOP-style view of every running container's CPU%, memory, mem-limit, network I/O, block I/O. Which Docker command provides this?",
       "options": [
-        "docker container metrics",
-        "docker top --all",
-        "docker stats",
-        "docker inspect --stats"
+        "`docker container metrics` — not a real subcommand",
+        "`docker top --all` — `docker top` shows processes INSIDE a container, not resource stats across containers",
+        "`docker stats` — live CPU% / memory / mem-limit / net I/O / block I/O per container; press Ctrl-C to exit",
+        "`docker inspect --stats` — `inspect` dumps config, not live stats"
       ],
       "correct": 2,
       "explanation": "`docker stats` shows a live-updating stream of resource metrics for all running containers: CPU%, memory usage/limit, net I/O, block I/O, PIDs. Specify a container name/ID to watch a single container: `docker stats mycontainer`. Add --no-stream for a one-shot snapshot (useful in scripts). `docker top CONTAINER` shows the processes running inside a specific container.",
       "tags": [
-        "monitoring",
         "cli",
+        "docker-stats",
         "docker-dca"
       ],
       "difficulty": "easy",
-      "_normalized": true
+      "_normalized": true,
+      "rewritten": true
     },
     {
       "id": "dca-047",
-      "question": "Which Dockerfile instruction is used to set environment variables that are available both at build time and at runtime?",
+      "question": "A Dockerfile sets `ENV NODE_ENV=production`. The variable is available DURING the build (in subsequent `RUN` commands) AND at RUNTIME (visible to the container process via `process.env`). Which Dockerfile instruction?",
       "options": [
-        "ARG",
-        "VARIABLE",
-        "SET",
-        "ENV"
+        "`ARG` — BUILD-time only; not visible to the runtime process unless reassigned to ENV",
+        "`VARIABLE` — not a Dockerfile instruction",
+        "`SET` — not a Dockerfile instruction",
+        "`ENV KEY=value` — sets an environment variable available BOTH at build time (for subsequent RUNs) AND at container runtime"
       ],
       "correct": 3,
       "explanation": "ENV sets environment variables that persist in the image and are available to the container at runtime. `ENV NODE_ENV=production`. ARG defines build-time variables (only available during docker build, not in the running container). ARGs are useful for version numbers, build IDs. ENVs are for runtime configuration. Note: ENV variables are visible in `docker inspect` output — don't use for secrets.",
       "tags": [
         "dockerfile",
-        "environment",
+        "env-vs-arg",
         "docker-dca"
       ],
       "difficulty": "easy",
-      "_normalized": true
+      "_normalized": true,
+      "rewritten": true
     },
     {
       "id": "dca-048",
-      "question": "You need to copy a file from a running container to your local machine. What is the correct command?",
+      "question": "An admin needs to copy `/var/log/app.log` from a running container `web` to their local `./logs/` directory. Which Docker CLI command does this directly?",
       "options": [
-        "docker transfer CONTAINER:/path ./local/",
-        "docker pull CONTAINER:/path/to/file ./local/",
-        "docker export CONTAINER --file /path/to/file",
-        "docker cp CONTAINER:/path/to/file ./local/"
+        "`docker transfer` — not a real subcommand",
+        "`docker pull` — pulls images, not files from containers",
+        "`docker export` — exports container's full filesystem, not a single file",
+        "`docker cp web:/var/log/app.log ./logs/` — copies a file or directory between a container and the host; works on running OR stopped containers"
       ],
       "correct": 3,
       "explanation": "`docker cp SOURCE DEST` copies files between a container and the local filesystem. Container paths are specified as `CONTAINER:/path`. Examples: `docker cp myapp:/app/logs/error.log .` copies from container to current directory. `docker cp ./config.json myapp:/app/config.json` copies from host to container. Works on both running and stopped containers.",
       "tags": [
         "cli",
-        "files",
+        "docker-cp",
         "docker-dca"
       ],
       "difficulty": "easy",
-      "_normalized": true
+      "_normalized": true,
+      "rewritten": true
     },
     {
       "id": "dca-049",
-      "question": "What does an ENTRYPOINT in exec form vs shell form mean in a Dockerfile?",
+      "question": "Two ways to write the ENTRYPOINT instruction: (A) Exec form — JSON array `[\"python\", \"app.py\"]`. Runs the command DIRECTLY (no shell), so it's PID 1 (receives signals correctly for graceful shutdown). (B) Shell form — `ENTRYPOINT python app.py`. Wrapped in `/bin/sh -c`, so the shell becomes PID 1 and the app is a child — signals don't reach the app properly. Best practice: prefer exec form. Which describes the difference?",
       "options": [
-        "They behave identically — the distinction is only syntactic",
-        "Exec form uses JSON array syntax and runs directly as PID 1 without a shell;.",
-        "Shell form is newer and preferred; exec form is deprecated",
-        "Exec form requires the command to be in the PATH; shell form allows full bash scripting"
+        "Identical — false",
+        "Exec form = JSON array, runs as PID 1 directly (signals delivered to the app for graceful shutdown); Shell form = wrapped in `/bin/sh -c`, shell becomes PID 1 (signals lost in the shell wrapper). Prefer exec form for production",
+        "Shell form preferred — false; opposite of best practice",
+        "Path requirement difference — false; both can use full paths"
       ],
       "correct": 1,
       "explanation": "Exec form: `ENTRYPOINT [\"executable\", \"arg1\"]` — runs directly as PID 1. Signals (SIGTERM, SIGINT) are received directly by the process, enabling graceful shutdown. Shell form: `ENTRYPOINT command arg1` — runs as `/bin/sh -c 'command arg1'`. The shell becomes PID 1 and may not forward signals to the actual process. Best practice: use exec form for ENTRYPOINT and CMD to ensure proper signal handling. shell form wraps the command in /bin/sh -c, meaning signals may not be properly forwarded",
       "tags": [
         "dockerfile",
-        "entrypoint",
+        "entrypoint-forms",
         "docker-dca"
       ],
       "difficulty": "hard",
       "_normalized": true,
-      "_lenbal": true
+      "_lenbal": true,
+      "rewritten": true
     },
     {
       "id": "dca-050",
-      "question": "In Docker Swarm, what is an ingress network and what role does it play?",
+      "question": "In Docker Swarm, the default `ingress` overlay network enables the ROUTING MESH: any node in the Swarm can accept a published-port connection and route it (via the ingress overlay + IPVS) to a node running a task for that service. Clients can connect to ANY swarm IP and reach the service. Which describes ingress?",
       "options": [
-        "The default overlay network that enables routing mesh.",
-        "A private network connecting manager nodes for Raft consensus traffic",
-        "A monitoring network for collecting container metrics",
-        "A network dedicated to external load balancer communication"
+        "Default overlay network that enables the routing mesh — any node in the Swarm accepts published-port connections and routes them via IPVS to a node actually running a task for that service",
+        "Manager-Raft network — different (control-plane traffic, not ingress data-plane)",
+        "Monitoring network — wrong concept",
+        "External-LB network — wrong concept"
       ],
       "correct": 0,
       "explanation": "The ingress network (created automatically with `docker swarm init`) enables the Swarm routing mesh. When a service publishes port 8080, EVERY Swarm node listens on port 8080. Traffic arriving on any node is load-balanced to a healthy task, regardless of which node the task runs on. This means you can point a load balancer at any node IP. Created as an overlay network with IPVS-based load balancing. allowing any Swarm node to receive traffic for a published service port and route it to a healthy task, regardless of which node runs the task",
       "tags": [
         "swarm",
-        "networking",
-        "ingress",
+        "ingress-network",
         "docker-dca"
       ],
       "difficulty": "hard",
-      "_normalized": true
+      "_normalized": true,
+      "rewritten": true
     },
     {
       "id": "dca-051",
-      "question": "Which command shows the history of image layers, including the size contribution of each layer?",
+      "question": "An admin investigates which Dockerfile instruction contributed the most bytes to an image (`myapp:latest`). They need a per-layer list with: layer SHA, instruction that created the layer, size in bytes. Which command?",
       "options": [
-        "docker layer list IMAGE",
-        "docker image inspect IMAGE --layers",
-        "docker image layers IMAGE --verbose",
-        "docker image history IMAGE"
+        "`docker layer list` — not a real subcommand",
+        "`docker image inspect --layers` — inspect doesn't have a `--layers` flag",
+        "`docker image layers --verbose` — not a real subcommand",
+        "`docker image history <image>` — lists each layer with creation instruction, size, age, comment; the canonical per-layer audit command"
       ],
       "correct": 3,
       "explanation": "`docker image history IMAGE` lists all layers with their creating command, creation date, and size. Useful for: identifying large layers (targets for optimization), understanding what each layer does, debugging unexpected image sizes. The `<missing>` entries are normal for intermediate stages in multi-stage builds or when the parent image was built elsewhere.",
       "tags": [
-        "images",
-        "layers",
         "cli",
+        "image-history",
         "docker-dca"
       ],
       "difficulty": "easy",
-      "_normalized": true
+      "_normalized": true,
+      "rewritten": true
     },
     {
       "id": "dca-052",
-      "question": "What happens to a Docker Swarm service's tasks when you drain a node?",
+      "question": "A Swarm admin runs `docker node update --availability drain <node>`. The node is marked DRAIN. What happens to the tasks currently scheduled there + to future tasks?",
       "options": [
-        "All tasks on that node are terminated and not rescheduled",
-        "The node is removed from the Swarm permanently",
-        "Tasks continue running but new tasks cannot start on that node",
-        "The node is marked Drain availability;."
+        "Tasks terminated, not rescheduled — false; they're rescheduled elsewhere",
+        "Node removed permanently — false; drain is a state, reversible",
+        "Tasks continue, new tasks blocked — partial; that's PAUSE, not DRAIN",
+        "Drain availability EVICTS the node's tasks (which Swarm RESCHEDULES on other nodes) AND prevents new tasks from being scheduled there; used for maintenance windows"
       ],
       "correct": 3,
       "explanation": "`docker node update --availability=drain NODE` marks the node as unavailable for new tasks and evicts existing tasks. The Swarm scheduler places replacement tasks on Active nodes. Use before maintenance (patching, rebooting) to gracefully move workloads. After maintenance: `docker node update --availability=active NODE` to return it to the pool. The node remains in the Swarm — only its availability changes. the Swarm scheduler stops placing new tasks on it and reschedules existing tasks to other available nodes",
       "tags": [
         "swarm",
-        "maintenance",
-        "nodes",
+        "node-availability",
         "docker-dca"
       ],
       "difficulty": "medium",
       "_normalized": true,
-      "_lenbal": true
+      "_lenbal": true,
+      "rewritten": true
     },
     {
       "id": "dca-053",
-      "question": "What is a seccomp profile in Docker and what does it limit?",
+      "question": "Docker applies a default seccomp profile to every container. The profile RESTRICTS which Linux SYSTEM CALLS a container's processes can make (blocks dangerous ones like `kexec_load`, `reboot`, etc.). Custom profiles can be loaded with `--security-opt seccomp=profile.json`. Which describes seccomp?",
       "options": [
-        "It encrypts inter-container communication",
-        "It restricts which Linux system calls (syscalls) a container process can make, reducing the kernel attack surface",
-        "It controls which Docker commands users can run",
-        "It limits network bandwidth for the container"
+        "Encrypts inter-container traffic — wrong concept",
+        "Restricts which Linux SYSCALLS a container process can make — reduces kernel attack surface; Docker ships a default profile blocking dangerous syscalls",
+        "Restricts which Docker CLI commands users can run — that's authorization plugins",
+        "Limits network bandwidth — that's `--network` QoS, not seccomp"
       ],
       "correct": 1,
       "explanation": "seccomp (secure computing mode) is a Linux kernel feature that filters syscalls. Docker applies a default seccomp profile blocking ~44 dangerous syscalls (e.g., keyctl, add_key, reboot). Custom profiles allow you to restrict further (whitelist-based) or allow more (for specific use cases). To disable: `--security-opt seccomp=unconfined` (not recommended). Combined with namespaces, cgroups, capabilities, and AppArmor/SELinux for defense-in-depth.",
@@ -1069,146 +1076,148 @@
         "docker-dca"
       ],
       "difficulty": "hard",
-      "_normalized": true
+      "_normalized": true,
+      "rewritten": true
     },
     {
       "id": "dca-054",
-      "question": "How do you update a running Swarm service to use a new image version with zero downtime?",
+      "question": "A Swarm service `webapp` is running 5 replicas of `myapp:1.4`. The team wants to ROLL OUT `myapp:1.5` with ZERO DOWNTIME (rolling update — replace one task at a time, wait for health, move to next). Which command?",
       "options": [
-        "docker service restart SERVICE --image NEW_IMAGE",
-        "docker service update --image NEW_IMAGE:VERSION SERVICE",
-        "docker service redeploy SERVICE --tag NEW_TAG",
-        "docker swarm update --service SERVICE --image NEW_IMAGE"
+        "`docker service restart` — not a real subcommand",
+        "`docker service update --image myapp:1.5 webapp` — triggers a rolling update; default rolling-update policy controls parallelism + delay; combine with `--update-failure-action=rollback` for auto-rollback on failure",
+        "`docker service redeploy` — not a real subcommand",
+        "`docker swarm update` — wrong namespace"
       ],
       "correct": 1,
       "explanation": "`docker service update --image NEW_IMAGE:VERSION SERVICE` triggers a rolling update. Docker replaces tasks one by one (or in parallel batches based on --update-parallelism), waits for new tasks to start and pass health checks before proceeding. Configure update behavior: --update-parallelism (tasks updated simultaneously), --update-delay (time between batches), --update-failure-action (pause/continue/rollback on failure).",
       "tags": [
         "swarm",
-        "updates",
-        "cli",
+        "service-update",
         "docker-dca"
       ],
       "difficulty": "medium",
-      "_normalized": true
+      "_normalized": true,
+      "rewritten": true
     },
     {
       "id": "dca-055",
-      "question": "What is Docker BuildKit and what improvements does it bring over the classic builder?",
+      "question": "Docker's newer build engine is BuildKit (set via `DOCKER_BUILDKIT=1` or default in modern Docker). Improvements over the classic builder: (a) parallel build steps within a Dockerfile, (b) better caching (per-stage), (c) build secrets via `--secret`, (d) SSH agent forwarding via `--ssh`, (e) cross-platform builds via `--platform`, (f) `RUN --mount=type=cache` to share between builds. Which describes BuildKit?",
       "options": [
-        "BuildKit replaces Docker Compose for local development builds",
-        "BuildKit adds support for Windows containers only",
-        "BuildKit is Docker's commercial add-on for enterprise builds",
-        "BuildKit is Docker's modern build subsystem offering parallel build steps."
+        "Replaces Compose — wrong concept",
+        "Windows-only — false; cross-platform",
+        "Commercial-only — false; open-source",
+        "Modern build subsystem: parallel build steps, better caching, build secrets (`--secret`), SSH forwarding (`--ssh`), cross-platform builds (`--platform`), mount-type caches (`RUN --mount=type=cache`); default in Docker 20.10+"
       ],
       "correct": 3,
       "explanation": "BuildKit (enabled with DOCKER_BUILDKIT=1 or default in recent Docker versions) brings: concurrent layer building (faster multi-stage builds), intelligent cache management, `RUN --mount=type=secret` (secrets available at build time but NOT stored in the image), `RUN --mount=type=ssh` (SSH agent forwarding for private repos), better progress output, and inline cache. Use `# syntax=docker/dockerfile:1` at the top of your Dockerfile to enable all features. improved caching, secret mounts (never stored in layers), SSH forwarding, and smaller build contexts",
       "tags": [
         "build",
         "buildkit",
-        "best-practices",
         "docker-dca"
       ],
       "difficulty": "hard",
-      "_normalized": true
+      "_normalized": true,
+      "rewritten": true
     },
     {
       "id": "dca-056",
-      "question": "What is the purpose of the `WORKDIR` instruction in a Dockerfile?",
+      "question": "A Dockerfile has `WORKDIR /app`. Subsequent `RUN cp foo bar`, `COPY index.js .`, `CMD [\"node\", \"index.js\"]` all execute with `/app` as the current directory. The directory is created if it doesn't exist. Which describes WORKDIR?",
       "options": [
-        "It sets the working directory for subsequent RUN.",
-        "It specifies the working directory on the host machine during builds",
-        "It defines where Docker stores image layers on the host",
-        "It mounts a host directory into the container at build time"
+        "Sets the WORKING DIRECTORY for subsequent `RUN` / `COPY` / `ADD` / `CMD` / `ENTRYPOINT` instructions; creates the directory if absent; can be set multiple times in a Dockerfile",
+        "Host working directory — false; container-internal",
+        "Where Docker stores image layers — wrong concept (that's `/var/lib/docker`)",
+        "Mounts host directory — wrong concept"
       ],
       "correct": 0,
       "explanation": "WORKDIR sets the current directory context for all subsequent instructions and for the container's shell when running interactively. It creates the directory if it doesn't exist. Best practice: always set WORKDIR instead of `RUN cd /app`. Multiple WORKDIR instructions accumulate: WORKDIR /app followed by WORKDIR src resolves to /app/src. Use absolute paths for clarity. CMD, ENTRYPOINT, COPY, and ADD instructions — creating the directory if it doesn't exist",
       "tags": [
         "dockerfile",
+        "workdir",
         "docker-dca"
       ],
       "difficulty": "easy",
-      "_normalized": true
+      "_normalized": true,
+      "rewritten": true
     },
     {
       "id": "dca-057",
-      "question": "Which Docker plugin type allows you to use cloud storage backends (S3, EBS, Azure Disk) as Docker volumes?",
+      "question": "A Docker host needs to use AWS EBS volumes (or Azure Disk, or S3, or NFS) as the BACKING STORE for Docker volumes — so `docker volume create --driver rexray/ebs` creates an EBS volume. The plugin TYPE that exposes external storage as Docker volumes is what?",
       "options": [
-        "Authorization plugins",
-        "Volume plugins (volume drivers)",
-        "Logging plugins",
-        "Network plugins"
+        "Authorization plugins — gate `docker` CLI commands, not storage",
+        "Volume plugins (volume drivers) — expose external storage (EBS, NFS, GlusterFS, vSphere, etc.) as Docker volumes; install with `docker plugin install <name>`; use with `--driver <name>` on volume create",
+        "Logging plugins — capture container stdout/stderr, not storage",
+        "Network plugins — provide network drivers, not storage"
       ],
       "correct": 1,
       "explanation": "Volume plugins (volume drivers) extend Docker's storage capabilities beyond the local filesystem. Popular drivers: REX-Ray (multi-cloud: AWS EBS, S3, Azure Disk, GCE PD), Portworx (cloud-native distributed storage), NFS driver, local-persist. Install a driver, then: `docker volume create --driver rexray/ebs --name myvol`. Swarm services can use volume drivers for persistent storage across nodes.",
       "tags": [
-        "storage",
         "plugins",
-        "volumes",
+        "volume-drivers",
         "docker-dca"
       ],
       "difficulty": "hard",
-      "_normalized": true
+      "_normalized": true,
+      "rewritten": true
     },
     {
       "id": "dca-058",
-      "question": "You need to pass a build-time variable (e.g., app version) to a Docker build without embedding it permanently in the image. Which instruction should you use?",
+      "question": "A Dockerfile must accept a BUILD-TIME variable `VERSION` set via `docker build --build-arg VERSION=1.2.3 …`. The value is consumed by `RUN echo $VERSION > /etc/version.txt` and is NOT persisted in the runtime environment. Which Dockerfile instruction?",
       "options": [
-        "ENV VERSION=1.0",
-        "ARG VERSION",
-        "BUILD_ARG VERSION",
-        "PARAM VERSION"
+        "`ENV VERSION=1.0` — sets a DEFAULT but also persists at runtime; not the build-arg-only pattern",
+        "`ARG VERSION` — declares a build-time variable, consumed via `--build-arg`, NOT persisted to the runtime env unless explicitly ENV-set; the canonical build-arg",
+        "`BUILD_ARG VERSION` — not a real instruction",
+        "`PARAM VERSION` — not a real instruction"
       ],
       "correct": 1,
       "explanation": "ARG defines a build-time variable: `ARG VERSION` in the Dockerfile, then `docker build --build-arg VERSION=2.1.0 .`. ARG values are NOT persisted in the final image (unlike ENV). Use for: version numbers, build metadata, registry URLs. Important: ARG values are visible in `docker history` — don't use for secrets. For secrets at build time: use BuildKit's `RUN --mount=type=secret`.",
       "tags": [
         "dockerfile",
-        "build",
-        "args",
+        "arg-vs-env",
         "docker-dca"
       ],
       "difficulty": "medium",
-      "_normalized": true
+      "_normalized": true,
+      "rewritten": true
     },
     {
       "id": "dca-059",
-      "question": "What does the `docker network inspect NETWORK` command return?",
+      "question": "An admin runs `docker network inspect mynet`. The output is a JSON document. What fields does it include — by design?",
       "options": [
-        "A summary of firewall rules applied to the network",
-        "Real-time traffic statistics for the network",
-        "The network's DNS configuration and resolver settings only",
-        "A JSON document with network metadata: driver."
+        "Firewall rules summary — wrong scope",
+        "Real-time traffic stats — wrong scope (use `docker stats` for runtime stats per container, not per network)",
+        "DNS config only — too narrow",
+        "Network metadata: driver, scope, IPAM config (subnet / gateway), connected containers (with their IPs + MACs), options, labels"
       ],
       "correct": 3,
       "explanation": "`docker network inspect NETWORK` returns JSON with: network ID, name, driver, scope, subnet/gateway, labels, options, and Containers — a map of connected containers with their IPs on that network. Invaluable for debugging connectivity issues: confirming a container is attached, verifying IP addresses, checking subnet overlap. Works on all network types (bridge, overlay, macvlan). subnet, gateway, options, and a list of connected containers with their IPs",
       "tags": [
-        "networking",
         "cli",
-        "debugging",
+        "network-inspect",
         "docker-dca"
       ],
       "difficulty": "easy",
-      "_normalized": true
+      "_normalized": true,
+      "rewritten": true
     },
     {
       "id": "dca-060",
-      "question": "What is the minimal recommended Swarm manager configuration for a production cluster that tolerates one manager failure?",
+      "question": "Swarm uses Raft consensus among managers. Raft requires a MAJORITY to make progress. To tolerate ONE manager failure (and still have a 2-of-3 quorum), the minimum recommended manager count is THREE. (2 managers can't tolerate ANY failure; 5 tolerates 2; 7 tolerates 3.) Which is the recommended MINIMUM production manager count tolerating 1 failure?",
       "options": [
-        "2 managers",
-        "5 managers",
-        "3 managers",
-        "1 manager (single manager is sufficient for small clusters)"
+        "2 managers — false; loses quorum on any single failure",
+        "5 managers — tolerates 2 failures, more than the question asks; acceptable but not minimum",
+        "3 managers — minimum production count tolerating 1 manager failure (quorum = ceiling((3+1)/2) = 2 of 3)",
+        "1 manager — no fault tolerance"
       ],
       "correct": 2,
       "explanation": "With 3 managers, the Raft quorum requires 2 (majority). Tolerates 1 manager failure. Formula: tolerate F failures → need 2F+1 managers. So: 3 managers = tolerate 1, 5 managers = tolerate 2, 7 managers = tolerate 3. Never use 2 managers (quorum = 2, provides no fault tolerance — worse than 1 manager). Recommended: 3 for small/medium production, 5 for critical clusters. Keep managers on separate nodes/racks/AZs.",
       "tags": [
         "swarm",
-        "ha",
-        "raft",
-        "managers",
+        "raft-managers",
         "docker-dca"
       ],
       "difficulty": "hard",
-      "_normalized": true
+      "_normalized": true,
+      "rewritten": true
     },
     {
       "id": "dca-multi-1",
