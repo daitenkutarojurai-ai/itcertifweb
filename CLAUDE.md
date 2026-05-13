@@ -116,9 +116,29 @@ package.json              npm test / npm run gen-paths / npm run build-core
   +15 CISSP scenario Qs (path unlocked), gen-paths secondary-tag matcher.
 - **Quality pass** SHIPPED: a11y focus-traps, SEO on /path.html, offline
   caching, 58 unit tests (stats + quizEngine), lazy mascot, 7-module bundle.
+- **Phase 4.3.2 — inline quiz engine** SHIPPED (2026-05-13). Quiz / sub-boss /
+  final-boss execute inline in the bottom-sheet (`renderQuizInline()` in
+  `src/path.js`) — no more `train.html` redirect.
+- **Phase 4.3.6 — path-progress tests** SHIPPED (2026-05-13). Extracted
+  `src/path-progress.js` (pure, Node-CommonJS + browser-global dual export),
+  rewired `path.js` to delegate, +25 unit tests → 83/83 passing.
+- **Phase 5 — Mobile + UX polish + video-game HUD** IN PROGRESS (P0).
+  - 5.1 Top-bar icon placement (desktop + phone)
+  - 5.2 Training: uniform pack-tile sizing
+  - 5.3 `/courses/` rework (biggest, last)
+  - 5.4 Remove `/stats.html` (consolidate into `/profile.html`)
+  - 5.5 Mascot squid centering inside the bubble
+  - 5.6 Hearts → continuous health bar (same data, new visual)
+  - 5.7 Chess-Kombat-style HUD box during sessions
+  See `TODO.md` Phase 5 for the acceptance criteria of each ticket.
 
 ## Critical conventions
 
+- **ALWAYS verify on phone AND desktop** before marking a UI change done.
+  Phase 4 → 5 transition was triggered by header bugs that survived a
+  desktop-only pass. Default verification matrix: 360 × 800 (phone),
+  768 × 1024 (tablet), 1440 × 900 (desktop). Header / footer / HUD /
+  modal changes must be screenshot-checked at all three.
 - **Heavy inline `<style>` in index.html** — CSS link is in `<head>` but
   inline `<style>` blocks come AFTER it in source order, so inline rules
   override external CSS via cascade. To force a global override, append

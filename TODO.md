@@ -5,7 +5,124 @@ up when there's time.
 
 ---
 
-## P0 — Phase 4: Path Section Rework (Cert Quest v2)
+## P0 — Phase 5: Mobile + UX polish + video-game HUD (2026-05-13)
+
+> Live audit on phone + desktop surfaced a batch of issues spanning chrome,
+> page layout, and gamification surface. Group them into one phase so they
+> ship as a coherent UX pass, not seven shallow patches.
+>
+> **Test rule (locked):** every change in this phase MUST be verified on
+> BOTH desktop and a phone viewport (DevTools or a real device) before
+> being marked shipped. Header/HUD bugs that survived Phase 4 all had this
+> root cause — desktop-only verification.
+
+### 5.1 — Top-bar icon placement (desktop + phone)
+
+- [ ] Audit the header at every breakpoint: 320, 360, 480, 768, 1024, 1280px.
+- [ ] On phone, the hamburger position drifts off-center on some pages and
+      partially overlaps the logo on the longest brand names.
+- [ ] On desktop, the auth chip + Google Play badge sometimes wrap to a
+      second row even on wide screens because nav links don't shrink first.
+- [ ] Acceptance: logo + hamburger on phone are perfectly aligned (single
+      row, equal vertical padding); on desktop, the chip never wraps below
+      the nav, and nav links truncate before the chip moves.
+
+### 5.2 — Training page: uniform box sizing
+
+- [ ] `/train.html` currently mixes large + small pack tiles depending on
+      content length and which brand they belong to. Cards must be visually
+      uniform — same width, same min-height, same internal padding.
+- [ ] Define a single `.pack-tile` cell with `min-height: <fixed>` and let
+      text clamp/ellipsize instead of growing the card.
+- [ ] Brand sections should use a CSS grid with equal-row tracks so a long
+      brand row doesn't compress a short one beside it.
+- [ ] Acceptance: scrolling the training page shows a perfectly aligned
+      grid of identical pack tiles — no Tetris look.
+
+### 5.3 — Courses module rework
+
+- [ ] `/courses/` is "not user-friendly at all" (user verbatim). Audit
+      what's broken: discoverability, navigation, course-vs-module hierarchy,
+      mobile layout, course-card readability.
+- [ ] Rebuild the index page around a clear "what is a course / how is it
+      different from a path / how is it different from training" header.
+- [ ] Course detail pages: ensure each module has a clear next-step CTA
+      and visible progress. Today they read like static articles.
+- [ ] Cross-link courses ↔ paths (a course is a sister-format to a Cert
+      Quest path — make the relationship explicit on both sides).
+- [ ] Acceptance: a new user landing on `/courses/` knows in <5 s what a
+      course is, can pick one, and reaches a productive module in 2 taps.
+
+### 5.4 — Remove `/stats.html` (consolidate into `/profile.html`)
+
+- [ ] `/stats.html` currently renders the wrong page anyway; profile already
+      shows all per-user stats (XP, level, streak, pack accuracy, laurels,
+      hats).
+- [ ] Replace `/stats.html` with a 301 / meta-refresh to `/profile.html`
+      (keep the URL so old links don't 404).
+- [ ] Remove the link from any nav/footer that still points to `/stats.html`.
+- [ ] Update `sitemap.xml` and `robots.txt` accordingly.
+- [ ] Acceptance: visiting `/stats.html` lands the user on `/profile.html`;
+      no remaining UI links reach the legacy page.
+
+### 5.5 — Mascot 🦑: center in its circle
+
+- [ ] The floating squid (`src/mascot.js` → `.mascot-bubble`) renders
+      slightly off-center inside its avatar circle on every page.
+- [ ] Verify SVG/emoji vertical-align inside the bubble and adjust the
+      transform / line-height so the emoji geometric center matches the
+      bubble center on iOS Safari, Android Chrome, and desktop Chrome.
+- [ ] Acceptance: pixel-checked centering at 1×, 1.5×, 2× DPR.
+
+### 5.6 — Hearts → Health bar (game-feel upgrade)
+
+- [ ] Replace the 5-heart row with a continuous **health bar** in both Cert
+      Quest (`/path.html`) and Training (`/train.html`) flows.
+- [ ] Mechanics are identical to today's `src/hearts.js`: 5 "units" of life,
+      lose 1 on wrong answer, 30 min passive regen.
+- [ ] Visual is a horizontal bar with 5 segments. Color: green > 60 %,
+      amber 30-60 %, red < 30 %. Smooth fill animation on damage / regen.
+- [ ] Tooltip / a11y label: "Health: 3 of 5 — next regen in 12 min".
+- [ ] Keep `cq-hearts-v1` localStorage key (no migration needed; same data).
+- [ ] Acceptance: existing tests in `test/stats.test.js` (and any new tests
+      covering hearts.js) continue to pass; visual matches Chess-Kombat HUD.
+
+### 5.7 — Quest HUD box (Chess-Kombat-style video-game panel)
+
+- [ ] During a Cert Quest path AND during a Training quiz session, render
+      a **persistent HUD box** in a top corner with:
+      - Health bar (from 5.6)
+      - Player avatar emoji + level badge (already in `src/avatar.js`)
+      - XP-to-next-level mini-bar
+      - Combo streak (current correct-in-a-row, from quizEngine)
+      - Optional: time elapsed, questions remaining
+- [ ] Visual language: dark glass panel, pixel-game border accents, subtle
+      glow when combo > 3, damage flash when health drops.
+- [ ] Reference: the `~/Chess-kombat` repo's in-game HUD — same aesthetic
+      family (compact, layered, video-game feel) so users moving between
+      the two products feel at home.
+- [ ] Hidden on the landing page + content pages (news, careers,
+      certifications, courses) — only visible during an active session.
+- [ ] Acceptance: HUD visible on `/path.html` during a node + on
+      `/train.html` during a quiz; not visible on `/`, `/news/`, etc.
+
+### 5.8 — Verification pass (mandatory)
+
+- [ ] After each ticket above ships, run the full audit on phone + desktop.
+- [ ] Take screenshots at 360 × 800 and 1440 × 900 for each modified page;
+      attach to the commit message if any layout is non-obvious.
+- [ ] `npm test` must remain green.
+- [ ] Bump cache once per shipped batch (not per ticket).
+
+### 5.9 — Estimated total
+
+~3-4 working days end-to-end. Suggested PR order: 5.4 (smallest, isolated)
+→ 5.1 (header polish) → 5.2 (training grid) → 5.5 (mascot centering)
+→ 5.6 (health bar) → 5.7 (HUD) → 5.3 (courses rework — biggest, last).
+
+---
+
+## P1 — Phase 4: Path Section Rework (Cert Quest v2)
 
 > Multiple shallow bug-fixes have stacked up. User keeps hitting different
 > failure modes (flashcards unreadable, Start button no-op, TF buttons
