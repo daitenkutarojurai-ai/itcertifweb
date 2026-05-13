@@ -1,6 +1,6 @@
 # Question-bank audit
 
-Generated: 2026-05-13T17:24:51.370Z
+Generated: 2026-05-13T17:26:41.676Z
 Packs scanned: **49** · questions scanned: **2692** · flagged: **2071** (76.9%)
 
 ## Methodology
@@ -25,7 +25,7 @@ Packs scanned: **49** · questions scanned: **2692** · flagged: **2071** (76.9%
 | `gcp-pde` | 60 | 60 | 100% | 5 | 43 | 0 | 59 |
 | `snowpro-core` | 10 | 10 | 100% | 3 | 3 | 8 | 0 |
 | `rhcsa` | 61 | 60 | 98% | 20 | 12 | 60 | 0 |
-| `az-900` | 91 | 88 | 97% | 79 | 37 | 78 | 15 |
+| `az-900` | 91 | 88 | 97% | 79 | 37 | 60 | 9 |
 | `comptia-network-plus` | 91 | 88 | 97% | 1 | 25 | 80 | 12 |
 | `terraform-003` | 161 | 155 | 96% | 146 | 106 | 150 | 1 |
 | `aws-ans-c01` | 60 | 56 | 93% | 43 | 39 | 0 | 25 |
