@@ -27,12 +27,14 @@
     finalboss: { icon: '👑', label: 'Final Boss', color: '#fbbf24' }
   };
 
-  /* ───── Progress store ───── */
+  /* ───── Progress store ─────
+     Pure logic lives in src/path-progress.js (window.cqPathProgress) and
+     is unit-tested via node --test. This layer adds persistence and
+     side effects (event dispatch, laurel award). */
+  var PP = window.cqPathProgress;
   function loadProgress() {
     try { return JSON.parse(localStorage.getItem(PROGRESS_KEY) || '{}'); }
     catch (e) {
-      /* Should never fire — we own the writer. Surfacing this in debug
-         catches a corruption-by-another-tab or hand-edited localStorage. */
       if (window.cqDbg) window.cqDbg('[path] loadProgress JSON.parse failed', e);
       return {};
     }
@@ -41,27 +43,20 @@
     try { localStorage.setItem(PROGRESS_KEY, JSON.stringify(p)); } catch (_) {}
   }
   function isComplete(packId, nodeId) {
-    var p = loadProgress();
-    return !!(p[packId] && p[packId][nodeId] && p[packId][nodeId].completed);
+    return PP.isComplete(loadProgress(), packId, nodeId);
   }
   function markComplete(packId, nodeId, score) {
-    var p = loadProgress();
-    p[packId] = p[packId] || {};
-    var alreadyDone = !!p[packId][nodeId];
-    p[packId][nodeId] = { completed: true, completedAt: Date.now(), score: score || null };
-    saveProgress(p);
-    /* Inline node completion (concept / mini-game / chest) — fire the same
-       event the stats.js handshake fires so sync.js can upsert the row. */
+    var res = PP.markComplete(loadProgress(), packId, nodeId, score, Date.now());
+    saveProgress(res.progress);
     window.dispatchEvent(new CustomEvent('cq:path-progress-changed', {
       detail: { packId: packId, nodeId: nodeId, score: score || null }
     }));
-    /* If this is the final-boss node, award a "Cert Survivor" laurel */
-    if (!alreadyDone && nodeId === 'final-boss') {
+    if (!res.alreadyDone && nodeId === 'final-boss') {
       try {
-        var laurels = JSON.parse(localStorage.getItem('cq-laurels-v1') || '[]');
-        if (!laurels.some(function (l) { return l.packId === packId; })) {
-          laurels.push({ packId: packId, earnedAt: Date.now(), score: score || null });
-          localStorage.setItem('cq-laurels-v1', JSON.stringify(laurels));
+        var existing = JSON.parse(localStorage.getItem('cq-laurels-v1') || '[]');
+        var laurelRes = PP.awardLaurelIfNeeded(existing, packId, score, Date.now());
+        if (laurelRes.newlyAwarded) {
+          localStorage.setItem('cq-laurels-v1', JSON.stringify(laurelRes.laurels));
           window.dispatchEvent(new CustomEvent('cq:laurel-earned', { detail: { packId: packId, score: score || null } }));
         }
       } catch (e) {
