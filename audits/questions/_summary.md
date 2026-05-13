@@ -1,7 +1,7 @@
 # Question-bank audit
 
-Generated: 2026-05-13T16:51:13.381Z
-Packs scanned: **49** · questions scanned: **2692** · flagged: **2061** (76.6%)
+Generated: 2026-05-13T16:52:23.450Z
+Packs scanned: **49** · questions scanned: **2692** · flagged: **2057** (76.4%)
 
 ## Methodology
 
@@ -40,11 +40,11 @@ Packs scanned: **49** · questions scanned: **2692** · flagged: **2061** (76.6%
 | `comptia-cysa` | 66 | 52 | 79% | 36 | 19 | 19 | 0 |
 | `sc-900` | 60 | 46 | 77% | 28 | 32 | 8 | 0 |
 | `vault-002` | 51 | 39 | 76% | 22 | 17 | 23 | 0 |
-| `comptia-security-plus` | 92 | 70 | 76% | 2 | 39 | 35 | 0 |
 | `cissp` | 25 | 19 | 76% | 3 | 19 | 0 | 0 |
 | `aws-soa-c02` | 60 | 45 | 75% | 25 | 34 | 0 | 0 |
 | `aws-dva-c02` | 61 | 45 | 74% | 28 | 32 | 1 | 1 |
 | `comptia-pentest` | 61 | 44 | 72% | 23 | 29 | 5 | 0 |
+| `comptia-security-plus` | 92 | 66 | 72% | 2 | 35 | 30 | 0 |
 | `aws-dea-c01` | 10 | 7 | 70% | 0 | 7 | 0 | 0 |
 | `aws-mla-c01` | 10 | 7 | 70% | 0 | 7 | 0 | 0 |
 | `servicenow-csa` | 61 | 42 | 69% | 23 | 37 | 1 | 0 |

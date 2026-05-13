@@ -6,7 +6,7 @@
     "version": "1.2.0",
     "question_count": 90,
     "last_updated": "2026-05-13",
-    "notes": " [batch 1 scenario rewrite: sec-047/052/053/068/074] [sec+ batch 2: sec-036/037/044/060/076 scenario rewrite] [sec+ batch 3: sec-019/039/040/045/073]"
+    "notes": " [batch 1 scenario rewrite: sec-047/052/053/068/074] [sec+ batch 2: sec-036/037/044/060/076 scenario rewrite] [sec+ batch 3: sec-019/039/040/045/073] [sec+ batch 4 + integrity fix on sec-026, sec-070 mismarked correct index]"
   },
   "questions": [
     {
@@ -356,21 +356,23 @@
     },
     {
       "id": "sec-020",
-      "question": "What is data loss prevention (DLP)?",
+      "question": "A pharma company's CISO needs to stop a recurring leak: employees emailing patient PHI as unencrypted attachments to personal Gmail accounts before resigning. The chosen control must (1) inspect outbound email + USB writes + cloud-upload traffic, (2) classify PHI by content fingerprint, and (3) block (not just log) the transfer when policy fires. Which control category fits these three requirements?",
       "options": [
-        "Software that automatically backs up user files to an offsite cloud repository on a scheduled recovery cycle",
-        "A database encryption solution that protects stored records by applying AES-256 to all sensitive fields at rest",
-        "A user activity monitor that alerts managers when employees access files outside of their normal working hours",
-        "Technology that detects and prevents unauthorized transmission of sensitive data outside the organization"
+        "Full-disk encryption — protects data at rest if a laptop is stolen; does nothing for outbound transfers",
+        "SIEM correlation — generates alerts after the fact, doesn't inspect or block the transfer in line",
+        "Data Loss Prevention (DLP) — content-aware inspection of outbound channels that can block sensitive transfers",
+        "Endpoint antivirus — scans files for known malware signatures, not for sensitive content patterns"
       ],
-      "correct": 3,
+      "correct": 2,
       "explanation": "DLP solutions monitor and control data movement (email, USB, cloud uploads) to prevent sensitive information (PII, financial data, IP) from leaving the organization without authorization.",
       "tags": [
-        "dlp",
-        "data-protection"
+        "data-protection",
+        "controls",
+        "dlp"
       ],
       "difficulty": "medium",
-      "_normalized": true
+      "_normalized": true,
+      "rewritten": true
     },
     {
       "id": "sec-021",
@@ -466,21 +468,23 @@
     },
     {
       "id": "sec-026",
-      "question": "What is a certificate revocation list (CRL)?",
+      "question": "A web browser is presented with a TLS server certificate that is well within its validity window and is signed by a trusted CA. Before trusting it, the browser must verify the CA hasn't revoked the certificate early (e.g., because the server's private key was compromised). Which of the following data sources is the AUTHORITATIVE list of certificates that have been revoked by a CA?",
       "options": [
-        "A browser-maintained registry listing certificate authorities that have exceeded their annual issuance quota",
-        "A list published by a CA of certificates that have been revoked before their expiration date (due to key compromise, etc.)",
-        "A database of SSL certificates that expired naturally through their scheduled validity period without early revocation",
-        "A signed OCSP response cache that pre-validates TLS certificates on behalf of clients to reduce handshake latency"
+        "DNS CAA record — declares which CAs may issue, says nothing about a cert being revoked before expiry",
+        "Certificate Transparency log — public list of issued certs, not a list of certs revoked before expiry",
+        "Certificate Revocation List (CRL) — a CA-signed list of certs revoked before their expiration",
+        "TLS session-ticket cache — speeds up resumption, has no view of certs revoked before expiry"
       ],
       "correct": 2,
-      "explanation": "CRLs are published by Certificate Authorities listing revoked certificates by serial number. OCSP (Online Certificate Status Protocol) is a more efficient real-time alternative to CRL checking.",
+      "explanation": "A CRL is a CA-signed, periodically published list of certificate serial numbers revoked before their natural expiration (e.g., due to private-key compromise, CA mistake, or subject change). OCSP is the same data on a per-cert query basis. CAA, CT logs, and session tickets are unrelated to revocation. NOTE: prior version of this question mismarked the correct option (claimed CRLs listed naturally-expired certificates) — fixed during 2026-05-13 audit pass.",
       "tags": [
         "pki",
-        "cryptography"
+        "certificates",
+        "revocation"
       ],
       "difficulty": "medium",
-      "_normalized": true
+      "_normalized": true,
+      "rewritten": true
     },
     {
       "id": "sec-027",
@@ -1178,23 +1182,24 @@
     },
     {
       "id": "sec-064",
-      "question": "What is a rainbow table attack?",
+      "question": "An attacker has stolen the `/etc/shadow` file of a Linux server. The hashes are unsalted SHA-1. To recover passwords, the attacker uses a precomputed lookup table mapping millions of common passwords to their SHA-1 hashes, with chains that compress storage. Recovery of any unsalted password in the file takes seconds. Which attack and which BEST defence apply?",
       "options": [
-        "A network attack that poisons ARP caches using crafted gratuitous packets to redirect LAN traffic through an attacker-controlled host, enabling credential theft and man-in-the-middle interception",
-        "A power side-channel attack that measures variations in device power consumption during cryptographic operations to statistically infer individual private key bits without direct memory access",
-        "A large-scale credential stuffing campaign that systematically cycles username and password combinations sourced from publicly leaked breach databases against target authentication endpoints",
-        "Precomputed table of hashes mapped to plaintexts — enables fast password recovery by looking up a hash in the table. Defeated by salting (adding random value to each password before hashing)"
+        "ARP poisoning attack; defence is a static ARP table — wrong, unrelated to password storage",
+        "Power side-channel attack; defence is constant-time crypto — wrong, attacker has the hash file already",
+        "Credential stuffing; defence is rate-limiting — wrong, attacker is not trying live login attempts",
+        "Rainbow-table attack; defence is salting each password before hashing (and using a slow KDF like bcrypt/Argon2)"
       ],
       "correct": 3,
       "explanation": "Rainbow tables precompute hash(password) for millions of passwords — lookup is instant. Defense: salting adds a random value per user before hashing (stored with the hash). Even with table, attacker must rebuild one for each salt. Modern algorithms: bcrypt, Argon2, scrypt all include salt automatically.",
       "tags": [
-        "cryptography",
         "attacks",
-        "authentication"
+        "password-cracking",
+        "rainbow-tables"
       ],
       "difficulty": "medium",
       "_normalized": true,
-      "_lenbal": true
+      "_lenbal": true,
+      "rewritten": true
     },
     {
       "id": "sec-065",
@@ -1292,21 +1297,23 @@
     },
     {
       "id": "sec-070",
-      "question": "What is a hardware security module (HSM)?",
+      "question": "A payments processor must meet PCI-DSS key-management requirements: the master encryption key for cardholder data must (1) be generated inside tamper-resistant hardware, (2) NEVER leave that hardware in plaintext, and (3) sign/encrypt operations are performed by sending data INTO the device. Which device category satisfies all three requirements?",
       "options": [
-        "A USB-connected portable storage device with hardware AES-128 encryption and PIN-protection, designed for secure file transport between air-gapped or classified computing environments",
-        "A dedicated hardware device that performs cryptographic operations and securely stores keys — tamper-resistant, cannot export private keys. Used for PKI root CAs, HSMs in cloud (AWS CloudHSM, Azure Dedicated HSM)",
-        "A software cryptographic module embedded in the operating system kernel that manages TLS session key generation for web servers using software-protected key storage without hardware isolation",
-        "A rack-mounted network security appliance integrating stateful firewall, intrusion detection, and VPN termination into a single hardened platform deployed at the enterprise perimeter"
+        "USB encrypted thumb-drive hardware — a tamper-resistant device for files, not for non-exportable keys",
+        "Hardware Security Module (HSM) — a tamper-resistant device that generates and uses keys in-place",
+        "Software cryptographic library — runs on commodity hardware, not a tamper-resistant key device",
+        "Network firewall hardware — a perimeter device, tamper-resistant chassis but not a key-custody device"
       ],
-      "correct": 3,
-      "explanation": "HSMs provide: hardware-backed key storage (keys never leave the HSM in plaintext), certified cryptographic operations, tamper evidence/protection. Required for PCI DSS (payment HSMs), banking, and PKI root CAs. FIPS 140-2 Level 3+ certified.",
+      "correct": 1,
+      "explanation": "An HSM is a tamper-resistant, FIPS-140-validated device whose private keys are non-exportable; applications send data IN and get signed/encrypted output back. USB drives store data, not non-exportable keys. Software libraries hold keys in process memory. A firewall is perimeter security, unrelated to key custody. NOTE: prior version of this question had the wrong correct-answer index (described a firewall appliance as the HSM definition) — fixed during the 2026-05-13 audit pass.",
       "tags": [
         "cryptography",
-        "hardware"
+        "key-management",
+        "hsm"
       ],
       "difficulty": "hard",
-      "_normalized": true
+      "_normalized": true,
+      "rewritten": true
     },
     {
       "id": "sec-071",
@@ -1482,21 +1489,23 @@
     },
     {
       "id": "sec-080",
-      "question": "What is the NIST Cybersecurity Framework (CSF)?",
+      "question": "An organisation new to security wants a vendor-neutral, voluntary framework that organises security activities into a small set of top-level functions for board-level reporting. The framework should NOT be a mandatory compliance regime, NOT issue certifications to companies, and NOT prescribe an incident-response template. Which framework fits these requirements?",
       "options": [
-        "A mandatory federal compliance standard that all US government agency contractors must certify against on an annual basis to maintain eligibility for federal contract award and renewal",
-        "An internationally recognized government certification program that issues formal security clearances to commercial organizations following an independent audit of their control environments",
-        "A prescriptive incident response plan template published and maintained by NIST that organizations can adopt verbatim to fulfill FISMA reporting requirements with minimal customization",
-        "A voluntary framework organizing security activities into 5 core functions: Identify, Protect, Detect, Respond, Recover — provides a common language for managing cybersecurity risk"
+        "PCI-DSS framework — mandatory, prescriptive controls grouped into compliance requirements",
+        "FedRAMP framework — mandatory for US-gov cloud, organised into authorisation baselines",
+        "NIST Cybersecurity Framework — voluntary, organised into Identify / Protect / Detect / Respond / Recover",
+        "ISO 27001 framework — certifiable management-system standard, organised into Annex A controls"
       ],
-      "correct": 3,
+      "correct": 2,
       "explanation": "NIST CSF: Identify (asset inventory, risk assessment), Protect (access control, training, hardening), Detect (monitoring, anomaly detection), Respond (incident response), Recover (recovery planning). Widely adopted for structuring security programs.",
       "tags": [
-        "governance",
-        "frameworks"
+        "compliance",
+        "frameworks",
+        "nist-csf"
       ],
       "difficulty": "medium",
-      "_normalized": true
+      "_normalized": true,
+      "rewritten": true
     },
     {
       "id": "sec-081",
