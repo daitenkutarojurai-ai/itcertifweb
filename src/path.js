@@ -405,22 +405,168 @@
       openChest(node);
       return;
     }
-    /* Quiz / sub-boss / final-boss → train.html with a special pathnode param */
-    var url;
-    if (node.type === 'finalboss') {
-      url = `/train.html?pack=${encodeURIComponent(path.packId)}&autostart=full&pathnode=${encodeURIComponent(node.id)}&pathpack=${encodeURIComponent(path.packId)}`;
-    } else {
-      var ids = (node.questionIds || []).join(',');
-      url = `/train.html?pack=${encodeURIComponent(path.packId)}&qids=${encodeURIComponent(ids)}&autostart=quick&pathnode=${encodeURIComponent(node.id)}&pathpack=${encodeURIComponent(path.packId)}`;
+    /* Quiz / sub-boss / final-boss now execute INLINE in the bottom-sheet
+       (Phase 4.3.2 — no more train.html redirect). */
+    if (node.type === 'quiz' || node.type === 'subboss' || node.type === 'finalboss') {
+      renderQuizInline(node);
+      return;
     }
-    /* Remember the node so when train.html dispatches cq:session-complete,
-       we'll receive it on next visit via localStorage handshake (path-pending). */
-    try {
-      localStorage.setItem('cq-path-pending', JSON.stringify({
-        packId: path.packId, nodeId: node.id, at: Date.now()
-      }));
-    } catch (_) {}
-    location.href = url;
+  }
+
+  /* ───── Inline quiz engine (Phase 4.3.2) ─────
+     Replaces the train.html redirect for quiz / sub-boss / final-boss nodes.
+     Loads the pack JSON, picks the focused subset (or N random for finalboss),
+     renders one MCQ at a time, decrements hearts on wrong, dispatches
+     cq:session-complete on finish — same lifecycle as Yes/No inline. */
+  function renderQuizInline(node) {
+    var panel = $('.node-sheet-panel');
+    panel.querySelectorAll('.node-sheet-inline').forEach(function (n) { n.remove(); });
+    $('#node-sheet-start').hidden = true;
+
+    var packId = sheetState.path.packId;
+    var loading = el('div', { class: 'node-sheet-inline pquiz-loading', text: 'Loading questions…' });
+    panel.appendChild(loading);
+
+    fetch('/data/free/' + encodeURIComponent(packId) + '.json', { cache: 'force-cache' })
+      .then(function (r) { return r.ok ? r.json() : Promise.reject(new Error('HTTP ' + r.status)); })
+      .then(function (pack) {
+        loading.remove();
+        var all = (pack && pack.questions) || [];
+        var questions;
+        if (node.type === 'finalboss') {
+          /* Random N for the mock exam */
+          var n = Number(node.questionCount) || 20;
+          var pool = all.slice();
+          for (var i = pool.length - 1; i > 0; i--) {
+            var j = Math.floor(Math.random() * (i + 1));
+            var tmp = pool[i]; pool[i] = pool[j]; pool[j] = tmp;
+          }
+          questions = pool.slice(0, Math.min(n, pool.length));
+        } else {
+          var byId = new Map(all.map(function (q) { return [String(q.id), q]; }));
+          questions = (node.questionIds || []).map(function (id) { return byId.get(String(id)); }).filter(Boolean);
+          if (!questions.length) questions = all.slice(0, 5);
+        }
+        if (!questions.length) {
+          panel.appendChild(el('div', { class: 'node-sheet-inline pquiz-error', text: 'No questions available for this node.' }));
+          return;
+        }
+        runQuiz(node, questions);
+      })
+      .catch(function (err) {
+        loading.remove();
+        panel.appendChild(el('div', { class: 'node-sheet-inline pquiz-error', text: 'Could not load the question bank: ' + err.message }));
+      });
+  }
+
+  function runQuiz(node, questions) {
+    var panel = $('.node-sheet-panel');
+    var idx = 0;
+    var correct = 0;
+    var startedAt = Date.now();
+    var locked = false;
+    var isFinalBoss = node.type === 'finalboss';
+
+    var wrap = el('div', { class: 'node-sheet-inline pquiz' });
+    var hud = el('div', { class: 'pquiz-hud' }, [
+      el('span', { class: 'pquiz-progress', text: '1 / ' + questions.length }),
+      el('span', { class: 'pquiz-score', text: '0 ✓' })
+    ]);
+    var card     = el('div', { class: 'pquiz-card' });
+    var stemEl   = el('div', { class: 'pquiz-stem',    text: '' });
+    var optsEl   = el('div', { class: 'pquiz-options' });
+    var feedback = el('div', { class: 'pquiz-feedback', hidden: true });
+    var nextBtn  = el('button', { class: 'cta-primary pquiz-next', type: 'button', text: 'Continue →', hidden: true });
+    card.appendChild(stemEl);
+    card.appendChild(optsEl);
+    card.appendChild(feedback);
+    card.appendChild(nextBtn);
+    wrap.appendChild(hud);
+    wrap.appendChild(card);
+    panel.appendChild(wrap);
+
+    function step() {
+      if (idx >= questions.length) return finish();
+      locked = false;
+      var q = questions[idx];
+      hud.querySelector('.pquiz-progress').textContent = (idx + 1) + ' / ' + questions.length;
+      hud.querySelector('.pquiz-score').textContent = correct + ' ✓';
+      stemEl.textContent = q.question || '';
+      optsEl.innerHTML = '';
+      feedback.hidden = true;
+      feedback.textContent = '';
+      nextBtn.hidden = true;
+      (q.options || []).forEach(function (opt, i) {
+        var btn = el('button', { class: 'pquiz-opt', type: 'button', text: opt });
+        btn.addEventListener('click', function () { pick(i, btn); });
+        optsEl.appendChild(btn);
+      });
+    }
+
+    function pick(picked, btn) {
+      if (locked) return;
+      locked = true;
+      var q = questions[idx];
+      var isCorrect = picked === q.correct;
+      Array.prototype.forEach.call(optsEl.querySelectorAll('.pquiz-opt'), function (b, i) {
+        b.disabled = true;
+        if (i === q.correct) b.classList.add('pquiz-opt--right');
+        else if (i === picked) b.classList.add('pquiz-opt--wrong');
+      });
+      if (isCorrect) {
+        correct++;
+      } else {
+        if (window.cqHearts) window.cqHearts.lose();
+      }
+      if (q.explanation) {
+        feedback.textContent = q.explanation;
+        feedback.hidden = false;
+      }
+      nextBtn.hidden = false;
+      nextBtn.focus();
+    }
+
+    nextBtn.addEventListener('click', function () {
+      idx++;
+      step();
+    });
+
+    function finish() {
+      var elapsed = Math.round((Date.now() - startedAt) / 1000);
+      var prev = snapshotProgress(sheetState.path);
+      var score = questions.length ? Math.round((correct / questions.length) * 100) : 0;
+      markComplete(sheetState.path.packId, sheetState.node.id, score);
+      try {
+        window.dispatchEvent(new CustomEvent('cq:session-complete', { detail: {
+          packId: sheetState.path.packId,
+          secondsSpent: elapsed,
+          questionsAnswered: questions.length,
+          correct: correct,
+          mode: isFinalBoss ? 'path-finalboss' : (node.type === 'subboss' ? 'path-subboss' : 'path-quiz')
+        }}));
+      } catch (_) {}
+
+      var summary = el('div', { class: 'node-sheet-inline pquiz-summary' }, [
+        el('div', { class: 'pquiz-summary-score', text: correct + ' / ' + questions.length }),
+        el('div', { class: 'pquiz-summary-label', text:
+          score === 100 ? 'Perfect run!' :
+          score >= 70 ? 'Nicely cleared.' :
+          score >= 50 ? 'Passed — keep drilling.' : 'Tough one — try again to lock it in.' }),
+        el('button', { class: 'cta-primary pquiz-continue', type: 'button', text: 'Continue →' })
+      ]);
+      wrap.replaceWith(summary);
+      summary.querySelector('.pquiz-continue').addEventListener('click', function () {
+        closeNodeSheet();
+        renderMap(sheetState.path);
+        setTimeout(function () { maybeBurstChapterEnd(prev, snapshotProgress(sheetState.path), sheetState.path); }, 150);
+        setTimeout(function () {
+          var cur = $('#path-map').querySelector('.path-node.is-current');
+          if (cur) walkTo(cur);
+        }, 250);
+      });
+    }
+
+    step();
   }
 
   /* ───── Inline concept (flashcards) ─────
