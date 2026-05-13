@@ -1,7 +1,7 @@
 # Question-bank audit
 
-Generated: 2026-05-13T16:44:04.790Z
-Packs scanned: **49** · questions scanned: **2692** · flagged: **2071** (76.9%)
+Generated: 2026-05-13T16:47:44.968Z
+Packs scanned: **49** · questions scanned: **2692** · flagged: **2069** (76.9%)
 
 ## Methodology
 
@@ -32,7 +32,7 @@ Packs scanned: **49** · questions scanned: **2692** · flagged: **2071** (76.9%
 | `splunk-core` | 66 | 61 | 92% | 34 | 13 | 49 | 0 |
 | `ms-900` | 60 | 55 | 92% | 17 | 19 | 3 | 49 |
 | `docker-dca` | 61 | 54 | 89% | 13 | 12 | 47 | 2 |
-| `comptia-security-plus` | 92 | 80 | 87% | 13 | 42 | 50 | 0 |
+| `comptia-security-plus` | 92 | 78 | 85% | 9 | 40 | 45 | 0 |
 | `ccna` | 112 | 93 | 83% | 43 | 30 | 65 | 34 |
 | `ccnp-security` | 60 | 49 | 82% | 43 | 29 | 3 | 9 |
 | `az-500` | 61 | 49 | 80% | 17 | 44 | 1 | 0 |
