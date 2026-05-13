@@ -50,6 +50,10 @@
         '<button type="button" class="mobile-menu-close" aria-label="Close menu">' +
           '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><line x1="6" y1="6" x2="18" y2="18"/><line x1="6" y1="18" x2="18" y2="6"/></svg>' +
         '</button>' +
+        '<button type="button" class="mobile-menu-auth" id="cq-mobile-auth" hidden>' +
+          '<span class="mobile-menu-emoji" aria-hidden="true">👤</span>' +
+          '<span class="mobile-menu-auth-label">Sign in</span>' +
+        '</button>' +
         '<div class="mobile-menu-eyebrow">Explore</div>' +
         '<a href="/path.html" class="mobile-menu-new">' +
           '<span class="mobile-menu-emoji">🗺️</span>Cert Quest' +
@@ -118,5 +122,34 @@
     }
     window.addEventListener('scroll', onScroll, { passive: true });
     syncScrolled();
+
+    /* ── Mobile auth row — mirrors the .cq-auth-chip surface which is
+          hidden on phones. Tapping triggers the existing auth modal /
+          account menu defined in src/auth-ui.js by re-dispatching a
+          click onto the (now display:none) chip. The chip is still
+          in the DOM, just hidden — its handler still works. */
+    var authBtn = menu.querySelector('#cq-mobile-auth');
+    function syncMobileAuth() {
+      if (!authBtn) return;
+      authBtn.hidden = false;
+      var label = authBtn.querySelector('.mobile-menu-auth-label');
+      var user = window.cqAuth && window.cqAuth.getUser && window.cqAuth.getUser();
+      if (user) {
+        var name = (user.user_metadata && (user.user_metadata.username || user.user_metadata.name))
+          || (user.email && user.email.split('@')[0]) || 'You';
+        authBtn.classList.add('is-signed-in');
+        if (label) label.textContent = name + ' · account';
+      } else {
+        authBtn.classList.remove('is-signed-in');
+        if (label) label.textContent = 'Sign in';
+      }
+    }
+    authBtn && authBtn.addEventListener('click', function () {
+      close();
+      var chip = document.getElementById('cq-auth-chip');
+      if (chip) chip.click();
+    });
+    syncMobileAuth();
+    window.addEventListener('cq:auth-changed', syncMobileAuth);
   });
 })();
