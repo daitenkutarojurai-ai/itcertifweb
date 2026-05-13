@@ -1,7 +1,7 @@
 # Question-bank audit
 
-Generated: 2026-05-13T17:12:04.482Z
-Packs scanned: **49** · questions scanned: **2692** · flagged: **2055** (76.3%)
+Generated: 2026-05-13T17:14:02.836Z
+Packs scanned: **49** · questions scanned: **2692** · flagged: **2065** (76.7%)
 
 ## Methodology
 
@@ -32,6 +32,7 @@ Packs scanned: **49** · questions scanned: **2692** · flagged: **2055** (76.3%
 | `splunk-core` | 66 | 61 | 92% | 34 | 13 | 49 | 0 |
 | `ms-900` | 60 | 55 | 92% | 17 | 19 | 3 | 49 |
 | `docker-dca` | 61 | 54 | 89% | 13 | 12 | 47 | 2 |
+| `az-104` | 56 | 48 | 86% | 29 | 44 | 0 | 0 |
 | `ccnp-security` | 60 | 49 | 82% | 43 | 29 | 3 | 9 |
 | `az-500` | 61 | 49 | 80% | 17 | 44 | 1 | 0 |
 | `aws-sap-c02` | 10 | 8 | 80% | 0 | 8 | 0 | 0 |
@@ -47,7 +48,6 @@ Packs scanned: **49** · questions scanned: **2692** · flagged: **2055** (76.3%
 | `aws-dea-c01` | 10 | 7 | 70% | 0 | 7 | 0 | 0 |
 | `aws-mla-c01` | 10 | 7 | 70% | 0 | 7 | 0 | 0 |
 | `servicenow-csa` | 61 | 42 | 69% | 23 | 37 | 1 | 0 |
-| `az-104` | 56 | 38 | 68% | 19 | 34 | 0 | 0 |
 | `cka` | 61 | 41 | 67% | 28 | 29 | 3 | 0 |
 | `comptia-security-plus` | 92 | 61 | 66% | 17 | 58 | 0 | 0 |
 | `gcp-pca` | 61 | 40 | 66% | 23 | 34 | 0 | 1 |
