@@ -1,7 +1,7 @@
 # Question-bank audit
 
-Generated: 2026-05-13T17:05:46.527Z
-Packs scanned: **49** · questions scanned: **2692** · flagged: **2044** (75.9%)
+Generated: 2026-05-13T17:07:16.490Z
+Packs scanned: **49** · questions scanned: **2692** · flagged: **2043** (75.9%)
 
 ## Methodology
 
@@ -59,7 +59,7 @@ Packs scanned: **49** · questions scanned: **2692** · flagged: **2044** (75.9%
 | `pcnsa` | 61 | 34 | 56% | 10 | 25 | 4 | 0 |
 | `ckad` | 61 | 31 | 51% | 21 | 18 | 1 | 0 |
 | `aws-dop-c02` | 10 | 5 | 50% | 0 | 5 | 0 | 0 |
-| `az-104` | 56 | 27 | 48% | 0 | 27 | 0 | 0 |
+| `az-104` | 56 | 26 | 46% | 4 | 26 | 0 | 0 |
 | `gcp-ace` | 56 | 25 | 45% | 0 | 11 | 14 | 0 |
 | `ai-900` | 20 | 8 | 40% | 0 | 7 | 1 | 0 |
 | `github-actions` | 10 | 4 | 40% | 0 | 4 | 0 | 0 |
