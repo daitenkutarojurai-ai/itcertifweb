@@ -1,7 +1,7 @@
 # Question-bank audit
 
-Generated: 2026-05-13T17:18:20.672Z
-Packs scanned: **49** · questions scanned: **2692** · flagged: **2068** (76.8%)
+Generated: 2026-05-13T17:19:47.240Z
+Packs scanned: **49** · questions scanned: **2692** · flagged: **2071** (76.9%)
 
 ## Methodology
 
@@ -18,13 +18,13 @@ Packs scanned: **49** · questions scanned: **2692** · flagged: **2068** (76.8%
 
 | Pack | Total | Flagged | % | length | keyword | recall | tags |
 |---|---:|---:|---:|---:|---:|---:|---:|
+| `aws-clf-c02` | 98 | 98 | 100% | 38 | 42 | 54 | 1 |
 | `ccnp-encor` | 40 | 40 | 100% | 37 | 25 | 40 | 4 |
 | `ccnp` | 101 | 101 | 100% | 98 | 69 | 101 | 20 |
 | `comptia-a-plus` | 101 | 101 | 100% | 5 | 30 | 101 | 1 |
 | `gcp-pde` | 60 | 60 | 100% | 5 | 43 | 0 | 59 |
 | `snowpro-core` | 10 | 10 | 100% | 3 | 3 | 8 | 0 |
 | `rhcsa` | 61 | 60 | 98% | 20 | 12 | 60 | 0 |
-| `aws-clf-c02` | 98 | 95 | 97% | 28 | 32 | 64 | 3 |
 | `az-900` | 91 | 88 | 97% | 79 | 37 | 78 | 15 |
 | `comptia-network-plus` | 91 | 88 | 97% | 1 | 25 | 80 | 12 |
 | `terraform-003` | 161 | 155 | 96% | 146 | 106 | 150 | 1 |
