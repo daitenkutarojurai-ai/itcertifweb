@@ -1,0 +1,223 @@
+{
+  "meta": {
+    "id": "az-400",
+    "name": "Azure DevOps Engineer Expert (AZ-400)",
+    "vendor": "Microsoft",
+    "version": "1.0.0",
+    "question_count": 10,
+    "last_updated": "2026-05-14",
+    "notes": "Covers source control, build/release pipelines, security/compliance, instrumentation, and process design."
+  },
+  "questions": [
+    {
+      "id": "az-400-001",
+      "question": "A team of five developers needs to release to production multiple times per day while keeping main green. Which branching strategy fits this requirement best in Azure Repos?",
+      "options": [
+        "GitFlow with a permanent develop branch, version-specific release branches, and pull requests merged to both develop and main on every change",
+        "Forking workflow where each developer maintains a personal fork and a release manager periodically merges cross-repository pull requests upstream",
+        "Trunk-based development with short-lived feature branches merged to main via pull request, gated by a CI pipeline that blocks merges on test failure",
+        "Environment branches such as dev, staging, and prod where promotion happens by merging dev into staging and then staging into prod after review"
+      ],
+      "correct": 2,
+      "explanation": "Trunk-based development with short-lived branches is the recommended pattern for teams pursuing continuous delivery. It minimizes long-running divergence, keeps integration cost low, and pairs well with feature flags to ship partially complete work safely. GitFlow's release/develop layers add latency suited to scheduled releases, not many-times-per-day deployments. Forking workflows fit open-source contribution models, not internal teams. Environment branches couple deployment promotion to merges, which complicates rollback and parallel work.",
+      "tags": [
+        "source-control",
+        "branching",
+        "trunk-based",
+        "azure-repos",
+        "az-400"
+      ],
+      "difficulty": "easy",
+      "domain": "Design and implement a source control strategy"
+    },
+    {
+      "id": "az-400-002",
+      "question": "A pull request to main must be blocked until a CI build passes and at least one reviewer from the team approves. Which Azure Repos mechanism enforces both conditions natively?",
+      "options": [
+        "A pre-receive Git hook on the Azure DevOps server that rejects pushes that lack a passing build artifact and a signed-off-by trailer in the commit message",
+        "A YAML pipeline trigger that posts a failure status on the pull request and a branch security setting that grants write permission only to reviewers",
+        "A branch policy on main configuring required reviewers, a minimum approver count, and a build validation policy that runs a specified pipeline on every update",
+        "An Azure Function webhook that listens for pull-request events, queues the pipeline, and only adds the merge-allowed label after both checks have passed"
+      ],
+      "correct": 2,
+      "explanation": "Branch policies on protected branches are the native control. Required reviewers and a minimum approver count enforce human review, while a build validation policy runs the named pipeline on every PR update and blocks the merge until it succeeds. Azure DevOps does not expose user-configurable pre-receive hooks. A YAML trigger only reports status; it does not block a merge by itself. A custom webhook is a workaround for what is already built in.",
+      "tags": [
+        "branch-policies",
+        "pull-requests",
+        "build-validation",
+        "azure-repos",
+        "az-400"
+      ],
+      "difficulty": "easy",
+      "domain": "Design and implement a source control strategy"
+    },
+    {
+      "id": "az-400-003",
+      "question": "An Azure Pipelines workflow must build an application, deploy it to a staging environment, then deploy it to production only after manual approval. What is the recommended way to model this end-to-end flow?",
+      "options": [
+        "Two separate classic release pipelines that share build artifacts, where the production pipeline is triggered manually by an operator after staging signoff",
+        "A single YAML pipeline using a runtime parameter deployToProd defaulting to false, where operators rerun the pipeline with the parameter flipped to true",
+        "Three independent YAML pipelines triggered in order via pipeline resource triggers, with the production pipeline reading the staging completion event tag",
+        "A single YAML pipeline containing build, staging, and production stages, with the production stage targeting an Environment resource that has approval checks"
+      ],
+      "correct": 3,
+      "explanation": "Multi-stage YAML pipelines model build, staging, and production as separate stages within one file. Approval gates attach to Environment resources, so the production stage waits for designated approvers before running. The entire delivery flow is versioned alongside source code. Classic release pipelines are legacy and discouraged for new work. Runtime parameters can gate execution but lack the audit trail and reviewer permissions of environment approvals. Splitting into multiple pipelines fragments observability needlessly.",
+      "tags": [
+        "yaml-pipelines",
+        "stages",
+        "environments",
+        "approvals",
+        "az-400"
+      ],
+      "difficulty": "medium",
+      "domain": "Design and implement build and release pipelines"
+    },
+    {
+      "id": "az-400-004",
+      "question": "A pipeline must deploy resources to an Azure subscription that is reachable only from a private network behind a corporate firewall. Microsoft-hosted agents cannot reach the target. What is the correct approach?",
+      "options": [
+        "Deploy a self-hosted agent inside the private network and configure the pipeline pool to target that agent's pool so jobs run from inside the network perimeter",
+        "Whitelist the published Microsoft-hosted agent IP ranges on the firewall and refresh the rules weekly when Microsoft publishes the updated address list document",
+        "Use the AzureCLI@2 task with a service connection scoped to a managed identity holding reader permissions on the firewall and on the destination Azure subscription",
+        "Move the pipeline to GitHub Actions and use a runner group with the private-network label, which Azure DevOps tasks recognize as an in-network execution context"
+      ],
+      "correct": 0,
+      "explanation": "Self-hosted agents run on machines you operate, so an agent placed inside the private network has direct access to in-network resources. The pipeline routes jobs to that pool via pool.name. Whitelisting Microsoft-hosted agent ranges is impractical and explicitly discouraged because the ranges are large and change frequently. Service connections control authentication, not network reachability. GitHub Actions runners are unrelated to Azure DevOps agent pool configuration.",
+      "tags": [
+        "self-hosted-agents",
+        "agent-pools",
+        "private-networks",
+        "azure-pipelines",
+        "az-400"
+      ],
+      "difficulty": "medium",
+      "domain": "Design and implement build and release pipelines"
+    },
+    {
+      "id": "az-400-005",
+      "question": "A pipeline applies Terraform to provision Azure infrastructure. State must be shared across parallel runs without conflicting writes. Which configuration provides this safely?",
+      "options": [
+        "A local state file checked into the same repository as the Terraform code, refreshed at the end of every pipeline run and committed back via a bot account",
+        "An Azure Storage account backend with a blob container holding the state file, where the azurerm backend takes a blob lease to serialize concurrent writes",
+        "An Azure Key Vault secret named terraform-state holding the serialized state JSON, retrieved at the start of each run and written back at completion",
+        "Separate state files per pipeline run, each named with the build number, then merged together by a custom step at the end of the workflow to form one state"
+      ],
+      "correct": 1,
+      "explanation": "The azurerm remote backend stores state in an Azure Storage blob and acquires a blob lease as an exclusive lock during operations. Parallel runs wait for the lease, preventing torn writes. Committing state to Git exposes secrets recorded in state and provides no locking. Key Vault is for secrets, not for the multi-megabyte mutable JSON Terraform produces. Per-run state files break resource tracking because Terraform identifies resources by their entry in a single authoritative state.",
+      "tags": [
+        "terraform",
+        "iac",
+        "remote-state",
+        "azure-storage",
+        "az-400"
+      ],
+      "difficulty": "medium",
+      "domain": "Design and implement build and release pipelines"
+    },
+    {
+      "id": "az-400-006",
+      "question": "A pipeline needs the database connection string for a production deployment. The value must not appear in pipeline logs and must rotate without editing the YAML. Which mechanism is best?",
+      "options": [
+        "Reference the value from an Azure Key Vault via a variable group linked to that Key Vault, granting the pipeline's service principal Get permission on secrets",
+        "Encode the connection string as base64 and place it in a pipeline variable marked secret, then decode the value inside the deployment task at runtime each run",
+        "Commit the connection string to the repository in an encrypted file and use a custom decryption task that pulls the key material from runner environment variables",
+        "Store the value in a pipeline parameter of type secret and supply it manually at queue time, requiring the operator to paste the value into the dialog each run"
+      ],
+      "correct": 0,
+      "explanation": "Variable groups linked to Azure Key Vault pull secret values at run time. Rotating the secret in Key Vault takes effect on the next run with no YAML change, and Azure Pipelines automatically masks the values in logs. Base64 is not encryption and offers no protection against log exposure. Committing encrypted blobs requires custom tooling and key distribution. Pipeline parameters do not support a secret type, and manual entry blocks automated runs.",
+      "tags": [
+        "secrets",
+        "key-vault",
+        "variable-groups",
+        "security",
+        "az-400"
+      ],
+      "difficulty": "medium",
+      "domain": "Develop a security and compliance plan"
+    },
+    {
+      "id": "az-400-007",
+      "question": "A pipeline builds a Docker image and pushes it to Azure Container Registry. The same image must be deployed unchanged to dev, staging, and production. Which tagging approach supports reliable promotion across environments?",
+      "options": [
+        "Tag the image as latest and have each environment pull latest, ensuring every environment is always running the most recently published version of the application",
+        "Tag the image with both an immutable identifier such as the build number or commit SHA and a moving tag for convenience, deploying environments by the immutable tag",
+        "Build a separate image per environment using environment-specific Dockerfiles, tagged myapp:dev, myapp:staging, and myapp:prod, for clear separation of build contexts",
+        "Tag the image with the environment name at build time and overwrite the staging and production tags during deployment so each environment shows its current build"
+      ],
+      "correct": 1,
+      "explanation": "Immutable tags such as a commit SHA or build ID guarantee that the exact artifact promoted from dev is what runs in production. Convenience tags like latest or an environment name move and cause drift between environments. Building separate images per environment defeats the build-once-deploy-many principle and risks divergence between code paths. Overwriting environment tags makes rollbacks ambiguous because the meaning of a tag changes over time.",
+      "tags": [
+        "containers",
+        "acr",
+        "image-tagging",
+        "promotion",
+        "az-400"
+      ],
+      "difficulty": "medium",
+      "domain": "Design and implement build and release pipelines"
+    },
+    {
+      "id": "az-400-008",
+      "question": "A web application has been instrumented with Application Insights. The team wants to be alerted within minutes if the 95th-percentile response time exceeds 800 ms for a sustained period. What is the correct configuration?",
+      "options": [
+        "A log query alert that runs traces | where severityLevel == 3 every minute and pages the on-call team whenever any matching trace record is found in the workspace",
+        "An Application Insights smart detection rule that automatically learns the baseline and fires when the failed-request rate doubles compared to the prior calendar week",
+        "An Azure Function timer trigger that polls the Application Insights REST API hourly and emails a report of slow requests recorded during the preceding one-hour window",
+        "An Azure Monitor metric alert against the requests/duration metric using the P95 aggregation, evaluated over a 5-minute window with the threshold set to 800 ms"
+      ],
+      "correct": 3,
+      "explanation": "Application Insights publishes request duration as a metric that supports percentile aggregations. An Azure Monitor metric alert over requests/duration with the P95 aggregation and an 800 ms threshold matches the requirement directly and fires within minutes. Log query alerts on traces do not measure latency percentiles. Smart detection focuses on failure-rate anomalies, not latency thresholds. Polling via a custom Function adds latency, complexity, and cost compared to the built-in metric alert path.",
+      "tags": [
+        "application-insights",
+        "monitoring",
+        "alerts",
+        "instrumentation",
+        "az-400"
+      ],
+      "difficulty": "medium",
+      "domain": "Implement an instrumentation strategy"
+    },
+    {
+      "id": "az-400-009",
+      "question": "A team wants to release a new checkout flow gradually, starting with 5 percent of users and increasing to 100 percent over a week, with the ability to roll the change back instantly. Which approach best supports this?",
+      "options": [
+        "Deploy two versions of the application to separate App Services and shift traffic between them using Azure Front Door weighted routing rules updated manually each day",
+        "Maintain two long-running release branches in source control and deploy whichever branch matches the current rollout state, rebuilding the application for each step",
+        "Use Azure App Configuration feature flags with a targeting filter that grades rollout percentage, toggled via the portal or API with no application redeploy required",
+        "Read the rollout percentage from an environment variable set at App Service startup and restart the App Service whenever the percentage value is changed during the rollout"
+      ],
+      "correct": 2,
+      "explanation": "Feature flags decouple deployment from release. Azure App Configuration provides feature flags with built-in filters, including percentage and targeting filters that the application evaluates per request, with no redeploy required to change the rollout. Weighted routing balances traffic between deployments but does not address per-user feature exposure. Branch-based gating requires rebuilds and complicates rollback. Environment variables require restarts and cannot easily target specific user subsets.",
+      "tags": [
+        "feature-flags",
+        "app-configuration",
+        "progressive-delivery",
+        "process",
+        "az-400"
+      ],
+      "difficulty": "medium",
+      "domain": "Design and implement processes and communications"
+    },
+    {
+      "id": "az-400-010",
+      "question": "A pipeline must guarantee that no Azure resource is deployed without required tags and that storage accounts always have HTTPS-only enabled, regardless of which pipeline performs the deployment. What is the most robust enforcement?",
+      "options": [
+        "Author Azure Policy definitions assigned at the subscription or management-group scope that deny deployments missing the required tags or the HTTPS-only storage configuration",
+        "Add an Azure Resource Manager template validation step to every pipeline that fails the build whenever required tags or HTTPS-only settings are missing from the template",
+        "Configure branch policies on the infrastructure repository that require a security-team reviewer for any pull request touching storage account or tag-related YAML or Bicep files",
+        "Use a self-hosted agent pool whose startup script scans the resource graph nightly and emails a non-compliance report listing resources without tags or with HTTPS-only disabled"
+      ],
+      "correct": 0,
+      "explanation": "Azure Policy enforces requirements at the platform level. A deny policy assigned at the subscription or management-group scope blocks any deployment that violates the rule, regardless of which pipeline, ARM template, Bicep file, or portal user performs it. Template validation in one pipeline does not stop other pipelines or portal deployments. Branch policies are bypassed by anything outside that repository. Nightly scans detect drift after the fact rather than preventing it.",
+      "tags": [
+        "azure-policy",
+        "governance",
+        "compliance",
+        "security",
+        "az-400"
+      ],
+      "difficulty": "hard",
+      "domain": "Develop a security and compliance plan"
+    }
+  ]
+}
