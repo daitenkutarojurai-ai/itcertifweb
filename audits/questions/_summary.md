@@ -1,6 +1,6 @@
 # Question-bank audit
 
-Generated: 2026-05-14T07:26:10.131Z
+Generated: 2026-05-14T07:26:53.205Z
 Packs scanned: **50** · questions scanned: **2702** · flagged: **2023** (74.9%)
 
 ## Methodology
@@ -22,7 +22,7 @@ Packs scanned: **50** · questions scanned: **2702** · flagged: **2023** (74.9%
 | `ccnp-encor` | 40 | 40 | 100% | 40 | 40 | 0 | 0 |
 | `ccnp` | 101 | 101 | 100% | 97 | 100 | 1 | 1 |
 | `docker-dca` | 61 | 61 | 100% | 55 | 58 | 1 | 0 |
-| `snowpro-core` | 10 | 10 | 100% | 3 | 3 | 8 | 0 |
+| `snowpro-core` | 10 | 10 | 100% | 3 | 10 | 0 | 0 |
 | `comptia-a-plus` | 101 | 99 | 98% | 94 | 92 | 1 | 0 |
 | `splunk-core` | 66 | 64 | 97% | 60 | 64 | 2 | 0 |
 | `az-900` | 91 | 88 | 97% | 84 | 82 | 1 | 3 |
@@ -33,7 +33,7 @@ Packs scanned: **50** · questions scanned: **2702** · flagged: **2023** (74.9%
 | `aws-ans-c01` | 60 | 52 | 87% | 43 | 39 | 0 | 0 |
 | `az-500` | 61 | 49 | 80% | 17 | 44 | 1 | 0 |
 | `aws-sap-c02` | 10 | 8 | 80% | 0 | 8 | 0 | 0 |
-| `ccnp-security` | 60 | 48 | 80% | 43 | 29 | 3 | 0 |
+| `ccnp-security` | 60 | 48 | 80% | 44 | 31 | 0 | 0 |
 | `dp-900` | 10 | 8 | 80% | 2 | 8 | 0 | 0 |
 | `sc-900` | 60 | 46 | 77% | 29 | 35 | 0 | 0 |
 | `cissp` | 25 | 19 | 76% | 3 | 19 | 0 | 0 |
