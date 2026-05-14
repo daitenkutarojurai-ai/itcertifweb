@@ -1,7 +1,7 @@
 # Question-bank audit
 
-Generated: 2026-05-14T07:32:36.509Z
-Packs scanned: **50** · questions scanned: **2702** · flagged: **2008** (74.3%)
+Generated: 2026-05-14T18:39:50.205Z
+Packs scanned: **50** · questions scanned: **2702** · flagged: **2006** (74.2%)
 
 ## Methodology
 
@@ -20,7 +20,6 @@ Packs scanned: **50** · questions scanned: **2702** · flagged: **2008** (74.3%
 |---|---:|---:|---:|---:|---:|---:|---:|
 | `aws-clf-c02` | 98 | 98 | 100% | 80 | 90 | 0 | 0 |
 | `ccnp-encor` | 40 | 40 | 100% | 40 | 40 | 0 | 0 |
-| `snowpro-core` | 10 | 10 | 100% | 3 | 10 | 0 | 0 |
 | `ccnp` | 101 | 100 | 99% | 97 | 100 | 0 | 0 |
 | `docker-dca` | 61 | 60 | 98% | 55 | 58 | 0 | 0 |
 | `comptia-a-plus` | 101 | 98 | 97% | 94 | 92 | 0 | 0 |
@@ -34,6 +33,7 @@ Packs scanned: **50** · questions scanned: **2702** · flagged: **2008** (74.3%
 | `aws-sap-c02` | 10 | 8 | 80% | 0 | 8 | 0 | 0 |
 | `ccnp-security` | 60 | 48 | 80% | 44 | 31 | 0 | 0 |
 | `dp-900` | 10 | 8 | 80% | 2 | 8 | 0 | 0 |
+| `snowpro-core` | 10 | 8 | 80% | 1 | 8 | 0 | 0 |
 | `az-500` | 61 | 48 | 79% | 17 | 44 | 0 | 0 |
 | `sc-900` | 60 | 46 | 77% | 29 | 35 | 0 | 0 |
 | `cissp` | 25 | 19 | 76% | 3 | 19 | 0 | 0 |
