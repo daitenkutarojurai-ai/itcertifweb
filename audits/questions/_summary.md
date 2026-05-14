@@ -1,7 +1,7 @@
 # Question-bank audit
 
-Generated: 2026-05-14T18:44:25.300Z
-Packs scanned: **51** · questions scanned: **2712** · flagged: **1997** (73.6%)
+Generated: 2026-05-14T18:55:45.113Z
+Packs scanned: **51** · questions scanned: **2712** · flagged: **1995** (73.6%)
 
 ## Methodology
 
@@ -28,8 +28,8 @@ Packs scanned: **51** · questions scanned: **2712** · flagged: **1997** (73.6%
 | `rhcsa` | 61 | 57 | 93% | 50 | 57 | 0 | 0 |
 | `comptia-network-plus` | 91 | 85 | 93% | 67 | 81 | 0 | 0 |
 | `az-104` | 56 | 51 | 91% | 32 | 47 | 0 | 0 |
-| `aws-clf-c02` | 98 | 86 | 88% | 19 | 82 | 0 | 0 |
 | `aws-ans-c01` | 60 | 52 | 87% | 43 | 39 | 0 | 0 |
+| `aws-clf-c02` | 98 | 84 | 86% | 0 | 84 | 0 | 0 |
 | `aws-sap-c02` | 10 | 8 | 80% | 0 | 8 | 0 | 0 |
 | `ccnp-security` | 60 | 48 | 80% | 44 | 31 | 0 | 0 |
 | `dp-900` | 10 | 8 | 80% | 2 | 8 | 0 | 0 |
