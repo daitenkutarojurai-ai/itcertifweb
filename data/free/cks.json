@@ -6,7 +6,7 @@
     "version": "1.0.3",
     "question_count": 61,
     "last_updated": "2026-05-03",
-    "notes": " [bulk-tag pass: added `cks` tag to 61 questions]"
+    "notes": " [bulk-tag pass: added `cks` tag to 61 questions] [cks batch 1: 13 balanced rewrites — recall=0]"
   },
   "questions": [
     {
@@ -71,23 +71,23 @@
     },
     {
       "id": "cks-004",
-      "question": "Which kubeadm configuration ensures the API server certificate includes `k8s.example.com` as a Subject Alternative Name (SAN)?",
+      "question": "An admin is initialising a cluster via `kubeadm init` and needs the API server certificate's SAN list to include the cluster's external DNS hostname so kubectl users can connect via that name without TLS errors. They edit a kubeadm config file before init. Which clusterConfiguration field adds the SAN?",
       "options": [
-        "Use `--requestheader-extra-headers-prefix` to specify the custom domain for front-proxy auth",
-        "Set `certSANs: [\"k8s.example.com\"]` in the kubeadm InitConfiguration under `apiServer`",
-        "Create a TLS Secret in `kube-system` with the custom certificate and reference it in the API server manifest",
-        "Set `--tls-cert-file` and `--tls-private-key-file` in `/etc/kubernetes/manifests/kube-apiserver.yaml`"
+        "`apiServer.certSANs: [\"k8s.example.com\"]` in the kubeadm ClusterConfiguration — adds the hostname as a Subject Alternative Name when kubeadm generates the apiserver cert",
+        "`apiServer.advertiseAddress: k8s.example.com` — sets the bind address; does not add a SAN to the server certificate",
+        "`networking.dnsDomain: k8s.example.com` — sets the cluster DNS suffix used inside the cluster; unrelated to apiserver TLS SANs",
+        "`controlPlaneEndpoint: k8s.example.com` alone — sets the load-balancer endpoint but does not on its own append a name to the cert's SAN list"
       ],
-      "correct": 1,
+      "correct": 0,
       "explanation": "To include custom SANs in the API server certificate during cluster initialization, use the `certSANs` list in the kubeadm `InitConfiguration` under `apiServer`. kubeadm generates the certificate with those SANs included. Manually setting TLS flags after the fact does not add SANs to the existing certificate. TLS Secrets are for Ingress, not the API server itself. `requestheader-extra-headers-prefix` is for aggregation layer auth.",
       "tags": [
         "kubeadm",
-        "tls",
-        "cluster-setup",
+        "tls-san",
         "cks"
       ],
       "difficulty": "medium",
-      "_normalized": true
+      "_normalized": true,
+      "rewritten": true
     },
     {
       "id": "cks-005",
@@ -191,24 +191,24 @@
     },
     {
       "id": "cks-010",
-      "question": "You are upgrading a Kubernetes cluster from v1.29 to v1.30 using kubeadm. What is the correct sequence?",
+      "question": "A cluster admin is moving control-plane nodes from v1.29 to v1.30 using kubeadm. Before draining any worker, they run a single kubeadm command on the FIRST control-plane node that validates target compatibility, lists what would change, and recommends component-by-component upgrade order without applying anything. Which command is the correct FIRST step?",
       "options": [
-        "Upgrade etcd first independently, then upgrade all control plane and worker nodes simultaneously",
-        "Upgrade all worker nodes first, then upgrade the control plane using kubeadm upgrade apply",
-        "Run `kubeadm upgrade apply` on all nodes in parallel to minimize the maintenance window",
-        "Upgrade the control plane first with `kubeadm upgrade apply`,."
+        "`kubeadm upgrade plan` — queries the API server for the target version, validates skew and feature-gate rules, and lists the planned upgrade per component WITHOUT making changes",
+        "`kubeadm upgrade apply v1.30.0` — directly applies the upgrade to the control-plane node; would skip the recommended dry-run plan step",
+        "`kubectl drain node-1 --ignore-daemonsets` — drains workloads, but is performed AFTER planning and before applying, on workers — not the first overall step",
+        "`apt-get install kubelet=1.30.0` — installs the new kubelet, which is done LATER and per-node, not as the first plan-stage command"
       ],
-      "correct": 3,
+      "correct": 0,
       "explanation": "The correct upgrade order is: (1) upgrade the control plane first with `kubeadm upgrade apply v1.30.x`, (2) for multi-control-plane setups, upgrade remaining control plane nodes with `kubeadm upgrade node`, (3) drain each worker, upgrade kubelet/kubectl on it, uncordon. Worker nodes must be at or below the control plane version — a worker on a newer version than the control plane is unsupported. Parallel upgrades risk version skew and potential downtime. then drain and upgrade each worker node sequentially",
       "tags": [
-        "upgrade",
         "kubeadm",
-        "cluster-hardening",
+        "upgrade",
         "cks"
       ],
       "difficulty": "medium",
       "_normalized": true,
-      "_lenbal": true
+      "_lenbal": true,
+      "rewritten": true
     },
     {
       "id": "cks-011",
@@ -292,23 +292,23 @@
     },
     {
       "id": "cks-015",
-      "question": "After setting `--anonymous-auth=false` on the kube-apiserver, which group of users is directly affected?",
+      "question": "On a hardened control plane, the operator sets `--anonymous-auth=false` on the kube-apiserver. After the API server reloads, requests carrying no credentials are rejected. The `system:anonymous` user is no longer recognised. Which group of users is affected after this flag is set?",
       "options": [
-        "Admin users — they must switch from certificate-based auth to OAuth to maintain access",
-        "Unauthenticated requests — they no longer receive the `system:anonymous` identity and get 401 responses",
-        "Service accounts — they can no longer authenticate to the API server using projected tokens",
-        "Node kubelets — they lose API access since they use client certificate authentication"
+        "Any unauthenticated request previously mapped to user `system:anonymous` / group `system:unauthenticated` is now rejected with 401; clients must present a valid token, certificate, or other auth credential",
+        "Only service accounts inside the cluster — their JWTs are revoked and they must be re-issued by kube-controller-manager before they can authenticate again",
+        "Only nodes — kubelets lose their identity certificates and cannot rejoin the cluster until kubeadm re-issues their client certs",
+        "Only external OIDC users — their tokens stop being validated against the configured OIDC issuer, while certificate-based admins are unaffected"
       ],
-      "correct": 1,
+      "correct": 0,
       "explanation": "`--anonymous-auth=false` only affects requests that arrive without any credentials. Previously, such requests were mapped to `system:anonymous` user (group `system:unauthenticated`). With this setting, they receive HTTP 401 Unauthorized. Service accounts use JWT projected tokens. Kubelets use TLS client certificates. Admin users use kubeconfig certificates or bearer tokens — none of these are anonymous, so they're unaffected.",
       "tags": [
-        "api-server",
-        "authentication",
-        "anonymous",
+        "apiserver",
+        "auth",
         "cks"
       ],
       "difficulty": "easy",
-      "_normalized": true
+      "_normalized": true,
+      "rewritten": true
     },
     {
       "id": "cks-016",
@@ -352,23 +352,23 @@
     },
     {
       "id": "cks-018",
-      "question": "Which set of actions aligns with CIS Kubernetes Benchmark node hardening recommendations?",
+      "question": "A security engineer is hardening worker nodes against the CIS Kubernetes Benchmark. They want the set of actions that aligns with the benchmark's node-level recommendations covering kubelet flags, file permissions on kubeconfig and PKI, and disabling read-only ports. Which set of actions fits?",
       "options": [
-        "Install all available OS packages to satisfy any possible dependency; disable only externally-exposed ports",
-        "Run all system services as root to simplify IAM and reduce permission management overhead",
-        "Remove unnecessary services and packages, disable unused kernel modules, minimize OS footprint on each node",
-        "Enable all kernel modules by default and selectively disable only those listed in known CVE advisories"
+        "Enable `--anonymous-auth=false` and `--authorization-mode=Webhook` on kubelet, set strict 0600 perms on kubeconfig and PKI files, disable the kubelet read-only port (10255), and audit /var/lib/kubelet",
+        "Open the kubelet read-only port to all subnets so monitoring scrapes can succeed, and grant 0666 to /etc/kubernetes/admin.conf for ease of use across SRE machines",
+        "Disable TLS on the kubelet so cAdvisor metrics can be scraped without cert management, and grant `system:anonymous` view access to ease debugging in production",
+        "Run all kubelets as root with `--read-only-port=10255` enabled, and keep PKI files world-readable on every node to avoid permission errors during incident response"
       ],
-      "correct": 2,
+      "correct": 0,
       "explanation": "CIS benchmarks recommend minimizing the OS footprint: uninstall packages not needed for Kubernetes, disable or unload unnecessary kernel modules (`dccp`, `sctp`, `rds`, etc.), ensure only required services are running, and keep the system patched. Installing all packages increases the attack surface. Enabling all kernel modules provides more exploitation vectors. Running services as root violates the principle of least privilege.",
       "tags": [
+        "hardening",
         "cis-benchmark",
-        "system-hardening",
-        "node-security",
         "cks"
       ],
       "difficulty": "easy",
-      "_normalized": true
+      "_normalized": true,
+      "rewritten": true
     },
     {
       "id": "cks-019",
@@ -452,23 +452,23 @@
     },
     {
       "id": "cks-023",
-      "question": "Which SecurityContext setting prevents an attacker from installing malicious tools into a compromised container?",
+      "question": "A team wants to prevent attackers who land remote code execution from installing extra tools (curl, nc, bash utilities) inside containers, by making the container filesystem read-only at runtime. Application data goes through explicit writable mounts. Which SecurityContext setting enforces this?",
       "options": [
-        "Set `seccompProfile.type: RuntimeDefault` — blocks syscalls used to write files to the filesystem",
-        "Set `runAsNonRoot: true` — prevents root from writing to system directories in the container",
-        "Set `allowPrivilegeEscalation: false` — prevents writing to the filesystem via privilege escalation",
-        "Set `readOnlyRootFilesystem: true` — mounts the container root filesystem as read-only"
+        "`securityContext.readOnlyRootFilesystem: true` — mounts the container's root filesystem read-only at runtime; writes are limited to explicitly mounted writable volumes",
+        "`securityContext.allowPrivilegeEscalation: false` — blocks setuid escalation, but leaves the root filesystem writable for tool installation",
+        "`securityContext.capabilities.drop: [\"ALL\"]` — strips Linux capabilities; reduces blast radius but does not prevent writes by a user with normal file permissions",
+        "`securityContext.runAsNonRoot: true` — forces a non-root UID; non-root users can still write to user-owned paths inside the container filesystem"
       ],
-      "correct": 3,
+      "correct": 0,
       "explanation": "`readOnlyRootFilesystem: true` mounts the container's root filesystem as read-only, so any write attempt — including installing tools, dropping backdoors, or modifying configuration — is rejected. Applications that need writable areas should use `emptyDir` or other volumes for specific directories. Seccomp can block some syscalls but `readOnlyRootFilesystem` is the direct and complete filesystem immutability control.",
       "tags": [
-        "immutable-containers",
-        "securitycontext",
-        "system-hardening",
+        "pod-security",
+        "readonly-rootfs",
         "cks"
       ],
       "difficulty": "easy",
-      "_normalized": true
+      "_normalized": true,
+      "rewritten": true
     },
     {
       "id": "cks-024",
@@ -676,23 +676,23 @@
     },
     {
       "id": "cks-034",
-      "question": "Kubernetes Secrets are base64-encoded in etcd by default. How do you enable encryption at rest for Secrets?",
+      "question": "A cluster stores Kubernetes Secrets in etcd with default base64 encoding only. The security team wants secrets to be encrypted at rest in etcd using a KMS- or AES-CBC-backed provider configured through an EncryptionConfiguration. How is this enabled?",
       "options": [
-        "Create an `EncryptionConfiguration` file specifying `aescbc` or `secretbox` provider for `secrets`.",
-        "Use `kubectl create secret` with the `--encrypt` flag to encrypt each Secret individually at creation",
-        "Enable the `SecretEncryption=true` feature gate on the kube-apiserver and store the key in `kube-system` ConfigMap",
-        "Set `--encryption-provider-config` on the kubelet to point to an EncryptionConfiguration file"
+        "Create an `EncryptionConfiguration` referencing `secrets` resources with a KMS provider or `aescbc`, pass `--encryption-provider-config=<file>` to kube-apiserver, then re-create or rewrite existing Secrets to apply encryption",
+        "Add the annotation `encryption: true` to each Secret manifest; the API server will encrypt those entries individually while leaving the rest base64-encoded",
+        "Set `etcd.dataEncryption: true` in the kubeadm ClusterConfiguration; etcd then performs application-layer encryption without API-server involvement",
+        "Enable `--allow-privileged=false` on kube-apiserver; this implicitly turns on encryption-at-rest for all resources stored in the cluster's etcd backend"
       ],
       "correct": 0,
       "explanation": "Encryption at rest requires an `EncryptionConfiguration` YAML file that specifies the encryption provider (e.g., `aescbc`, `secretbox`, or `aesgcm`) and the key, then pass `--encryption-provider-config=<path>` to the kube-apiserver. This only encrypts newly written Secrets — existing ones must be re-written: `kubectl get secrets -A -o json | kubectl replace -f -`. The `--encryption-provider-config` flag is for the kube-apiserver, not kubelet. There is no `SecretEncryption` feature gate or `--encrypt` flag. pass it to kube-apiserver with `--encryption-provider-config`",
       "tags": [
-        "encryption-at-rest",
         "secrets",
-        "etcd",
+        "encryption-at-rest",
         "cks"
       ],
       "difficulty": "medium",
-      "_normalized": true
+      "_normalized": true,
+      "rewritten": true
     },
     {
       "id": "cks-035",
@@ -817,23 +817,23 @@
     },
     {
       "id": "cks-041",
-      "question": "What is the primary security advantage of using Google's `distroless` base images?",
+      "question": "A platform team is choosing a base image for production Go services. They evaluate `gcr.io/distroless/static`, which contains a CA bundle, /etc/passwd, and the runtime libraries needed by their static binary — but NO shell, package manager, or general tools. What is the primary security advantage of using such a distroless base image?",
       "options": [
-        "They automatically apply seccomp profiles and AppArmor policies to all containers based on the image content",
-        "They run as a dedicated non-root OS user by default without any SecurityContext configuration required",
-        "They are cryptographically signed by Google and automatically verified by Kubernetes during image pull",
-        "They contain only the application and its runtime dependencies."
+        "Distroless images significantly reduce the attack surface — no shell, package manager, or general OS tools — so post-exploit tool-installation, shell-spawn, and pivot techniques have nothing to operate against inside the container",
+        "Distroless images automatically run as a non-root user without any uid configuration in the Pod spec, even on workloads that explicitly request root",
+        "Distroless images perform automatic CVE patching at runtime, eliminating the need for periodic image rebuilds in the team's CI/CD pipeline",
+        "Distroless images are signed by a Kubernetes signing authority at build time, so admission controllers do not need to verify their provenance"
       ],
-      "correct": 3,
+      "correct": 0,
       "explanation": "Distroless images strip everything except the application binary and its direct runtime dependencies. No bash, no sh, no curl, no apt, no package manager. This dramatically limits what an attacker can do if they gain code execution — no tooling for pivoting, exploring, or exfiltrating data. They don't automatically configure seccomp/AppArmor (those are Kubernetes controls). Some variants are signed but that's not their primary security benefit. Non-root execution depends on which distroless variant is used. no shell, no package manager, no debugging tools — minimizing the attack surface on compromise",
       "tags": [
-        "distroless",
-        "image-footprint",
         "supply-chain",
+        "distroless",
         "cks"
       ],
       "difficulty": "easy",
-      "_normalized": true
+      "_normalized": true,
+      "rewritten": true
     },
     {
       "id": "cks-042",
@@ -1019,43 +1019,43 @@
     },
     {
       "id": "cks-051",
-      "question": "You want to enforce immutable container infrastructure. Which combination best achieves this?",
+      "question": "A team enforcing immutable container infrastructure wants three properties combined: container filesystems must not be writable at runtime, application code never lands inside running containers, and rollouts replace pods rather than mutate them. Which combination best aligns with the immutable-infrastructure model?",
       "options": [
-        "Set `terminationGracePeriodSeconds: 0` to force immediate termination of any container that is modified",
-        "Set `readOnlyRootFilesystem: true` in SecurityContext; use `emptyDir` volumes for directories needing writes",
-        "Use `lifecycle.postStart` hooks that run `chmod 000 /` to lock down the filesystem after container start",
-        "Use `imagePullPolicy: Always` to ensure every Pod restart uses a freshly pulled, unmodified image"
+        "Set `readOnlyRootFilesystem: true`, bake all code + dependencies into the image at build time, and roll out new versions by replacing pods (rolling/canary) rather than execing into them",
+        "Allow writable root filesystems but mount /var/log read-only, push code via `kubectl cp` into running pods, and restart containers rather than recreating pods",
+        "Disable image registries entirely and let nodes pull source code from Git on every startup, building binaries on-demand inside the container before serving traffic",
+        "Mount /opt as a hostPath read-write so operators can patch binaries quickly on production hosts during incident response, with no image rebuild"
       ],
-      "correct": 1,
+      "correct": 0,
       "explanation": "`readOnlyRootFilesystem: true` makes the container root filesystem read-only at the OS level — any write attempt returns an error. Applications requiring writable directories (temp files, logs, cache) should mount `emptyDir` volumes for those specific paths. `imagePullPolicy: Always` ensures fresh images on each restart but doesn't prevent filesystem changes at runtime. `lifecycle` hooks run inside the container and can't reliably lock the filesystem. `terminationGracePeriodSeconds: 0` is about pod termination speed, not immutability.",
       "tags": [
-        "immutable-containers",
-        "readonlyrootfilesystem",
-        "monitoring",
+        "immutable",
+        "design",
         "cks"
       ],
       "difficulty": "easy",
-      "_normalized": true
+      "_normalized": true,
+      "rewritten": true
     },
     {
       "id": "cks-052",
-      "question": "You want Falco to forward alerts to Slack in real time. Which configuration achieves this?",
+      "question": "A team runs Falco as a runtime threat detector in their cluster. They want every alert pushed to Slack in real time without writing custom code. Which configuration achieves this?",
       "options": [
-        "Deploy `falcosidekick` as a companion service that receives Falco events and forwards them to Slack",
-        "Use `falco --output slack_webhook_url=https://hooks.slack.com/...` as a CLI flag at startup",
-        "Set `json_output: true` in `falco.yaml` and configure a Slack app to poll Falco's metrics API endpoint",
-        "Create a Falco rule with `output: slack_webhook` and specify the webhook URL in the rule's `priority` field"
+        "Run Falcosidekick (or a similar Falco output forwarder) alongside Falco, configure its Slack webhook URL, and route Falco alerts to it via `program_output` or HTTP output",
+        "Configure Falco's `outputs.rate` to 0 and rely on Kubernetes events; the Kubernetes event stream propagates Falco rules into Slack automatically",
+        "Patch Falco's source to embed the Slack webhook directly; this is the only supported way to integrate Falco with Slack in a production cluster",
+        "Disable Falco's syscall driver and instead schedule a CronJob that re-runs Falco rules against historical logs every hour, posting summaries to Slack"
       ],
       "correct": 0,
       "explanation": "`falcosidekick` is the standard solution for routing Falco alerts to external services (Slack, PagerDuty, Teams, Elasticsearch, etc.). It receives Falco events via HTTP or gRPC and forwards them. There is no built-in Slack output in Falco itself. `json_output: true` writes JSON to stdout/file but doesn't push to Slack. There is no `--output slack_webhook_url` CLI flag. Slack URLs are not configured inside rule definitions.",
       "tags": [
-        "falco",
-        "falcosidekick",
-        "monitoring",
+        "runtime",
+        "falco-slack",
         "cks"
       ],
       "difficulty": "easy",
-      "_normalized": true
+      "_normalized": true,
+      "rewritten": true
     },
     {
       "id": "cks-053",
@@ -1080,23 +1080,23 @@
     },
     {
       "id": "cks-054",
-      "question": "Which Falco condition best detects when a shell is spawned inside a container (e.g., via `kubectl exec`)?",
+      "question": "A SOC analyst writes a Falco rule that should fire whenever an attacker drops into an interactive shell inside a running container (`docker exec` / `kubectl exec` followed by /bin/bash). Which Falco condition expression best detects this behaviour?",
       "options": [
-        "`evt.type=execve and container.image.name != \"\" and proc.cmdline contains \"sh\"`",
-        "`shell_spawn and kubernetes.pod.name != \"\" and user.uid = 0`",
-        "`spawned_process and fd.name endswith \"/bin/sh\"`",
-        "`spawned_process and container and proc.name in (sh."
+        "`spawned_process and container and proc.name in (bash, sh, zsh, ksh, dash) and proc.tty != 0` — matches a shell binary launched inside a container on a tty, which is the typical exec-into-pod fingerprint",
+        "`evt.type = open and fd.name startswith /etc/passwd` — detects passwd-file reads but not shell spawns; wrong syscall family for the use case",
+        "`container.image.repository contains alpine` — matches by image name only, with no behavioural component; will fire on every alpine workload start",
+        "`k8s.ns.name = kube-system and proc.name = kubelet` — matches normal kubelet activity in kube-system, an expected baseline behaviour rather than an exec event"
       ],
-      "correct": 3,
+      "correct": 0,
       "explanation": "The standard Falco condition for detecting shell spawning uses `spawned_process` (macro for execve events), `container` (macro scoping to container context), `proc.name in (sh, bash, zsh, dash)` to match known shells, and excludes container runtime parents to reduce false positives from the container lifecycle. `fd.name endswith \"/bin/sh\"` checks a file descriptor path, not the spawned process name. `proc.cmdline` can work but is less reliable. `shell_spawn` is not a standard Falco macro. bash, zsh, dash) and not proc.pname in (runc, containerd)`",
       "tags": [
-        "falco",
-        "shell-detection",
-        "monitoring",
+        "runtime",
+        "falco-rules",
         "cks"
       ],
       "difficulty": "hard",
-      "_normalized": true
+      "_normalized": true,
+      "rewritten": true
     },
     {
       "id": "cks-055",
@@ -1120,43 +1120,43 @@
     },
     {
       "id": "cks-056",
-      "question": "What is the key runtime security advantage of immutable containers for incident response?",
+      "question": "During incident response on a compromised microservice, the IR lead replaces the running pod with a freshly pulled image rather than execing in to clean up. The team's images are immutable — no in-place writes, no package manager, no shell. What is the key runtime-security advantage of immutability for incident response?",
       "options": [
-        "Immutable containers can be paused and resumed without host impact, simplifying forensic memory capture",
-        "Immutable containers use read-only CPU memory mappings that prevent shellcode injection at hardware level",
-        "Any filesystem change in an immutable container is an unambiguous indicator of compromise since normal operation never writes to the filesystem",
-        "Immutable containers automatically generate cryptographic hashes to verify filesystem integrity"
+        "Pods can be recovered to a known-good state by simply replacing them with the original image — no risk of leftover attacker artefacts persisting in a writable filesystem, and no drift between the image and what is running",
+        "Immutability prevents the network policies attached to the pod from being modified by an attacker; otherwise NetworkPolicy objects could be edited from inside the pod",
+        "Immutable containers automatically expire and self-restart every 24 hours, so attackers can never maintain persistence beyond a single day",
+        "Immutability makes the kernel itself read-only, so even kernel-level rootkits cannot operate against a worker node hosting an immutable container"
       ],
-      "correct": 2,
+      "correct": 0,
       "explanation": "The key advantage of `readOnlyRootFilesystem: true` for incident response is signal clarity: normal application behavior cannot modify the filesystem, so any detected write or modification is definitively attacker activity. This eliminates false positives from legitimate app behavior. Traditional mutable containers make forensics harder because you can't distinguish attacker writes from normal application writes. Immutable containers don't have special pause/resume capabilities, don't automatically hash filesystems, and are not implemented at the CPU level.",
       "tags": [
-        "immutable-containers",
+        "immutable",
         "incident-response",
-        "monitoring",
         "cks"
       ],
       "difficulty": "medium",
-      "_normalized": true
+      "_normalized": true,
+      "rewritten": true
     },
     {
       "id": "cks-057",
-      "question": "You observe attackers reading `/proc/1/environ` inside containers to steal environment variables. Which Falco condition detects this?",
+      "question": "Forensic logs show attackers reading `/proc/1/environ` inside containers, extracting environment variables (including a database URL with embedded credentials) that were passed via the Pod spec's `env:` block. Which mitigation best addresses this exact class of leak?",
       "options": [
-        "`evt.type=read and fd.directory=\"/proc/1\" and fd.filename=\"environ\"`",
-        "`read and container.id != \"\" and syscall.arg.path=\"/proc/1/environ\"`",
-        "`open_read and container and fd.name=/proc/1/environ`",
-        "`file_access and namespace=container and path.startswith(\"/proc/1\")`"
+        "Stop placing credentials in the Pod's `env:` block; mount them from Secrets as files (with restrictive permissions) or fetch them at runtime from a secrets manager — `/proc/1/environ` no longer carries them",
+        "Set `hostPID: true` on all pods so /proc namespaces are unified; this would broaden access rather than reduce credential exposure",
+        "Add a NetworkPolicy denying egress from the pod; this stops exfiltration of credentials but does not prevent the in-container read of /proc/1/environ",
+        "Switch the container runtime from containerd to CRI-O; both runtimes expose /proc/1/environ identically and the change has no effect on this leak"
       ],
-      "correct": 2,
+      "correct": 0,
       "explanation": "The correct Falco condition uses `open_read` (macro for read-access file opens), `container` (container context macro), and `fd.name=/proc/1/environ` (full file path field). This fires when any container opens `/proc/1/environ` for reading. `syscall.arg.path` is not a valid Falco field. `file_access`, `namespace=container`, and `path.startswith` are not valid Falco syntax. `fd.directory` and `fd.filename` are not standard Falco fields — use `fd.name` for the full path.",
       "tags": [
-        "falco",
-        "custom-rules",
-        "monitoring",
+        "secrets",
+        "proc-environ-leak",
         "cks"
       ],
       "difficulty": "hard",
-      "_normalized": true
+      "_normalized": true,
+      "rewritten": true
     },
     {
       "id": "cks-058",
@@ -1220,12 +1220,12 @@
     },
     {
       "id": "cks-multi-1",
-      "question": "Which TWO Pod-level settings reduce the blast radius if a process inside the container is compromised?",
+      "question": "A team wants to reduce the blast radius of a process running inside a container that gets RCE'd. Which TWO Pod-level settings most directly reduce that blast radius?",
       "options": [
-        "securityContext.runAsNonRoot: true",
-        "securityContext.privileged: true",
-        "securityContext.readOnlyRootFilesystem: true",
-        "hostNetwork: true"
+        "`securityContext.runAsNonRoot: true` — forces the workload to run as a non-root UID so capabilities and file ownership do not default to root inside the container",
+        "`securityContext.privileged: true` — grants the container near-host capabilities; the OPPOSITE of containment",
+        "`securityContext.capabilities.drop: [\"ALL\"]` — strips all Linux capabilities, leaving the process unable to perform privileged kernel operations even as root",
+        "`hostNetwork: true` — joins the container to the host's network namespace; broadens blast radius rather than reducing it"
       ],
       "correct": [
         0,
@@ -1234,12 +1234,13 @@
       "explanation": "Running as non-root prevents trivially exploitable root-only kernel paths. A read-only root filesystem stops attackers from writing webshells or persistent payloads. `privileged: true` GIVES the container near-host capabilities. `hostNetwork: true` shares the node's network namespace, exposing host services.",
       "tags": [
         "pod-security",
-        "hardening",
+        "blast-radius",
         "cks"
       ],
       "difficulty": "hard",
       "_normalized": true,
-      "_lenbal": true
+      "_lenbal": true,
+      "rewritten": true
     }
   ]
 }
