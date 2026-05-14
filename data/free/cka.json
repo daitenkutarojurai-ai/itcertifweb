@@ -6,7 +6,7 @@
     "version": "1.0.3",
     "question_count": 61,
     "last_updated": "2026-05-03",
-    "notes": " [bulk-tag pass: added `cka` tag to 61 questions]"
+    "notes": " [bulk-tag pass: added `cka` tag to 61 questions] [recall sweep: 3 balanced rewrites]"
   },
   "questions": [
     {
@@ -91,22 +91,23 @@
     },
     {
       "id": "cka-005",
-      "question": "You are upgrading a cluster from Kubernetes 1.29 to 1.30. Which is the correct order of operations?",
+      "question": "A cluster admin is upgrading a kubeadm-managed cluster from Kubernetes v1.29 to v1.30. To respect skew rules and minimise disruption, the components must be upgraded in a strict order: control plane components first on one node, then the rest of the control plane nodes, then worker nodes. Which is the correct overall order?",
       "options": [
-        "Upgrade kubeadm on the control plane.",
-        "Run 'kubectl upgrade cluster --version=1.30' from any node with cluster-admin access",
-        "Upgrade kubelet on all nodes first, then upgrade kubeadm last",
-        "Upgrade all worker nodes first, then upgrade the control plane"
+        "First control plane node (apiserver, controller-manager, scheduler, then kubelet+kubectl) → other control plane nodes → drain/upgrade workers (kubelet+kubeproxy) one by one",
+        "All workers first (kubelet+kubeproxy) → then all control plane nodes simultaneously, in any order — violates the documented order",
+        "Etcd only — assume the rest of the cluster will follow once etcd is on the new version, with no further upgrades needed",
+        "Reinstall every node from scratch on the new version; kubeadm does not support in-place upgrades"
       ],
       "correct": 0,
       "explanation": "The correct upgrade order is: (1) upgrade kubeadm on the control plane node, (2) run 'kubeadm upgrade apply v1.30.x' which upgrades cluster components, (3) upgrade kubelet and kubectl on the control plane, (4) then repeat kubelet/kubectl upgrades on each worker node. Workers must never be upgraded before the control plane, as older control planes cannot manage newer kubelets. run 'kubeadm upgrade apply', then upgrade kubelet and kubectl on control plane, then upgrade workers",
       "tags": [
-        "cluster-upgrade",
         "kubeadm",
+        "upgrade-order",
         "cka"
       ],
       "difficulty": "medium",
-      "_normalized": true
+      "_normalized": true,
+      "rewritten": true
     },
     {
       "id": "cka-006",
@@ -736,23 +737,23 @@
     },
     {
       "id": "cka-037",
-      "question": "A StorageClass has 'reclaimPolicy: Retain'. After a PVC is deleted, what happens to the bound PV?",
+      "question": "A StorageClass `gold` is defined with `reclaimPolicy: Retain`. A workload's PersistentVolumeClaim bound to a PV from this class is deleted by the user. What happens to the underlying PersistentVolume and storage data?",
       "options": [
-        "The PV status remains 'Bound' until an administrator manually deletes it",
-        "The PV transitions to 'Released' status and the data is preserved.",
-        "The PV is immediately available for binding to a new PVC",
-        "The PV is automatically deleted along with its underlying storage"
+        "The PV is released but NOT deleted; its data is preserved on the backend storage and the PV enters the `Released` phase, requiring manual cleanup before reuse",
+        "The PV and the backing storage are immediately deleted, matching the behaviour of `reclaimPolicy: Delete`",
+        "The PV is automatically rebound to the next matching PVC, preserving access to the data without operator intervention",
+        "The PV is converted to a Snapshot resource and stored in the cluster's snapshot controller for later restore"
       ],
-      "correct": 1,
+      "correct": 0,
       "explanation": "With reclaimPolicy: Retain, when a PVC is deleted the PV transitions to 'Released' status. The actual storage data is preserved. However, the PV cannot be rebound automatically because it still contains a claimRef from the old PVC. An administrator must manually delete the PV (and optionally clean the data) before it can be reused. With 'Delete', the PV and underlying storage are removed automatically. but the PV cannot be rebound to a new PVC until it is manually cleaned up",
       "tags": [
         "storage",
-        "pv",
-        "reclaimpolicy",
+        "reclaim-retain",
         "cka"
       ],
       "difficulty": "medium",
-      "_normalized": true
+      "_normalized": true,
+      "rewritten": true
     },
     {
       "id": "cka-038",
@@ -983,24 +984,23 @@
     },
     {
       "id": "cka-049",
-      "question": "You need to check why the kube-controller-manager is continuously restarting. Which command retrieves its previous container's logs?",
+      "question": "A cluster admin investigates why kube-controller-manager keeps restarting. The component runs as a static pod on each control-plane node. They want logs from the pod (including stderr) since the last start. Which command surfaces the relevant output?",
       "options": [
-        "kubectl describe pod -n kube-system kube-controller-manager-master",
-        "kubectl logs -n kube-system kube-controller-manager-master --previous",
-        "kubectl logs -n kube-system kube-controller-manager-master",
-        "journalctl -u kube-controller-manager -b -1"
+        "`kubectl -n kube-system logs <kube-controller-manager-pod> --previous` (and check `journalctl -u kubelet` for pod-launch errors) — surfaces stderr / panic output from the failing process",
+        "`kubectl get events -A` ONLY — events are summaries; they alone do not reveal the controller-manager's stack traces or panic output",
+        "`kubectl describe node` — shows node conditions; does not surface controller-manager logs",
+        "`crictl rmp -f` on the pod — removes the pod; would destroy the only direct evidence of the crash"
       ],
-      "correct": 1,
+      "correct": 0,
       "explanation": "'kubectl logs --previous' (or -p) retrieves the logs from the previously terminated container instance. This is essential for CrashLoopBackOff diagnostics — the current container may not have any useful logs yet. 'kubectl describe pod' shows events but not the full log output. journalctl is for systemd services; as a static pod, the controller-manager logs are accessed via kubectl.",
       "tags": [
-        "kubectl",
-        "logs",
-        "kube-controller-manager",
         "troubleshooting",
+        "controller-manager",
         "cka"
       ],
       "difficulty": "medium",
-      "_normalized": true
+      "_normalized": true,
+      "rewritten": true
     },
     {
       "id": "cka-050",
