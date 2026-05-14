@@ -6,7 +6,7 @@
     "version": "1.0.3",
     "question_count": 161,
     "last_updated": "2026-05-13",
-    "notes": " [bulk-tag pass: added `terraform-003` tag to 161 questions] [terraform batch 1: 14 scenario rewrites] [terraform batch 2: 16 scenario rewrites] [terraform batch 3: 18 scenario rewrites] [terraform batch 4: 17 scenario rewrites] [terraform batch 5: 20 scenario rewrites] [terraform batch 6: 22 scenario rewrites]"
+    "notes": " [bulk-tag pass: added `terraform-003` tag to 161 questions] [terraform batch 1: 14 scenario rewrites] [terraform batch 2: 16 scenario rewrites] [terraform batch 3: 18 scenario rewrites] [terraform batch 4: 17 scenario rewrites] [terraform batch 5: 20 scenario rewrites] [terraform batch 6: 22 scenario rewrites] [terraform batch 7: 22 scenario rewrites]"
   },
   "questions": [
     {
@@ -2175,444 +2175,449 @@
     },
     {
       "id": "tf-109",
-      "question": "What is 'terraform plan -detailed-exitcode'?",
+      "question": "A CI/CD pipeline runs `terraform plan` and needs to KNOW whether the plan contains changes — to skip apply if there are none, or fail-fast on errors. Without intervention `plan` always exits 0 (success). The `-detailed-exitcode` flag changes this: 0 = no changes, 1 = error, 2 = success with changes. Which describes it?",
       "options": [
-        "Enables debug logging",
-        "Shows more verbose output",
-        "Changes exit codes: 0=no changes/success, 1=error, 2=success but changes present. Useful in CI/CD scripts to distinguish: no changes needed (0) vs changes to apply (2) vs error (1). Enables conditional apply: only run apply if plan returns exit code 2",
-        "Sets timeout for plan"
+        "Debug logging — wrong concept",
+        "More verbose — wrong concept",
+        "Changes exit codes to 0 (no changes), 1 (error), 2 (success but changes present); useful in CI/CD to gate apply on whether plan has changes; pair with `-out=tfplan` to persist the plan",
+        "Timeout — wrong concept"
       ],
       "correct": 2,
       "explanation": "-detailed-exitcode: standard exit=0 (success/no-changes or success/changes — can't distinguish). Detailed: 0=no changes, 1=error, 2=changes needed. CI script: terraform plan -detailed-exitcode; if [ $? -eq 2 ]; then terraform apply; fi. Automates: skip apply when no changes needed. Common in GitOps pipelines.",
       "tags": [
         "cli",
-        "automation",
-        "cicd",
+        "plan-detailed-exitcode",
         "terraform-003"
       ],
       "difficulty": "hard",
-      "_normalized": true
+      "_normalized": true,
+      "rewritten": true
     },
     {
       "id": "tf-110",
-      "question": "What are Terraform's 'preconditions' in data sources?",
+      "question": "A `data \"aws_subnet\" \"x\"` query may return ambiguous results. Terraform 1.3+ allows a `lifecycle { precondition { condition = …; error_message = … } }` block INSIDE the data source — validates assumptions BEFORE the data source is read. Useful for guarding subnet count / IP availability / etc. Which describes it?",
       "options": [
-        "Same as data filter",
-        "Only for variables",
-        "Data sources support lifecycle { precondition } blocks: validate conditions before data source is read. Example: data 'aws_ami' { filter {...} lifecycle { precondition { condition=var.region=='us-east-1', error_message='AMI lookup only works in us-east-1' } } }. Fails plan if condition is false",
-        "Only in resources"
+        "Same as data filter — false",
+        "Variable-only — false",
+        "Data sources support `lifecycle { precondition }` blocks (Terraform 1.3+) — validate conditions before the data source is read; fails plan if condition is false; useful for guarding assumptions",
+        "Resource-only — false"
       ],
       "correct": 2,
       "explanation": "Data source preconditions: validate inputs before querying provider. Fail fast with useful error messages rather than confusing provider API errors. Example: ensure search criteria will return valid results. Postconditions: validate returned data meets expectations (e.g., AMI must be EBS-backed, must be encrypted). Terraform 1.2+.",
       "tags": [
         "data-sources",
-        "validation",
-        "lifecycle",
+        "precondition",
         "terraform-003"
       ],
       "difficulty": "hard",
-      "_normalized": true
+      "_normalized": true,
+      "rewritten": true
     },
     {
       "id": "tf-111",
-      "question": "What is Terraform's 'moved' block in a module?",
+      "question": "Inside a MODULE, a resource `aws_instance.web` was renamed to `aws_instance.app`. To AVOID destroy + create on apply, the module author adds a `moved { from = aws_instance.web; to = aws_instance.app }` block inside the module. Terraform state is updated in place at next plan. The block also works at root level. Which describes moved in modules?",
       "options": [
-        "Moves module source",
-        "Moves module to new location",
-        "A deprecated feature",
-        "Declares that a resource has moved to a different address — can be used within modules to handle refactoring. Module calling: moved { from=module.old_name.aws_instance.web, to=module.new_name.aws_instance.web }. Enables module renaming, resource extraction without destroy/recreate"
+        "Moves module source — wrong concept",
+        "Moves module location — wrong concept",
+        "Deprecated — false; Terraform 1.1+ feature",
+        "Declares that a resource (or whole module) has MOVED to a different address; usable inside modules to handle module-internal refactoring transparently for callers; state updated in place, no destroy/create"
       ],
       "correct": 3,
       "explanation": "Module-level moved: rename a module in root config without recreating resources. module.database (old) → module.rds (new): add moved { from=module.database, to=module.rds }. Apply: state updated (resource addresses renamed), no infrastructure changes. Remove moved block after all consumers have applied. Terraform 1.1+.",
       "tags": [
         "modules",
-        "refactoring",
-        "moved",
-        "advanced",
+        "moved-in-module",
         "terraform-003"
       ],
       "difficulty": "hard",
-      "_normalized": true
+      "_normalized": true,
+      "rewritten": true
     },
     {
       "id": "tf-112",
-      "question": "What is the Terraform 'jsondecode' and 'jsonencode' function pair?",
+      "question": "A configuration reads `policy.json` (an AWS IAM policy as JSON) and passes it to an `aws_iam_policy.policy_json` attribute. `jsondecode(file(\"policy.json\"))` parses the JSON into HCL values; `jsonencode(local.policy_obj)` does the reverse — produces a JSON string from HCL. Useful for IAM policies, K8s manifests, custom config. Which describes the pair?",
       "options": [
-        "Deprecated JSON functions",
-        "Requires JSON provider",
-        "jsondecode(string): parses JSON string into Terraform value. jsonencode(value): converts Terraform value to JSON string. Use cases: reading JSON policy documents, constructing JSON for API calls, parsing JSON responses from data sources",
-        "Only for provider config"
+        "Deprecated — false",
+        "Needs provider — false; built-in",
+        "`jsondecode(string)` parses JSON into HCL values (maps, lists, primitives); `jsonencode(value)` produces a JSON string from HCL values; used for IAM policies, K8s manifests, custom configs",
+        "Provider config only — false"
       ],
       "correct": 2,
       "explanation": "jsonencode: jsonencode({Version='2012-10-17', Statement=[{Effect='Allow', Action='*', Resource='*'}]}). Creates valid JSON for IAM policies, container definitions, etc. jsondecode: jsondecode(data.aws_iam_policy_document.main.json) → Terraform map. Cleaner than heredoc JSON strings. Validate JSON syntax at plan time (not runtime).",
       "tags": [
-        "functions",
-        "json",
-        "configuration",
+        "expressions",
+        "jsondecode-jsonencode",
         "terraform-003"
       ],
       "difficulty": "medium",
-      "_normalized": true
+      "_normalized": true,
+      "rewritten": true
     },
     {
       "id": "tf-113",
-      "question": "What is Terraform module 'source' with git?",
+      "question": "A team consumes a MODULE published in a private git repository. The `source` argument supports git URLs: `git::https://github.com/org/repo.git?ref=v1.0` (HTTPS + tag) or `git::ssh://git@github.com/org/repo.git?ref=feature/x` (SSH + branch). `ref` can be tag, branch, or commit SHA. Which describes git sources?",
       "options": [
-        "Only registry modules allowed",
-        "Git source: 'git::https://github.com/org/repo.git?ref=v1.0'. ref can be: tag, branch, commit hash. SSH: 'git::ssh://git@github.com/org/repo.git'. Subdirectory: 'git::https://github.com/org/repo.git//modules/vpc?ref=main'. Double slash separates repo from subdirectory path",
-        "Git sources don't support versioning",
-        "Only HTTPS is supported"
+        "Registry only — false; many sources supported",
+        "Git source: `git::https://...?ref=<tag/branch/commit>` or `git::ssh://...?ref=…`; `ref` is tag / branch / commit SHA; commonly used for private modules; `//subdir` selects a subdirectory inside the repo",
+        "No versioning — false; ref is the version",
+        "HTTPS only — false; SSH supported"
       ],
       "correct": 1,
       "explanation": "Git module sources: always pin ref (don't use HEAD/main — unstable). Prefer tags (semantic versioning) for production modules. SSH vs HTTPS: SSH requires key setup (good for CI), HTTPS requires token or PAC. Subdirectory: useful for monorepos with multiple modules. Private repos: configure git credentials before terraform init.",
       "tags": [
         "modules",
-        "git",
-        "versioning",
+        "git-source",
         "terraform-003"
       ],
       "difficulty": "medium",
-      "_normalized": true
+      "_normalized": true,
+      "rewritten": true
     },
     {
       "id": "tf-114",
-      "question": "What is Terraform's 'zipmap' function?",
+      "question": "Two lists `keys = [\"env\",\"team\"]` and `values = [\"prod\",\"web\"]` need to be combined into a MAP `{env=\"prod\", team=\"web\"}`. `zipmap(keys, values)` pairs them up. Both lists must be the same length. Which describes it?",
       "options": [
-        "Zips two archives",
-        "Creates a map from two lists.",
-        "A compression function",
-        "Merges two maps"
+        "Zips archives — wrong concept",
+        "Creates a map from TWO lists (keys + values) by position; `zipmap([\"env\",\"team\"], [\"prod\",\"web\"])` → `{env=\"prod\", team=\"web\"}`; both lists must be the same length",
+        "Compression — wrong concept",
+        "Merges maps — different function (`merge`)"
       ],
       "correct": 1,
       "explanation": "zipmap: zipmap(var.subnet_names, aws_subnet.main[*].id) → map from subnet name to ID. Use with for expressions or resources: for_each = zipmap(keys(var.policies), values(var.policies)). Pairs: output = zipmap(keys(var.users), [for u in var.users : module.user[u.name].arn]) — combine with complex for expressions. one for keys, one for values. zipmap(['a','b','c'], [1,2,3]) = {a=1, b=2, c=3}. Lists must be same length. Complement to keys() and values(). Useful when you have parallel lists of names and values",
       "tags": [
-        "functions",
-        "maps",
-        "data-transformation",
+        "expressions",
+        "zipmap",
         "terraform-003"
       ],
       "difficulty": "hard",
       "_normalized": true,
-      "_lenbal": true
+      "_lenbal": true,
+      "rewritten": true
     },
     {
       "id": "tf-115",
-      "question": "What are Terraform 'experimental' features?",
+      "question": "Terraform Language Experiments are FEATURES IN ACTIVE DEVELOPMENT — must be opted into via `terraform { experiments = [<feature>] }`. They MAY CHANGE OR BE REMOVED in future versions. Experimental flags expose new language constructs early for community feedback. Use only with awareness of the stability risk. Which describes them?",
       "options": [
-        "Features enabled via language_experiments in terraform block — may change or be removed in future versions. Example: module_variable_optional_attrs (now stable in 1.3). Use only in development, not production. Enabled: terraform { experiments = [module_variable_optional_attrs] }",
-        "Debug-only features",
-        "Beta provider versions",
-        "Unstable provider features"
+        "Features enabled via `terraform { experiments = [<name>] }`; not stable, may change / be removed; for community testing of new language features; production use discouraged",
+        "Debug only — false",
+        "Beta providers — wrong concept (providers have their own versioning)",
+        "Unstable providers — wrong concept"
       ],
       "correct": 0,
       "explanation": "Experiments: terraform { experiments = [example_feature] }. Each experiment: provisional feature being tested. May: change API, be removed, or graduate to stable feature. Check changelog: features graduate from experiments to stable. Production: avoid experiments — wait for stable release. Example graduated: optional variable attributes, module_variable_optional_attrs (now stable).",
       "tags": [
-        "advanced",
-        "experimental",
-        "versioning",
+        "language",
+        "experiments",
         "terraform-003"
       ],
       "difficulty": "hard",
-      "_normalized": true
+      "_normalized": true,
+      "rewritten": true
     },
     {
       "id": "tf-116",
-      "question": "What is Terraform's 'setintersection', 'setunion', and 'setsubtract'?",
+      "question": "Terraform's SET operations: `setintersection(a,b,c)` returns elements common to ALL sets. `setunion(a,b,c)` returns elements in ANY set. `setsubtract(a,b)` returns `a - b` (elements in a but not in b). Useful for derived sets (e.g., available subnets = all - used). Which describes them?",
       "options": [
-        "Requires special module",
-        "Only list operations exist",
-        "Set operations: setintersection([a,b,c],[b,c,d]) = {b,c}. setunion([a,b],[b,c]) = {a,b,c}. setsubtract([a,b,c],[b,c]) = {a}. Use for: comparing lists of resources, finding common/different elements, computing changes",
-        "No set math in Terraform"
+        "Needs module — false; built-in",
+        "List-only — false; set operations are first-class",
+        "Set operations: `setintersection(a,b,…)` (elements common to ALL), `setunion(a,b,…)` (any), `setsubtract(a,b)` (`a - b`); auto-converts list inputs to sets; useful for derived sets like available = all - used",
+        "No set math — false"
       ],
       "correct": 2,
       "explanation": "Set math: setintersection: elements in ALL sets. setunion: elements in ANY set. setsubtract: elements in first but not second. Use cases: find users in group A AND group B (intersection), all users in either group (union), users to remove (subtract current from desired). Useful with toset() for processing lists as sets.",
       "tags": [
-        "functions",
-        "sets",
-        "data-processing",
+        "expressions",
+        "set-operations",
         "terraform-003"
       ],
       "difficulty": "hard",
-      "_normalized": true
+      "_normalized": true,
+      "rewritten": true
     },
     {
       "id": "tf-117",
-      "question": "What is Terraform's 'null' value and how does it interact with resources?",
+      "question": "A `name = null` argument on a resource tells Terraform 'use the provider's default for this attribute' — distinct from `name = \"\"` (empty string) which is a real value. `null` is a special value indicating ABSENCE. Used in conditional expressions: `tag = var.set ? \"yes\" : null`. Which describes null?",
       "options": [
-        "Same as empty string",
-        "Represents absent/unknown values.",
-        "Creates a null resource",
-        "Deletes a resource"
+        "Same as empty string — false; distinct semantics",
+        "Represents ABSENT / unknown values; `attr = null` on a resource argument means 'use the provider's default'; distinct from empty string; used in conditionals to omit attributes (`attr = var.set ? value : null`)",
+        "Creates null resource — wrong concept",
+        "Deletes resource — false"
       ],
       "correct": 1,
       "explanation": "null: explicitly omit optional attributes. some_resource { optional_attr = var.value == '' ? null : var.value }. When attribute = null: Terraform omits it from API call (provider uses default). Different from '' (empty string). Use for: optional nested blocks, conditional attribute inclusion. Ternary with null: common pattern for optional configurations. Set attribute to null: removes that attribute from API call (use provider default). In conditional: var.optional_attr == null ? null : var.optional_attr. Useful for optional attributes: some_attr = var.override != null ? var.override : null",
       "tags": [
+        "expressions",
         "null",
-        "types",
-        "configuration",
         "terraform-003"
       ],
       "difficulty": "medium",
       "_normalized": true,
-      "_lenbal": true
+      "_lenbal": true,
+      "rewritten": true
     },
     {
       "id": "tf-118",
-      "question": "What is the 'checkov' tool and its relationship to Terraform?",
+      "question": "An infra security team wants to scan Terraform configurations for misconfigurations BEFORE apply: public S3 buckets, security groups with 0.0.0.0/0 ingress on 22, IAM policies with `Action: *`. Checkov (BridgeCrew) is an open-source static analysis tool that scans Terraform / CloudFormation / K8s / Dockerfile against 1000+ built-in policies. Which describes it?",
       "options": [
-        "A Terraform plugin",
-        "Open-source static analysis tool for IaC security — scans Terraform configurations for misconfigurations and security issues (e.g., S3 bucket without encryption, security groups with 0.0.0.0/0 ingress, IAM wildcards). Runs before apply, catches issues early in pipeline",
-        "A Terraform provider",
-        "A state management tool"
+        "Plugin — wrong concept (Checkov is standalone)",
+        "Open-source static-analysis tool for IaC security — scans Terraform / CloudFormation / K8s / Dockerfile against 1000+ built-in policies (CIS, NIST, AWS Foundations); produces findings; integrates with CI / pre-commit",
+        "Provider — wrong concept",
+        "State tool — wrong concept"
       ],
       "correct": 1,
       "explanation": "Checkov: standalone CLI tool. Scan: checkov -d . --framework terraform. 2000+ policies covering: AWS, Azure, GCP, Kubernetes. Output: PASSED/FAILED with remediation guidance. CI integration: fail pipeline on HIGH/CRITICAL findings. Alternatives: tflint (linting), tfsec (security), terraform-compliance (BDD-style tests). Combine in pipeline: fmt → validate → checkov → plan → apply.",
       "tags": [
         "security",
-        "tools",
-        "cicd",
-        "static-analysis",
+        "checkov",
         "terraform-003"
       ],
       "difficulty": "medium",
-      "_normalized": true
+      "_normalized": true,
+      "rewritten": true
     },
     {
       "id": "tf-119",
-      "question": "What is Terraform's 'tolist' and 'toset' use case difference?",
+      "question": "Two conversion functions: `tolist(set)` converts an unordered set to an ordered list (alphabetical / canonical order). `toset(list)` converts a list to an unordered set (dedup + lose order). Used to convert between collection types when functions demand a specific input. Which describes them?",
       "options": [
-        "Identical functions",
-        "tolist preserves no duplicates",
-        "toset is deprecated",
-        "tolist: converts to ordered list (duplicates preserved, indexed). toset: converts to unordered set (duplicates removed, keyed by value). for_each requires map or set (not list) → use toset(). When order matters: tolist. For deduplication: toset. Convert back: tolist(toset(var.list)) — deduplicate a list"
+        "Identical — false",
+        "tolist removes dups — false; tolist keeps duplicates",
+        "toset deprecated — false",
+        "`tolist` converts to ordered list (preserves duplicates, indexable); `toset` converts to unordered set (dedup elements, used by `for_each`); choose based on what the consumer requires"
       ],
       "correct": 3,
       "explanation": "Pattern: for_each = toset(var.names) — deduplicate and enable for_each. tolist(aws_instance.web[*].id) — convert tuple to list. toset(['a','b','a']) = {'a','b'} (deduped). tolist({'a','b'}) = ['a','b'] (arbitrary order). Use toset for for_each patterns. Use tolist when you need ordered access by index.",
       "tags": [
-        "functions",
-        "types",
-        "for_each",
+        "expressions",
+        "tolist-vs-toset",
         "terraform-003"
       ],
       "difficulty": "medium",
-      "_normalized": true
+      "_normalized": true,
+      "rewritten": true
     },
     {
       "id": "tf-120",
-      "question": "What is the recommended Terraform file structure for a module?",
+      "question": "A Terraform module's STANDARD file layout: `main.tf` (resources + data sources), `variables.tf` (inputs declared), `outputs.tf` (exports), `versions.tf` (terraform + required_providers), `README.md` (docs + usage example), optionally `locals.tf`, `data.tf`. Splitting by purpose makes the module readable; Terraform reads all .tf files in the directory regardless. Which describes the standard layout?",
       "options": [
-        "Standard structure: main.tf (resources),.",
-        "Alphabetical file naming",
-        "Only provider.tf needed",
-        "Single main.tf file"
+        "Standard module layout: `main.tf` (resources), `variables.tf` (inputs), `outputs.tf` (exports), `versions.tf` (terraform + required_providers), `README.md` (docs); optional `locals.tf`, `data.tf`; Terraform reads ALL .tf files regardless of name",
+        "Alphabetical only — false",
+        "Only provider.tf — false",
+        "Single main.tf — works but discouraged for non-trivial modules"
       ],
       "correct": 0,
       "explanation": "Conventional structure: main.tf (core resources), variables.tf (all variable declarations), outputs.tf (all outputs), versions.tf (required_providers, required_version, provider config). examples/ directory: working example usage. tests/ directory: .tftest.hcl files. README: generated by terraform-docs. CHANGELOG: semantic versioning history. Consistency enables tooling (terraform-docs, semantic-release). variables.tf (input variables), outputs.tf (output values), versions.tf (required_providers and required_version), README.md (usage docs), CHANGELOG.md (version history). Optional: locals.tf, data.tf, provider.tf. Subdirectory for examples/ and tests/",
       "tags": [
         "modules",
-        "structure",
-        "best-practices",
+        "file-structure",
         "terraform-003"
       ],
       "difficulty": "easy",
       "_normalized": true,
-      "_lenbal": true
+      "_lenbal": true,
+      "rewritten": true
     },
     {
       "id": "tf-121",
-      "question": "What is the Terraform taint command and when should you use it?",
+      "question": "`terraform taint <address>` (deprecated since 0.15.4) marked a resource for FORCED REPLACEMENT on next apply. It mutated state to mark the resource tainted. The modern replacement is `terraform apply -replace=<address>`. Which describes taint (deprecated) + its behaviour?",
       "options": [
-        "Prevents a resource from being modified",
-        "Deletes a resource immediately",
-        "Marks a specific resource for forced replacement on the next terraform apply — the resource will be destroyed and recreated. Use when a resource is in a broken state that Terraform can't detect automatically",
-        "Marks a resource as invalid syntax"
+        "Prevents modify — wrong concept",
+        "Deletes immediately — false; replacement happens on next apply",
+        "Marks a specific resource for FORCED REPLACEMENT on next apply (destroy + recreate); MUTATED state immediately; DEPRECATED since 0.15.4 → use `terraform apply -replace=<address>` (non-mutating preview before apply)",
+        "Invalid syntax — wrong concept"
       ],
       "correct": 2,
       "explanation": "terraform taint RESOURCE_ADDRESS: forces resource recreation next apply. Deprecated in TF 1.0+ — use terraform apply -replace=RESOURCE_ADDRESS instead. Use when: resource is misconfigured but Terraform shows it as up-to-date, or manual changes outside Terraform broke the resource.",
       "tags": [
         "cli",
-        "lifecycle",
+        "taint-deprecated",
         "terraform-003"
       ],
       "difficulty": "medium",
-      "_normalized": true
+      "_normalized": true,
+      "rewritten": true
     },
     {
       "id": "tf-122",
-      "question": "What is the Terraform replace option in modern versions?",
+      "question": "Modern Terraform's replacement for `terraform taint`: `terraform apply -replace=<address>` (also `plan -replace`). It doesn't mutate state until apply; the plan visibly shows DESTROY + CREATE for the specified resource. Multiple `-replace` flags can be passed. Which describes it?",
       "options": [
-        "There is no replace option",
-        "terraform apply -replace=RESOURCE_ADDRESS: forces a specific resource to be replaced (destroy + create) in a single apply operation — replaces the deprecated 'terraform taint' command. Safer: shows plan before executing",
-        "terraform replace RESOURCE",
-        "terraform destroy -target=RESOURCE then apply"
+        "No replace option — false",
+        "`terraform apply -replace=<address>` (also `plan -replace`) — forces a specific resource to be replaced (destroy + create) in a single plan; doesn't mutate state until apply; multiple `-replace` flags supported",
+        "`terraform replace` verb — not a real subcommand",
+        "destroy -target then apply — works but two operations + risk; -replace is the canonical one-shot"
       ],
       "correct": 1,
       "explanation": "terraform apply -replace=google_compute_instance.web: shows plan with resource marked for replacement, then executes. More transparent than taint (shows the replacement plan before confirming). Use when a specific resource needs to be recreated without destroying everything else.",
       "tags": [
         "cli",
-        "lifecycle",
+        "apply-replace",
         "terraform-003"
       ],
       "difficulty": "medium",
-      "_normalized": true
+      "_normalized": true,
+      "rewritten": true
     },
     {
       "id": "tf-123",
-      "question": "What is a Terraform null_resource and when is it used?",
+      "question": "`null_resource` is a resource that implements the standard Terraform lifecycle (create / destroy / triggers) but DOES NOT create real infrastructure. Used as a hook for `local-exec` / `remote-exec` provisioners, or as a synthetic resource for `depends_on` / `triggers`. Terraform 1.4+ introduces `terraform_data` as a cleaner replacement for many use cases. Which describes it?",
       "options": [
-        "A deleted resource placeholder",
-        "A resource with no attributes",
-        "A resource that implements standard lifecycle but doesn't create real infrastructure — used with provisioners to run scripts, or as a dependency anchor for other resources without creating actual cloud resources",
-        "An empty variable"
+        "Deleted placeholder — wrong concept",
+        "No attributes — false; has triggers + id",
+        "A resource that implements the standard lifecycle but creates NO real infrastructure; used with provisioners (`local-exec`, `remote-exec`) and `triggers` to run hooks on changes; Terraform 1.4+ introduces `terraform_data` as a built-in alternative",
+        "Empty variable — wrong concept"
       ],
       "correct": 2,
       "explanation": "null_resource: triggers = {} map to control when it re-runs. Provisioner executes on create (or destroy). Use cases: run a script after infrastructure is created, create a dependency between resources without a direct reference, trigger provisioners conditionally. terraform-provider-null required.",
       "tags": [
-        "null_resource",
-        "provisioners",
+        "resources",
+        "null-resource",
         "terraform-003"
       ],
       "difficulty": "hard",
-      "_normalized": true
+      "_normalized": true,
+      "rewritten": true
     },
     {
       "id": "tf-124",
-      "question": "What is the Terraform random provider used for?",
+      "question": "A configuration needs UNIQUE random suffixes for resource names (avoid name collisions across re-applies). `hashicorp/random` provider provides `random_id`, `random_string`, `random_password`, `random_uuid`, `random_pet`, `random_shuffle` resources. Values are generated ONCE at create + stored in state (stable across applies until destroy / recreate). Which describes it?",
       "options": [
-        "Generates random infrastructure",
-        "A shuffle provider",
-        "Generates random values (strings,.",
-        "A test framework"
+        "Random infrastructure — wrong concept",
+        "Shuffle provider — partial; one of many resources",
+        "Generates random values (strings, integers, IDs, UUIDs, passwords, pet names, shuffle) via `random_*` resources; values STABLE in state (regenerated only on recreate); useful for unique resource names + passwords / IDs",
+        "Test framework — wrong category"
       ],
       "correct": 2,
       "explanation": "random_string: generates random alphanumeric string. random_id: generates random bytes in hex/base64. random_password: generates strong password. random_integer: random number in range. These resources are stable after creation (don't regenerate on each apply unless keepers change). integers, UUIDs, passwords) within Terraform configurations — commonly used for: unique resource names (S3 buckets, database passwords), avoiding naming conflicts, generating entropy for resources that require unique IDs",
       "tags": [
-        "random",
         "providers",
+        "random",
         "terraform-003"
       ],
       "difficulty": "easy",
       "_normalized": true,
-      "_lenbal": true
+      "_lenbal": true,
+      "rewritten": true
     },
     {
       "id": "tf-125",
-      "question": "What is the Terraform time_sleep resource?",
+      "question": "Provisioning a managed DB takes ~5 min for the cluster to fully become available — the resource is 'created' but not yet 'usable'. A downstream resource that depends on the DB might fail. The `time_sleep` resource (from `hashicorp/time` provider) introduces a configurable delay between resource creations: `resource \"time_sleep\" \"wait_5m\" { depends_on = [aws_db_instance.main]; create_duration = \"5m\" }`. Which describes it?",
       "options": [
-        "From the hashicorp/time provider.",
-        "A debugging pause",
-        "A timeout configuration",
-        "A rate limit feature"
+        "From `hashicorp/time` provider — introduces a configurable delay between resource creations / updates; useful as a workaround for cases where a resource is 'created' but not yet usable; `create_duration` / `update_duration` / `destroy_duration`",
+        "Debug pause — wrong concept",
+        "Timeout config — different (`timeouts` block)",
+        "Rate limit — wrong concept"
       ],
       "correct": 0,
       "explanation": "time_sleep.wait_30_seconds { create_duration = '30s' depends_on = [aws_instance.db] }. Other resources depend on this sleep. Use sparingly — prefer proper readiness checks. time_static: captures current time as a static value for tagging/versioning. creates a delay between resource creation steps. Use when: a resource needs time to become available after creation (e.g., wait 30s after creating a database before creating a dependent service)",
       "tags": [
-        "time",
         "providers",
-        "dependencies",
+        "time-sleep",
         "terraform-003"
       ],
       "difficulty": "medium",
       "_normalized": true,
-      "_lenbal": true
+      "_lenbal": true,
+      "rewritten": true
     },
     {
       "id": "tf-126",
-      "question": "What is the Terraform sensitive function?",
+      "question": "An expression `sensitive(var.password)` returns the same value but MARKED SENSITIVE in plan output (redacted to '(sensitive value)'). Useful when a value isn't statically marked sensitive but should be redacted for a specific use. Different from `nonsensitive` (which unmarks). Which describes `sensitive`?",
       "options": [
-        "Prevents a variable from being used",
-        "Encrypts the state file",
-        "sensitive(value): marks a value as sensitive in the plan output — redacts the value in logs and console output. Use for passwords, API keys, secrets that should not appear in Terraform plan output or state file display",
-        "Marks a file as sensitive"
+        "Prevents use — false",
+        "Encrypts state — false; only redacts display",
+        "`sensitive(value)` — marks the value as sensitive in plan output (redacts as '(sensitive value)'); useful for dynamically-sensitive values; counterpart is `nonsensitive()` which unmarks",
+        "Marks file — wrong concept"
       ],
       "correct": 2,
       "explanation": "sensitive(): wraps any value to mark it sensitive. Terraform redacts it in plan output (shows as '(sensitive value)'). Note: the value IS still stored in state — sensitive() only affects display. For real secrets: use Vault provider or AWS Secrets Manager to retrieve at runtime, never store in state.",
       "tags": [
-        "security",
-        "variables",
-        "outputs",
+        "expressions",
+        "sensitive-function",
         "terraform-003"
       ],
       "difficulty": "medium",
-      "_normalized": true
+      "_normalized": true,
+      "rewritten": true
     },
     {
       "id": "tf-127",
-      "question": "What is Terraform's lifecycle precondition and postcondition?",
+      "question": "Inside a `lifecycle` block: `precondition { condition = …; error_message = … }` validates BEFORE the resource is created / updated. `postcondition { … }` validates AFTER apply. Different from `validation` in variables (which runs at plan-time, variable-scope). These are resource-scoped + run within the apply pipeline. Which describes pre/postcondition?",
       "options": [
-        "Build conditions",
-        "Loop conditions",
-        "Module requirements",
-        "Validation checks within resource or data source lifecycle blocks — precondition: validates before resource is modified (checks assumptions), postcondition: validates after resource is created (verifies outcomes). Fails the apply with a custom error message if condition is false"
+        "Build conditions — wrong concept",
+        "Loop conditions — wrong concept",
+        "Module requirements — wrong concept",
+        "Validation checks within a `lifecycle` block of a resource or data source — `precondition` validates BEFORE creation/update (fails plan on false), `postcondition` validates AFTER (fails apply on false); different from variable validation (which runs at plan time, variable-scope)"
       ],
       "correct": 3,
       "explanation": "lifecycle { precondition { condition = var.instance_type != 't3.nano' error_message = 'Instance type too small for production.' } }. Checks run during plan. Custom error messages guide users. Better than null_resource workarounds. Postcondition verifies the resource was created as expected.",
       "tags": [
-        "lifecycle",
         "validation",
-        "terraform-003"
-      ],
-      "difficulty": "hard",
-      "_normalized": true
-    },
-    {
-      "id": "tf-128",
-      "question": "What is the Terraform import block (Terraform 1.5+)?",
-      "options": [
-        "Declarative import configuration in .tf files.",
-        "A provider installation block",
-        "Imports modules from the registry",
-        "A module source declaration"
-      ],
-      "correct": 0,
-      "explanation": "import { to = aws_instance.example, id = 'i-1234567890' }. Run terraform plan: shows what will be imported. terraform apply: performs import. -generate-config-out=generated.tf: auto-generates resource configuration from imported resource. Much better than CLI import for team workflows. defines which existing resources to import into state. Unlike terraform import CLI command, import blocks are plan-able and reviewable before execution. Generate config with -generate-config-out flag",
-      "tags": [
-        "import",
-        "state",
-        "cli",
+        "pre-post-condition",
         "terraform-003"
       ],
       "difficulty": "hard",
       "_normalized": true,
-      "_lenbal": true
+      "rewritten": true
+    },
+    {
+      "id": "tf-128",
+      "question": "Terraform 1.5+ introduces an `import { to = aws_s3_bucket.legacy; id = \"my-bucket\" }` BLOCK in .tf files. The block is planned + applied as part of normal Terraform workflow. Replaces the imperative `terraform import` CLI workflow with a code-first approach that's version-controllable + reviewable. Can also `terraform plan -generate-config-out=` to generate the missing resource block. Which describes it?",
+      "options": [
+        "Terraform 1.5+ declarative import — `import { to = <address>; id = <existing> }` block in code; planned + applied as part of normal workflow; can auto-generate the resource block via `terraform plan -generate-config-out=`; replaces imperative `terraform import` CLI for new work",
+        "Provider install — wrong concept",
+        "Imports modules — wrong concept",
+        "Module source — wrong concept"
+      ],
+      "correct": 0,
+      "explanation": "import { to = aws_instance.example, id = 'i-1234567890' }. Run terraform plan: shows what will be imported. terraform apply: performs import. -generate-config-out=generated.tf: auto-generates resource configuration from imported resource. Much better than CLI import for team workflows. defines which existing resources to import into state. Unlike terraform import CLI command, import blocks are plan-able and reviewable before execution. Generate config with -generate-config-out flag",
+      "tags": [
+        "cli",
+        "import-block",
+        "terraform-003"
+      ],
+      "difficulty": "hard",
+      "_normalized": true,
+      "_lenbal": true,
+      "rewritten": true
     },
     {
       "id": "tf-129",
-      "question": "What is Terraform's check block?",
+      "question": "A `check` block at root configuration level runs ASSERTIONS about infrastructure AFTER apply (not blocking — produces warnings, not errors). Example: assert `data.http.lb_health.status_code == 200`. The check runs on every plan/apply. Different from preconditions (which block resource creation). Which describes check blocks?",
       "options": [
-        "A pre-plan validation",
-        "A unit test framework",
-        "Syntax validation",
-        "Custom assertions that run after apply to continuously validate infrastructure — check blocks don't prevent deployment but alert when assertions fail. Used for: verifying URLs are reachable, checking certificate expiry, validating external conditions"
+        "Pre-plan validation — different concept",
+        "Unit test — different framework",
+        "Syntax — wrong concept",
+        "Terraform 1.5+ `check` block — custom assertions that run after apply to continuously validate infrastructure state; produces WARNINGS not errors (doesn't block apply); useful for ongoing health validation (LB returns 200, etc.); different from preconditions which block resource lifecycle"
       ],
       "correct": 3,
       "explanation": "check 'website_reachable' { data 'http' 'healthcheck' { url = 'https://example.com' } assert { condition = data.http.healthcheck.status_code == 200 error_message = 'Website returned unexpected status.' } }. Run every plan/apply. Failures are warnings, not errors. Continuous compliance checking.",
       "tags": [
         "validation",
-        "testing",
+        "check-block",
         "terraform-003"
       ],
       "difficulty": "hard",
-      "_normalized": true
+      "_normalized": true,
+      "rewritten": true
     },
     {
       "id": "tf-130",
-      "question": "What is the Terraform templatefile function?",
+      "question": "A configuration needs to render a TEMPLATE FILE (`config.yaml.tmpl`) substituting `${var}` placeholders with HCL values. Output: a fully-rendered string suitable for cloud-init user-data, K8s manifest generation, etc. The `templatefile(path, vars)` function reads the file + renders. Which describes it?",
       "options": [
-        "Reads a template file and renders it with provided variables — replaces ${variable} placeholders with values. Use for: generating complex configuration files, user_data scripts, Kubernetes manifests with dynamic values",
-        "Creates file resources",
-        "A string template only",
-        "A file copy function"
+        "`templatefile(path, vars)` — reads a template file and renders it with provided variables; replaces `${var}` placeholders; supports directives `%{ if cond }`, `%{ for x in list }`; returns the rendered string; common for cloud-init, K8s manifests, config files",
+        "Creates file resources — wrong concept",
+        "String template only — too narrow",
+        "File copy — wrong concept"
       ],
       "correct": 0,
       "explanation": "templatefile('scripts/init.sh.tpl', { db_host = aws_db_instance.main.address, env = var.environment }). Template file uses ${var} syntax. Useful for user_data in EC2, cloud-init scripts, config files. Alternative to heredoc strings in resource config.",
       "tags": [
-        "functions",
-        "templating",
+        "expressions",
+        "templatefile",
         "terraform-003"
       ],
       "difficulty": "medium",
-      "_normalized": true
+      "_normalized": true,
+      "rewritten": true
     },
     {
       "id": "tf-131",
