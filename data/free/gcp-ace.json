@@ -6,7 +6,7 @@
     "version": "1.2.0",
     "question_count": 56,
     "last_updated": "2026-05-14",
-    "notes": "harden distractors against longest-answer bias; fix corrupted correct indices [scheduled-agent]"
+    "notes": "harden distractors against longest-answer bias; fix corrupted correct indices [scheduled-agent] [gcp-ace batch 1: 12 balanced rewrites — recall=0]"
   },
   "questions": [
     {
@@ -124,22 +124,22 @@
     },
     {
       "id": "gcp-ace-007",
-      "question": "Which gcloud command lists all Compute Engine instances in a specific project and zone?",
+      "question": "A platform engineer needs to list Compute Engine VMs that exist in a specific GCP project AND a specific zone — for example `prod-network` and `us-central1-a`. They use a single gcloud command with the project + zone filters. Which command does this?",
       "options": [
-        "gcloud compute instances list --zone=us-central1-a",
-        "gcloud compute instances describe --zone=us-central1-a",
-        "gcloud compute instances list --region=us-central1-a",
-        "gcloud compute vms list --zone=us-central1-a"
+        "`gcloud compute instances list --project=prod-network --filter=\"zone:us-central1-a\"`",
+        "`gcloud compute vms list prod-network us-central1-a` — invalid syntax; the subcommand `vms` does not exist",
+        "`gcloud projects describe prod-network --include-instances` — describes the project metadata; does not enumerate instances",
+        "`gcloud beta compute regions describe us-central1 --project=prod-network` — describes a region; does not list its VMs"
       ],
       "correct": 0,
       "explanation": "gcloud compute instances list --zone=ZONE lists all VM instances in that zone. The describe subcommand returns details for a single named instance and is not used for listing. Compute Engine instances are zonal, so the --region flag is invalid for the list subcommand. The vms subgroup does not exist; the correct subgroup is instances.",
       "tags": [
         "gcloud",
-        "compute",
-        "cli",
+        "compute-instances",
         "gcp-ace"
       ],
-      "difficulty": "easy"
+      "difficulty": "easy",
+      "rewritten": true
     },
     {
       "id": "gcp-ace-008",
@@ -180,22 +180,22 @@
     },
     {
       "id": "gcp-ace-010",
-      "question": "What is the purpose of a Cloud NAT gateway in GCP?",
+      "question": "A subnet with no public IPs hosts a fleet of VMs that must reach the public internet for OS updates and SaaS APIs, but must NOT be reachable inbound. The engineer wants a managed regional resource that sources outbound flows on shared NAT addresses without requiring any per-VM public IP. Which GCP resource fits?",
       "options": [
-        "Lets VMs without external IPs initiate outbound internet connections",
-        "Provides inbound load balancing for VMs without external IP addresses",
-        "Peers two VPCs across regions and projects in the same organization",
-        "Encrypts traffic between on-premises networks and Google Cloud VPCs"
+        "Cloud NAT — managed source NAT for VMs/GKE pods that lack public IPs; outbound-only traffic to the internet without exposing the workloads inbound",
+        "Cloud Load Balancer — distributes inbound traffic across backends; does not provide outbound source NAT for private VMs",
+        "Cloud Router — exchanges BGP routes between VPC and on-prem networks; not a source-NAT service on its own",
+        "Cloud Armor — L7 web application firewall for HTTP(S) load balancers; not relevant to private-VM outbound connectivity"
       ],
       "correct": 0,
       "explanation": "Cloud NAT (Network Address Translation) allows VM instances without external IP addresses to make outbound connections to the internet while hiding their internal IPs behind NAT IPs. It does not accept unsolicited inbound connections. VPC Network Peering is a separate service for connecting VPCs. Cloud VPN and Cloud Interconnect handle on-premises encryption and connectivity.",
       "tags": [
         "networking",
-        "nat",
-        "vpc",
+        "cloud-nat",
         "gcp-ace"
       ],
-      "difficulty": "medium"
+      "difficulty": "medium",
+      "rewritten": true
     },
     {
       "id": "gcp-ace-011",
@@ -275,21 +275,22 @@
     },
     {
       "id": "gcp-ace-015",
-      "question": "What happens to data in a Cloud Storage bucket when you enable Object Versioning?",
+      "question": "A team enables Object Versioning on a Cloud Storage bucket holding important documents. The next day, a user overwrites `report.pdf` with an empty file. Then they DELETE it. What happens to the previous versions of the object after these two operations?",
       "options": [
-        "Each update creates a new version; prior versions retained by generation ID",
-        "The latest version overwrites the previous one with no history retained",
-        "Objects are replicated to additional regions for read availability",
-        "Objects are placed under a retention lock until the lifecycle policy releases them"
+        "Both noncurrent (overwritten) and deleted versions of objects are RETAINED as separate noncurrent versions and remain retrievable until lifecycle policies remove them",
+        "Old versions are immediately purged on any overwrite; only the latest live version is stored, similar to a versionless bucket",
+        "Only deletions are retained as noncurrent versions; overwrites are not preserved when the user has writer permissions on the object",
+        "Versioning encrypts every prior version with a unique customer-managed key; it does not preserve the bytes themselves for retrieval"
       ],
       "correct": 0,
       "explanation": "Cloud Storage Object Versioning maintains every version of an object. When an object is overwritten or deleted, the prior version becomes a noncurrent version retained with its original generation number, and you can restore, list, or permanently delete it. Versioning does not change the bucket's location/replication settings and does not make objects immutable — that requires retention policies or object holds.",
       "tags": [
-        "storage",
+        "cloud-storage",
         "versioning",
         "gcp-ace"
       ],
-      "difficulty": "medium"
+      "difficulty": "medium",
+      "rewritten": true
     },
     {
       "id": "gcp-ace-016",
@@ -330,22 +331,22 @@
     },
     {
       "id": "gcp-ace-018",
-      "question": "Which command creates a new Kubernetes namespace called 'production' in your current GKE cluster context?",
+      "question": "A GKE operator needs to create a new Kubernetes namespace named `production` in the cluster their kubectl context currently points to. They run a single kubectl command. Which command creates the namespace?",
       "options": [
-        "gcloud container namespaces create production",
-        "kubectl create namespace production",
-        "kubectl create ns production --type=v1",
-        "gcloud kubernetes namespace add production"
+        "`kubectl create namespace production` — creates a new Namespace object named `production` in the active cluster context",
+        "`gcloud container clusters create production` — creates a brand-new GKE cluster, not a Namespace inside an existing cluster",
+        "`kubectl apply --namespace=production` — requires a manifest input; does not on its own create the namespace",
+        "`kubectl get namespaces production` — read-only command; lists info if the namespace exists, but does not create one"
       ],
-      "correct": 1,
+      "correct": 0,
       "explanation": "kubectl create namespace production (or its short form kubectl create ns production) is the correct Kubernetes CLI command. The --type=v1 flag is invalid for create namespace. gcloud does not include subcommands for managing in-cluster Kubernetes API objects like namespaces — those are operated via kubectl against the cluster's API server.",
       "tags": [
         "gke",
-        "kubernetes",
-        "kubectl",
+        "namespaces",
         "gcp-ace"
       ],
-      "difficulty": "easy"
+      "difficulty": "easy",
+      "rewritten": true
     },
     {
       "id": "gcp-ace-019",
@@ -368,21 +369,22 @@
     },
     {
       "id": "gcp-ace-020",
-      "question": "Which IAM principal identifier grants a role to all members of your Google Workspace (Cloud Identity) domain?",
+      "question": "An admin needs to grant a role to EVERY member of their Google Workspace organisation in one IAM binding (employees, contractors, future hires alike). They reference a special principal identifier on the binding that resolves to the entire Workspace domain. Which principal identifier is used?",
       "options": [
-        "allUsers (the public IAM identifier)",
-        "allAuthenticatedUsers (Google IAM)",
-        "domain:yourdomain.com (Workspace)",
-        "group:everyone@yourdomain.com"
+        "`domain:example.com` — grants the binding to ALL Google Workspace / Cloud Identity members of that primary domain, including future joiners, in a single principal",
+        "`allAuthenticatedUsers` — every authenticated Google account on the internet, far broader than the company's Workspace tenant",
+        "`allUsers` — anonymous public access, even broader than allAuthenticatedUsers; never appropriate for company-only scope",
+        "`group:everyone@example.com` — requires creating and maintaining a literal group; not the single-principal mechanism the question describes"
       ],
-      "correct": 2,
+      "correct": 0,
       "explanation": "The domain:DOMAIN_NAME principal grants the role to every Google account in a Google Workspace or Cloud Identity domain. allUsers grants access to anyone on the internet, including unauthenticated callers. allAuthenticatedUsers covers any Google-authenticated user globally, not just your domain. group: requires an explicit Google Group to exist and be populated.",
       "tags": [
         "iam",
-        "access-control",
+        "principal-identifiers",
         "gcp-ace"
       ],
-      "difficulty": "medium"
+      "difficulty": "medium",
+      "rewritten": true
     },
     {
       "id": "gcp-ace-021",
@@ -500,22 +502,22 @@
     },
     {
       "id": "gcp-ace-028",
-      "question": "What is the purpose of Google Cloud's Organization Policy Service?",
+      "question": "A central platform team wants to enforce constraints on which APIs, regions, and service-account behaviours can be used by every project under an Organisation — for example, `compute.vmExternalIpAccess=DENY` org-wide. They want a service that lets them set these prescriptive guardrails at the Org, Folder, or Project node, inherited downward. Which service is it?",
       "options": [
-        "Defines IAM roles for users and groups across the organization",
-        "Enforces configuration constraints on GCP resources across the org",
-        "Monitors API and quota usage across all projects in the organization",
-        "Manages billing accounts, budgets, and alerts for the organization"
+        "Organization Policy Service — sets prescriptive constraints (deny lists, allow lists, boolean policies) at Org / Folder / Project nodes, inherited downward, to restrict what can be done with resources",
+        "Cloud Asset Inventory — read-only inventory and change history; does not enforce guardrail policies on resource configuration",
+        "Security Command Center — centralised security findings and posture dashboards; consumes policy enforcement results rather than producing them",
+        "Cloud Audit Logs — records who did what and when; an audit primitive, not a preventive control"
       ],
-      "correct": 1,
+      "correct": 0,
       "explanation": "Organization Policy Service lets you define constraints on how GCP resources can be configured — for example preventing public IPs on VMs, restricting allowed locations, or disabling service-account key creation. Policies attach at the organization, folder, or project node and inherit downward; they apply on top of IAM rather than replacing it. IAM defines who can do what; Org Policy defines what configurations are even allowed.",
       "tags": [
-        "iam",
-        "organization-policy",
         "governance",
+        "org-policy",
         "gcp-ace"
       ],
-      "difficulty": "hard"
+      "difficulty": "hard",
+      "rewritten": true
     },
     {
       "id": "gcp-ace-029",
@@ -594,22 +596,22 @@
     },
     {
       "id": "gcp-ace-034",
-      "question": "What does enabling 'uniform bucket-level access' on a Cloud Storage bucket do?",
+      "question": "A team toggles 'uniform bucket-level access' on a Cloud Storage bucket. Afterwards, attempts to set per-object ACLs are rejected and the bucket is governed exclusively by IAM bindings at the bucket level. What does enabling this setting do?",
       "options": [
-        "Disables object-level ACLs and enforces IAM-only access control",
-        "Replicates the bucket's contents across multiple GCP regions",
-        "Enables object versioning automatically for all uploads to the bucket",
-        "Encrypts every object with a customer-managed key in Cloud KMS"
+        "Disables legacy per-object ACLs on the bucket and enforces IAM-only access control at the bucket level — simpler, auditable permissions; once enabled, can be turned back off only within a 90-day reversal window",
+        "Encrypts every object in the bucket with a customer-managed key and forbids object reads from outside the customer's VPC service perimeter",
+        "Replicates the bucket across regions transparently, with consistency at the bucket level rather than the per-object level",
+        "Converts the bucket to Nearline storage class so that reads are billed per access while writes remain free of charge for the first 30 days"
       ],
       "correct": 0,
       "explanation": "Uniform bucket-level access (UBA) disables legacy per-object ACLs and enforces that access is governed entirely by Cloud IAM policies on the bucket. This simplifies permission management to one system instead of two and is required by some compliance frameworks. UBA does not affect bucket location/replication, versioning, or default encryption — those are independent settings.",
       "tags": [
-        "storage",
-        "iam",
-        "access-control",
+        "cloud-storage",
+        "uniform-access",
         "gcp-ace"
       ],
-      "difficulty": "medium"
+      "difficulty": "medium",
+      "rewritten": true
     },
     {
       "id": "gcp-ace-035",
@@ -724,22 +726,22 @@
     },
     {
       "id": "gcp-ace-042",
-      "question": "What does a GCP 'folder' in the resource hierarchy provide that a project alone cannot?",
+      "question": "A GCP customer is structuring an Organisation that contains many projects across departments. They want an intermediate node above projects where IAM and Org Policy can be applied to a group of projects collectively (e.g., 'Engineering'), and that node can also contain sub-nodes mirroring sub-departments. Which feature provides this?",
       "options": [
-        "Provides each folder with its own billing account and quota pool",
-        "Is required to activate certain Google Cloud services in the projects",
-        "Creates network isolation boundaries between the projects inside it",
-        "Groups projects so IAM and Org Policies inherit down the hierarchy"
+        "A folder — an intermediate node in the GCP resource hierarchy between Organisation and Project, on which IAM bindings and Org Policies can be applied and inherited by all contained projects (and sub-folders)",
+        "A label — a free-form key/value tag attached to resources for filtering and billing; does not provide an IAM scope",
+        "A service perimeter — a VPC Service Controls boundary around APIs; not a hierarchy node above projects",
+        "A budget — a billing alert primitive; does not create a hierarchy or apply IAM bindings to a group of projects"
       ],
-      "correct": 3,
+      "correct": 0,
       "explanation": "Folders sit between Organization and Project in the hierarchy (Organization > Folders > Projects > Resources). They group projects so that IAM bindings and Organization Policies attached at the folder level inherit down to all child projects, simplifying governance for large estates. Billing is set per project (one folder can hold projects on different billing accounts). Folders do not create network isolation, and APIs are enabled per-project.",
       "tags": [
-        "resource-management",
-        "iam",
         "hierarchy",
+        "folders",
         "gcp-ace"
       ],
-      "difficulty": "medium"
+      "difficulty": "medium",
+      "rewritten": true
     },
     {
       "id": "gcp-ace-043",
@@ -820,22 +822,22 @@
     },
     {
       "id": "gcp-ace-047",
-      "question": "Which GCP product provides a managed Redis or Memcached instance for application caching?",
+      "question": "A platform team wants a fully managed cache service for app-tier session data and frequent lookups. They want to choose between a Redis-compatible engine and a Memcached-compatible engine without operating the underlying nodes themselves. Which GCP product provides this?",
       "options": [
-        "Memorystore",
-        "Cloud Bigtable",
-        "Cloud Datastore",
-        "Cloud CDN"
+        "Cloud Memorystore — managed in-memory cache for Redis or Memcached; offload patching, failover, and provisioning to GCP",
+        "Cloud SQL — managed relational database engines (MySQL, Postgres, SQL Server); not an in-memory cache",
+        "Cloud Spanner — globally distributed relational database with strong consistency; not a Redis/Memcached service",
+        "Cloud Bigtable — wide-column NoSQL store for analytical and time-series workloads; not an in-memory cache compatible with Redis"
       ],
       "correct": 0,
       "explanation": "Memorystore is Google Cloud's fully managed in-memory data store service supporting Redis and Memcached engines, used for application caching, session storage, and low-latency leaderboards. Cloud CDN caches HTTP content at the edge for a load balancer, not application data. Cloud Bigtable and Cloud Datastore (Firestore in Datastore mode) are persistent NoSQL databases.",
       "tags": [
-        "databases",
+        "cache",
         "memorystore",
-        "caching",
         "gcp-ace"
       ],
-      "difficulty": "easy"
+      "difficulty": "easy",
+      "rewritten": true
     },
     {
       "id": "gcp-ace-048",
@@ -858,21 +860,22 @@
     },
     {
       "id": "gcp-ace-049",
-      "question": "What is the maximum size of a single message in Cloud Pub/Sub?",
+      "question": "A pipeline publishes events to Cloud Pub/Sub. Engineers want to know the upper bound on the size of any single message they can publish without splitting. What is the maximum size of a single message in Cloud Pub/Sub?",
       "options": [
-        "100 MB",
-        "10 MB",
-        "256 KB",
-        "1 MB"
+        "10 MB per message — the documented hard limit; larger payloads must be split or referenced via an external store such as Cloud Storage",
+        "256 KB per message — the limit for AWS SNS, not Cloud Pub/Sub",
+        "1 MB per message — the limit for many managed Kafka offerings, not Cloud Pub/Sub",
+        "No limit — Pub/Sub accepts any payload size up to the project-wide bandwidth quota"
       ],
-      "correct": 1,
+      "correct": 0,
       "explanation": "Cloud Pub/Sub supports messages up to 10 MB in size. For larger payloads, the recommended pattern is to upload the data to Cloud Storage and publish only a reference (object URI) in the Pub/Sub message, keeping the broker efficient and the message metadata small for event-driven consumers.",
       "tags": [
         "pubsub",
-        "messaging",
+        "limits",
         "gcp-ace"
       ],
-      "difficulty": "hard"
+      "difficulty": "hard",
+      "rewritten": true
     },
     {
       "id": "gcp-ace-050",
@@ -933,23 +936,22 @@
     },
     {
       "id": "gcp-ace-054",
-      "question": "What is the function of a Kubernetes Ingress resource on GKE?",
+      "question": "A GKE team deploys multiple HTTP services and wants a single L7 entry point that routes by host/path to the right Service. They also want native TLS termination and integration with Google Cloud Load Balancing. Which Kubernetes object on GKE provides this routing layer?",
       "options": [
-        "Manages external HTTP(S) access to multiple services via routing rules",
-        "Exposes a single backend service externally using an allocated node port",
-        "Configures NetworkPolicies that govern pod-to-pod traffic in the cluster",
-        "Allocates an internal cluster IP for in-cluster service-to-service traffic"
+        "Ingress — Kubernetes object that defines L7 HTTP(S) routing rules (host + path) to backend Services; on GKE it provisions a Google Cloud HTTP(S) Load Balancer and handles TLS termination",
+        "Service of type ClusterIP — exposes a Service only inside the cluster network; provides no L7 routing or TLS termination",
+        "Service of type LoadBalancer — provisions an L4 cloud load balancer per Service; does not route by host or path",
+        "NetworkPolicy — declarative pod-to-pod traffic policy; unrelated to L7 ingress routing"
       ],
       "correct": 0,
       "explanation": "An Ingress resource defines HTTP/HTTPS routing rules — host-based and path-based — and exposes multiple backend Services through a single external endpoint. On GKE, an Ingress is realised by a Google Cloud HTTP(S) Load Balancer. NetworkPolicy is a separate object for east-west traffic control. NodePort and ClusterIP are Service types and do not provide L7 routing or virtual hosting.",
       "tags": [
         "gke",
-        "kubernetes",
         "ingress",
-        "networking",
         "gcp-ace"
       ],
-      "difficulty": "medium"
+      "difficulty": "medium",
+      "rewritten": true
     },
     {
       "id": "gcp-ace-055",
@@ -1009,22 +1011,22 @@
     },
     {
       "id": "gcp-ace-058",
-      "question": "What is the key difference between Cloud Armor and Identity-Aware Proxy (IAP)?",
+      "question": "A platform engineer is comparing Cloud Armor with Identity-Aware Proxy. One is a perimeter L7 WAF that protects HTTP(S) load balancers from web exploits and large-scale DDoS via policy rules. The other gates access to apps and VMs based on user identity, group membership, and device context. What is the key difference?",
       "options": [
-        "IAP supersedes Cloud Armor for app-layer security; Armor is deprecated",
-        "Cloud Armor is for internal east-west traffic; IAP is for external traffic",
-        "Cloud Armor handles network-layer DDoS; IAP handles app-layer auth/AuthZ",
-        "Cloud Armor requires GKE backends; IAP integrates with App Engine alone"
+        "Cloud Armor is a perimeter L7 WAF + DDoS protection on HTTP(S) load balancers (policy rules, OWASP Top-10, geo-blocks); IAP is identity-aware access control that gates apps and VMs based on user identity, group, and context",
+        "Both are identical products marketed under different names for billing reasons across regions; they share the same engine internally",
+        "Cloud Armor is for internal east-west micro-segmentation between workloads; IAP is the perimeter WAF protecting the load balancer from web exploits",
+        "Cloud Armor enforces user identity per request; IAP filters based purely on IP allow-lists with no user awareness or device context"
       ],
-      "correct": 2,
+      "correct": 0,
       "explanation": "Cloud Armor is a WAF and DDoS-protection service operating at L3-L7, blocking malicious traffic (SQL injection, XSS, IP allow/deny lists) before it reaches backends. Identity-Aware Proxy enforces user-identity-based access control — only authenticated, authorised principals can reach the protected app. They are complementary, not alternatives, and both attach in front of HTTP(S) Load Balancer backends.",
       "tags": [
         "security",
-        "cloud-armor",
-        "iap",
+        "armor-vs-iap",
         "gcp-ace"
       ],
-      "difficulty": "hard"
+      "difficulty": "hard",
+      "rewritten": true
     },
     {
       "id": "gcp-ace-059",

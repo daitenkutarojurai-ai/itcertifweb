@@ -1,6 +1,6 @@
 # Question-bank audit
 
-Generated: 2026-05-14T07:29:03.973Z
+Generated: 2026-05-14T07:30:02.754Z
 Packs scanned: **50** · questions scanned: **2702** · flagged: **2020** (74.8%)
 
 ## Methodology
@@ -60,7 +60,7 @@ Packs scanned: **50** · questions scanned: **2702** · flagged: **2020** (74.8%
 | `ckad` | 61 | 31 | 51% | 21 | 18 | 1 | 0 |
 | `ai-102` | 10 | 5 | 50% | 0 | 5 | 0 | 0 |
 | `aws-dop-c02` | 10 | 5 | 50% | 0 | 5 | 0 | 0 |
-| `gcp-ace` | 56 | 28 | 50% | 0 | 19 | 12 | 0 |
+| `gcp-ace` | 56 | 28 | 50% | 9 | 26 | 0 | 0 |
 | `ms-900` | 60 | 28 | 47% | 17 | 19 | 3 | 0 |
 | `ai-900` | 20 | 8 | 40% | 0 | 7 | 1 | 0 |
 | `github-actions` | 10 | 4 | 40% | 0 | 4 | 0 | 0 |
