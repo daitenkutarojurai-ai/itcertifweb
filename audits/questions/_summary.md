@@ -1,7 +1,7 @@
 # Question-bank audit
 
-Generated: 2026-05-14T07:19:16.242Z
-Packs scanned: **50** · questions scanned: **2702** · flagged: **2032** (75.2%)
+Generated: 2026-05-14T07:21:46.985Z
+Packs scanned: **50** · questions scanned: **2702** · flagged: **2026** (75.0%)
 
 ## Methodology
 
@@ -37,7 +37,6 @@ Packs scanned: **50** · questions scanned: **2702** · flagged: **2032** (75.2%
 | `dp-900` | 10 | 8 | 80% | 0 | 5 | 5 | 0 |
 | `comptia-cysa` | 66 | 52 | 79% | 36 | 19 | 19 | 0 |
 | `sc-900` | 60 | 46 | 77% | 28 | 32 | 8 | 0 |
-| `vault-002` | 51 | 39 | 76% | 22 | 17 | 23 | 0 |
 | `cissp` | 25 | 19 | 76% | 3 | 19 | 0 | 0 |
 | `ccna` | 112 | 85 | 76% | 50 | 72 | 0 | 7 |
 | `aws-soa-c02` | 60 | 45 | 75% | 25 | 34 | 0 | 0 |
@@ -50,6 +49,7 @@ Packs scanned: **50** · questions scanned: **2702** · flagged: **2032** (75.2%
 | `cka` | 61 | 41 | 67% | 28 | 29 | 3 | 0 |
 | `comptia-security-plus` | 92 | 61 | 66% | 17 | 58 | 0 | 0 |
 | `aws-aif-c01` | 20 | 13 | 65% | 0 | 3 | 10 | 0 |
+| `vault-002` | 51 | 33 | 65% | 20 | 26 | 0 | 0 |
 | `aws-scs-c02` | 61 | 39 | 64% | 17 | 35 | 0 | 0 |
 | `gcp-pca` | 61 | 39 | 64% | 23 | 34 | 0 | 0 |
 | `az-204` | 20 | 12 | 60% | 0 | 10 | 4 | 0 |
