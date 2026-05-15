@@ -5,39 +5,50 @@ up when there's time.
 
 ---
 
-## P0 — Phase 5: Mobile + UX polish + video-game HUD (2026-05-13)
+## P0 — Phase 5: Desktop + game-feel rebuild + IA cleanup (2026-05-13, expanded 2026-05-15)
 
-> Live audit on phone + desktop surfaced a batch of issues spanning chrome,
-> page layout, and gamification surface. Group them into one phase so they
-> ship as a coherent UX pass, not seven shallow patches.
+> Live audit on phone + desktop + a second user pass on 2026-05-15 surfaced
+> a wider batch: chrome inconsistency, IA duplication (cert pages → train
+> pack list = double picker), path bottom-sheet phone-locked on desktop,
+> Yes/No drill phrasing reads as a riddle, treasure-chest dead-end, hearts
+> still feel cloned, no shared health across sections, no in-session HUD.
+> Group them into one phase so they ship as a coherent UX pass.
 >
 > **Test rule (locked):** every change in this phase MUST be verified on
 > BOTH desktop and a phone viewport (DevTools or a real device) before
 > being marked shipped. Header/HUD bugs that survived Phase 4 all had this
 > root cause — desktop-only verification.
+>
+> **Structure:**
+> - Part A — Chrome & IA (5.1, 5.2 retired, 5.3, 5.4 ✅, 5.5, 5.10)
+> - Part B — Game systems rebuild (5.6, 5.7, 5.11, 5.12, 5.13, 5.14)
+> - Part C — Other surface polish (5.15, 5.3 courses)
+> - Part D — Verification (5.8)
 
-### 5.1 — Top-bar icon placement (desktop + phone)
+### 5.1 — Top-bar: consistency + remove Profile redundancy
 
+- [ ] **B2 — Consistency.** Top bar must be byte-identical on every page;
+      currently drifts between certifications/, learning/, news/, careers/,
+      compare/. Pick one canonical markup, dedupe across all 88 pages
+      (write a small node script if needed — `scripts/sync-header.js`).
+- [ ] **B1 — Remove redundant "Profile" link.** The avatar chip already
+      routes to `/profile.html`. Strip the dedicated Profile nav entry
+      from every header/footer instance.
 - [ ] Audit the header at every breakpoint: 320, 360, 480, 768, 1024, 1280px.
 - [ ] On phone, the hamburger position drifts off-center on some pages and
       partially overlaps the logo on the longest brand names.
 - [ ] On desktop, the auth chip + Google Play badge sometimes wrap to a
       second row even on wide screens because nav links don't shrink first.
-- [ ] Acceptance: logo + hamburger on phone are perfectly aligned (single
-      row, equal vertical padding); on desktop, the chip never wraps below
-      the nav, and nav links truncate before the chip moves.
+- [ ] Acceptance: every page renders the exact same header markup; no
+      "Profile" link in nav; logo + hamburger phone-aligned; chip never
+      wraps below the nav on desktop.
 
-### 5.2 — Training page: uniform box sizing
+### 5.2 — Training pack-tile sizing — RETIRED → see 5.10
 
-- [ ] `/train.html` currently mixes large + small pack tiles depending on
-      content length and which brand they belong to. Cards must be visually
-      uniform — same width, same min-height, same internal padding.
-- [ ] Define a single `.pack-tile` cell with `min-height: <fixed>` and let
-      text clamp/ellipsize instead of growing the card.
-- [ ] Brand sections should use a CSS grid with equal-row tracks so a long
-      brand row doesn't compress a short one beside it.
-- [ ] Acceptance: scrolling the training page shows a perfectly aligned
-      grid of identical pack tiles — no Tetris look.
+> Original brief was to align pack tiles on `/train.html`. Architectural
+> decision 5.10 collapses that landing page into `/certifications/`, so
+> there's no pack-tile grid to align. Polishing the new entry points
+> (cert pages + path index) is in scope of 5.10 itself.
 
 ### 5.3 — Courses module rework
 
@@ -76,41 +87,63 @@ up when there's time.
       bubble center on iOS Safari, Android Chrome, and desktop Chrome.
 - [ ] Acceptance: pixel-checked centering at 1×, 1.5×, 2× DPR.
 
-### 5.6 — Hearts → Health bar (game-feel upgrade)
+### 5.6 — Hearts → Health bar (cross-section, with damage + cooldown)
 
-- [ ] Replace the 5-heart row with a continuous **health bar** in both Cert
-      Quest (`/path.html`) and Training (`/train.html`) flows.
-- [ ] Mechanics are identical to today's `src/hearts.js`: 5 "units" of life,
-      lose 1 on wrong answer, 30 min passive regen.
-- [ ] Visual is a horizontal bar with 5 segments. Color: green > 60 %,
-      amber 30-60 %, red < 30 %. Smooth fill animation on damage / regen.
+- [ ] **P4 — Visual.** Replace the 5-heart row with a continuous **health
+      bar** segmented into 5 units. Don't ape Duolingo's hearts; bar UI is
+      the differentiator. Green > 60 %, amber 30–60 %, red < 30 %.
+- [ ] **P5 — Damage feedback.** On wrong answer: bar flashes red + shrinks
+      with an easing animation; viewport shake (subtle, ≤6px). On regen:
+      smooth refill pulse.
+- [ ] **P5 — Hard gate at 0.** When health hits 0 in path mode, lock all
+      path nodes for a fixed cooldown (default 30 min). Show a full-screen
+      "You're out of lives — back in 27:14" countdown that ticks live.
+      No silent disable.
+- [ ] **T2 — Cross-section sync.** Health is ONE shared system across
+      `/path.html` AND `/train.html`. Storage key stays `cq-hearts-v1`;
+      both flows must read/write the same reducer. Wrong answer in
+      training also drops a heart; cooldown in path also blocks training
+      entry (and vice versa).
+- [ ] **Path-only mechanic clarification.** Per user direction: the
+      health/cooldown system is **path-mode-only** for the loss/lock
+      semantics — training quizzes can show the bar (T2 sync) but should
+      NOT trigger a fresh wrong-answer-drops-life decrement (else casual
+      training becomes punitive). Decision: **bar is read-only in
+      training**, decrements only fire from path nodes. Reconcile with
+      T2 (UI shows shared health, write-side is path-only).
 - [ ] Tooltip / a11y label: "Health: 3 of 5 — next regen in 12 min".
-- [ ] Keep `cq-hearts-v1` localStorage key (no migration needed; same data).
-- [ ] Acceptance: existing tests in `test/stats.test.js` (and any new tests
-      covering hearts.js) continue to pass; visual matches Chess-Kombat HUD.
+- [ ] Acceptance: 83/83 unit tests still pass; new hearts.js tests cover
+      cooldown lock, damage on wrong, regen tick. Visual matches
+      Chess-Kombat HUD aesthetic.
 
 ### 5.7 — Quest HUD box (Chess-Kombat-style video-game panel)
 
-- [ ] During a Cert Quest path AND during a Training quiz session, render
-      a **persistent HUD box** in a top corner with:
+- [ ] **P6 — Avatar + health on the same view as the path map.** During a
+      Cert Quest path AND during a Training quiz session, render a
+      **persistent HUD box** in a top corner with:
       - Health bar (from 5.6)
       - Player avatar emoji + level badge (already in `src/avatar.js`)
       - XP-to-next-level mini-bar
       - Combo streak (current correct-in-a-row, from quizEngine)
       - Optional: time elapsed, questions remaining
+- [ ] HUD must be visible on `/path.html` even when no node is open —
+      avatar + health are the always-on map companions, not session-only.
 - [ ] Visual language: dark glass panel, pixel-game border accents, subtle
       glow when combo > 3, damage flash when health drops.
 - [ ] Reference: the `~/Chess-kombat` repo's in-game HUD — same aesthetic
       family (compact, layered, video-game feel) so users moving between
       the two products feel at home.
 - [ ] Hidden on the landing page + content pages (news, careers,
-      certifications, courses) — only visible during an active session.
-- [ ] Acceptance: HUD visible on `/path.html` during a node + on
-      `/train.html` during a quiz; not visible on `/`, `/news/`, etc.
+      certifications, courses) — only on `/path.html` and during a
+      `/train.html` session.
+- [ ] Acceptance: HUD visible on `/path.html` (always) + `/train.html`
+      during a quiz; not visible on `/`, `/news/`, etc.
 
 ### 5.8 — Verification pass (mandatory)
 
 - [ ] After each ticket above ships, run the full audit on phone + desktop.
+- [ ] Walk the CSS cascade at 360 × 800, 768 × 1024, 1440 × 900 for every
+      modified page (per memory rule: desktop-only passes ship bugs).
 - [ ] Take screenshots at 360 × 800 and 1440 × 900 for each modified page;
       attach to the commit message if any layout is non-obvious.
 - [ ] `npm test` must remain green.
@@ -118,9 +151,158 @@ up when there's time.
 
 ### 5.9 — Estimated total
 
-~3-4 working days end-to-end. Suggested PR order: 5.4 (smallest, isolated)
-→ 5.1 (header polish) → 5.2 (training grid) → 5.5 (mascot centering)
-→ 5.6 (health bar) → 5.7 (HUD) → 5.3 (courses rework — biggest, last).
+~6-8 working days end-to-end (was 3-4 before the 2026-05-15 expansion).
+Suggested PR order:
+1. **5.4** ✅ SHIPPED 2026-05-15 — stats → profile.
+2. **5.1** — top-bar consistency + remove Profile link (B1+B2). Touches
+   every page; ship before everything else so subsequent edits inherit
+   the canonical header.
+3. **5.10** — IA collapse (`/train.html` landing → `/certifications/`)
+   (A1). Same blast radius as 5.1; bundle if convenient.
+4. **5.11** — Path bottom-sheet desktop sizing (P1). Self-contained CSS.
+5. **5.5** — Mascot centering. Tiny.
+6. **5.13** — Yes/No drill phrasing audit (P2). Content + generator pass.
+7. **5.6** — Health bar (P4 + P5 + T2). Foundation for 5.7.
+8. **5.7** — In-session HUD (P6). Depends on 5.6.
+9. **5.12** — Treasure-chest rework (P3). Depends on 5.6 (free heart drop).
+10. **5.14** — Per-node audit pass (P7). Final cleanup; depends on 5.5–5.13.
+11. **5.15** — Training mode-selector polish (T1). Independent.
+12. **5.3** — Courses rework (biggest, last).
+
+### 5.10 — IA collapse: `/train.html` landing → `/certifications/` (A1)
+
+> **Decision (user-confirmed 2026-05-15):** `/train.html?pack=X` stays as
+> the quiz **runtime**. The bare `/train.html` (pack picker) is collapsed
+> into `/certifications/`. One pack picker, two play modes per pack.
+
+- [ ] Bare `/train.html` (no `?pack=`) → 301 to `/certifications/`. Add
+      to `_redirects` (already exists from 5.4); also keep an in-page
+      meta-refresh fallback for clients that bypass the edge redirect.
+- [ ] Each certification page (`/certifications/aws.html` etc.) shows
+      every pack in that brand with **two CTAs side-by-side**:
+      *Quick Quiz* → `/train.html?pack=X`, *Learning Path* →
+      `/path.html?pack=X`. If a path JSON is missing for a pack, hide the
+      Learning Path CTA (don't render a dead button).
+- [ ] Strip "Training" from the top nav across all pages (replaced by
+      "Certifications"). Hamburger drawer too.
+- [ ] Strip the standalone pack list from `/train.html` (the runtime
+      page should error-page if no `?pack=` is given AND the redirect
+      somehow failed).
+- [ ] Keep the existing `cq-pack-pending` / autostartFocused flow
+      working — only the landing surface changes.
+- [ ] Update `sitemap.xml`: drop bare `/train.html`, keep canonical
+      `/certifications/` and per-cert pages.
+- [ ] Acceptance: hitting `/train.html` lands on `/certifications/`;
+      every cert page exposes both CTAs; no orphaned "Training" nav
+      entries; smoke-test 3 packs (`aws-saa-c03`, `comptia-security-plus`,
+      `az-104`) end-to-end through both modes.
+
+### 5.11 — Path bottom-sheet desktop sizing (P1)
+
+- [ ] Today the path bottom-sheet (`#node-sheet` in `src/path.js` /
+      `path.css`) is fixed at phone width on desktop, leaving most of the
+      viewport unused. Make it responsive:
+      - `< 768 px`: full-width drawer from bottom (today's behavior)
+      - `768–1199 px`: centered modal, `min(640px, 90vw)`
+      - `≥ 1200 px`: centered modal, `min(840px, 70vw)`, with breathing
+        room around content (concept cards / quiz options scale up)
+- [ ] Quiz-inline option buttons should also scale on desktop (today they
+      stay tap-target-sized which looks cramped on a 27" screen).
+- [ ] Backdrop opacity bumped on wider viewports so the modal feels
+      anchored, not floating.
+- [ ] Concept flashcards: increase max-width from 360 px → 560 px on
+      desktop; keep the flip animation snappy.
+- [ ] Acceptance: at 1440 × 900, no node sheet is narrower than 600 px;
+      no horizontal whitespace bleed; phone breakpoint untouched.
+
+### 5.12 — Treasure-chest rework (P3)
+
+> **Decision (user-confirmed 2026-05-15):** Fix, don't remove. Chest
+> nodes need to feel like a real chapter milestone.
+
+- [ ] Audit the existing chest handler in `src/path.js` — list every
+      branch that fails silently (no animation, no XP, no cosmetic).
+- [ ] Reward stack on open:
+      1. **+30 XP** burst (already speced; verify it actually fires)
+      2. **Free heart** (+1 heart up to max, ties into 5.6 health bar
+         — a meaningful gift right after a chapter)
+      3. **Cosmetic drop** from `data/cosmetics.json` weighted-random
+         (rare > uncommon > common). If user already owns all hats in
+         the rarity tier, fall back to next tier or a small XP bonus.
+- [ ] Visual: chest opens with sprite swap (closed → opening → open),
+      light burst, items fly out one by one with a 200 ms stagger.
+      Sound optional.
+- [ ] After-open card in the bottom-sheet shows the items earned with
+      "+30 XP", "+1 ♥", "🎩 New hat: Bowler" pills. Tap continue → walker
+      advances.
+- [ ] Edge case: if user has no inventory slot for cosmetics (shouldn't
+      happen but be defensive), the cosmetic falls back to +50 XP.
+- [ ] Acceptance: open 3 chests across different chapters, verify each
+      grants ≥1 distinct reward type and the celebration animation plays.
+
+### 5.13 — Yes/No drill phrasing audit (P2)
+
+> **Problem:** today's `renderYesNoInline` reads as a riddle ("Is X the
+> answer to: which protocol uses port 443?"). Users want a clean
+> declarative statement they can yes-or-no.
+
+- [ ] Rework the Yes/No prompt template in `src/path.js`:
+      - **OLD**: "Is `<option>` the answer to: `<stem>`?"
+      - **NEW**: synthesize a single declarative sentence by combining
+        stem + chosen option, e.g. "HTTPS uses port 443. — Yes / No"
+        or "DynamoDB is a relational database. — Yes / No"
+- [ ] For stems that don't combine cleanly into a declarative
+      ("A customer reports X, what should you do?" → can't be
+      yes/no'd), skip Yes/No altogether and pick the next eligible
+      question. Add a `canYesNoify(question)` predicate.
+- [ ] Add a tiny prompt-rewriter helper (`buildYesNoPrompt(stem,
+      option)`) with a heuristic + an allowlist of stem patterns
+      that synthesize cleanly ("Which X is Y?" → "X is Y."). Keep it
+      pure + tested.
+- [ ] Unit tests in `test/path-progress.js` (or new
+      `test/yesno.test.js`): 10 example stems × {affirmative,
+      negative} → assert generated prompt reads as a clean declarative.
+- [ ] Acceptance: walk a chapter's worth of Yes/No drills on
+      `aws-saa-c03` + `comptia-security-plus` — every prompt reads as
+      a sentence a human would actually say.
+
+### 5.14 — Per-node-type audit pass (P7)
+
+> **No more shallow patches.** Sweep every node type end-to-end with the
+> 360/768/1440 cascade walk, document each bug found, fix in one PR.
+
+- [ ] Concept cards — re-verify flip animation, text overflow, Start →
+      Mark complete state machine.
+- [ ] Quiz inline — verify focused `questionIds` honored, hearts
+      decrement, summary card.
+- [ ] Yes/No drill — post-5.13, re-walk for tap responsiveness on iOS
+      Safari (the original TF bug was iOS-specific).
+- [ ] Sub-boss — same as quiz; verify 20-Q subset selection.
+- [ ] Final boss — verify random-pick from bank + survivor laurel
+      ceremony actually fires on inline-finish (not redirect-finish).
+- [ ] Chest — covered by 5.12 itself.
+- [ ] Walker — verify it moves on every node-complete; no stale stage
+      emoji on level-up; no stuck-in-place after viewport rotate.
+- [ ] Document every bug in `audits/path-nodes-2026-05-15.md` (one
+      line per finding) and check off as fixed.
+- [ ] Acceptance: zero open items in the audit doc; all 83+ unit tests
+      pass.
+
+### 5.15 — Training mode selector polish (T1)
+
+> Was buried in original 5.2. Surface it as its own ticket.
+
+- [ ] On `/train.html` (when entered with a pack), the mode picker
+      ("Diagnostic / Quick quiz / Custom / Full exam") renders too small
+      on desktop — auto-shrinks to about 240 px wide and looks like an
+      afterthought.
+- [ ] Rebuild as a card grid: 4 mode cards, each 280 px wide on desktop
+      (2-col on tablet, 1-col stack on phone), with an icon, mode name,
+      one-line description, estimated time, and CTA button.
+- [ ] Use the existing color tokens; no new design tokens needed.
+- [ ] Acceptance: at 1440 × 900, the mode picker fills the content
+      column, each card has equal height, the active mode is clearly
+      indicated.
 
 ---
 
