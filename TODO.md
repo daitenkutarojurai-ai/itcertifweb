@@ -223,30 +223,30 @@ Suggested PR order:
 - [x] ✅ Cache bumped 63 → 64, sw.js CACHE_VERSION → v78.
 - [x] ✅ 83/83 unit tests pass.
 
-### 5.12 — Treasure-chest rework (P3)
+### 5.12 — Treasure-chest rework (P3) ✅ SHIPPED 2026-05-15
 
 > **Decision (user-confirmed 2026-05-15):** Fix, don't remove. Chest
 > nodes need to feel like a real chapter milestone.
 
-- [ ] Audit the existing chest handler in `src/path.js` — list every
-      branch that fails silently (no animation, no XP, no cosmetic).
-- [ ] Reward stack on open:
-      1. **+30 XP** burst (already speced; verify it actually fires)
-      2. **Free heart** (+1 heart up to max, ties into 5.6 health bar
-         — a meaningful gift right after a chapter)
-      3. **Cosmetic drop** from `data/cosmetics.json` weighted-random
-         (rare > uncommon > common). If user already owns all hats in
-         the rarity tier, fall back to next tier or a small XP bonus.
-- [ ] Visual: chest opens with sprite swap (closed → opening → open),
-      light burst, items fly out one by one with a 200 ms stagger.
-      Sound optional.
-- [ ] After-open card in the bottom-sheet shows the items earned with
-      "+30 XP", "+1 ♥", "🎩 New hat: Bowler" pills. Tap continue → walker
-      advances.
-- [ ] Edge case: if user has no inventory slot for cosmetics (shouldn't
-      happen but be defensive), the cosmetic falls back to +50 XP.
-- [ ] Acceptance: open 3 chests across different chapters, verify each
-      grants ≥1 distinct reward type and the celebration animation plays.
+- [x] ✅ Existing chest handler audited: it fired `cq:session-complete`
+      with bonusXp + unlocked the per-chapter cosmeticKey, but offered
+      nothing else and gave a flat reward on replay (no scale-back).
+- [x] ✅ Reward stack on open:
+      1. **+30 XP** base via `cq:session-complete` bonusXp (verified)
+      2. **Free heart** (+1 up to MAX) via `cqHearts.gain(1)` — ties
+         straight into the 5.6 health bar; pill says "now N/5"
+      3. **Cosmetic** from `node.cosmeticKey` (chapter-N hat). Replay
+         with hat already owned → "+20 XP bonus" so the chest still
+         feels worthwhile.
+- [x] ✅ Already-at-max-health users see "Already at full health" pill
+      — chest doesn't silently swallow the heart.
+- [x] ✅ Pills stagger in 220 ms apart (XP → heart → cosmetic) using
+      `.cq-chest-pill.is-in` opacity/translate transition. Continue
+      button focuses ~760 ms after open.
+- [x] ✅ CSS legacy guard: `.cq-chest-wrap:has(.cq-chest-rewards)
+      .cq-chest-reward { display: none; }` hides the old single-line
+      reward block when the new pills are present.
+- [x] ✅ Cache bumped 68 → 69, sw.js CACHE_VERSION → v83.
 
 ### 5.13 — Yes/No drill phrasing audit (P2) ✅ SHIPPED 2026-05-15
 

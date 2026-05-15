@@ -1036,17 +1036,38 @@
     panel.querySelectorAll('.node-sheet-inline').forEach(function (n) { n.remove(); });
     $('#node-sheet-start').hidden = true;
 
+    /* Phase 5.12 (2026-05-15) — chest reward stack:
+       1. +30 XP burst (always)
+       2. Free heart (+1 up to MAX, ties into 5.6 health bar)
+       3. Cosmetic drop from cosmeticKey (chapter-N hat). When the user
+          already owns it, fall back to a +20 XP bonus so the chest
+          still feels worthwhile on replay.
+       Items render as pills in a vertical stack after the chest opens,
+       with a 220 ms stagger so each reward "lands" individually. */
     var prev = snapshotProgress(sheetState.path);
+    var baseXp = node.rewardXp || 30;
     var wrap = el('div', { class: 'node-sheet-inline cq-chest-wrap' });
     var chestEl = el('div', { class: 'cq-chest', html: '<span class="cq-chest-art">🎁</span><span class="cq-chest-rays" aria-hidden="true"></span>' });
-    var rewardEl = el('div', { class: 'cq-chest-reward', html: '<span class="cq-chest-xp">+' + (node.rewardXp || 30) + ' XP</span><span class="cq-chest-cos" hidden></span>' });
     var hint = el('p', { class: 'cq-chest-hint', text: 'Tap the chest to open!' });
+    var rewardList = el('div', { class: 'cq-chest-rewards', 'aria-live': 'polite' });
     var continueBtn = el('button', { class: 'cta-primary cq-chest-continue', type: 'button', text: 'Continue →', hidden: true });
     wrap.appendChild(chestEl);
-    wrap.appendChild(rewardEl);
     wrap.appendChild(hint);
+    wrap.appendChild(rewardList);
     wrap.appendChild(continueBtn);
     panel.appendChild(wrap);
+
+    function makePill(emoji, label) {
+      return el('div', { class: 'cq-chest-pill' }, [
+        el('span', { class: 'cq-chest-pill-emoji', text: emoji }),
+        el('span', { class: 'cq-chest-pill-label', html: label })
+      ]);
+    }
+    function dropPill(emoji, label, delayMs) {
+      var pill = makePill(emoji, label);
+      rewardList.appendChild(pill);
+      setTimeout(function () { pill.classList.add('is-in'); }, delayMs);
+    }
 
     var opened = false;
     chestEl.addEventListener('click', function () {
@@ -1055,37 +1076,62 @@
       chestEl.classList.add('cq-chest--opening');
       hint.textContent = '';
 
-      /* Award XP + cosmetic */
       markComplete(sheetState.path.packId, sheetState.node.id, 100);
-      try {
-        window.dispatchEvent(new CustomEvent('cq:session-complete', { detail: {
-          packId: sheetState.path.packId,
-          secondsSpent: 10, questionsAnswered: 0, correct: 0, mode: 'path-chest',
-          bonusXp: node.rewardXp || 30
-        }}));
-      } catch (_) {}
 
-      if (node.cosmeticKey && window.cqCosmetics) {
-        window.cqCosmetics.ensureCatalog().then(function (cat) {
-          var hat = (cat.hats || []).find(function (h) { return h.key === node.cosmeticKey; });
-          if (!hat) return;
-          var newlyUnlocked = window.cqCosmetics.unlock(node.cosmeticKey);
-          /* Always reveal the hat — on replays we still want the user to
-             see what's inside, just labeled "already in inventory". */
-          var cosEl = rewardEl.querySelector('.cq-chest-cos');
-          cosEl.hidden = false;
-          cosEl.innerHTML =
-            '<span class="cq-chest-cos-emoji">' + hat.emoji + '</span>' +
-            '<span class="cq-chest-cos-name">' + hat.name +
-            '<br><small>' + (newlyUnlocked ? 'unlocked!' : 'already in inventory') + '</small></span>';
-        });
-      }
+      /* Determine cosmetic outcome up-front so we can size the XP bonus
+         accordingly (already-owned hat → +20 XP fallback). */
+      var hat = null;
+      var hatNew = false;
+      var bonusXp = 0;
+      var ownsHat = false;
+      var cosmeticPromise = (node.cosmeticKey && window.cqCosmetics)
+        ? window.cqCosmetics.ensureCatalog().then(function (cat) {
+            hat = (cat.hats || []).find(function (h) { return h.key === node.cosmeticKey; }) || null;
+            if (hat) {
+              ownsHat = !window.cqCosmetics.unlock(node.cosmeticKey);
+              hatNew = !ownsHat;
+              if (ownsHat) bonusXp = 20;
+            }
+          })
+        : Promise.resolve();
+
+      /* Free heart — only meaningful if not already at MAX. We still
+         show the pill either way (full health users see "♥ Already at
+         full health" so the chest doesn't feel cheap). */
+      var heartsBefore = window.cqHearts ? window.cqHearts.get().hearts : null;
+      if (window.cqHearts && heartsBefore < window.cqHearts.MAX) window.cqHearts.gain(1);
+
+      cosmeticPromise.then(function () {
+        var totalXp = baseXp + bonusXp;
+        try {
+          window.dispatchEvent(new CustomEvent('cq:session-complete', { detail: {
+            packId: sheetState.path.packId,
+            secondsSpent: 10, questionsAnswered: 0, correct: 0, mode: 'path-chest',
+            bonusXp: totalXp
+          }}));
+        } catch (_) {}
+
+        /* Stagger pills in: XP → heart → cosmetic (if any). */
+        dropPill('⚡', '<strong>+' + totalXp + ' XP</strong>' + (bonusXp ? ' <span class="cq-chest-pill-note">(+' + bonusXp + ' bonus)</span>' : ''), 100);
+        if (heartsBefore !== null) {
+          if (heartsBefore < window.cqHearts.MAX) {
+            dropPill('♥', '<strong>+1 health</strong> <span class="cq-chest-pill-note">(now ' + (heartsBefore + 1) + '/' + window.cqHearts.MAX + ')</span>', 320);
+          } else {
+            dropPill('♥', '<strong>Already at full health</strong>', 320);
+          }
+        }
+        if (hat) {
+          var label = hatNew
+            ? hat.name + ' <span class="cq-chest-pill-note">unlocked!</span>'
+            : hat.name + ' <span class="cq-chest-pill-note">already owned</span>';
+          dropPill(hat.emoji, label, 540);
+        }
+        setTimeout(function () { continueBtn.hidden = false; continueBtn.focus(); }, 760);
+      });
 
       /* Confetti */
       var r = chestEl.getBoundingClientRect();
       burstConfetti({ origin: { x: r.left + r.width/2, y: r.top + r.height/2 }, count: 60, colors: ['#fde047','#fbbf24','#f97316','#a78bfa','#60a5fa'] });
-
-      setTimeout(function () { continueBtn.hidden = false; }, 700);
     });
 
     continueBtn.addEventListener('click', function () {
