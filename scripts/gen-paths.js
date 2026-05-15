@@ -14,6 +14,7 @@
  */
 const fs = require('fs');
 const path = require('path');
+const { buildYesNoPrompt, canYesNoify } = require('../src/yesno-prompt.js');
 
 const PACKS_DIR = path.join(__dirname, '..', 'data', 'free');
 const OUT_DIR = path.join(__dirname, '..', 'data', 'paths');
@@ -191,21 +192,26 @@ function buildChapter(chap, chapIndex) {
     });
   });
 
-  // 3) Mini-game node — "Is this the right answer?" Yes/No drill.
+  // 3) Mini-game node — Yes/No declarative drill (Phase 5.13, 2026-05-15).
   //
-  // The previous TF generator concatenated a question stem ("Which AWS
-  // service is serverless?") with one of its options and asked True/False.
-  // That broke for any "Which/What/How" stem because the user couldn't
-  // tell what they were judging. The match-up variant was worse: full
-  // truncated questions paired with truncated answers.
-  //
-  // New format: each card explicitly shows the question and a proposed
-  // answer ("Q: … / A: …"); the user judges whether the answer is correct.
-  // Works with the entire MCQ bank without any content rewriting.
-  if (chap.questions.length >= 6) {
+  // History: TF generator concatenated stem + option as "True or false?"
+  // → broken English for any non-statement stem. v2 swapped to a "Q: … /
+  // A: … — Is this the right answer?" card → user complaint that it read
+  // as a riddle. v3 (this version): synthesise a SINGLE DECLARATIVE
+  // sentence per card via src/yesno-prompt.js. If the stem can't be
+  // turned into a clean statement (scenario stems, "what should you do"
+  // stems, negative-framed stems), the question is excluded from the
+  // pool. If fewer than 3 eligible questions remain, the chapter gets
+  // NO mini-game node — honest > confusing.
+  const POOL_PRESELECT = sorted
+    .filter(q => {
+      const ci = Array.isArray(q.correct) ? q.correct[0] : q.correct;
+      return canYesNoify(q.question) && buildYesNoPrompt(q.question, q.options[ci] || '');
+    });
+  if (POOL_PRESELECT.length >= 3) {
     const CARDS_PER_GAME = 6;
-    const TARGET_CORRECT = 3; // half correct, half wrong — feels honest
-    const pool = sorted.slice(0, Math.min(CARDS_PER_GAME, sorted.length));
+    const TARGET_CORRECT = 3;
+    const pool = POOL_PRESELECT.slice(0, Math.min(CARDS_PER_GAME, POOL_PRESELECT.length));
     const pairs = pool.map((q, i) => {
       const showCorrect = i < TARGET_CORRECT;
       const correctIdx = Array.isArray(q.correct) ? q.correct[0] : q.correct;
@@ -213,8 +219,6 @@ function buildChapter(chap, chapIndex) {
       if (showCorrect) {
         optionIdx = correctIdx;
       } else {
-        // Pick a wrong option deterministically (rotate by chapter+i so users
-        // see different wrongs across chapters; seed avoids same option every run).
         const wrongOptions = q.options
           .map((_, oi) => oi)
           .filter(oi => Array.isArray(q.correct) ? !q.correct.includes(oi) : oi !== correctIdx);
@@ -222,27 +226,41 @@ function buildChapter(chap, chapIndex) {
           ? wrongOptions[(chapIndex + i) % wrongOptions.length]
           : correctIdx;
       }
+      const option = q.options[optionIdx] || '';
+      const prompt = buildYesNoPrompt(q.question, option);
+      // POOL_PRESELECT only includes questions where buildYesNoPrompt
+      // succeeded for the CORRECT option. For wrong options, the
+      // synthesiser may still return null (different option, different
+      // syntactic fit). Guard with a fallback that mirrors the correct
+      // option's prompt structure: if null, swap option text in the
+      // correct prompt — produces a plausible-sounding wrong statement.
+      const safePrompt = prompt
+        || (function () {
+            const fallbackOpt = q.options[correctIdx] || '';
+            const seed = buildYesNoPrompt(q.question, fallbackOpt);
+            return seed ? seed.replace(fallbackOpt, option) : null;
+          })();
       return {
         qid:     q.id,
-        stem:    q.question,
-        option:  q.options[optionIdx] || '',
+        prompt:  safePrompt,
         correct: optionIdx === correctIdx
       };
-    });
-    // Deterministic shuffle so each chapter has a different correct/wrong order
-    // but reloads land on the same sequence (no client-side "reroll" exploit).
+    }).filter(p => p.prompt);
+    // Deterministic shuffle so each chapter has a different correct/wrong order.
     for (let i = pairs.length - 1; i > 0; i--) {
       const j = ((chapIndex + 1) * 31 + i * 17) % (i + 1);
       [pairs[i], pairs[j]] = [pairs[j], pairs[i]];
     }
-    nodes.push({
-      id: `c${chapIndex + 1}-game`,
-      type: 'minigame',
-      gameType: 'yesno',
-      title: `${title} — Quick Drill`,
-      pairs,
-      timePerQ: 10
-    });
+    if (pairs.length >= 3) {
+      nodes.push({
+        id: `c${chapIndex + 1}-game`,
+        type: 'minigame',
+        gameType: 'yesno',
+        title: `${title} — Quick Drill`,
+        pairs,
+        timePerQ: 10
+      });
+    }
   }
 
   // 4) Sub-boss

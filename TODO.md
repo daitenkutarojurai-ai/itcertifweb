@@ -252,31 +252,44 @@ Suggested PR order:
 - [ ] Acceptance: open 3 chests across different chapters, verify each
       grants ≥1 distinct reward type and the celebration animation plays.
 
-### 5.13 — Yes/No drill phrasing audit (P2)
+### 5.13 — Yes/No drill phrasing audit (P2) ✅ SHIPPED 2026-05-15
 
-> **Problem:** today's `renderYesNoInline` reads as a riddle ("Is X the
-> answer to: which protocol uses port 443?"). Users want a clean
-> declarative statement they can yes-or-no.
+> **Problem:** old drill read as a riddle ("Is X the answer to:
+> which protocol uses port 443?"). Users want a clean declarative
+> statement they can yes-or-no.
 
-- [ ] Rework the Yes/No prompt template in `src/path.js`:
-      - **OLD**: "Is `<option>` the answer to: `<stem>`?"
-      - **NEW**: synthesize a single declarative sentence by combining
-        stem + chosen option, e.g. "HTTPS uses port 443. — Yes / No"
-        or "DynamoDB is a relational database. — Yes / No"
-- [ ] For stems that don't combine cleanly into a declarative
-      ("A customer reports X, what should you do?" → can't be
-      yes/no'd), skip Yes/No altogether and pick the next eligible
-      question. Add a `canYesNoify(question)` predicate.
-- [ ] Add a tiny prompt-rewriter helper (`buildYesNoPrompt(stem,
-      option)`) with a heuristic + an allowlist of stem patterns
-      that synthesize cleanly ("Which X is Y?" → "X is Y."). Keep it
-      pure + tested.
-- [ ] Unit tests in `test/path-progress.js` (or new
-      `test/yesno.test.js`): 10 example stems × {affirmative,
-      negative} → assert generated prompt reads as a clean declarative.
-- [ ] Acceptance: walk a chapter's worth of Yes/No drills on
-      `aws-saa-c03` + `comptia-security-plus` — every prompt reads as
-      a sentence a human would actually say.
+- [x] ✅ New pure helper `src/yesno-prompt.js`: `buildYesNoPrompt(stem,
+      option)` synthesises a single declarative sentence (e.g.
+      "HTTPS uses port 443.") from supported stem patterns:
+      - `Which X verb Y?` → `[option] verb Y.`
+      - `What is X?` → `X is [option].`
+      - `What are X?` → `X are [option].`
+      - `What does X verb?` → `X verb-3rd [option].`
+      Returns null when no pattern fits. Pure JS, dual-export (CJS
+      for tests + window.cqYesNoPrompt for browser).
+- [x] ✅ `canYesNoify(stem)` predicate + `isComplexStem(stem)`
+      reject scenario stems (>160 chars, multi-sentence),
+      "what should you do" recommendation stems, negative-framed
+      stems (NOT/EXCEPT/never).
+- [x] ✅ `gen-paths.js` filters chapter pool by `canYesNoify`; if
+      fewer than 3 eligible questions remain, the chapter gets NO
+      mini-game node — honest > confusing. Wrong-option fallback
+      uses the correct prompt as a template.
+- [x] ✅ `renderYesNoInline` (src/path.js) renders `pair.prompt` as
+      single declarative + "True or false?" label. Legacy data
+      (no prompt, just stem+option) falls back to "Is the proposed
+      answer correct?" — clearer than the old "Is this the right
+      answer?" riddle.
+- [x] ✅ 14 new unit tests in `test/yesno-prompt.test.js` covering
+      the supported patterns, rejection cases, and edge cases.
+      96/96 total tests pass.
+- [x] ✅ Path JSONs regenerated. **Trade-off:** of 40 generated
+      paths, 3 retain a Yes/No drill (`aws-aif-c01`,
+      `comptia-cysa`, `pcnsa`); the other 37 lost their mini-game
+      because their question banks are scenario-heavy and don't
+      synthesise into clean declaratives. Per-chapter quiz +
+      concept + sub-boss still carry those paths.
+- [x] ✅ Cache bumped 65 → 66, sw.js CACHE_VERSION → v80.
 
 ### 5.14 — Per-node-type audit pass (P7)
 

@@ -712,9 +712,15 @@
       el('div', { class: 'yn-timer' }, [el('div', { class: 'yn-timer-fill' })]),
       el('span', { class: 'yn-score', text: '0 ✓' })
     ]);
+    /* Card has two render modes:
+       (1) declarative — pair.prompt is a single statement; show it
+           prominently and ask "True or false?" via the Yes/No buttons.
+       (2) judgment (legacy) — pair.stem + pair.option, "Is the proposed
+           answer correct?" framing. Falls back when an old path JSON
+           hasn't been regenerated yet. */
     var card    = el('div', { class: 'yn-card' });
     var stemEl  = el('div', { class: 'yn-stem',  text: 'Loading…' });
-    var labelEl = el('div', { class: 'yn-label', text: 'Is this the right answer?' });
+    var labelEl = el('div', { class: 'yn-label', text: '' });
     var optEl   = el('div', { class: 'yn-option', text: '' });
     card.appendChild(stemEl);
     card.appendChild(labelEl);
@@ -732,8 +738,19 @@
       var p = pairs[idx];
       hud.querySelector('.yn-progress').textContent = (idx + 1) + ' / ' + pairs.length;
       hud.querySelector('.yn-score').textContent = correct + ' ✓';
-      stemEl.textContent = p.stem || '';
-      optEl.textContent  = p.option || '';
+      if (p.prompt) {
+        /* Declarative mode (5.13): one statement, ask True/False. */
+        stemEl.textContent = p.prompt;
+        labelEl.textContent = 'True or false?';
+        optEl.textContent = '';
+        optEl.style.display = 'none';
+      } else {
+        /* Legacy judgment mode for un-regenerated path JSONs. */
+        stemEl.textContent = p.stem || '';
+        labelEl.textContent = 'Is the proposed answer correct?';
+        optEl.textContent = p.option || '';
+        optEl.style.display = '';
+      }
       card.classList.remove('yn-card--right', 'yn-card--wrong');
       locked = false;
       /* Restart timer */
