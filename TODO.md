@@ -309,20 +309,47 @@ URL: `/devstack/<entreprise>`
 - **Risks:** stacks change; date every claim. Avoid speculation —
   cite the source (talk, blog, GitHub).
 
-### 6.10 — PromptDungeon
+### 6.10 — PromptDungeon ✅ SHIPPED 2026-05-15
 
-URL: `/prompt-dungeon/`
-- **Priority:** P2
-- **Complexity:** M (catalog + filters + copy-to-clipboard)
-- **Dependencies:** `data/prompts/<workflow>.json` schema.
-- **Pages:** index `/prompt-dungeon/` + per-workflow `/prompt-dungeon/
-  <workflow>` (4 first: AWS-cert-prep, IT-CV-writer, YouTube-shorts-tech,
-  IT-recruiter).
-- **SEO impact:** moderate — "Claude prompts AWS", "ChatGPT IT CV".
-- **Monetization:** affiliate to Claude/GPT Plus, Anthropic API
-  referral.
-- **Risks:** prompts age with model updates; mark each with model
-  version + last-tested date.
+- [x] ✅ Schema documented in `data/prompts/_schema.md`. Each
+      `<slug>.json` carries title, tldr, vendor, icon, color,
+      lastReviewed, tags, models, prompts[], optional affiliate +
+      disclaimer. Each prompt has id, title, use_case, model_tested
+      (array of `Model (YYYY-MM)`), prompt body with `<UPPER_KEBAB>`
+      placeholders, optional tips.
+- [x] ✅ 4 first datasets seeded, hand-written, no AI fluff:
+      `aws-cert-prep` (5 prompts — deep-explain, MCQ gen, wrong-answer
+      post-mortem, cheat-sheet, scenario-decider), `it-cv-writer` (5 —
+      ruthless review, STAR bullet rewriter, ATS audit, LinkedIn
+      headline, cover-letter skip-check), `youtube-shorts-tech` (5 —
+      25 hooks, 60s script with retention beats, title clickbait check,
+      thumbnail copy, comment mining), `it-recruiter` (4 — Boolean
+      string, JD audit, screen questions, rejection email).
+- [x] ✅ `scripts/gen-prompt-pages.js` (`npm run gen-prompts`,
+      idempotent). Generates `prompt-dungeon/<slug>/index.html` per
+      dataset + `prompt-dungeon/index.html` grid. **5 pages total.**
+- [x] ✅ Workflow page renders: per-prompt copy-to-clipboard button
+      (with execCommand fallback for old Safari), inline `<code>` block
+      preserving formatting, model-tested chips, optional tips block
+      with blue accent, in-page TOC with anchor scrolling, HowTo
+      JSON-LD schema.
+- [x] ✅ Freshness pill: green if lastReviewed ≤3 months, amber ≤9,
+      red after — so users know which prompts to re-test.
+- [x] ✅ Index page: tag filter row ("All" + every unique tag from
+      datasets), card grid with vendor-colored left border, per-card
+      icon + vendor pill + tldr + "N prompts · Tested YYYY-MM" footer.
+      Filter shows/hides cards via `[data-tags]` matching — pure JS,
+      no rerender.
+- [x] ✅ Sitemap +5 entries (index + 4 leaf pages, priorities
+      0.85 / 0.8).
+- [x] ✅ `npm run gen-prompts` added to package.json.
+- [x] ✅ 109/109 tests still pass.
+- [ ] **Open follow-ups:** affiliate slots filled (Claude Pro, GPT
+      Plus, Anthropic API referral), shareable prompt URLs (anchor +
+      auto-scroll already in place — add native share button), prompt
+      voting (👍/👎 via Supabase) to surface which prompts the
+      community actually uses, +3 workflow datasets (Cloud-cost
+      auditor, Linux ops, On-call post-mortem).
 
 ### 6.11 — ToolRadar
 
