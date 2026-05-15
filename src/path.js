@@ -459,20 +459,27 @@
       .then(function (pack) {
         loading.remove();
         var all = (pack && pack.questions) || [];
+        /* Phase 5.14 audit fix — the inline quiz UI is single-select.
+           Multi-correct questions ([0, 3]) made `picked === q.correct`
+           always false, so the user lost a heart and got 0% no matter
+           what they picked. Filter them out at load time; affects ~1%
+           of questions site-wide. Train.html keeps multi-select
+           support via its own renderer. */
+        var singlePick = all.filter(function (q) { return !Array.isArray(q.correct); });
         var questions;
         if (node.type === 'finalboss') {
           /* Random N for the mock exam */
           var n = Number(node.questionCount) || 20;
-          var pool = all.slice();
+          var pool = singlePick.slice();
           for (var i = pool.length - 1; i > 0; i--) {
             var j = Math.floor(Math.random() * (i + 1));
             var tmp = pool[i]; pool[i] = pool[j]; pool[j] = tmp;
           }
           questions = pool.slice(0, Math.min(n, pool.length));
         } else {
-          var byId = new Map(all.map(function (q) { return [String(q.id), q]; }));
+          var byId = new Map(singlePick.map(function (q) { return [String(q.id), q]; }));
           questions = (node.questionIds || []).map(function (id) { return byId.get(String(id)); }).filter(Boolean);
-          if (!questions.length) questions = all.slice(0, 5);
+          if (!questions.length) questions = singlePick.slice(0, 5);
         }
         if (!questions.length) {
           panel.appendChild(el('div', { class: 'node-sheet-inline pquiz-error', text: 'No questions available for this node.' }));

@@ -287,27 +287,33 @@ Suggested PR order:
       concept + sub-boss still carry those paths.
 - [x] ✅ Cache bumped 65 → 66, sw.js CACHE_VERSION → v80.
 
-### 5.14 — Per-node-type audit pass (P7)
+### 5.14 — Per-node-type audit pass (P7) ✅ SHIPPED 2026-05-15
 
 > **No more shallow patches.** Sweep every node type end-to-end with the
 > 360/768/1440 cascade walk, document each bug found, fix in one PR.
 
-- [ ] Concept cards — re-verify flip animation, text overflow, Start →
-      Mark complete state machine.
-- [ ] Quiz inline — verify focused `questionIds` honored, hearts
-      decrement, summary card.
-- [ ] Yes/No drill — post-5.13, re-walk for tap responsiveness on iOS
-      Safari (the original TF bug was iOS-specific).
-- [ ] Sub-boss — same as quiz; verify 20-Q subset selection.
-- [ ] Final boss — verify random-pick from bank + survivor laurel
-      ceremony actually fires on inline-finish (not redirect-finish).
-- [ ] Chest — covered by 5.12 itself.
-- [ ] Walker — verify it moves on every node-complete; no stale stage
-      emoji on level-up; no stuck-in-place after viewport rotate.
-- [ ] Document every bug in `audits/path-nodes-2026-05-15.md` (one
-      line per finding) and check off as fixed.
-- [ ] Acceptance: zero open items in the audit doc; all 83+ unit tests
-      pass.
+- [x] ✅ Audit doc: `audits/path-nodes-2026-05-15.md` — one section per
+      node type with status, plus list of fixes applied and items
+      deferred.
+- [x] ✅ Concept — clean. Flip + dual-state Start verified.
+- [x] ✅ Quiz inline / sub-boss / final-boss — surfaced one real bug:
+      `picked === q.correct` always failed for multi-correct questions
+      (`q.correct` as `[0, 3]`), so the user lost a heart and got 0%
+      on every multi-select question. Affects ~27 questions
+      (aws-dva-c02, aws-scs-c02, az-305 …). **Fix:** filter
+      `Array.isArray(q.correct)` out of the question pool at
+      `renderQuizInline` load time. Train.html keeps its own
+      multi-select UI.
+- [x] ✅ Final-boss laurel chain (`runQuiz.finish → markComplete →
+      awardLaurelIfNeeded → cq:laurel-earned → showFinalBossCeremony`)
+      verified end-to-end.
+- [x] ✅ Yes/No drill (post-5.13): declarative renders + legacy fallback
+      both work; pointerdown+click double-bind preserved for iOS Safari.
+- [x] ✅ Walker: scroll/resize/ResizeObserver re-pin (4.3.5), level-up
+      emoji updates immediately via `event.detail.newStageEmoji` —
+      Phase 4.1 stale-emoji ticket closed in practice.
+- [x] ✅ 109/109 unit tests pass.
+- [x] ✅ Cache bumped 69 → 70, sw.js CACHE_VERSION → v84.
 
 ### 5.15 — Training mode selector polish (T1)
 
