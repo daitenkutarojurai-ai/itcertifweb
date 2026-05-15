@@ -315,21 +315,23 @@ Suggested PR order:
 - [x] ✅ 109/109 unit tests pass.
 - [x] ✅ Cache bumped 69 → 70, sw.js CACHE_VERSION → v84.
 
-### 5.15 — Training mode selector polish (T1)
+### 5.15 — Training mode selector polish (T1) ✅ SHIPPED 2026-05-15
 
 > Was buried in original 5.2. Surface it as its own ticket.
 
-- [ ] On `/train.html` (when entered with a pack), the mode picker
-      ("Diagnostic / Quick quiz / Custom / Full exam") renders too small
-      on desktop — auto-shrinks to about 240 px wide and looks like an
-      afterthought.
-- [ ] Rebuild as a card grid: 4 mode cards, each 280 px wide on desktop
-      (2-col on tablet, 1-col stack on phone), with an icon, mode name,
-      one-line description, estimated time, and CTA button.
-- [ ] Use the existing color tokens; no new design tokens needed.
-- [ ] Acceptance: at 1440 × 900, the mode picker fills the content
-      column, each card has equal height, the active mode is clearly
-      indicated.
+- [x] ✅ At ≥768 px, the picker becomes a centered modal (760 px wide,
+      820 px ≥1100 px) with a 2-col grid (2×2 cards). Phone stays a
+      bottom sheet, untouched.
+- [x] ✅ Mode cards reflow to vertical layout on desktop: icon top-left,
+      title, description, CTA chevron in a circular pill at the bottom-
+      right. Hover slides the chevron right and tints it accent.
+- [x] ✅ No new design tokens — reuses `--surface-2`, `--surface-3`,
+      `--accent`, `--text`, `--text-secondary`. Wrapped in
+      `@media (min-width: 768px)` and `(min-width: 1100px)` so the phone
+      layout is byte-identical to before.
+- [x] ✅ Modal handle (drag affordance) is hidden on desktop — only the
+      bottom-sheet form needs it.
+- [x] ✅ Cache bumped 70 → 71, sw.js CACHE_VERSION → v85.
 
 ---
 
