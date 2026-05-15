@@ -83,14 +83,18 @@ up when there's time.
 - [x] ✅ Cache bumped 60 → 61, sw.js CACHE_VERSION → v75.
 - [x] ✅ Acceptance verified: 0 remaining `<a>` to `/stats.html` in HTML.
 
-### 5.5 — Mascot 🦑: center in its circle
+### 5.5 — Mascot 🦑: center in its circle ✅ SHIPPED 2026-05-15
 
-- [ ] The floating squid (`src/mascot.js` → `.mascot-bubble`) renders
-      slightly off-center inside its avatar circle on every page.
-- [ ] Verify SVG/emoji vertical-align inside the bubble and adjust the
-      transform / line-height so the emoji geometric center matches the
-      bubble center on iOS Safari, Android Chrome, and desktop Chrome.
-- [ ] Acceptance: pixel-checked centering at 1×, 1.5×, 2× DPR.
+- [x] ✅ Root cause: a stray second `.cq-mascot-emoji` block downstream
+      of the original 5.5 fix set `transform-origin: 50% 70%` — the
+      bob/wave keyframes pivoted 20% below center, making the squid
+      drift sideways every cycle. Both blocks consolidated into one;
+      `transform-origin: 50% 50%`.
+- [x] ✅ Static perceptual nudge: SVG body is top-heavy (mantle + eyes
+      occupy y=4..46, thin tentacles y=38..62). `translateY(1.5px)` on
+      the SVG element shifts the visual mass-center onto the bubble
+      center.
+- [x] ✅ Cache bumped 64 → 65, sw.js CACHE_VERSION → v79.
 
 ### 5.6 — Hearts → Health bar (cross-section, with damage + cooldown)
 
