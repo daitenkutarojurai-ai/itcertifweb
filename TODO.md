@@ -556,6 +556,35 @@ up when there's time.
 
 ---
 
+## 📦 Content expansion R3 (2026-05-15)
+
+After R2, +8 viral-content pages, all citation-backed:
+
+- **+5 RealityCheck myths** (cluster 5 → 10):
+  - `bootcamp-job-3-mois` — CIRR + France Stratégie + Course Report
+  - `dubai-zero-impot-it` — UAE Federal Tax Authority + impots.gouv.fr
+    (corporate tax 9% depuis 2023)
+  - `chatgpt-tue-jobs-dev` — US BLS + Hired + Stack Overflow Survey
+    + GitHub Copilot productivity study
+  - `saas-100k-mrr-12-mois` — Indie Hackers data + Pieter Levels
+    transparency
+  - `master-it-vs-autodidacte` — Stack Overflow Survey + APEC +
+    levels.fyi + France Stratégie
+- **+3 FailBase post-mortems** (cluster 4 → 7):
+  - `juicero-fridge-400-dollars` — Bloomberg vidéo virale 2017
+    (le moment qui a tué la boîte)
+  - `pets-com-ipo-2000` — SEC filings 1999-2000 + CNN Money +
+    WSJ coverage (le symbole bulle dot-com)
+  - `yahoo-google-search-rachat-rate` — Google offer $1M en 1998
+    + Microsoft offer $44.6B en 2008 + Tumblr write-off + Verizon
+    sale (10 ans de "non" qui ont coulé la boîte)
+
+Each fact has a typed evidence pill (data / qualitative / community
+/ law) + source URL. RealityCheck pages emit ClaimReview JSON-LD,
+FailBase emit Article JSON-LD.
+
+sitemap.xml +8 entries (5 reality-check + 3 failbase).
+
 ## 📦 Content expansion R2 (2026-05-15)
 
 After R1, +9 net-new pages targeting international salary SEO + new
