@@ -545,6 +545,9 @@
       } else {
         if (window.cqHearts) window.cqHearts.lose();
       }
+      try {
+        window.dispatchEvent(new CustomEvent('cq:combo-tick', { detail: { correct: isCorrect } }));
+      } catch (_) {}
       if (q.explanation) {
         feedback.textContent = q.explanation;
         feedback.hidden = false;
@@ -793,6 +796,9 @@
         card.classList.add('yn-card--wrong');
         if (window.cqHearts) window.cqHearts.lose();
       }
+      try {
+        window.dispatchEvent(new CustomEvent('cq:combo-tick', { detail: { correct: ok } }));
+      } catch (_) {}
       idx++;
       setTimeout(step, 600);
     }

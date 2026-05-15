@@ -10,7 +10,7 @@
  * Bump CACHE_VERSION to invalidate clients on next visit.
  */
 
-const CACHE_VERSION = 'v81-2026-05-15-phase5-6-health-bar-v67';
+const CACHE_VERSION = 'v82-2026-05-15-phase5-7-hud-always-on-v68';
 const RUNTIME_CACHE = `cq-runtime-${CACHE_VERSION}`;
 const PRECACHE      = `cq-precache-${CACHE_VERSION}`;
 
@@ -20,19 +20,19 @@ const PRECACHE_URLS = [
   '/index.html',
   '/path.html',
   '/profile.html',
-  '/src/styles/main.css?v=67',
-  '/src/styles/desktop.css?v=67',
+  '/src/styles/main.css?v=68',
+  '/src/styles/desktop.css?v=68',
   '/certifications/',
-  '/src/styles/path.css?v=67',
-  '/src/styles/profile.css?v=67',
-  '/src/cq-core.js?v=67',
-  '/src/path.js?v=67',
-  '/src/profile.js?v=67',
-  '/src/mascot-loader.js?v=67',
-  '/src/auth.js?v=67',
-  '/src/auth-ui.js?v=67',
-  '/src/sync.js?v=67',
-  '/src/reset-password.js?v=67',
+  '/src/styles/path.css?v=68',
+  '/src/styles/profile.css?v=68',
+  '/src/cq-core.js?v=68',
+  '/src/path.js?v=68',
+  '/src/profile.js?v=68',
+  '/src/mascot-loader.js?v=68',
+  '/src/auth.js?v=68',
+  '/src/auth-ui.js?v=68',
+  '/src/sync.js?v=68',
+  '/src/reset-password.js?v=68',
   '/data/cosmetics.json',
   '/src/assets/icons/favicon-96.png?v=4',
   '/src/assets/icons/favicon-32.png?v=4',

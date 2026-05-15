@@ -1,4 +1,4 @@
-/* CertQuests core bundle — generated 2026-05-15T09:41:51.761Z
+/* CertQuests core bundle — generated 2026-05-15T09:56:12.835Z
  *
  * This file is concatenated by scripts/build-core.js. Do not edit by hand;
  * edit the source modules in src/*.js and re-run `npm run build-core`.
@@ -1454,16 +1454,23 @@
   }
 
   /* ──────────────────────── Visibility logic ──────────────────────── */
+  function isPathPage() {
+    try { return /^\/path(\.html|\/)/.test(location.pathname); }
+    catch (_) { return false; }
+  }
+  function isPathPackPage() {
+    /* /path.html?pack=… (a specific path open) — not the picker. */
+    if (!isPathPage()) return false;
+    try { return /[?&]pack=/.test(location.search || ''); }
+    catch (_) { return false; }
+  }
+  /* Phase 5.7 update — HUD is the always-on map companion on /path.html
+     once a pack is loaded (avatar + health visible whether or not a node
+     sheet is open). On /train.html it stays session-only. Hidden on all
+     content pages. */
   function shouldShow() {
-    /* train.html: any time the quiz screen is in the DOM */
+    if (isPathPackPage()) return true;
     if (document.querySelector('.quiz-screen')) return true;
-    /* path.html: an open node sheet whose node type is quiz-like */
-    var sheet = document.getElementById('node-sheet');
-    if (sheet && !sheet.hidden) {
-      /* Reads the inline label rendered by path.js openNodeSheet */
-      var kind = (document.getElementById('node-sheet-kind') || {}).textContent || '';
-      if (/quiz|boss|mini/i.test(kind)) return true;
-    }
     return false;
   }
 

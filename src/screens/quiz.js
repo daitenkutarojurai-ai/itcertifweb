@@ -295,6 +295,10 @@ function handleAnswer(container, selected) {
     if (!isStudyMode()) animateLoseHeart(container);
     revealAnswers(container, selected, 'wrong');
   }
+  /* Phase 5.7 — feed the session HUD's combo readout */
+  try {
+    window.dispatchEvent(new CustomEvent('cq:combo-tick', { detail: { correct: isCorrect } }));
+  } catch (_) {}
 }
 
 function toggleMultiOption(container, idx) {

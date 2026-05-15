@@ -125,28 +125,24 @@ up when there's time.
       total tests pass (was 96).
 - [x] ✅ Cache bumped 66 → 67, sw.js CACHE_VERSION → v81.
 
-### 5.7 — Quest HUD box (Chess-Kombat-style video-game panel)
+### 5.7 — Quest HUD box (Chess-Kombat-style video-game panel) ✅ SHIPPED 2026-05-15
 
-- [ ] **P6 — Avatar + health on the same view as the path map.** During a
-      Cert Quest path AND during a Training quiz session, render a
-      **persistent HUD box** in a top corner with:
-      - Health bar (from 5.6)
-      - Player avatar emoji + level badge (already in `src/avatar.js`)
-      - XP-to-next-level mini-bar
-      - Combo streak (current correct-in-a-row, from quizEngine)
-      - Optional: time elapsed, questions remaining
-- [ ] HUD must be visible on `/path.html` even when no node is open —
-      avatar + health are the always-on map companions, not session-only.
-- [ ] Visual language: dark glass panel, pixel-game border accents, subtle
-      glow when combo > 3, damage flash when health drops.
-- [ ] Reference: the `~/Chess-kombat` repo's in-game HUD — same aesthetic
-      family (compact, layered, video-game feel) so users moving between
-      the two products feel at home.
-- [ ] Hidden on the landing page + content pages (news, careers,
-      certifications, courses) — only on `/path.html` and during a
-      `/train.html` session.
-- [ ] Acceptance: HUD visible on `/path.html` (always) + `/train.html`
-      during a quiz; not visible on `/`, `/news/`, etc.
+- [x] ✅ HUD module (`src/hud.js`) renders a top-right corner panel with:
+      avatar emoji + level badge, HP segmented bar (reuses cq-health-*
+      from 5.6), XP-to-next-level fill, combo row (`×N combo`).
+      Damage flash on `cq:heart-lost`; combo "is-hot" glow at ≥4.
+- [x] ✅ **P6 — Always-on companion on /path.html.** Visibility logic
+      updated: HUD shows whenever `/path.html?pack=…` is loaded
+      (`isPathPackPage()`), not just when a node sheet is open. Map
+      browsing now displays the avatar + health in the corner.
+- [x] ✅ Training mode: HUD appears whenever `.quiz-screen` is in the DOM
+      (existing MutationObserver-based detection, unchanged).
+- [x] ✅ Hidden on `/`, `/news/`, `/careers/`, `/certifications/`,
+      `/courses/` — only the two surfaces above show it.
+- [x] ✅ `cq:combo-tick` dispatched from `src/path.js` (inline quiz +
+      Yes/No drill) and `src/screens/quiz.js` (training quiz handleAnswer)
+      so the combo readout actually updates.
+- [x] ✅ Cache bumped 67 → 68, sw.js CACHE_VERSION → v82.
 
 ### 5.8 — Verification pass (mandatory)
 
