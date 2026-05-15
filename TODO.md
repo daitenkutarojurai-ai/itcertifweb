@@ -174,33 +174,36 @@ Suggested PR order:
 11. **5.15** — Training mode-selector polish (T1). Independent.
 12. **5.3** — Courses rework (biggest, last).
 
-### 5.10 — IA collapse: `/train.html` landing → `/certifications/` (A1)
+### 5.10 — IA collapse: `/train.html` landing → `/certifications/` (A1) ✅ SHIPPED 2026-05-15
 
 > **Decision (user-confirmed 2026-05-15):** `/train.html?pack=X` stays as
 > the quiz **runtime**. The bare `/train.html` (pack picker) is collapsed
 > into `/certifications/`. One pack picker, two play modes per pack.
 
-- [ ] Bare `/train.html` (no `?pack=`) → 301 to `/certifications/`. Add
-      to `_redirects` (already exists from 5.4); also keep an in-page
-      meta-refresh fallback for clients that bypass the edge redirect.
-- [ ] Each certification page (`/certifications/aws.html` etc.) shows
-      every pack in that brand with **two CTAs side-by-side**:
-      *Quick Quiz* → `/train.html?pack=X`, *Learning Path* →
-      `/path.html?pack=X`. If a path JSON is missing for a pack, hide the
-      Learning Path CTA (don't render a dead button).
-- [ ] Strip "Training" from the top nav across all pages (replaced by
-      "Certifications"). Hamburger drawer too.
-- [ ] Strip the standalone pack list from `/train.html` (the runtime
-      page should error-page if no `?pack=` is given AND the redirect
-      somehow failed).
-- [ ] Keep the existing `cq-pack-pending` / autostartFocused flow
-      working — only the landing surface changes.
-- [ ] Update `sitemap.xml`: drop bare `/train.html`, keep canonical
-      `/certifications/` and per-cert pages.
-- [ ] Acceptance: hitting `/train.html` lands on `/certifications/`;
-      every cert page exposes both CTAs; no orphaned "Training" nav
-      entries; smoke-test 3 packs (`aws-saa-c03`, `comptia-security-plus`,
-      `az-104`) end-to-end through both modes.
+- [x] ✅ Bare `/train.html` redirect implemented in-page (top-of-head
+      script in `train.html`). Cloudflare `_redirects` can't match on
+      query string; an edge 301 there would also rewrite the live
+      `?pack=` runtime, so the redirect lives in the page itself —
+      fires only when `?pack`/`?brand`/`?qids` are absent.
+- [x] ✅ Each cert page (`/certifications/*.html`) now shows every
+      available pack with **two CTAs side-by-side**: 🎯 Quick quiz
+      (`/train.html?pack=X`) + 🗺️ Learning path (`/path.html?pack=X`).
+      Path CTA is omitted when no path JSON exists. New script
+      `scripts/cert-pack-ctas.js` (idempotent, `npm run cert-pack-ctas`).
+- [x] ✅ Pack-id alias map: `data/index.json` ID `aws-clf-c02` resolves
+      to canonical path packId `aws-cloud-practitioner` so the path CTA
+      points at the right /path.html target.
+- [x] ✅ Per-brand `--pack-brand` CSS variable injected into each cert
+      page's `.pack-tile { … }` block, so the primary CTA inherits the
+      brand colour automatically (AWS #FF9900, Microsoft #0078D4,
+      Cisco #1D63ED, etc.).
+- [x] ✅ "Training" already removed from top nav + drawer in 5.1.
+- [x] ✅ `train.html` meta updated: `noindex, follow` + canonical
+      → `/certifications/` (the bare page no longer ranks).
+- [x] ✅ `sitemap.xml`: bare `/train.html` entry removed.
+- [x] ✅ Smoke check: all 32 CTAs (16 train + 16 path) point at packs
+      that exist in `data/index.json` / `data/paths/_index.json`.
+- [x] ✅ Cache bumped 62 → 63, sw.js CACHE_VERSION → v77.
 
 ### 5.11 — Path bottom-sheet desktop sizing (P1)
 
