@@ -277,22 +277,66 @@ up when there's time.
   - "Find me" anchor — `/leaderboard/#me` scrolls to and highlights
     the signed-in user's row.
 
-### 6.8 — RealityCheck IT/Carrière
+### 6.8 — RealityCheck IT/Carrière ✅ SHIPPED 2026-05-15
 
-URL: `/reality-check/<slug>`
-- **Priority:** P2 (content authority, viral angle)
-- **Complexity:** L (research-heavy editorial)
-- **Dependencies:** Reddit/LinkedIn/APEC sources per topic.
-- **Pages (5 first):** `/reality-check/devops-100k-france`,
-  `/reality-check/aws-certifie-salaire`,
-  `/reality-check/freelance-it-revenu-reel`,
-  `/reality-check/bali-remote-worker`,
-  `/reality-check/dropshipping-2026`.
-- **SEO impact:** clickbait-adjacent intent queries — "DevOps 100k vrai
-  ou faux" — high CTR, moderate volume.
-- **Monetization:** AdSense + affiliate to bootcamps/coaching.
-- **Risks:** editorial trust — every claim needs a citation that won't
-  rot. Use Wayback Machine snapshots for sources.
+- [x] ✅ Schema documented in `data/reality-check/_schema.md`. Each
+      `<slug>.json` carries title (myth-as-question), claim (the exact
+      sentence being tested), verdict (`true / partly-true / depends /
+      outdated / false`) + verdictLabel + verdictColor, tldr, icon,
+      lastReviewed, tags, facts[] (with claim/fact/type/source),
+      whoCan, whoCant, realCeiling, honestVerdict paragraphs,
+      top-level sources[], optional relatedLinks[]. Honesty rules
+      baked into the schema doc ("no fabricated numbers", "cite
+      institutions", "verdict must follow evidence").
+- [x] ✅ 5 first datasets shipped:
+      - `devops-100k-france` — verdict "Vrai mais étroit"
+      - `aws-certifie-salaire` — verdict "Faux dans la formulation,
+        vrai dans la corrélation"
+      - `freelance-it-revenu-reel` — verdict "Faux — confusion CA / revenu net"
+      - `bali-remote-worker` — verdict "Dépend du visa, du job et de ta santé"
+      - `dropshipping-2026` — verdict "Faux — modèle 2017 obsolète"
+- [x] ✅ Editorial discipline: each fact tagged with `type` (data /
+      qualitative / community / law) so readers see what kind of
+      evidence backs each claim. Sources point to institutional URLs
+      (APEC, URSSAF, Shopify Blog, Indonesian Immigration, NomadList,
+      Reddit communities). No fabricated specific statistics — used
+      qualitative language ("most freelancers report…") when no
+      verifiable number was available.
+- [x] ✅ `scripts/gen-reality-check-pages.js` (`npm run gen-reality-check`,
+      idempotent). Generates per-myth page + grid index. **6 pages
+      total.**
+- [x] ✅ Myth page renders: hero with eyebrow + verdict pill, side-by-
+      side claim card (red) + verdict badge (colored by verdict),
+      TL;DR block (blue), evidence section with per-fact cards
+      (color-coded type pill + source link), two-column who-can/
+      who-can't, "real ceiling" amber callout, final "honest verdict"
+      purple gradient block, sources list with refresh disclaimer,
+      related-links block. **ClaimReview JSON-LD** schema with
+      ratingValue mapped from verdict (true=5, partly-true=3,
+      depends=3, outdated=2, false=1) — eligible for Google Fact
+      Check rich results.
+- [x] ✅ Index page: tag filter + verdict-colored card grid; per-card
+      verdict pill in vendor color, icon, tldr, fact count.
+- [x] ✅ Freshness pill: green ≤3 months, amber ≤9, red after
+      (reality-check pages rot faster than tool comparisons — wider
+      bands).
+- [x] ✅ `npm run gen-reality-check` in package.json.
+- [x] ✅ sitemap.xml +6 entries (index 0.85, leaves 0.8).
+- [x] ✅ 109/109 tests pass.
+- [ ] **Open follow-ups:**
+      - **Wayback Machine snapshot URLs** in each source so links
+        don't rot. Today we point to publisher landing pages; rot is
+        slower but possible.
+      - **Affiliate slots** (CertQuests doesn't run any today).
+        Candidates per page: bootcamps (DevOps), coaching freelance
+        (revenu réel), nomad insurance (Bali), Shopify partner
+        (dropshipping).
+      - **+5 more myths:** "Bootcamp = job en 3 mois", "Master IT =
+        meilleur salaire qu'autodidacte", "Move to Dubai pour zéro
+        impôt", "ChatGPT va prendre ton job", "VC SaaS 100k MRR en
+        12 mois".
+      - **User submission form** — readers propose new myths to test
+        (Supabase form behind the new auth).
 
 ### 6.9 — DevStack
 
