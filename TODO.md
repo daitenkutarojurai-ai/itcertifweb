@@ -205,23 +205,23 @@ Suggested PR order:
       that exist in `data/index.json` / `data/paths/_index.json`.
 - [x] ✅ Cache bumped 62 → 63, sw.js CACHE_VERSION → v77.
 
-### 5.11 — Path bottom-sheet desktop sizing (P1)
+### 5.11 — Path bottom-sheet desktop sizing (P1) ✅ SHIPPED 2026-05-15
 
-- [ ] Today the path bottom-sheet (`#node-sheet` in `src/path.js` /
-      `path.css`) is fixed at phone width on desktop, leaving most of the
-      viewport unused. Make it responsive:
-      - `< 768 px`: full-width drawer from bottom (today's behavior)
-      - `768–1199 px`: centered modal, `min(640px, 90vw)`
-      - `≥ 1200 px`: centered modal, `min(840px, 70vw)`, with breathing
-        room around content (concept cards / quiz options scale up)
-- [ ] Quiz-inline option buttons should also scale on desktop (today they
-      stay tap-target-sized which looks cramped on a 27" screen).
-- [ ] Backdrop opacity bumped on wider viewports so the modal feels
+- [x] ✅ Sheet centered on desktop (was bottom-anchored). Three breakpoints:
+      - `< 768 px`: bottom drawer, untouched
+      - `768–1199 px`: centered modal, `min(640px, 90vw)`, 32px padding,
+        all corners rounded, scale-in transition
+      - `≥ 1200 px`: centered modal, `min(840px, 70vw)`, 36px padding
+- [x] ✅ Quiz-inline `.pquiz-opt` buttons now scale: `padding: 16-18px`,
+      `min-height: 56-60px`, `font-size: 15.5-16.5px`. Comfortable on a
+      27" screen, tap target preserved.
+- [x] ✅ Backdrop opacity bumped 0.6 → 0.72 on desktop; modal feels
       anchored, not floating.
-- [ ] Concept flashcards: increase max-width from 360 px → 560 px on
-      desktop; keep the flip animation snappy.
-- [ ] Acceptance: at 1440 × 900, no node sheet is narrower than 600 px;
-      no horizontal whitespace bleed; phone breakpoint untouched.
+- [x] ✅ Concept flashcards: `padding: 22-26px`, `font-size: 16.5-18px`,
+      `border-radius: 16px`. Long backs no longer feel cramped.
+- [x] ✅ `.node-sheet h2` 22px → 26-30px; `.node-sheet-icon` 56px → 64px.
+- [x] ✅ Cache bumped 63 → 64, sw.js CACHE_VERSION → v78.
+- [x] ✅ 83/83 unit tests pass.
 
 ### 5.12 — Treasure-chest rework (P3)
 
