@@ -51,21 +51,33 @@ up when there's time.
 - [ ] **Open follow-ups:** Wayback snapshots for sources, FR/EN locale
       toggle, lead-capture for "Get the salary report PDF" flow.
 
-### 6.2 — Cert Comparator
+### 6.2 — Cert Comparator ✅ SHIPPED 2026-05-15
 
-URL: `/compare/<cert-a>-vs-<cert-b>` (extend existing `compare/` dir)
-- **Priority:** P0 (fastest payoff — uses existing pack data)
-- **Complexity:** M
-- **Dependencies:** `data/index.json` (already), per-cert summary in
-  `data/free/*.json` (already), salary data from 6.1 (overlap).
-- **Pages (3 first):** `/compare/aws-saa-vs-az-104-vs-gcp-ace`,
-  `/compare/ccna-vs-comptia-network-plus`,
-  `/compare/cissp-vs-comptia-security-plus`.
-- **SEO impact:** "AWS SAA vs Azure 104" intent queries — high
-  conversion, mid-funnel.
-- **Monetization:** AdSense + cert-vendor affiliate.
-- **Risks:** dynamic 3-way picker tempting but adds JS — start with
-  static templates, JS picker later if traffic justifies.
+- [x] ✅ Schema documented in `data/comparisons/_schema.md`. Each
+      `<slug>.json` carries 2-3 certs (id matched against
+      `data/index.json`), pros/cons/bestFor per cert, verdicts table
+      (profile → winner with rationale), and a TLDR.
+- [x] ✅ 3 first datasets: `aws-saa-vs-az-104-vs-gcp-ace` (3-way),
+      `ccna-vs-comptia-network-plus` (2-way), `cissp-vs-comptia-
+      security-plus` (2-way).
+- [x] ✅ `scripts/gen-compare-pages.js` (`npm run gen-compare`)
+      pulls per-cert metadata from `data/index.json` (question_count,
+      est_hours), pulls salary median from `data/salary/<alias>.france
+      .json` when an alias is set, renders one static page per slug
+      under `compare/<slug>/index.html`. Index page rebuilt to list
+      every comparison + the legacy alternative-tool pages
+      (boson, examtopics).
+- [x] ✅ Page sections: hero with eyebrow + title + revised pill, TLDR
+      box, side-by-side comparison table (codes, fees, study hours,
+      bank Q count → train link, salary median → salary page link),
+      pros/cons/bestFor cards (one per cert, color-coded by vendor),
+      verdict-by-profile rows, "start with the one you chose" CTA row.
+      Article JSON-LD per page.
+- [x] ✅ `sitemap.xml` updated: index + 3 leaf comparator pages.
+- [x] ✅ Cache bumped 73 → 74, sw.js CACHE_VERSION → v88.
+- [ ] **Open follow-ups:** dynamic 3-way picker (cert-A × cert-B form),
+      auto-generate "alternative" comparisons when adjacent certs ship
+      a salary page.
 
 ### 6.3 — Fail Analysis (per certification)
 
