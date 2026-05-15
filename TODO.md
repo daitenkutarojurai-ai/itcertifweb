@@ -556,6 +556,26 @@ up when there's time.
 
 ---
 
+## 📦 Content expansion R2 (2026-05-15)
+
+After R1, +9 net-new pages targeting international salary SEO + new
+cert decision queries:
+
+- **+6 international salary pages**: `az-104.luxembourg`,
+  `cissp.luxembourg`, `cissp.belgium`, `cka.belgium`,
+  `terraform.luxembourg`, `ccna.belgium`. Salary cluster now has
+  14 pages (was 8) across France / Belgium / Luxembourg.
+- **+3 cert comparator pages**:
+  - `cka-vs-ckad` — Kubernetes admin vs dev decision
+  - `az-104-vs-aws-saa-c03` — direct cloud associate duel by sector
+  - `terraform-003-vs-az-400` — IaC pure vs full Azure DevOps stack
+- Each comparator pulls salary medians from the matching
+  /salaire/<alias>.france.json automatically via `salaryAlias`.
+- sitemap.xml +10 entries (6 salary + 3 compare + 1 missed).
+
+Footprint: salary 8 → 14, comparator 3 → 6. Total /salaire/ +
+/compare/ pages = 20.
+
 ## 📦 Content expansion R1 (2026-05-15)
 
 After Wave 3 closeout, +10 net-new content pages across 3
