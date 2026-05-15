@@ -99,20 +99,37 @@ up when there's time.
 - [x] ✅ `sitemap.xml` updated: index + 3 leaf pages.
 - [x] ✅ Cache key 74 (no bump — same wave as 6.2).
 
-### 6.4 — Study Planner
+### 6.4 — Study Planner ✅ SHIPPED 2026-05-15
 
-URL: `/study-planner/`
-- **Priority:** P1 (lead-gen + retention)
-- **Complexity:** M (client-side date math + per-cert syllabus map)
-- **Dependencies:** per-cert syllabus tagging in `data/free/*.json`
-  (partial today; gen-paths chapters are a usable proxy). ICS export
-  uses `iCalendar` library or hand-rolled.
-- **Pages:** single SPA at `/study-planner/`.
-- **SEO impact:** moderate ("AWS study plan", "CCNA 30-day plan").
-- **Monetization:** **lead gen** — gate the ICS download or email-the-
-  plan flow behind email capture (Supabase Auth → trigger). High intent.
-- **Risks:** per-cert syllabus weights need sourcing per cert; ship
-  with 3 certs and expand.
+- [x] ✅ Single static SPA at `/study-planner/`. Form on the left,
+      generated plan on the right (stack on mobile). Pure client-side
+      JS — no backend.
+- [x] ✅ Cert dropdown auto-populated from `data/index.json`; recommended
+      hours per cert pulled from same file. For certs with a
+      Cert Quest path (40 packs), per-chapter syllabus pulled from
+      `data/paths/<pack>.json`.
+- [x] ✅ Distribution algo: weight chapters by node count, distribute
+      across "learn weeks", reserve last 1-2 weeks for review +
+      exam blanc. Coverage % = totalH / (cert.hours × levelMult)
+      where levelMult is 1.2 / 1.0 / 0.8 for beginner / intermediate
+      / advanced.
+- [x] ✅ Pace alerts: <70% coverage → red "rythme insuffisant"; 70-99%
+      → amber "tendu"; ≥100% → green "confortable".
+- [x] ✅ Per-week cards: dates, hours target, chapter title, milestones
+      ("finir le chapitre", "score ≥75%", "examens blancs").
+      Final-week card highlighted as exam day.
+- [x] ✅ ICS export: hand-rolled iCalendar generator; one VEVENT per
+      week + one for the exam day itself, with summary, description,
+      URL pointing to /train.html?pack=. Downloads via Blob — no
+      backend required.
+- [x] ✅ CTAs: train.html for the pack + path.html if a path exists.
+- [x] ✅ Defaults populate the form so first paint shows a real plan
+      (60 days from today, 10h/week, intermediate, AWS SAA).
+- [x] ✅ JSON-LD WebApplication schema; canonical + OG meta.
+- [x] ✅ `sitemap.xml` updated (priority 0.9, monthly changefreq).
+- [ ] **Open follow-ups:** lead-gen email-the-plan flow (Brevo/Supabase
+      transactional), CSV export, weekday calendar (currently weekly
+      cadence only).
 
 ### 6.5 — CareerPaths Generator
 
