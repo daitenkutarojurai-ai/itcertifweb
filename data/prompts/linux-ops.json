@@ -1,0 +1,55 @@
+{
+  "slug": "linux-ops",
+  "title": "Linux Ops — Sysadmin Tactical",
+  "tldr": "Prompts pour quand tu es sur un serveur Linux qui chauffe : pourquoi le load average est à 50, pourquoi le disk est à 100%, pourquoi un service ne démarre pas. Diagnostic rapide, pas de tuto académique.",
+  "vendor": "SysAdmin",
+  "icon": "🐧",
+  "color": "#fbbf24",
+  "lastReviewed": "2026-05",
+  "tags": ["linux", "sysadmin", "ops", "debugging"],
+  "models": ["Claude 4.7 Opus", "GPT-5"],
+  "affiliate": null,
+  "disclaimer": "Ces prompts t'aident à structurer un diagnostic — ils ne remplacent JAMAIS la lecture manuelle des logs. Ne lance pas une commande proposée par AI en root sans la comprendre. Toujours faire un `--dry-run` ou équivalent en production avant d'agir.",
+  "prompts": [
+    {
+      "id": "high-load-triage",
+      "title": "High load average / CPU à 100% — diagnostic en 5 minutes",
+      "use_case": "Le monitoring beep, le load average est à 50, et tu as 10 minutes pour identifier la cause avant que le SLA pète.",
+      "model_tested": ["Claude 4.7 Opus (2026-05)", "GPT-5 (2026-05)"],
+      "prompt": "Tu es un SRE senior. Mon serveur Linux est en surcharge. Aide-moi à diagnostiquer en 5 minutes.\n\nVoici les sorties de mes commandes initiales :\n\n```\n$ uptime\n<COLLE_LA_SORTIE>\n\n$ top -bn1 | head -20\n<COLLE_LA_SORTIE>\n\n$ free -h\n<COLLE_LA_SORTIE>\n\n$ iostat -x 1 3\n<COLLE_LA_SORTIE_OU_PRECISE_SI_IOSTAT_NON_INSTALLÉ>\n\n$ vmstat 1 5\n<COLLE_LA_SORTIE>\n```\n\nDiagnostique en 4 sections :\n\n1. **Verdict primaire** (1 phrase) : où est le bottleneck principal — CPU / Memory / I/O / Network / Process explosion ?\n2. **Evidence** : quelle métrique précise t'a mené à ce verdict (cite la valeur).\n3. **Commandes suivantes à lancer** (top 5, dans l'ordre) pour confirmer + localiser le coupable. Donne-moi la commande exacte, pas 'utilise top'.\n4. **3 hypothèses sur la cause racine** : la plus probable, l'alternative, et la moins probable mais possible. Pour chaque hypothèse, qu'est-ce qui la confirmerait.\n\nRègle : ne propose JAMAIS de killer un process sans avoir vérifié ce qu'il fait avec `lsof -p PID` ou `ps -ef --forest` pour voir l'arbre des processus.",
+      "tips": "Avant tout : `tmux` ou `screen` ta session — si tu reboot ou redéploie pendant l'investigation, tu perds ton contexte. `journalctl -u <service> --since '15 min ago'` est ton meilleur ami."
+    },
+    {
+      "id": "disk-full-emergency",
+      "title": "Disque plein — trouver les Go cachés avant l'OOM service",
+      "use_case": "`df -h` montre 100%, le service crashe en boucle, et tu n'as pas la luxe de redémarrer.",
+      "model_tested": ["Claude 4.7 Opus (2026-05)", "GPT-5 (2026-05)"],
+      "prompt": "Tu es un sysadmin sénior. Mon disque Linux est plein. Je dois libérer de l'espace en 10 minutes sans casser le service en prod.\n\nVoici mes sorties :\n\n```\n$ df -h\n<COLLE_LA_SORTIE>\n\n$ df -i  # inodes\n<COLLE_LA_SORTIE>\n\n$ du -sh /* 2>/dev/null | sort -hr | head -20\n<COLLE_LA_SORTIE>\n```\n\nDiagnostique :\n\n1. **Cause primaire** : disque plein en bytes OU en inodes ? Quel filesystem ?\n2. **Top 5 répertoires/fichiers à cibler** (par ordre de gain potentiel) avec la commande exacte pour identifier précisément ce qui consomme :\n   - Pour des logs : `find /var/log -type f -size +500M -exec ls -lh {} \\;`\n   - Pour des bin : `ncdu` ou `du -h --max-depth=2 /opt | sort -hr`\n   - Pour les fichiers supprimés mais retenus par un process : `lsof | grep -i deleted | awk '{print $7, $9}' | sort -hr`\n3. **Actions de libération sûres** (top 3) : pour chaque action, donne la commande EXACTE + ce que ça libère typiquement + le risque.\n4. **Actions à NE PAS faire** sous pression (top 3) — exemples : `rm -rf /var/log/*` sans `truncate -s 0`, `apt clean` sans vérifier les packages installés, supprimer un mountpoint sans le `umount`.\n5. **Fix permanent** une fois la crise passée : 1 changement à mettre en place pour éviter la rechute (logrotate config, monitoring threshold, etc.).\n\nRègle : si je vois 'fichiers supprimés mais retenus' (lsof + deleted), redémarrer le process (PID) libère l'espace SANS rm. Souvent c'est la première chose à essayer.",
+      "tips": "L'ennemi numéro 1 sur un disque plein en prod : les fichiers supprimés mais retenus par un process (souvent un truncate de log mal fait). `lsof | grep deleted` les révèle. Le `rm` n'a pas marché parce que un FD est encore ouvert."
+    },
+    {
+      "id": "service-wont-start",
+      "title": "Un service systemd refuse de démarrer — debug systemd + journalctl",
+      "use_case": "Tu redémarres après un déploiement et systemctl status dit 'failed'. journalctl est verbeux et tu cherches l'erreur précise.",
+      "model_tested": ["Claude 4.7 Opus (2026-05)", "GPT-5 (2026-05)"],
+      "prompt": "Tu es un sysadmin systemd-natif. Mon service `<NOM_SERVICE>.service` ne démarre pas. Je te donne les sorties :\n\n```\n$ systemctl status <NOM_SERVICE>.service\n<COLLE_LA_SORTIE>\n\n$ journalctl -u <NOM_SERVICE>.service -n 100 --no-pager\n<COLLE_LA_SORTIE>\n\n$ systemctl cat <NOM_SERVICE>.service\n<COLLE_LE_FICHIER_UNIT>\n```\n\nAide-moi à diagnostiquer :\n\n1. **Erreur primaire** : repère la ligne ou exit code qui révèle le vrai problème (souvent enterré dans 100 lignes de logs). Cite-la verbatim.\n2. **Classification** : config / permissions / dépendance / port / dépendance externe (DB, network) / OOM / autre.\n3. **Top 3 hypothèses** sur la cause + commande pour confirmer chacune :\n   - permissions : `ls -la /chemin/que/le/service/utilise`\n   - port : `ss -tlnp | grep <PORT>` (qui d'autre l'occupe)\n   - DB : `psql -h ... -U ... -c 'SELECT 1'` (DB accessible ?)\n   - SELinux/AppArmor : `ausearch -m avc -ts recent` ou `dmesg | grep -i denied`\n4. **Action de fix** la plus probable, avec la commande exacte.\n5. **Comment éviter la rechute** : 1 amélioration du unit file (ex: ajouter `Restart=on-failure` + `RestartSec=10s` + `StartLimitBurst=5`) ou 1 healthcheck à mettre.\n\nRègle : si l'erreur dit 'Address already in use', NE PROPOSE PAS `kill -9 $(lsof -ti:PORT)` aveuglément — d'abord identifie QUI tient le port (peut être un autre service légitime).",
+      "tips": "`journalctl -xe` montre les explications de systemd ('xe' = explanation extended). Beaucoup plus utile que `journalctl -u` brut pour les erreurs de boot."
+    },
+    {
+      "id": "log-pattern-analysis",
+      "title": "Analyser un log pour identifier le pattern d'erreur dominant",
+      "use_case": "Tes logs sont en alerte continue — tu veux savoir quelle catégorie d'erreur représente 90% du bruit avant d'agir.",
+      "model_tested": ["Claude 4.7 Opus (2026-05)", "GPT-5 (2026-05)"],
+      "prompt": "Tu es un SRE qui analyse des logs production. Je te donne un échantillon de ~200 lignes du log d'un service. Trouve les patterns récurrents.\n\nFormat de mon log : <ex: nginx access log, JSON structured logs, Java stack traces, etc.>\n\nLignes du log :\n```\n<COLLE_200_LIGNES_MAX>\n```\n\nAnalyse :\n\n1. **Top 5 patterns d'erreur** (groupés par type, pas par occurrence individuelle) — pour chacun : pattern type (regex ou description), nombre d'occurrences dans l'échantillon, % du total.\n2. **Pour le pattern #1** : analyse approfondie — quelle est la cause probable, est-ce une vraie erreur ou du bruit (timeout normal vs crash), faut-il agir maintenant ou demain matin.\n3. **Pattern à ignorer / silence** : repère 1-2 patterns qui sont du bruit (healthcheck failure d'un load balancer, timeout TCP d'un client mobile, etc.) et qu'on devrait filtrer du dashboard.\n4. **Pattern à élever en alerte** : repère 1 pattern qui devrait déclencher un PagerDuty (ex: 'OutOfMemoryError', 'connection refused to primary DB').\n5. **Une recommandation logging** : un améliorement structurel (ajouter un correlation ID, sortir un champ JSON spécifique, etc.) qui rendrait le diagnostic 10x plus rapide la prochaine fois.\n\nFormat : tableau pour 1, paragraphes courts pour 2-5.",
+      "tips": "Si tes logs ne sont pas structurés (JSON), commence par ça. `jq` sur des logs JSON > `grep` sur des logs texte, à vie. Stack Datadog/Loki/ELK qui peuvent agréger automatiquement les patterns valent leur prix dès 50 services."
+    },
+    {
+      "id": "kernel-panic-postmortem",
+      "title": "Post-mortem d'un crash serveur (kernel panic / hard reboot)",
+      "use_case": "Le serveur a rebooté seul à 3h du matin, tu cherches l'explication dans les logs persistents avant de remettre en service.",
+      "model_tested": ["Claude 4.7 Opus (2026-05)"],
+      "prompt": "Tu es un SRE post-mortem. Mon serveur Linux a redémarré seul à <HEURE>. Je dois savoir POURQUOI avant de le remettre en service.\n\nJ'ai collecté :\n\n```\n$ last -x | head -20  # reboot history\n<COLLE>\n\n$ journalctl --list-boots\n<COLLE>\n\n$ journalctl -b -1 -n 100 --no-pager  # logs du boot précédent (= avant le crash)\n<COLLE_LES_100_DERNIÈRES_LIGNES_AVANT_LE_REBOOT>\n\n$ dmesg | grep -iE 'oom|panic|hardware|error' | tail -30\n<COLLE>\n\n$ uptime\n<COLLE>\n```\n\nDiagnostique :\n\n1. **Cause primaire identifiée** (ou 'pas concluant — voir #4' si les logs ne suffisent pas) : OOM kill, kernel panic, hardware fault (disk/RAM/PSU), watchdog timeout, mise à jour automatique, ou autre.\n2. **Timeline reconstituée** : 5 dernières minutes avant le reboot — qu'est-ce qui s'est passé ?\n3. **Le 'smoking gun'** : la ligne précise (cite-la) qui explique le mieux le reboot.\n4. **Si pas concluant** : quels logs supplémentaires je devrais récupérer pour aller plus loin (mcelog pour MCE hardware, IPMI System Event Log, SMART status, vendor logs).\n5. **Action avant remise en service** : checklist de 5 vérifications (fsck si forced reboot, vérifier l'état RAID / disk SMART, vérifier que les services ont bien fini leur graceful shutdown, etc.).\n6. **Recommandation monitoring** : 1 alerte à ajouter qui aurait détecté le pattern AVANT le crash.\n\nRègle : ne remets pas le serveur en prod sans avoir compris la cause. Un reboot sans explication = peut se reproduire dans les heures suivantes.",
+      "tips": "Sur du physical hardware : toujours regarder IPMI SEL (`ipmitool sel list`) — Linux ne voit pas tout, le BMC enregistre les events hardware avant que l'OS puisse réagir. Sur cloud : regarder le 'system status check' (AWS) ou 'host event' (GCP)."
+    }
+  ]
+}

@@ -556,6 +556,33 @@ up when there's time.
 
 ---
 
+## 📦 Content expansion R4 (2026-05-15)
+
+After R3, +6 hand-authored content pages on the slower-to-write
+"opinionated tools" categories:
+
+- **+3 PromptDungeon workflows** (cluster 4 → 7):
+  - `cloud-cost-auditor` (5 prompts: bill decoder, EC2 rightsizing,
+    S3 lifecycle generator, RI vs Spot decision matrix, Data
+    Transfer leak debug)
+  - `linux-ops` (5 prompts: high-load triage, disk-full emergency,
+    systemd service won't start, log pattern analysis, kernel-panic
+    post-mortem)
+  - `oncall-postmortem` (4 prompts: 3am investigation runbook,
+    blameless post-mortem template Google SRE style, Five Whys
+    deep-drill, action-item killer)
+- **+3 ToolRadar categories** (cluster 4 → 7):
+  - `meilleur-ai-no-code` (5 tools: Lovable, Bolt.new, v0, Replit,
+    Cursor) — winner v0 4.45
+  - `meilleur-vps-cloud-hosting` (5 tools: Hetzner, Fly.io, Railway,
+    Vercel, DigitalOcean) — winner Fly.io 4.15
+  - `meilleur-saas-comptabilite-fr` (5 tools: Indy, Tiime, Shine,
+    Freebe, Dougs) — winner Indy 4.15 (3-way tie at 4.15, editorial
+    pick = broadest fit)
+- Verdict-vs-math consistency audit: all 3 new ToolRadar winners
+  align with weighted score (saas-compta tie noted in disclaimer).
+- sitemap.xml +6 entries (3 prompt-dungeon + 3 tool-radar).
+
 ## 📦 Content expansion R3 (2026-05-15)
 
 After R2, +8 viral-content pages, all citation-backed:

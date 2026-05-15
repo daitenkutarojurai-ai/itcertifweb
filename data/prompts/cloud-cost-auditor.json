@@ -1,0 +1,55 @@
+{
+  "slug": "cloud-cost-auditor",
+  "title": "Cloud Cost Auditor",
+  "tldr": "Prompts pour décortiquer une facture AWS/GCP/Azure overshoot, repérer les leak operationnel les plus chers, et générer un plan d'optimisation FinOps en moins d'une heure — sans payer un consultant à 1200€/jour.",
+  "vendor": "FinOps",
+  "icon": "💸",
+  "color": "#34d399",
+  "lastReviewed": "2026-05",
+  "tags": ["finops", "aws", "cost", "cloud"],
+  "models": ["Claude 4.7 Opus", "GPT-5"],
+  "affiliate": null,
+  "disclaimer": "Ces prompts t'aident à formuler un audit FinOps — mais ils ne remplacent pas le contexte business interne. La vraie décision (couper EC2 vs garder pour QA) demande de connaître le projet sous-jacent. Utilise ces prompts comme tracteur d'investigation, pas comme oracle.",
+  "prompts": [
+    {
+      "id": "bill-decoder",
+      "title": "Décoder une facture AWS / GCP / Azure mensuelle",
+      "use_case": "Quand ta facture cloud a doublé et tu veux comprendre OÙ part l'argent en 10 minutes.",
+      "model_tested": ["Claude 4.7 Opus (2026-05)", "GPT-5 (2026-05)"],
+      "prompt": "Tu es un consultant FinOps senior. J'ai exporté ma facture <PROVIDER> du mois dernier au format CSV. Voici les 30 lignes les plus chères :\n\n<COLLE_LE_CSV_OU_LISTE_LES_30_LIGNES>\n\nAnalyse en 5 sections :\n\n1. **Top 3 services qui coûtent le plus** — pour chacun : nom du service, % de la facture totale, et l'usage typique correspondant.\n2. **Lignes suspectes ou anormales** — repère ce qui semble disproportionné (ex: 8000$ d'EBS provisioning sans EC2 actif = volumes orphelins, ou Data Transfer Out > 30% de la facture = problème CDN/égress).\n3. **Top 5 quick wins** — pour chaque ligne suspecte, donne-moi : (a) la cause probable, (b) l'action concrète (commande CLI ou clic console), (c) l'économie mensuelle estimée.\n4. **Lignes 'normales' mais optimisables** — services bien utilisés mais qui pourraient passer en Reserved Instance / Savings Plan / Committed Use Discount. Estime le ROI.\n5. **Une question de diagnostic** que je dois aller poser à l'équipe dev avant de prendre la moindre décision (ex: 'cet RDS de 500GB est-il vraiment utilisé en prod ou c'est un legacy ?').\n\nFormat : tableau pour 1-4, un seul bullet pour 5. Pas de préambule.",
+      "tips": "Exporte le CSV via Cost Explorer (AWS) ou Cloud Billing > Reports (GCP). Garde les 30 lignes les plus chères par coût mensuel, pas par volume. Si tu as plusieurs comptes/projets, fait l'audit compte par compte d'abord."
+    },
+    {
+      "id": "ec2-rightsizing",
+      "title": "Rightsizing EC2 / Compute Engine à partir de métriques CloudWatch",
+      "use_case": "Tu as 50 VMs et tu veux savoir lesquelles sont sur-dimensionnées sans devoir auditer chacune à la main.",
+      "model_tested": ["Claude 4.7 Opus (2026-05)", "GPT-5 (2026-05)"],
+      "prompt": "Tu es un consultant FinOps. Je te donne une liste de VMs (EC2 / Compute Engine / Azure VMs) avec leurs métriques d'utilisation moyenne sur les 30 derniers jours.\n\nFormat de mes données (CSV ou liste) :\nInstance | Type | vCPU | RAM | CPU avg % | RAM avg % | Network in/out (GB) | Coût/mois\n\nMes VMs :\n<COLLE_LES_DONNÉES>\n\nPour chacune, donne-moi en tableau :\n\n1. **Verdict** : OK / À downsize / À supprimer / À investiguer\n2. **Recommandation type d'instance** : si downsize, propose l'instance plus petite (ex: t3.large → t3.medium si CPU<20%)\n3. **Économie estimée** : $/mois\n4. **Risque** : faible / moyen / élevé (élevé = si CPU peak >80%, downsize risquerait de saturer)\n5. **Action requise** : commande aws CLI / gcloud / az CLI pour faire le changement\n\nRègle : ne propose JAMAIS de supprimer une VM sans demander à voir au moins 7 jours d'historique des connexions sortantes (sinon tu peux killer un cron caché). Demande explicitement les logs SSM / Cloud Logging avant.",
+      "tips": "Exporte les métriques via CloudWatch Metrics (AWS) > Get CPU/Memory utilization > Average over 30 days. Pour la RAM tu auras besoin du CloudWatch Agent ou Ops Agent installé — sinon tu travailles à l'aveugle sur la RAM."
+    },
+    {
+      "id": "s3-storage-audit",
+      "title": "Audit S3 / Cloud Storage / Blob Storage — lifecycle policy generator",
+      "use_case": "Ton S3 contient 50 To et tu paies 1200€/mois — beaucoup est froid ou archivable, mais tu ne sais pas par où commencer.",
+      "model_tested": ["Claude 4.7 Opus (2026-05)", "GPT-5 (2026-05)"],
+      "prompt": "Tu es un consultant FinOps spécialisé en object storage. J'ai un bucket <PROVIDER> avec les caractéristiques suivantes :\n\n- Volume total : <X> To\n- Classes de stockage actuelles : <ex: 100% S3 Standard>\n- Coût mensuel : <Y>€\n- Description des données : <DECRIS_LES_DONNÉES — ex: 'logs applicatifs des 5 dernières années, accédés en moyenne 1x par semaine pour debugging'>\n- Pattern d'accès observé (si dispo) : <ex: 'derniers 30j accédés, plus rien après'>\n- Contrainte de rétention : <ex: 'compliance 7 ans'>\n\nDonne-moi :\n\n1. **Recommandation de lifecycle policy** sous forme de JSON prêt à coller (AWS Lifecycle Rule, GCS Lifecycle, Azure Blob Lifecycle).\n2. **Pour chaque transition** (Standard → IA → Glacier / Coldline / Archive) : à partir de combien de jours, et pourquoi à ce délai.\n3. **Économie mensuelle estimée** à 6 mois et à 12 mois après mise en place de la policy.\n4. **Risque de retrieval** : si je dois récupérer des données archivées, quel délai + quel coût supplémentaire.\n5. **Une checklist pré-déploiement** : 5 vérifications à faire AVANT d'activer la policy (ex: vérifier que les apps n'ont pas hardcodé l'attente d'un accès < 100ms).\n\nAjoute un warning explicite si je risque de casser une dépendance (ex: 'Glacier Deep Archive a un délai de retrieval de 12h, incompatible avec tout dashboard temps réel').",
+      "tips": "Avant de déployer une lifecycle policy : DRY RUN d'abord (AWS S3 Storage Lens > simulate). Active sur 1 préfixe pilote pendant 1 mois avant de généraliser au bucket entier."
+    },
+    {
+      "id": "reserved-vs-spot",
+      "title": "Decision matrix : On-Demand vs Reserved Instance vs Savings Plan vs Spot",
+      "use_case": "Tu hésites sur la stratégie d'engagement pour 30+ instances en production. Pas envie de signer un 3 ans Reserved sans calcul.",
+      "model_tested": ["Claude 4.7 Opus (2026-05)"],
+      "prompt": "Tu es un consultant FinOps. Je te donne mon profil de workload et tu me proposes la meilleure stratégie d'engagement <PROVIDER>.\n\nMon profil :\n- Nombre d'instances : <X>\n- Type d'instances : <ex: m5.large + r5.xlarge>\n- Stabilité de l'usage : <stable 24/7 | variable jour/nuit | très bursty | dev only>\n- Horizon d'utilisation prévisible : <6 mois | 1 an | 3 ans>\n- Cash flow constraint : <fort | modéré | aucun>\n- Tolérance à l'interruption : <aucune (prod critique) | modérée (workers batch) | forte (CI/CD)>\n\nDonne-moi :\n\n1. **Recommandation principale** (en 1 phrase claire) : ex 'Compute Savings Plan 1 an, all upfront, couvrant 70% de la baseline'.\n2. **Mix optimal** sous forme de tableau : pour chaque tranche d'instances, quel modèle d'engagement, % couvert, et économie estimée vs 100% on-demand.\n3. **ROI breakeven** : à partir de combien de mois l'engagement est rentable, et que se passe-t-il si je résilie avant.\n4. **Risques** : 3 scénarios qui rendraient mon plan moins bon (ex: 'si tu pivot vers Graviton dans 6 mois, ton RI x86 devient inutile').\n5. **Action plan** : 3 étapes concrètes dans l'ordre, avec qui doit valider (CTO / CFO / DevOps lead) avant de cliquer.\n\nRègle : ne recommande JAMAIS un engagement 3 ans si l'horizon de l'entreprise est <2 ans (early-stage). Préfère Savings Plan 1 an ou Spot Fleet pour workloads bursty.",
+      "tips": "Reserved Instances sont des contrats — pas des suggestions. Si tu signes 3 ans, tu paies 3 ans même si tu sors d'AWS. Savings Plans sont plus flexibles (Compute SP couvre toute la famille d'instances)."
+    },
+    {
+      "id": "data-transfer-debug",
+      "title": "Diagnostiquer un pic de Data Transfer Out (la facture cachée)",
+      "use_case": "Ta facture cloud explose mais le compute reste stable — c'est probablement l'égress qui te tue (et tu ne le voyais pas).",
+      "model_tested": ["Claude 4.7 Opus (2026-05)", "GPT-5 (2026-05)"],
+      "prompt": "Tu es un consultant FinOps + networking. J'observe un pic anormal de coûts 'Data Transfer Out' / 'Egress' sur ma facture <PROVIDER>.\n\nContexte :\n- Service / région concerné(e) : <ex: us-east-1, NAT Gateway>\n- Volume sur le mois : <X> TB sortants\n- Coût correspondant : <Y>€\n- Architecture (résumé) : <ex: 'webapp Lambda + RDS Postgres + S3 statics + CloudFront devant'>\n- Changement récent : <ex: 'on a déployé un microservice il y a 3 semaines' / 'aucun'>\n\nAide-moi à localiser la fuite :\n\n1. **Hypothèses les plus probables** (top 5, ordonnées par fréquence en production) : ex 'cross-AZ traffic non optimisé', 'NAT Gateway au lieu de VPC Endpoint pour S3', 'CloudWatch Logs vers une région différente', 'pulls Docker depuis Internet au lieu d'ECR', 'log shipping vers Datadog hors-région'.\n2. **Pour chaque hypothèse** : la commande/dashboard CloudWatch / VPC Flow Logs / Network Insights à utiliser pour confirmer ou écarter (donne-moi le query exact si possible).\n3. **Fix concret** pour chacune : ex 'remplacer NAT Gateway par VPC Endpoint Gateway pour S3 → économie ~0.045/GB → ~10x'.\n4. **Une question critique** à poser à l'équipe avant tout fix (ex: 'le microservice X cross-region est-il intentionnel pour DR ou c'est un placement par défaut ?').\n\nFormat : tableau pour 1-3, bullet pour 4.",
+      "tips": "Active VPC Flow Logs AVANT le pic de facture, pas après. Sinon tu n'auras pas les données pour comprendre. Tarif Flow Logs vers S3 est ~0.50€/GB analysé — pas gratuit, mais c'est la seule source de vérité pour les transferts inter-services."
+    }
+  ]
+}
