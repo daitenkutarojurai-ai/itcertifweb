@@ -131,21 +131,39 @@ up when there's time.
       transactional), CSV export, weekday calendar (currently weekly
       cadence only).
 
-### 6.5 — CareerPaths Generator
+### 6.5 — CareerPaths Generator ✅ SHIPPED 2026-05-15
 
-URL: `/career-path/`
-- **Priority:** P1 (lead-gen, complements `/careers/`)
-- **Complexity:** L (decision tree + salary lookup + cert sequencing)
-- **Dependencies:** existing `/careers/` content as the base
-  taxonomy, salary data from 6.1.
-- **Pages:** single SPA generator at `/career-path/`. Generated plans
-  also rendered to a sharable `/career-path/<token>` URL (token is a
-  hash of inputs — no backend storage needed).
-- **SEO impact:** moderate, but the shareable URLs grow long-tail
-  ("vendeur reconversion devops 18 mois").
-- **Monetization:** lead gen on email-the-plan flow.
-- **Risks:** decision tree complexity; cap at ~5 inputs and 3 archetypes
-  per domain to keep auditability. Salary data must be country-aware.
+- [x] ✅ Schema documented in `data/career-paths/_schema.md`. Each
+      `<archetype>.json` carries 5-7 steps with month, duration,
+      weekly hours, optional cert, intermediate job + salary,
+      milestones, and external resource links.
+- [x] ✅ 5 first archetypes: `reconversion-cloud-aws`,
+      `reconversion-network`, `reconversion-linux-sre`,
+      `reconversion-security`, `en-poste-cloud-architect`. Coverage:
+      4 domains × 2 situations.
+- [x] ✅ `scripts/gen-career-manifest.js` (`npm run gen-career`)
+      builds `data/career-paths/_index.json` so the SPA discovers
+      archetypes without hard-coding the file list.
+- [x] ✅ Single SPA at `/career-path/index.html`. Form on the left
+      (domain, situation, age, hours/week, budget, target salary,
+      country), generated roadmap on the right. Pure client-side,
+      no backend.
+- [x] ✅ Matcher: exact match on (domain × situation), then fallback
+      to same-domain or same-situation, with a banner explaining
+      the partial match.
+- [x] ✅ Per-step rendering: M+N month pill, duration + hours/week
+      pills, cert pill (with → train.html link), intermediate job
+      + salary pills, milestones bullet list, resources block.
+- [x] ✅ Salary-target alert: red if user's target is 30%+ above
+      the archetype's end salary, green if it's 30%+ below.
+      Country note when ≠ France.
+- [x] ✅ Shareable URL via `location.hash` — encodes the form state
+      as JSON. "🔗 Partager" copies the URL to clipboard.
+- [x] ✅ JSON-LD WebApplication schema; canonical + OG meta.
+- [x] ✅ `sitemap.xml` updated (priority 0.9).
+- [ ] **Open follow-ups:** more archetypes (15 max = 5 domains × 3
+      situations), email-the-roadmap flow (Brevo/Supabase), per-step
+      Cert Quest path links when a path exists for `step.cert`.
 
 ### 6.6 — InfraCost Calculator
 
