@@ -556,6 +556,26 @@ up when there's time.
 
 ---
 
+## 📦 Content expansion R1 (2026-05-15)
+
+After Wave 3 closeout, +10 net-new content pages across 3
+generator-driven categories:
+
+- **+4 salary pages**: `az-104.france`, `cissp.france`, `cka.france`,
+  `terraform.france`. Salary cluster now covers AWS / Azure /
+  Security / DevOps-K8s / IaC tracks. JobPosting JSON-LD per page.
+- **+3 fail-analysis pages**: `cissp` (manager-mindset trap, 5 yrs
+  exp required), `az-104` (Portal hands-on, RBAC scope, Networking),
+  `terraform` (state drift, workspaces vs stacks, TFC). Paired with
+  the matching salary pages for cross-link bait.
+- **+3 devstack pages**: `stripe` (Ruby + Sorbet, financial-grade
+  ops), `algolia` (C++ search core, bare-metal DSN, Paris HQ),
+  `spotify-backend` (massive polyglot JVM, Backstage CNCF, GCP
+  migration). All citation-backed.
+- sitemap.xml +10 entries.
+
+Footprint: salary 4 → 8, fail-analysis 3 → 6, devstack 4 → 7.
+
 ## 🎉 Wave 3 closed (2026-05-15)
 
 All 5 content-authority features shipped:
