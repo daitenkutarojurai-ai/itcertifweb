@@ -501,18 +501,70 @@ up when there's time.
         for deep SEO on high-intent commercial queries
         ("cursor pricing", "windsurf free tier").
 
-### 6.12 — FailBase
+### 6.12 — FailBase ✅ SHIPPED 2026-05-15 — WAVE 3 COMPLETE 🎉
 
-URL: `/failbase/<slug>`
-- **Priority:** P2
-- **Complexity:** M (research-heavy)
-- **Dependencies:** verified historical sources (no rumors).
-- **Pages (4 first):** `/failbase/quibi-pourquoi-mort`,
-  `/failbase/nokia-erreur-fatale`, `/failbase/metaverse-meta-flop`,
-  `/failbase/pires-decisions-startup-tech`.
-- **SEO impact:** evergreen ("why did Quibi fail").
-- **Monetization:** AdSense + book affiliate (related case studies).
-- **Risks:** editorial discipline; cite verifiable sources only.
+- [x] ✅ Schema in `data/failbase/_schema.md`. Each `<slug>.json`
+      carries title, company, lived (date span), totalLoss (with
+      attribution), founders, tldr, icon, color, lastReviewed,
+      tags, timeline[] (5-8 events), mistakes[] (4-6 ranked w/
+      evidence + source), afterStory, lessonForUs, sources[],
+      disclaimer. Honesty rules baked in: "no insider rumors",
+      "loss figures public-only", "lessons stay applicable".
+- [x] ✅ 4 datasets shipped (Quibi, Nokia, Metaverse Meta, Worst
+      Startup Decisions). Every mistake's `evidence` cites a
+      verifiable public source: SEC filings (Meta 10-K, WeWork S-1),
+      DOJ verdict (Theranos), FTC settlement (MoviePass), WSJ/NYT
+      post-mortems, Engadget memo (Nokia 'burning platform'), HBR
+      case studies.
+- [x] ✅ `scripts/gen-failbase-pages.js` (`npm run gen-failbase`,
+      idempotent). Generates per-failure page + grid index. **5 pages
+      total.**
+- [x] ✅ Per-failure page renders: hero with 3-stat strip
+      (lived / total-loss / key-person), color-themed timeline rail
+      (vertical with date pills), ranked mistake cards with evidence
+      block + source link, "what happened after" blue callout,
+      "lesson for us" purple gradient, sources list with disclaimer.
+      Article JSON-LD schema with `about` → company name.
+- [x] ✅ Index page: tag filter + per-card icon + lived dates +
+      total-loss pill + mistake count + revised date. Color-themed
+      cards by failure (red Quibi, purple Nokia, blue Meta, dark-red
+      meta-compilation).
+- [x] ✅ Freshness pill: green ≤6 months, amber ≤18, red after
+      (business post-mortems age slow — Quibi 2020 still relevant in
+      2026 — so wider bands than DevStack).
+- [x] ✅ `npm run gen-failbase` in package.json.
+- [x] ✅ sitemap.xml +5 entries (index 0.85, leaves 0.8).
+- [x] ✅ 109/109 tests pass.
+- [ ] **Open follow-ups:**
+      - **+5 datasets:** "Why Yahoo missed Google search", "Theranos
+        deep dive standalone", "Juicero $400 fridge", "Pets.com
+        2000 IPO", "Stadia Google killed it again".
+      - **Affiliate slots:** book affiliates for "The Cult of We"
+        (WeWork), "Bad Blood" (Theranos), "Operation Elop" (Nokia),
+        etc. — natural Amazon affiliate fit per page.
+      - **"Founder pattern" cross-link** — once we have 8+ pages,
+        identify recurring patterns (over-funding pre-PMF, refusing
+        to pivot, scaling before product works) and link pages
+        sharing the same pattern.
+      - **Audio version** — these post-mortems work well as 8-min
+        podcasts; consider TTS export.
+
+---
+
+## 🎉 Wave 3 closed (2026-05-15)
+
+All 5 content-authority features shipped:
+- 6.8 RealityCheck (5 pages, ClaimReview schema)
+- 6.9 DevStack (4 pages + index, Organization schema)
+- 6.10 PromptDungeon (4 workflows, HowTo schema)
+- 6.11 ToolRadar (4 categories, ItemList schema)
+- 6.12 FailBase (4 post-mortems, Article schema)
+
+**21 net-new content pages** across Wave 3, all citation-backed,
+all with appropriate schema.org JSON-LD for rich-result eligibility.
+Combined with Wave 1-2 (6.1-6.7), Phase 6 is now 12/13 features
+shipped — only 6.13 Exam Radar deferred (depends on leaderboard
+data pipeline being live in production first).
 
 ### 6.13 — Exam Radar (community-sourced topic frequency)
 
