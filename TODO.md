@@ -165,21 +165,55 @@ up when there's time.
       situations), email-the-roadmap flow (Brevo/Supabase), per-step
       Cert Quest path links when a path exists for `step.cert`.
 
-### 6.6 — InfraCost Calculator
+### 6.6 — InfraCost Calculator ✅ SHIPPED 2026-05-15
 
-URL: `/infracost/`
-- **Priority:** P1 (viral + tool authority)
-- **Complexity:** M (client-side calculator + lookup tables)
-- **Dependencies:** monthly-refreshed pricing data — AWS/GCP/Hetzner/
-  Fly.io/Cloudflare R2 — stored as `data/infracost/<provider>.json`.
-- **Pages:** single tool at `/infracost/`. Result pages with
-  shareable token URLs (same pattern as 6.5).
-- **SEO impact:** high — "AWS cost calculator", "GCP price comparison"
-  are evergreen queries.
-- **Monetization:** AdSense + Hetzner/Fly.io affiliate (good payouts).
-- **Risks:** pricing data goes stale fast; surface "last refreshed"
-  prominently. Consider Pages Function to fetch live pricing on first
-  load for AWS (GCP/Hetzner have no public price APIs).
+- [x] ✅ Schema documented in `data/infracost/_schema.md`. Each
+      `<provider>.json` carries id, region, native/display currency,
+      `fxNote` for EUR providers, `lastReviewed` (YYYY-MM), sources
+      with `accessedAt`, optional affiliate `{ url, label }`, and four
+      buckets (`compute`, `blockStorage`, `egress`, `objectStorage`)
+      each with an `available` flag so storage-only providers
+      (Cloudflare R2) render cleanly.
+- [x] ✅ 5 providers seeded: `aws` (eu-west-3, t3 family), `gcp`
+      (europe-west9, e2-standard), `hetzner` (Falkenstein/Helsinki,
+      CX shared-vCPU, EUR→USD at 1.08), `fly` (cdg, shared-cpu-1x),
+      `cloudflare` (R2 + Workers, compute marked unavailable). Rates
+      are list-price on-demand — no Reserved/CUD/SUD/Savings Plans.
+- [x] ✅ Static SPA at `/infracost/index.html`. Form on the left,
+      side-by-side provider cards on the right. Pure client-side
+      JS — no backend, no Pages Functions.
+- [x] ✅ Form inputs: vCPU, RAM (GB), block storage (GB), egress
+      (GB/month), object storage (GB). 4 presets (Side-project,
+      Petit SaaS, Production, Storage-heavy) seed sensible values.
+- [x] ✅ Pricing engine (in-page): `compute = vcpu*$/vcpu-month +
+      ram*$/gb-month`, block storage with bundled-GB-per-vCPU
+      deduction (Hetzner), egress with free tier, object storage
+      flat per GB. Cheapest provider gets a green border + "CHEAPEST"
+      badge — restricted to providers that offer compute when the
+      workload requests vCPU/RAM so R2 doesn't win compute workloads
+      by virtue of being storage-only.
+- [x] ✅ Per-provider freshness pill: green if `lastReviewed` ≤ 2
+      months, amber ≤ 6, red after — so users see at-a-glance which
+      rates are stale.
+- [x] ✅ Affiliate slots: Hetzner + Fly.io render a `→ Try …` chip
+      pointing to their root URL with `rel="noopener nofollow"` and
+      respect a per-provider opt-in (`affiliate: null` → no chip).
+      AWS/GCP/CF have no affiliate by design.
+- [x] ✅ Shareable URL via `location.hash` (JSON of form state).
+      "🔗 Partager" copies to clipboard with prompt fallback.
+- [x] ✅ JSON-LD `WebApplication` schema; canonical + OG meta;
+      `Combien coûte ton infra par mois ?` H1 with grad span.
+- [x] ✅ Cross-link added from `/career-path/` actions row to make
+      InfraCost discoverable inside the tools cluster.
+- [x] ✅ `sitemap.xml` updated (priority 0.9, monthly changefreq).
+- [x] ✅ Global cache key bumped 74 → 75 across all HTML, sw.js,
+      mascot-loader.js, audit-mobile.js. sw.js CACHE_VERSION
+      → `v89-2026-05-15-phase6-6-infracost-v75`.
+- [x] ✅ Tests still green (109/109).
+- [ ] **Open follow-ups:** Cloudflare Pages Function that pulls AWS
+      live pricing once/day to keep `aws.json` from rotting; Scaleway
+      + Oracle Cloud entries; per-region toggle (us-east-1 vs eu-west-3);
+      "export PDF" lead-gen; reserved-instance toggle.
 
 ### 6.7 — Streaks + Leaderboards
 
