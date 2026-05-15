@@ -23,23 +23,33 @@ up when there's time.
 > (`scripts/sync-header.js`), and (c) add a `?v=N` cache-bust per
 > existing convention.
 
-### 6.1 — Salary After Certification (SEO anchor)
+### 6.1 — Salary After Certification (SEO anchor) ✅ SHIPPED 2026-05-15
 
-URL: `/salaire/<cert>/<pays>` · static pages, scales by template
-- **Priority:** P0 (highest CPM keywords on the site)
-- **Complexity:** L (data-heavy)
-- **Dependencies:** salary tables — LinkedIn Salary Insights export,
-  APEC, Glassdoor, INSEE; refresh quarterly. Stored as
-  `data/salary/<cert>.<country>.json`.
-- **Pages (4 first):** `/salaire/aws-saa/france`, `/salaire/ccna/france`,
-  `/salaire/rhcsa/france`, `/salaire/aws-saa/luxembourg`.
-- **SEO impact:** highest on the site — "salaire AWS certifié",
-  "CCNA salaire France" are top-funnel money queries.
-- **Monetization:** AdSense (high CPM finance/IT), affiliate links to
-  cert vendors + bootcamps, lead capture for ROI calc PDF.
-- **Risks:** salary sources rot fast; need a `data/salary/_meta.json`
-  that surfaces "last refreshed YYYY-MM" on every page so users
-  trust the number.
+- [x] ✅ Schema documented in `data/salary/_schema.md`. Each
+      `<cert>.<country>.json` carries cert title, currency, sources
+      with optional Wayback snapshot, junior/senior/lead bands with
+      median + min + max + YoE, jobTypes list, 5-year progression
+      timeline, ROI inputs (exam fee + study hours + opportunity cost
+      + annual uplift), and country comparison (medians in local
+      currency, no forced conversion).
+- [x] ✅ 4 first datasets seeded: `aws-saa.france`, `aws-saa.luxembourg`,
+      `ccna.france`, `rhcsa.france`. Numbers cite APEC, LinkedIn
+      Salary Insights, Glassdoor, Hays, STATEC. Every page surfaces
+      "Révisé YYYY-MM" pill prominently and a "Données indicatives"
+      disclaimer at the bottom.
+- [x] ✅ `scripts/gen-salary-pages.js` (`npm run gen-salary`,
+      idempotent) renders one static `salaire/<cert>/<country>/
+      index.html` per dataset plus a `salaire/index.html` grid
+      browser. Includes JobPosting JSON-LD per page for rich results.
+- [x] ✅ Page sections: hero with eyebrow + median headline, fourchettes
+      grid (3 bands), jobs-accessible chip row, 5-year progression
+      timeline, country comparator table, ROI card with payback-month
+      figure, sources list with disclaimer.
+- [x] ✅ `sitemap.xml` updated: index + 4 leaf pages added (priority
+      0.9 / 0.85, monthly changefreq).
+- [x] ✅ Cache bumped 72 → 73, sw.js CACHE_VERSION → v87.
+- [ ] **Open follow-ups:** Wayback snapshots for sources, FR/EN locale
+      toggle, lead-capture for "Get the salary report PDF" flow.
 
 ### 6.2 — Cert Comparator
 
