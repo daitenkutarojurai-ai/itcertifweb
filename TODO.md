@@ -79,18 +79,25 @@ up when there's time.
       auto-generate "alternative" comparisons when adjacent certs ship
       a salary page.
 
-### 6.3 — Fail Analysis (per certification)
+### 6.3 — Fail Analysis (per certification) ✅ SHIPPED 2026-05-15
 
-URL: `/fail-analysis/<cert>`
-- **Priority:** P1 (short content, viral)
-- **Complexity:** S (~800-word static pages)
-- **Dependencies:** Reddit/Discord scrape per cert (manual research).
-- **Pages (3 first):** `/fail-analysis/ccna`, `/fail-analysis/aws-saa`,
-  `/fail-analysis/rhcsa`.
-- **SEO impact:** "why fail CCNA", "CCNA mistakes" — bottom-funnel,
-  shareable.
-- **Monetization:** affiliate to study material, bootcamp lead gen.
-- **Risks:** quality bar — needs real data per cert (no fluff lists).
+- [x] ✅ Schema documented in `data/fail-analysis/_schema.md`. Each
+      `<cert>.json` carries cert title, vendor color, lastReviewed,
+      pass-rate note, intro + TLDR, sources list, and exactly 5
+      ranked mistakes with frequency citation + why + concrete fix.
+- [x] ✅ 3 first datasets: `ccna`, `aws-saa`, `rhcsa`. Sources cite
+      r/ccna, r/AWSCertifications, r/redhat, r/linuxadmin, Cisco
+      Learning Network, AWS re:Post.
+- [x] ✅ `scripts/gen-failanalysis-pages.js` (`npm run gen-failanalysis`,
+      idempotent). Renders one viral-format page per dataset under
+      `fail-analysis/<cert>/index.html` + a grid index.
+- [x] ✅ Page sections: hero with red-orange gradient, TLDR box, 5
+      ranked mistake cards (rank + title + frequency pill + why
+      paragraph + green "Le fix" call-out), CTA row to train.html
+      + path.html for the same cert, sources + disclaimer.
+      Article JSON-LD per page.
+- [x] ✅ `sitemap.xml` updated: index + 3 leaf pages.
+- [x] ✅ Cache key 74 (no bump — same wave as 6.2).
 
 ### 6.4 — Study Planner
 
