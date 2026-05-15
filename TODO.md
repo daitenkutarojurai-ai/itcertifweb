@@ -215,7 +215,7 @@ up when there's time.
       + Oracle Cloud entries; per-region toggle (us-east-1 vs eu-west-3);
       "export PDF" lead-gen; reserved-instance toggle.
 
-### 6.7 — Streaks + Leaderboards ✅ SHIPPED (front-end) 2026-05-15 — ⚠ MIGRATION PENDING
+### 6.7 — Streaks + Leaderboards ✅ SHIPPED 2026-05-15 (migration applied)
 
 > Scope cut from the original brief: instead of weekly XP (which needs
 > a snapshot pipeline we don't have yet), R1 ships **all-time XP**
@@ -259,11 +259,16 @@ up when there's time.
       mascot-loader.js + audit-mobile.js. sw.js CACHE_VERSION
       → `v90-2026-05-15-phase6-7-leaderboards-v76`.
 - [x] ✅ 109/109 tests pass.
-- [ ] ⚠ **MIGRATION PENDING** — `docs/migrations/0001_leaderboards.sql`
-      must be applied in Supabase Studio (or via `apply_migration`
-      MCP tool) before the toggle + page activate. Until then, the
-      UI degrades gracefully (toggle says N/A, page says "not live
-      yet").
+- [x] ✅ **Migration applied to prod 2026-05-15** via
+      `apply_migration` (Supabase MCP). Verified post-apply:
+      `leaderboard_opt_in` BOOL NOT NULL DEFAULT FALSE + `display_name`
+      TEXT NULL columns landed on `public.profiles`;
+      `public.leaderboard_all_time` view created with anon SELECT
+      grant confirmed (`has_table_privilege('anon', …, 'SELECT') =
+      true`); view returns 0 rows (1 profile total, 0 opted in by
+      default — RGPD-friendly explicit opt-in working as designed).
+      `/leaderboard/` page + profile toggle now activate without code
+      change.
 - [ ] **Open follow-ups (R2):**
   - Weekly XP — needs a new `stats_snapshots` table + daily/weekly
     cron (Supabase pg_cron, free) to compute deltas. Then split
@@ -562,9 +567,12 @@ All 5 content-authority features shipped:
 
 **21 net-new content pages** across Wave 3, all citation-backed,
 all with appropriate schema.org JSON-LD for rich-result eligibility.
-Combined with Wave 1-2 (6.1-6.7), Phase 6 is now 12/13 features
-shipped — only 6.13 Exam Radar deferred (depends on leaderboard
-data pipeline being live in production first).
+Combined with Wave 1-2 (6.1-6.7), **Phase 6 is now 12/13 features
+fully shipped in production** (6.7 leaderboard migration applied
+2026-05-15 via Supabase MCP — view live, anon SELECT grant
+verified). Only 6.13 Exam Radar deferred (depends on accumulating
+opted-in users via 6.7 before the topic-frequency pipeline is
+meaningful).
 
 ### 6.13 — Exam Radar (community-sourced topic frequency)
 
