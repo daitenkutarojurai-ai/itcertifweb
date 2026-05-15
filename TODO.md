@@ -215,23 +215,67 @@ up when there's time.
       + Oracle Cloud entries; per-region toggle (us-east-1 vs eu-west-3);
       "export PDF" lead-gen; reserved-instance toggle.
 
-### 6.7 — Streaks + Leaderboards
+### 6.7 — Streaks + Leaderboards ✅ SHIPPED (front-end) 2026-05-15 — ⚠ MIGRATION PENDING
 
-URL: extends `/profile.html`; new `/leaderboard/` page
-- **Priority:** P1 (engagement + retention multiplier)
-- **Complexity:** L (Supabase RLS + materialized view + cron refresh)
-- **Dependencies:** existing Supabase `stats` table, `auth.users`,
-  `cq-stats-v1.streakDays` (already tracked locally + synced).
-- **Pages:** `/leaderboard/` (weekly XP), profile.html badge for streak.
-- **SEO impact:** low (gated behind login).
-- **Monetization:** none direct; engagement boosts every other monetized
-  page.
-- **Risks:**
-  - Privacy/RGPD — leaderboard reveals usernames; opt-in only.
-  - Materialized view refresh budget; weekly cron via Supabase cron is
-    free (vs Cloudflare cron $).
-  - Streak calculation needs server-side enforcement; client-only is
-    trivially gameable.
+> Scope cut from the original brief: instead of weekly XP (which needs
+> a snapshot pipeline we don't have yet), R1 ships **all-time XP**
+> leaderboard, opt-in only, plus a streak prominence boost on the
+> profile page. Weekly XP + server-side streak enforcement deferred
+> to R2/R3 (see open follow-ups).
+
+- [x] ✅ **SQL migration written** at `docs/migrations/0001_leaderboards.sql`:
+      adds `leaderboard_opt_in` boolean + `display_name` text to
+      `public.profiles`, creates `public.leaderboard_all_time` view
+      that joins profiles+stats and projects only public-safe columns
+      (display_name, xp, level, streak_days, sessions, questions) for
+      `leaderboard_opt_in = TRUE`, grants SELECT to `anon` +
+      `authenticated`. Idempotent (`IF NOT EXISTS` / `OR REPLACE`).
+      Documented rollback steps in the same file.
+- [x] ✅ **`/leaderboard/` page** (`leaderboard/index.html`): static
+      SPA querying the view via PostgREST + anon JWT. Top-100 table
+      with rank icons (🥇🥈🥉), display_name, XP, level, 🔥 streak,
+      sessions + questions columns (hidden on mobile). Live/Offline
+      status pill, "Opt in / out" deep-link to `/profile.html#leaderboard`.
+      Detects "view doesn't exist" PostgREST error → shows owner-facing
+      "migration not yet applied" empty state instead of a red error.
+- [x] ✅ **Profile opt-in toggle** in the Account section
+      (`profile.html`): 🏆 Public leaderboard row with sliding
+      checkbox toggle, conditional "Display name set/change" row
+      that appears only when opt-in is on. Wired in
+      `src/profile.js:loadLeaderboardOptIn / saveLeaderboardOptIn /
+      editLeaderboardName`. If the migration isn't applied, the
+      toggle disables itself with a "N/A — migration not applied"
+      tooltip rather than throwing.
+- [x] ✅ **Streak prominence**: `#stat-streak` gets `.is-hot` class
+      at `streakDays >= 3` → red color + 🔥 prefix via CSS pseudo,
+      visible at-a-glance from the Stats grid.
+- [x] ✅ **CSS** added to `src/styles/profile.css`: `.profile-toggle`
+      (slider switch), `.profile-leaderboard-row` (amber-tinted
+      callout), focus-visible outline on toggle. Min-height 44px on
+      toggle per the touch-target rule.
+- [x] ✅ Sitemap + 1 entry (priority 0.7, **daily** changefreq —
+      leaderboard moves).
+- [x] ✅ Global cache key bumped 75 → 76 across all HTML + sw.js +
+      mascot-loader.js + audit-mobile.js. sw.js CACHE_VERSION
+      → `v90-2026-05-15-phase6-7-leaderboards-v76`.
+- [x] ✅ 109/109 tests pass.
+- [ ] ⚠ **MIGRATION PENDING** — `docs/migrations/0001_leaderboards.sql`
+      must be applied in Supabase Studio (or via `apply_migration`
+      MCP tool) before the toggle + page activate. Until then, the
+      UI degrades gracefully (toggle says N/A, page says "not live
+      yet").
+- [ ] **Open follow-ups (R2):**
+  - Weekly XP — needs a new `stats_snapshots` table + daily/weekly
+    cron (Supabase pg_cron, free) to compute deltas. Then split
+    `/leaderboard/` into `/leaderboard/all-time` + `/leaderboard/weekly`.
+  - Server-side streak enforcement via an RPC that increments
+    `streak_days` only when `last_session_at` is exactly 1 calendar
+    day prior (server time, not client time).
+  - Per-certification leaderboards (top XP in AWS SAA, etc.) keyed
+    off `stats.payload->perPack`.
+  - Display-name uniqueness + profanity filter before public exposure.
+  - "Find me" anchor — `/leaderboard/#me` scrolls to and highlights
+    the signed-in user's row.
 
 ### 6.8 — RealityCheck IT/Carrière
 

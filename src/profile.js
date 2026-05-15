@@ -52,7 +52,10 @@
     $('stat-questions').textContent = stats.questionsAnswered || 0;
     $('stat-accuracy').textContent = fmtPct(stats.correctAnswered || 0, stats.questionsAnswered || 0);
     $('stat-time').textContent = fmtTime(stats.totalSeconds || 0);
-    $('stat-streak').textContent = (stats.streakDays || 0) + 'd';
+    var streakEl = $('stat-streak');
+    var sd = stats.streakDays || 0;
+    streakEl.textContent = sd + 'd';
+    streakEl.classList.toggle('is-hot', sd >= 3);
     $('stat-xp').textContent = stats.xp || 0;
   }
 
@@ -322,11 +325,90 @@
         var ready = window.cqSync && window.cqSync.isReady && window.cqSync.isReady();
         sync.textContent = ready ? '✓ Synced to cloud' : 'Syncing…';
       }
+      loadLeaderboardOptIn();
     } else {
       anon.hidden = false;
       signed.hidden = true;
       usernameRow.hidden = true;
     }
+  }
+
+  /* ── Leaderboard opt-in (Phase 6.7) ───────────────────────────────
+     Reads profiles.leaderboard_opt_in for the signed-in user. Updates
+     on toggle via UPDATE on the profiles row (RLS guards user_id =
+     auth.uid()). Display name uses profiles.display_name; falls back
+     to username. Silently no-ops if the migration hasn't been applied
+     (column doesn't exist yet).                                        */
+  async function loadLeaderboardOptIn() {
+    var cb = $('profile-lb-optin');
+    var stateEl = $('profile-lb-state');
+    var nameRow = $('profile-lb-name-row');
+    if (!cb || !window.cqAuth || !window.cqAuth._client) return;
+    var uid = (window.cqAuth.getUser() || {}).id;
+    if (!uid) return;
+    try {
+      var r = await window.cqAuth._client
+        .from('profiles')
+        .select('leaderboard_opt_in, display_name')
+        .eq('user_id', uid)
+        .maybeSingle();
+      if (r.error) {
+        // 42703 = undefined column → migration not applied yet.
+        if (/leaderboard_opt_in|display_name|column .* does not exist/i.test(r.error.message)) {
+          cb.disabled = true;
+          stateEl.textContent = 'N/A';
+          stateEl.title = 'Server migration not yet applied. Ask the site owner.';
+          if (nameRow) nameRow.hidden = true;
+          return;
+        }
+        throw new Error(r.error.message);
+      }
+      var optIn = !!(r.data && r.data.leaderboard_opt_in);
+      cb.checked = optIn;
+      stateEl.textContent = optIn ? 'On' : 'Off';
+      if (nameRow) nameRow.hidden = !optIn;
+    } catch (e) {
+      if (window.cqDbg) window.cqDbg('[cq-profile] leaderboard load failed:', e.message);
+    }
+  }
+
+  async function saveLeaderboardOptIn(next) {
+    if (!window.cqAuth || !window.cqAuth._client) return;
+    var uid = (window.cqAuth.getUser() || {}).id;
+    if (!uid) return;
+    var cb = $('profile-lb-optin');
+    var stateEl = $('profile-lb-state');
+    var nameRow = $('profile-lb-name-row');
+    cb.disabled = true;
+    var r = await window.cqAuth._client
+      .from('profiles')
+      .update({ leaderboard_opt_in: next })
+      .eq('user_id', uid);
+    cb.disabled = false;
+    if (r.error) {
+      alert('Could not save: ' + r.error.message);
+      cb.checked = !next; // revert
+      return;
+    }
+    stateEl.textContent = next ? 'On' : 'Off';
+    if (nameRow) nameRow.hidden = !next;
+  }
+
+  async function editLeaderboardName() {
+    if (!window.cqAuth || !window.cqAuth._client) return;
+    var uid = (window.cqAuth.getUser() || {}).id;
+    if (!uid) return;
+    var current = '';
+    try {
+      var r = await window.cqAuth._client.from('profiles').select('display_name').eq('user_id', uid).maybeSingle();
+      current = (r.data && r.data.display_name) || '';
+    } catch (_) {}
+    var next = prompt('Leaderboard display name (max 40 chars). Leave blank to use your username:', current);
+    if (next == null) return;
+    next = next.trim().slice(0, 40);
+    var u = await window.cqAuth._client.from('profiles').update({ display_name: next || null }).eq('user_id', uid);
+    if (u.error) { alert('Could not save: ' + u.error.message); return; }
+    alert('Saved. Refresh /leaderboard/ to see the change.');
   }
 
   /* Edit username — opens a tiny inline prompt, then calls the RPC. */
@@ -441,6 +523,14 @@
     if (deleteBtn) deleteBtn.addEventListener('click', deleteAccount);
     var editBtn = $('profile-username-edit');
     if (editBtn) editBtn.addEventListener('click', editUsername);
+
+    /* Phase 6.7: leaderboard opt-in toggle + display name */
+    var lbCb = $('profile-lb-optin');
+    if (lbCb) {
+      lbCb.addEventListener('change', function () { saveLeaderboardOptIn(lbCb.checked); });
+    }
+    var lbName = $('profile-lb-name-edit');
+    if (lbName) lbName.addEventListener('click', editLeaderboardName);
   });
 
   window.addEventListener('cq:stats-changed', renderAll);
