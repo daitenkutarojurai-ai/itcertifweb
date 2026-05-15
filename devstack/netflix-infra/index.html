@@ -1,0 +1,298 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="theme-color" content="#06080f" />
+  <title>Le stack tech de Netflix en 2026 — DevStack · CertQuests</title>
+  <meta name="description" content="Référence mondiale de l&#39;infrastructure cloud à grande échelle. Stack JVM dominant, AWS-natif depuis 2008 (la fameuse migration historique), avec un CDN propriétaire Open Connect et une culture chaos engineering qu&#39;ils ont inventée. Énorme contribution open-source (Spinnaker, Hystrix, Atlas, Zuul…)." />
+  <meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large" />
+  <link rel="canonical" href="https://certquests.com/devstack/netflix-infra/" />
+  <meta property="og:type" content="article" />
+  <meta property="og:url" content="https://certquests.com/devstack/netflix-infra/" />
+  <meta property="og:title" content="Le stack tech de Netflix en 2026" />
+  <meta property="og:description" content="Référence mondiale de l&#39;infrastructure cloud à grande échelle. Stack JVM dominant, AWS-natif depuis 2008 (la fameuse migration historique), avec un CDN propriétaire Open Connect et une culture chaos engineering qu&#39;ils ont inventée. Énorme contribution open-source (Spinnaker, Hystrix, Atlas, Zuul…)." />
+  <meta property="og:image" content="https://certquests.com/src/assets/icons/icon-512.png" />
+  <meta name="twitter:card" content="summary_large_image" />
+  <link rel="manifest" href="/manifest.json" />
+  <link rel="icon" href="/favicon.ico?v=4" sizes="any" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700;800&family=DM+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/src/styles/main.css?v=76" />
+  <link rel="stylesheet" href="/src/styles/desktop.css?v=76" />
+  <script type="application/ld+json">{"@context":"https://schema.org","@type":"Organization","name":"Netflix","foundingDate":"1997","description":"Référence mondiale de l'infrastructure cloud à grande échelle. Stack JVM dominant, AWS-natif depuis 2008 (la fameuse migration historique), avec un CDN propriétaire Open Connect et une culture chaos engineering qu'ils ont inventée. Énorme contribution open-source (Spinnaker, Hystrix, Atlas, Zuul…).","url":"https://certquests.com/devstack/netflix-infra/","sameAs":["https://netflixtechblog.com/","https://jobs.netflix.com/"]}</script>
+  <style>
+.ds-page { max-width: 1000px; margin: 0 auto; padding: 0 20px 80px; color: #e8edf8; }
+.breadcrumb { font-family:'JetBrains Mono',monospace; font-size:11px; letter-spacing:.1em; text-transform:uppercase; color:#506885; padding:14px 0 0; }
+.breadcrumb a { color:#7c90ae; text-decoration:none; }
+.breadcrumb a:hover { color:#e8edf8; }
+.breadcrumb span { color:#3d4f6a; margin:0 8px; }
+
+.ds-hero { padding: 32px 8px 8px; }
+.ds-hero .eyebrow { display:inline-flex; align-items:center; gap:6px; font-family:'JetBrains Mono',monospace; font-size:11px; font-weight:600; letter-spacing:.12em; text-transform:uppercase; padding:5px 14px; border-radius:999px; margin-bottom:14px; }
+.ds-hero h1 { font-family:'Space Grotesk',sans-serif; font-size:clamp(28px,4.4vw,42px); font-weight:800; letter-spacing:-.02em; margin:0 0 8px; line-height:1.15; color:#f1f5fb; }
+.ds-hero .lede { font-size:15.5px; line-height:1.6; color:#a8b6d1; max-width:760px; margin:0; }
+.ds-meta { display:flex; flex-wrap:wrap; gap:8px; margin: 14px 0 4px; font-size:12px; color:#7c90ae; font-family:'JetBrains Mono',monospace; }
+.ds-meta .pill { padding:4px 10px; border-radius:999px; background:rgba(255,255,255,.04); border:1px solid rgba(255,255,255,.08); }
+.ds-meta .pill.fresh { color:#6ee7b7; border-color:rgba(52,211,153,.3); background:rgba(52,211,153,.08); }
+.ds-meta .pill.warn  { color:#fbbf24; border-color:rgba(251,191,36,.3); background:rgba(251,191,36,.08); }
+.ds-meta .pill.stale { color:#f87171; border-color:rgba(248,113,113,.3); background:rgba(248,113,113,.08); }
+
+.ds-scale { margin: 22px 0 0; padding: 14px 18px; background: rgba(255,255,255,.04); border-left: 3px solid var(--ds-color, #60a5fa); border-radius: 10px; color: #cbd5e1; font-size: 14px; line-height: 1.6; }
+.ds-scale strong { color: var(--ds-color, #60a5fa); font-family:'JetBrains Mono',monospace; font-size: 11px; letter-spacing: .14em; text-transform: uppercase; display: block; margin-bottom: 3px; }
+
+.ds-section { margin: 26px 0 0; padding: 22px 22px 18px; background:rgba(255,255,255,.025); border:1px solid rgba(255,255,255,.06); border-radius:14px; }
+.ds-section h2 { font-family:'Space Grotesk',sans-serif; font-size:19px; font-weight:700; margin:0 0 14px; color:#f1f5fb; letter-spacing:-.015em; display: flex; align-items: center; gap: 8px; }
+
+/* Stack category */
+.ds-category { margin-bottom: 16px; }
+.ds-category-name { font-family:'JetBrains Mono',monospace; font-size: 11px; letter-spacing: .14em; text-transform: uppercase; color: var(--ds-color, #60a5fa); margin-bottom: 8px; padding-bottom: 4px; border-bottom: 1px dashed rgba(255,255,255,.08); }
+.ds-items { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 10px; }
+.ds-item { padding: 12px 14px; background: rgba(0,0,0,.25); border: 1px solid rgba(255,255,255,.06); border-radius: 10px; }
+.ds-item-head { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; margin-bottom: 4px; }
+.ds-item-name { font-family:'Space Grotesk',sans-serif; font-weight: 700; color: #f1f5fb; font-size: 14px; }
+.ds-item-status { font-family:'JetBrains Mono',monospace; font-size: 9.5px; padding: 2px 7px; border-radius: 999px; letter-spacing: .08em; text-transform: uppercase; }
+.ds-item-status.st-current { color: #34d399; background: rgba(52,211,153,.10); border: 1px solid rgba(52,211,153,.32); }
+.ds-item-status.st-from    { color: #fbbf24; background: rgba(251,191,36,.10); border: 1px solid rgba(251,191,36,.32); }
+.ds-item-status.st-to      { color: #60a5fa; background: rgba(96,165,250,.10); border: 1px solid rgba(96,165,250,.32); }
+.ds-item-status.st-retired { color: #7c90ae; background: rgba(124,144,174,.10); border: 1px solid rgba(124,144,174,.32); }
+.ds-item-role { color: #cbd5e1; font-size: 12.5px; line-height: 1.5; margin: 0 0 6px; }
+.ds-item-meta { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; font-family:'JetBrains Mono',monospace; font-size: 10.5px; color: #7c90ae; }
+.ds-item-meta a { color: #60a5fa; text-decoration: none; }
+.ds-item-meta a:hover { text-decoration: underline; }
+
+/* OSS table */
+.ds-oss-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.ds-oss-table th, .ds-oss-table td { padding: 9px 12px; text-align: left; border-bottom: 1px solid rgba(255,255,255,.04); }
+.ds-oss-table th { font-family:'JetBrains Mono',monospace; font-size: 10.5px; letter-spacing: .12em; text-transform: uppercase; color: #7c90ae; }
+.ds-oss-table td a { color: var(--ds-color, #60a5fa); text-decoration: none; font-weight: 700; }
+.ds-oss-table td a:hover { text-decoration: underline; }
+.ds-oss-stars { font-family:'JetBrains Mono',monospace; color: #fbbf24; font-size: 12px; }
+
+.ds-culture, .ds-hiring { color: #cbd5e1; font-size: 14px; line-height: 1.65; margin: 0; }
+
+.ds-links { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 12px; }
+.ds-links a { padding: 8px 14px; border-radius: 10px; background: rgba(255,255,255,.04); border: 1px solid rgba(255,255,255,.10); color: #cbd5e1; font-family:'JetBrains Mono',monospace; font-size: 12px; text-decoration: none; }
+.ds-links a:hover { background: rgba(96,165,250,.10); border-color: rgba(96,165,250,.32); color: #60a5fa; }
+
+.ds-disclaimer { margin-top: 22px; padding: 12px 16px; background:rgba(251,191,36,.06); border:1px solid rgba(251,191,36,.22); border-radius:10px; color:#fde68a; font-size:12.5px; line-height:1.6; }
+.ds-disclaimer strong { color:#fbbf24; font-family:'JetBrains Mono',monospace; font-size:10.5px; letter-spacing:.14em; text-transform:uppercase; display:block; margin-bottom:4px; }
+
+.ds-sources { margin-top: 18px; padding: 14px 16px; background:rgba(0,0,0,.25); border:1px solid rgba(255,255,255,.05); border-radius:10px; }
+.ds-sources h3 { font-family:'JetBrains Mono',monospace; font-size:11px; letter-spacing:.14em; text-transform:uppercase; color:#7c90ae; margin:0 0 6px; }
+.ds-sources ul { margin:0; padding-left:18px; color:#a8b6d1; font-size:12.5px; line-height:1.65; }
+.ds-sources a { color:#60a5fa; text-decoration:none; }
+.ds-sources a:hover { text-decoration:underline; }
+</style>
+</head>
+<body>
+  <header class="web-header">
+    <a href="/" class="web-header-logo">
+      <img src="/src/assets/icons/favicon-96.png?v=4" alt="CertQuests" class="web-header-bolt" width="32" height="32">
+      CertQuests
+    </a>
+    <nav class="web-header-links" aria-label="Main navigation">
+      <a href="/path.html" class="web-header-link-new">Cert Quest<span class="web-header-link-pill">NEW</span></a>
+      <a href="/certifications/">Certifications</a>
+      <a href="/courses/">Courses</a>
+      <a href="/careers/">Careers</a>
+      <a href="/news/">News</a>
+      <a href="https://play.google.com/store/apps/details?id=com.certquest.app" class="web-header-badge" target="_blank" rel="noopener">Google Play</a>
+    </nav>
+  </header>
+
+<main class="ds-page" id="main-content" style="--ds-color:#e50914">
+  <nav class="breadcrumb" aria-label="Breadcrumb">
+    <a href="/">Home</a><span>/</span><a href="/devstack/">DevStack</a><span>/</span>Netflix
+  </nav>
+
+  <section class="ds-hero">
+    <span class="eyebrow" style="color:#e50914;background:#e509141a;border:1px solid #e5091455">🎬 DevStack · Streaming vidéo (SVOD), production de contenu</span>
+    <h1>Le stack tech de Netflix en 2026</h1>
+    <p class="lede">Référence mondiale de l&#39;infrastructure cloud à grande échelle. Stack JVM dominant, AWS-natif depuis 2008 (la fameuse migration historique), avec un CDN propriétaire Open Connect et une culture chaos engineering qu&#39;ils ont inventée. Énorme contribution open-source (Spinnaker, Hystrix, Atlas, Zuul…).</p>
+    <div class="ds-meta">
+      <span class="pill fresh">Révisé 2026-05</span>
+      <span class="pill">Fondé 1997 · Los Gatos, California, USA</span>
+      <span class="pill">5 catégories · 12 composants</span>
+    </div>
+  </section>
+
+  <div class="ds-scale"><strong>📈 Échelle (signaux publics)</strong>300M+ abonnés payants, ~15-20% du trafic Internet mondial aux heures de pointe (peering ISP). CDN propriétaire Open Connect déployé chez ~1000 ISP.</div>
+
+  <section class="ds-section">
+    <h2>🧱 Stack technique (sourcé public)</h2>
+    <div class="ds-category">
+    <div class="ds-category-name">▸ Backend</div>
+    <div class="ds-items"><div class="ds-item">
+    <div class="ds-item-head">
+      <span class="ds-item-name">Java</span>
+      <span class="ds-item-status st-current">actuel</span>
+    </div>
+    <p class="ds-item-role">Backbone des services back — recommandation, encoding, billing, devices</p>
+    <div class="ds-item-meta">depuis 2008 · vu 2025 · <a href="https://netflixtechblog.com/" target="_blank" rel="noopener nofollow">📝 Netflix Tech Blog — articles JVM récurrents</a></div>
+  </div><div class="ds-item">
+    <div class="ds-item-head">
+      <span class="ds-item-name">Python</span>
+      <span class="ds-item-status st-current">actuel</span>
+    </div>
+    <p class="ds-item-role">Data engineering, ML, automation interne (Metaflow)</p>
+    <div class="ds-item-meta">depuis ~2014 · vu 2025 · <a href="https://netflixtechblog.com/tagged/python" target="_blank" rel="noopener nofollow">📝 Netflix Tech Blog — articles Python</a></div>
+  </div><div class="ds-item">
+    <div class="ds-item-head">
+      <span class="ds-item-name">Go</span>
+      <span class="ds-item-status st-current">actuel</span>
+    </div>
+    <p class="ds-item-role">Outils infra / réseau (incl. Spinnaker components, CDN tooling)</p>
+    <div class="ds-item-meta">depuis ~2017 · vu 2024 · <a href="https://github.com/Netflix" target="_blank" rel="noopener nofollow">🐙 github.com/Netflix — multiples repos Go</a></div>
+  </div></div>
+  </div><div class="ds-category">
+    <div class="ds-category-name">▸ Data store</div>
+    <div class="ds-items"><div class="ds-item">
+    <div class="ds-item-head">
+      <span class="ds-item-name">Apache Cassandra</span>
+      <span class="ds-item-status st-current">actuel</span>
+    </div>
+    <p class="ds-item-role">Stockage NoSQL principal (user data, viewing history, devices)</p>
+    <div class="ds-item-meta">depuis ~2010 · vu 2025 · <a href="https://netflixtechblog.com/tagged/cassandra" target="_blank" rel="noopener nofollow">📝 Netflix Tech Blog — articles Cassandra</a></div>
+  </div><div class="ds-item">
+    <div class="ds-item-head">
+      <span class="ds-item-name">EVCache (Memcached fork Netflix)</span>
+      <span class="ds-item-status st-current">actuel</span>
+    </div>
+    <p class="ds-item-role">Cache distribué inter-régions, latence sub-ms</p>
+    <div class="ds-item-meta">depuis ~2011 · vu 2024 · <a href="https://github.com/Netflix/EVCache" target="_blank" rel="noopener nofollow">🐙 github.com/Netflix/EVCache (open source)</a></div>
+  </div><div class="ds-item">
+    <div class="ds-item-head">
+      <span class="ds-item-name">Elasticsearch</span>
+      <span class="ds-item-status st-current">actuel</span>
+    </div>
+    <p class="ds-item-role">Search interne + logs operationnels</p>
+    <div class="ds-item-meta">depuis ~2012 · vu 2024 · <a href="https://netflixtechblog.com/" target="_blank" rel="noopener nofollow">📝 Netflix Tech Blog — articles Elasticsearch</a></div>
+  </div></div>
+  </div><div class="ds-category">
+    <div class="ds-category-name">▸ Streaming / messaging</div>
+    <div class="ds-items"><div class="ds-item">
+    <div class="ds-item-head">
+      <span class="ds-item-name">Apache Kafka</span>
+      <span class="ds-item-status st-current">actuel</span>
+    </div>
+    <p class="ds-item-role">Event streaming — Keystone pipeline (trillions d&#39;événements/jour)</p>
+    <div class="ds-item-meta">depuis ~2013 · vu 2025 · <a href="https://netflixtechblog.com/tagged/kafka" target="_blank" rel="noopener nofollow">📝 Netflix Tech Blog — articles Kafka</a></div>
+  </div></div>
+  </div><div class="ds-category">
+    <div class="ds-category-name">▸ Infra &amp; cloud</div>
+    <div class="ds-items"><div class="ds-item">
+    <div class="ds-item-head">
+      <span class="ds-item-name">AWS (EC2, S3, EBS, Lambda…)</span>
+      <span class="ds-item-status st-current">actuel</span>
+    </div>
+    <p class="ds-item-role">Toute l&#39;infra back est AWS-native depuis la migration 2008-2016 hors data centers Netflix</p>
+    <div class="ds-item-meta">depuis 2008 · vu 2025 · <a href="https://netflixtechblog.com/completing-the-netflix-cloud-migration-with-the-move-of-our-billing-infrastructure-9752212939d9" target="_blank" rel="noopener nofollow">📝 Netflix Tech Blog — Completing the cloud migration (post historique)</a></div>
+  </div><div class="ds-item">
+    <div class="ds-item-head">
+      <span class="ds-item-name">Open Connect (CDN propriétaire)</span>
+      <span class="ds-item-status st-current">actuel</span>
+    </div>
+    <p class="ds-item-role">Le CDN qui sert la vidéo : appliances installées chez ~1000 ISP partout dans le monde, peering direct</p>
+    <div class="ds-item-meta">depuis ~2012 · vu 2025 · <a href="https://openconnect.netflix.com/en/" target="_blank" rel="noopener nofollow">🔗 Open Connect — site officiel + whitepapers</a></div>
+  </div><div class="ds-item">
+    <div class="ds-item-head">
+      <span class="ds-item-name">Spinnaker</span>
+      <span class="ds-item-status st-current">actuel</span>
+    </div>
+    <p class="ds-item-role">Déploiement continu multi-cloud (open-sourcé par Netflix + Google)</p>
+    <div class="ds-item-meta">depuis ~2015 · vu 2024 · <a href="https://github.com/spinnaker/spinnaker" target="_blank" rel="noopener nofollow">🐙 github.com/spinnaker — projet OSS</a></div>
+  </div><div class="ds-item">
+    <div class="ds-item-head">
+      <span class="ds-item-name">Atlas</span>
+      <span class="ds-item-status st-current">actuel</span>
+    </div>
+    <p class="ds-item-role">Time-series monitoring maison, 1.5B+ métriques/min</p>
+    <div class="ds-item-meta">depuis ~2014 · vu 2024 · <a href="https://github.com/Netflix/atlas" target="_blank" rel="noopener nofollow">🐙 github.com/Netflix/atlas (open source)</a></div>
+  </div></div>
+  </div><div class="ds-category">
+    <div class="ds-category-name">▸ Data / ML</div>
+    <div class="ds-items"><div class="ds-item">
+    <div class="ds-item-head">
+      <span class="ds-item-name">Metaflow</span>
+      <span class="ds-item-status st-current">actuel</span>
+    </div>
+    <p class="ds-item-role">Framework Python pour pipelines ML/data (open source)</p>
+    <div class="ds-item-meta">depuis ~2019 · vu 2024 · <a href="https://github.com/Netflix/metaflow" target="_blank" rel="noopener nofollow">🐙 github.com/Netflix/metaflow (open source)</a></div>
+  </div></div>
+  </div>
+  </section>
+
+  <section class="ds-section">
+    <h2>🐙 Open-source notable</h2>
+    <table class="ds-oss-table">
+    <thead><tr><th>Projet</th><th>Description</th><th>Stars</th></tr></thead>
+    <tbody><tr>
+    <td><a href="https://github.com/spinnaker/spinnaker" target="_blank" rel="noopener">Spinnaker</a></td>
+    <td>Continuous Delivery multi-cloud — fondé chez Netflix, maintenant CNCF-adjacent.</td>
+    <td class="ds-oss-stars">9k+</td>
+  </tr><tr>
+    <td><a href="https://github.com/Netflix/Hystrix" target="_blank" rel="noopener">Hystrix</a></td>
+    <td>Latence + fault tolerance library JVM. Maintenance mode officiel mais référence historique du pattern circuit breaker.</td>
+    <td class="ds-oss-stars">23k+</td>
+  </tr><tr>
+    <td><a href="https://github.com/Netflix/zuul" target="_blank" rel="noopener">Zuul</a></td>
+    <td>Edge gateway JVM utilisé par Netflix en prod.</td>
+    <td class="ds-oss-stars">13k+</td>
+  </tr><tr>
+    <td><a href="https://github.com/Netflix/atlas" target="_blank" rel="noopener">Atlas</a></td>
+    <td>Time-series DB pour observabilité haute volumétrie.</td>
+    <td class="ds-oss-stars">3k+</td>
+  </tr><tr>
+    <td><a href="https://github.com/Netflix/metaflow" target="_blank" rel="noopener">Metaflow</a></td>
+    <td>Framework Python pipelines data/ML.</td>
+    <td class="ds-oss-stars">7k+</td>
+  </tr><tr>
+    <td><a href="https://github.com/Netflix/chaosmonkey" target="_blank" rel="noopener">Chaos Monkey</a></td>
+    <td>Tueur d&#39;instances aléatoire (chaos engineering original).</td>
+    <td class="ds-oss-stars">15k+</td>
+  </tr></tbody>
+  </table>
+  </section>
+
+  <section class="ds-section">
+    <h2>🏛️ Culture ingénierie</h2>
+    <p class="ds-culture">Stack très opinionnée : JVM-first, AWS-natif, microservices avec sagas distribuées, observabilité maison, chaos engineering culturellement intégré. Le Tech Blog est probablement la référence la plus citée du domaine — les concepts qui y naissent (chaos engineering, circuit breaker pattern, edge gateway, multi-region failover) deviennent standards de l&#39;industrie 1-3 ans plus tard.</p>
+  </section>
+
+  <section class="ds-section">
+    <h2>👋 Recrutement</h2>
+    <p class="ds-hiring">Notoirement sélectif : process d&#39;embauche en 5-7 loops, very high bar sur le system design. Salaires top du marché aux US (top 10% des packages tech). Politique &#39;keeper test&#39; culturellement difficile mais transparente.</p>
+    <div class="ds-links">
+      <a href="https://jobs.netflix.com/" target="_blank" rel="noopener">💼 Careers Netflix</a>
+      <a href="https://netflixtechblog.com/" target="_blank" rel="noopener">📝 Blog ingénierie</a>
+    </div>
+  </section>
+
+  <div class="ds-disclaimer"><strong>Méthodologie & limites</strong>Ce dossier compile ce qui a été publiquement disclosed via le blog ingénierie, les job postings, GitHub et les talks de conférence. Ce n'est pas un audit complet — la stack interne est plus large. Chaque item liste sa source pour que tu puisses re-vérifier. Les stacks tech bougent — la date "Révisé" en haut indique la fraîcheur de cette revue.</div>
+
+  <div class="ds-sources">
+    <h3>Sources principales</h3>
+    <ul><li><a href="https://netflixtechblog.com/" target="_blank" rel="noopener">Netflix Tech Blog (officiel)</a></li><li><a href="https://github.com/Netflix" target="_blank" rel="noopener">github.com/Netflix — orga publique massive</a></li><li><a href="https://jobs.netflix.com/" target="_blank" rel="noopener">Netflix Jobs — job postings publics</a></li><li><a href="https://openconnect.netflix.com/" target="_blank" rel="noopener">Open Connect (le CDN Netflix, doc publique)</a></li></ul>
+  </div>
+</main>
+
+  <footer class="web-footer">
+    <div class="web-footer-inner">
+      <div class="web-footer-links">
+        <a href="/">Home</a>
+        <a href="/certifications/">Certifications</a>
+        <a href="/courses/">Courses</a>
+        <a href="/careers/">Careers</a>
+        <a href="/contact.html">Contact</a>
+        <a href="/privacy-policy.html">Privacy</a>
+      </div>
+      <div class="web-footer-text">CertQuests — Free IT certification training, courses, and career planning</div>
+    </div>
+  </footer>
+
+<script src="/src/cq-core.js?v=76" defer></script>
+<script src="/src/mascot-loader.js?v=76" defer></script>
+</body>
+</html>

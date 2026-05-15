@@ -338,20 +338,52 @@ up when there's time.
       - **User submission form** — readers propose new myths to test
         (Supabase form behind the new auth).
 
-### 6.9 — DevStack
+### 6.9 — DevStack ✅ SHIPPED 2026-05-15
 
-URL: `/devstack/<entreprise>`
-- **Priority:** P2 (developer authority)
-- **Complexity:** M (per-page research)
-- **Dependencies:** public engineering blogs, conference talks,
-  GitHub orgs.
-- **Pages (4 first):** `/devstack/vinted`, `/devstack/doctolib`,
-  `/devstack/revolut-scaling`, `/devstack/netflix-infra`.
-- **SEO impact:** niche but high-quality ("Vinted tech stack",
-  "Doctolib infrastructure") — devs share these widely.
-- **Monetization:** affiliate to cloud providers + open-source tools.
-- **Risks:** stacks change; date every claim. Avoid speculation —
-  cite the source (talk, blog, GitHub).
+- [x] ✅ Schema in `data/devstack/_schema.md`. Per-company JSON
+      carries company, vertical, founded, hq, scaleSignal, tldr,
+      icon, color, lastReviewed, tags, stack[] (Category → items[]
+      with status + lastSeen + typed source), oss[], culture, hiring,
+      careersUrl, engBlogUrl, sources[]. Honesty rules baked in:
+      "public sources only", "date every claim", "no completeness
+      pretense".
+- [x] ✅ 4 datasets shipped (Vinted, Doctolib, Revolut, Netflix),
+      every stack item with a public source link (engineering blog,
+      job posting, or GitHub repo) and `status` (`current` /
+      `migrating-from` / `migrated-to` / `retired`). Total of
+      ~45 stack items across the 4 companies.
+- [x] ✅ `scripts/gen-devstack-pages.js` (`npm run gen-devstack`,
+      idempotent). Generates per-company page + grid index. **5 pages
+      total.**
+- [x] ✅ Per-company page renders: hero w/ scale signal callout,
+      grouped stack categories (▸ separators) with status pills
+      (green/amber/blue/grey by status) + per-item source link w/
+      type icon (📝 blog / 🎤 talk / 💼 job / 🐙 github), OSS
+      contributions table (name / what / stars), culture paragraph,
+      hiring paragraph w/ careers + blog links, methodology
+      disclaimer + sources list. **Organization JSON-LD** schema with
+      sameAs pointing to engineering blog + careers URL.
+- [x] ✅ Index page: tag filter + company-colored card grid with
+      icon + vertical + tldr + component-count + revised-date.
+      Methodology disclaimer at bottom inviting corrections via /contact.
+- [x] ✅ Freshness pill: green ≤4 months, amber ≤12, red after
+      (tech stacks change slower than reality-check claims — wider
+      bands than 6.8).
+- [x] ✅ `npm run gen-devstack` in package.json.
+- [x] ✅ sitemap.xml +5 entries (index 0.85, leaves 0.8).
+- [x] ✅ 109/109 tests pass.
+- [ ] **Open follow-ups:**
+      - **+4 datasets:** Algolia (search infra), Stripe (payments),
+        ManoMano (FR marketplace), Spotify (music streaming).
+      - **Per-item Wayback snapshot** in each source for link-rot
+        survival.
+      - **Affiliate slots:** cloud providers (AWS partner, GCP
+        partner), observability vendors (Datadog, Grafana Cloud)
+        when a stack item names them.
+      - **"What changed since last revision"** diff block — useful
+        when we re-review a dossier in 6-12 months.
+      - **Glossary tooltip** on stack item names (hover → 2-line
+        explanation), helps junior readers.
 
 ### 6.10 — PromptDungeon ✅ SHIPPED 2026-05-15
 
