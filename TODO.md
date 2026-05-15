@@ -96,34 +96,34 @@ up when there's time.
       center.
 - [x] ✅ Cache bumped 64 → 65, sw.js CACHE_VERSION → v79.
 
-### 5.6 — Hearts → Health bar (cross-section, with damage + cooldown)
+### 5.6 — Hearts → Health bar (cross-section, damage + cooldown) ✅ SHIPPED 2026-05-15
 
-- [ ] **P4 — Visual.** Replace the 5-heart row with a continuous **health
-      bar** segmented into 5 units. Don't ape Duolingo's hearts; bar UI is
-      the differentiator. Green > 60 %, amber 30–60 %, red < 30 %.
-- [ ] **P5 — Damage feedback.** On wrong answer: bar flashes red + shrinks
-      with an easing animation; viewport shake (subtle, ≤6px). On regen:
-      smooth refill pulse.
-- [ ] **P5 — Hard gate at 0.** When health hits 0 in path mode, lock all
-      path nodes for a fixed cooldown (default 30 min). Show a full-screen
-      "You're out of lives — back in 27:14" countdown that ticks live.
-      No silent disable.
-- [ ] **T2 — Cross-section sync.** Health is ONE shared system across
-      `/path.html` AND `/train.html`. Storage key stays `cq-hearts-v1`;
-      both flows must read/write the same reducer. Wrong answer in
-      training also drops a heart; cooldown in path also blocks training
-      entry (and vice versa).
-- [ ] **Path-only mechanic clarification.** Per user direction: the
-      health/cooldown system is **path-mode-only** for the loss/lock
-      semantics — training quizzes can show the bar (T2 sync) but should
-      NOT trigger a fresh wrong-answer-drops-life decrement (else casual
-      training becomes punitive). Decision: **bar is read-only in
-      training**, decrements only fire from path nodes. Reconcile with
-      T2 (UI shows shared health, write-side is path-only).
-- [ ] Tooltip / a11y label: "Health: 3 of 5 — next regen in 12 min".
-- [ ] Acceptance: 83/83 unit tests still pass; new hearts.js tests cover
-      cooldown lock, damage on wrong, regen tick. Visual matches
-      Chess-Kombat HUD aesthetic.
+- [x] ✅ **P4 — Visual.** Continuous 5-segment health bar with green/amber/
+      red colour bands. Bar visible everywhere via the header chip
+      (auto-injected by hearts.js); larger version in the modal.
+- [x] ✅ **P5 — Damage feedback.** Chip shakes + flares red on every
+      `lose()` via `is-damaging` class + cq-hearts-shake/flare keyframes.
+      Reduced-motion users get the flare only (no shake).
+- [x] ✅ **P5 — Hard gate at 0.** New `cqHearts.showCooldownGate()` renders
+      a full-screen overlay on /path.html: damaged-heart icon, live MM:SS
+      countdown to next regen, progress bar, "Hide" + "Read a tip" exits.
+      Auto-dismisses when ≥1 heart regenerates. Path-mode node taps when
+      `canPlay()` is false also surface the gate (concept + chest nodes
+      bypass — they're regen paths).
+- [x] ✅ **T2 — Cross-section sync.** One source of truth (`cq-hearts-v1`).
+      Bar visible on /path.html, /train.html, every page that has the
+      header. Writes are path-only (only `src/path.js` calls
+      `cqHearts.lose()`); training quizzes never decrement.
+- [x] ✅ **hearts.js refactor.** Pure helpers extracted — `normalize`,
+      `regenSync(state, now)`, `applyLossSync(state, now)`,
+      `nextRegenMsFor(state, now)`. Browser-only side effects guarded
+      with `IS_BROWSER`. Dual-export: `window.cqHearts` in browser,
+      CJS via `module.exports` in Node.
+- [x] ✅ Tooltip / a11y label: "Health: 3 of 5 — next regen in 12 min".
+- [x] ✅ 13 new pure-state tests (`test/hearts.test.js`) covering normalize,
+      regen ticks, loss math, cooldown enter/exit, regen cap. **109/109**
+      total tests pass (was 96).
+- [x] ✅ Cache bumped 66 → 67, sw.js CACHE_VERSION → v81.
 
 ### 5.7 — Quest HUD box (Chess-Kombat-style video-game panel)
 

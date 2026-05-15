@@ -245,6 +245,16 @@
         on: {
           click: function () {
             if (locked) { showLockedToast(); return; }
+            /* Phase 5.6 — hard cooldown gate. Empty health on a path
+               node tap surfaces the full-screen countdown rather than
+               opening a node the user can't actually finish. Concept
+               nodes (no hearts cost) and chests (rewards, not damage)
+               bypass the gate so the player can still earn back. */
+            if (window.cqHearts && !window.cqHearts.canPlay()
+                && node.type !== 'concept' && node.type !== 'chest') {
+              window.cqHearts.showCooldownGate();
+              return;
+            }
             openNodeSheet(path, node);
           }
         }

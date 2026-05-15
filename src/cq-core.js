@@ -1,4 +1,4 @@
-/* CertQuests core bundle — generated 2026-05-15T09:21:00.409Z
+/* CertQuests core bundle — generated 2026-05-15T09:41:51.761Z
  *
  * This file is concatenated by scripts/build-core.js. Do not edit by hand;
  * edit the source modules in src/*.js and re-run `npm run build-core`.
@@ -587,47 +587,102 @@
  *       link to a free concept-card node (placeholder for now: links to /news).
  */
 (function () {
-  if (window.__cqHeartsInit) return;
-  window.__cqHeartsInit = true;
+  /* Dual-context: browser-side renderer + Node-test target for the pure
+     state math. Side effects (window listeners, DOM, localStorage) are
+     guarded; the math (normalize/regenSync/applyLossSync/nextRegenMsFor)
+     is pure and exported via CJS at the foot of the file. */
+  var IS_BROWSER = typeof window !== 'undefined';
+  if (IS_BROWSER) {
+    if (window.__cqHeartsInit) return;
+    window.__cqHeartsInit = true;
+  }
 
   var KEY = 'cq-hearts-v1';
   var MAX = 5;
   var REGEN_MS = 30 * 60 * 1000; /* 30 min per heart */
 
-  function load() {
-    try {
-      var s = JSON.parse(localStorage.getItem(KEY) || '{}');
-      return { hearts: typeof s.hearts === 'number' ? s.hearts : MAX, lastLostAt: s.lastLostAt || 0 };
-    } catch (_) { return { hearts: MAX, lastLostAt: 0 }; }
-  }
-  function save(s) {
-    try { localStorage.setItem(KEY, JSON.stringify(s)); } catch (_) {}
+  /* ──────────────── Pure state helpers (testable, no I/O) ──────────────── */
+
+  /* Coerce arbitrary parsed JSON into a valid {hearts, lastLostAt} shape. */
+  function normalize(raw) {
+    if (!raw || typeof raw !== 'object') return { hearts: MAX, lastLostAt: 0 };
+    var h = typeof raw.hearts === 'number' ? raw.hearts : MAX;
+    if (h < 0) h = 0;
+    if (h > MAX) h = MAX;
+    var t = typeof raw.lastLostAt === 'number' && raw.lastLostAt > 0 ? raw.lastLostAt : 0;
+    return { hearts: h, lastLostAt: t };
   }
 
-  /* Regenerate any hearts that were lost > REGEN_MS ago */
-  function regen(s) {
+  /* Apply passive regen as of `now`. Pure. */
+  function regenSync(state, now) {
+    var s = normalize(state);
     if (s.hearts >= MAX) return s;
-    var now = Date.now();
-    var elapsed = now - (s.lastLostAt || now);
+    if (!s.lastLostAt) return s;
+    var elapsed = now - s.lastLostAt;
     var regained = Math.floor(elapsed / REGEN_MS);
     if (regained <= 0) return s;
-    s.hearts = Math.min(MAX, s.hearts + regained);
-    /* keep lastLostAt rolling forward so next regen lines up */
-    s.lastLostAt = s.hearts >= MAX ? 0 : s.lastLostAt + regained * REGEN_MS;
-    return s;
+    var hearts = Math.min(MAX, s.hearts + regained);
+    var lastLostAt = hearts >= MAX ? 0 : s.lastLostAt + regained * REGEN_MS;
+    return { hearts: hearts, lastLostAt: lastLostAt };
   }
 
-  function get() { return regen(load()); }
+  /* Decrement one heart (no-op if already 0). Pure. */
+  function applyLossSync(state, now) {
+    var s = regenSync(state, now);
+    if (s.hearts <= 0) return s;
+    return { hearts: s.hearts - 1, lastLostAt: now };
+  }
+
+  /* ms until the next regen tick from `now`. 0 if at full health. Pure. */
+  function nextRegenMsFor(state, now) {
+    var s = regenSync(state, now);
+    if (s.hearts >= MAX) return 0;
+    var since = now - (s.lastLostAt || now);
+    return Math.max(0, REGEN_MS - (since % REGEN_MS));
+  }
+
+  /* ─────────────────── Browser I/O wrappers (side effects) ─────────────── */
+  function load() {
+    if (!IS_BROWSER) return { hearts: MAX, lastLostAt: 0 };
+    try { return normalize(JSON.parse(localStorage.getItem(KEY) || '{}')); }
+    catch (_) { return { hearts: MAX, lastLostAt: 0 }; }
+  }
+  function save(s) {
+    if (!IS_BROWSER) return;
+    try { localStorage.setItem(KEY, JSON.stringify(s)); } catch (_) {}
+  }
+  function get() { return regenSync(load(), Date.now()); }
   function set(s) { save(s); render(); }
 
+  /* Phase 5.6 — `lose()` is path-mode authoritative. Training quizzes
+     never call this (the bar is read-only on /train.html). When hearts
+     drop to 0 from a path-mode wrong answer, also surface the full-
+     screen cooldown gate so the player understands why play is blocked.
+     Visual feedback: flag the chip for a damage flash via class, CSS
+     drives the shake + red flare. */
   function lose() {
     var s = get();
     if (s.hearts <= 0) return false;
     s.hearts -= 1;
     s.lastLostAt = Date.now();
     set(s);
+    flashDamage();
     window.dispatchEvent(new CustomEvent('cq:heart-lost', { detail: { hearts: s.hearts } }));
+    if (s.hearts === 0 && isPathPage()) showCooldownGate();
     return true;
+  }
+  function flashDamage() {
+    var chip = document.getElementById('cq-hearts-chip');
+    if (!chip) return;
+    chip.classList.remove('is-damaging');
+    /* re-trigger the animation on every lose */
+    void chip.offsetWidth;
+    chip.classList.add('is-damaging');
+    setTimeout(function () { chip.classList.remove('is-damaging'); }, 650);
+  }
+  function isPathPage() {
+    try { return /^\/path(\.html|\/)/.test(location.pathname); }
+    catch (_) { return false; }
   }
   function gain(n) {
     var s = get();
@@ -637,15 +692,11 @@
   }
   function reset() { save({ hearts: MAX, lastLostAt: 0 }); render(); }
   function canPlay() { return get().hearts > 0; }
-  function nextRegenMs() {
-    var s = get();
-    if (s.hearts >= MAX) return 0;
-    var elapsed = Date.now() - (s.lastLostAt || Date.now());
-    return Math.max(0, REGEN_MS - (elapsed % REGEN_MS));
-  }
+  function nextRegenMs() { return nextRegenMsFor(load(), Date.now()); }
 
   /* ──────────────────────── UI ──────────────────────── */
   function ready(fn) {
+    if (!IS_BROWSER) return;
     if (document.readyState !== 'loading') fn();
     else document.addEventListener('DOMContentLoaded', fn);
   }
@@ -755,6 +806,82 @@
     }, 60000);
   });
 
+  /* ─────────────── Phase 5.6 — full-screen cooldown gate ───────────────
+     When health hits 0 on /path.html, we lock new node attempts until the
+     next regen tick. The overlay shows a live countdown; when the timer
+     elapses (≥1 heart regenerated), it auto-dismisses. Re-entering a node
+     while empty re-opens it. Idempotent: only one overlay in the DOM. */
+  function showCooldownGate() {
+    if (document.getElementById('cq-out-of-life')) return;
+    var msLeft = nextRegenMs();
+    var overlay = document.createElement('div');
+    overlay.id = 'cq-out-of-life';
+    overlay.className = 'cq-out-of-life';
+    overlay.setAttribute('role', 'dialog');
+    overlay.setAttribute('aria-modal', 'true');
+    overlay.setAttribute('aria-label', "You're out of lives — cooldown");
+    overlay.innerHTML =
+      '<div class="cq-out-of-life-backdrop"></div>' +
+      '<div class="cq-out-of-life-card">' +
+        '<div class="cq-out-of-life-icon" aria-hidden="true">💔</div>' +
+        "<h2>You're out of lives</h2>" +
+        '<p class="cq-out-of-life-sub">Next heart in</p>' +
+        '<div class="cq-out-of-life-timer" aria-live="polite">--:--</div>' +
+        '<div class="cq-out-of-life-bar"><div class="cq-out-of-life-bar-fill"></div></div>' +
+        '<a href="/news/" class="cq-out-of-life-link">Read a tip while you wait →</a>' +
+        '<button type="button" class="cq-out-of-life-close" aria-label="Close">Hide</button>' +
+      '</div>';
+    document.body.appendChild(overlay);
+    setTimeout(function () { overlay.classList.add('is-open'); }, 10);
+
+    var timerEl = overlay.querySelector('.cq-out-of-life-timer');
+    var fillEl = overlay.querySelector('.cq-out-of-life-bar-fill');
+    var startedAtMs = REGEN_MS - msLeft; /* progress at open */
+    var tick = setInterval(function () {
+      var s = get();
+      if (s.hearts > 0) {
+        clearInterval(tick);
+        dismiss();
+        return;
+      }
+      var left = nextRegenMs();
+      timerEl.textContent = mmss(left);
+      var frac = (REGEN_MS - left) / REGEN_MS;
+      fillEl.style.transform = 'scaleX(' + frac.toFixed(4) + ')';
+    }, 1000);
+    /* paint immediately */
+    timerEl.textContent = mmss(msLeft);
+    fillEl.style.transform = 'scaleX(' + ((REGEN_MS - msLeft) / REGEN_MS).toFixed(4) + ')';
+
+    overlay.querySelector('.cq-out-of-life-close').addEventListener('click', dismiss);
+    function dismiss() {
+      clearInterval(tick);
+      overlay.classList.remove('is-open');
+      setTimeout(function () { overlay.remove(); }, 220);
+    }
+  }
+  function mmss(ms) {
+    var s = Math.max(0, Math.ceil(ms / 1000));
+    var m = Math.floor(s / 60);
+    var r = s % 60;
+    return (m < 10 ? '0' : '') + m + ':' + (r < 10 ? '0' : '') + r;
+  }
+
+  if (!IS_BROWSER) {
+    /* Node test mode: export the pure helpers via CommonJS */
+    if (typeof module !== 'undefined' && module.exports) {
+      module.exports = {
+        MAX: MAX,
+        REGEN_MS: REGEN_MS,
+        normalize: normalize,
+        regenSync: regenSync,
+        applyLossSync: applyLossSync,
+        nextRegenMsFor: nextRegenMsFor
+      };
+    }
+    return;
+  }
+
   window.cqHearts = {
     get: get,
     lose: lose,
@@ -762,7 +889,9 @@
     reset: reset,
     canPlay: canPlay,
     nextRegenMs: nextRegenMs,
-    MAX: MAX
+    showCooldownGate: showCooldownGate,
+    MAX: MAX,
+    REGEN_MS: REGEN_MS
   };
 })();
 
