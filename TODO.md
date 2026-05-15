@@ -53,17 +53,19 @@ up when there's time.
 - [ ] Acceptance: a new user landing on `/courses/` knows in <5 s what a
       course is, can pick one, and reaches a productive module in 2 taps.
 
-### 5.4 — Remove `/stats.html` (consolidate into `/profile.html`)
+### 5.4 — Remove `/stats.html` (consolidate into `/profile.html`) ✅ SHIPPED 2026-05-15
 
-- [ ] `/stats.html` currently renders the wrong page anyway; profile already
-      shows all per-user stats (XP, level, streak, pack accuracy, laurels,
-      hats).
-- [ ] Replace `/stats.html` with a 301 / meta-refresh to `/profile.html`
-      (keep the URL so old links don't 404).
-- [ ] Remove the link from any nav/footer that still points to `/stats.html`.
-- [ ] Update `sitemap.xml` and `robots.txt` accordingly.
-- [ ] Acceptance: visiting `/stats.html` lands the user on `/profile.html`;
-      no remaining UI links reach the legacy page.
+- [x] ✅ `/stats.html` is now a meta-refresh + canonical to `/profile.html`
+      (was already in place before this ticket).
+- [x] ✅ Added `_redirects` for a real Cloudflare 301 (`/stats.html →
+      /profile.html`) — transfers SEO equity, beats the meta-refresh.
+- [x] ✅ Replaced 71 `<a href="/stats.html">My Stats</a>` nav links across
+      certifications/, learning/, news/ with `href="/profile.html">My Profile`.
+- [x] ✅ `sitemap.xml` already excluded `/stats.html`; `robots.txt` keeps
+      `Disallow: /stats.html` since the page is a redirect with no value.
+- [x] ✅ Updated `src/avatar.js` doc comment + rebuilt `cq-core.js`.
+- [x] ✅ Cache bumped 60 → 61, sw.js CACHE_VERSION → v75.
+- [x] ✅ Acceptance verified: 0 remaining `<a>` to `/stats.html` in HTML.
 
 ### 5.5 — Mascot 🦑: center in its circle
 

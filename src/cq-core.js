@@ -1,4 +1,4 @@
-/* CertQuests core bundle — generated 2026-05-13T16:32:27.322Z
+/* CertQuests core bundle — generated 2026-05-15T06:34:17.140Z
  *
  * This file is concatenated by scripts/build-core.js. Do not edit by hand;
  * edit the source modules in src/*.js and re-run `npm run build-core`.
@@ -477,7 +477,7 @@
  *
  * Listens for `cq:stats-changed` to re-render in place.
  * Tap to (eventually) open a stats panel — TODO ticket #4. For now, taps
- * navigate to /stats.html so existing stats page is the fallback view.
+ * navigate to /profile.html so the profile page is the fallback view.
  *
  * Idempotent. Plain IIFE.
  */

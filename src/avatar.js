@@ -7,7 +7,7 @@
  *
  * Listens for `cq:stats-changed` to re-render in place.
  * Tap to (eventually) open a stats panel — TODO ticket #4. For now, taps
- * navigate to /stats.html so existing stats page is the fallback view.
+ * navigate to /profile.html so the profile page is the fallback view.
  *
  * Idempotent. Plain IIFE.
  */
