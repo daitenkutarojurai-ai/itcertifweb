@@ -55,19 +55,33 @@ up when there's time.
 > there's no pack-tile grid to align. Polishing the new entry points
 > (cert pages + path index) is in scope of 5.10 itself.
 
-### 5.3 — Courses module rework
+### 5.3 — Courses module rework ✅ SHIPPED 2026-05-15 (partial)
 
-- [ ] `/courses/` is "not user-friendly at all" (user verbatim). Audit
-      what's broken: discoverability, navigation, course-vs-module hierarchy,
-      mobile layout, course-card readability.
-- [ ] Rebuild the index page around a clear "what is a course / how is it
-      different from a path / how is it different from training" header.
-- [ ] Course detail pages: ensure each module has a clear next-step CTA
-      and visible progress. Today they read like static articles.
-- [ ] Cross-link courses ↔ paths (a course is a sister-format to a Cert
-      Quest path — make the relationship explicit on both sides).
-- [ ] Acceptance: a new user landing on `/courses/` knows in <5 s what a
-      course is, can pick one, and reaches a productive module in 2 taps.
+- [x] ✅ Audit complete:
+      • `/courses/` index — already had hero + format cheat-sheet
+        (Training / Courses / Cert Quest paths), search, vendor-grouped
+        grid with dual CTAs (Start course → / 🗺️ Cert Quest). Solid
+        baseline; no rebuild needed.
+      • `/learning/<slug>/index.html` detail pages — only linked to
+        `/train.html?pack=…`. **Zero of 28** linked to the matching
+        Cert Quest path despite the index advertising it.
+- [x] ✅ Cross-link gap closed: new `scripts/sync-course-ctas.js`
+      (`npm run sync-course-ctas`, idempotent). Walks every detail
+      page, extracts the page's existing `train.html?pack=PACKID`
+      anchor, resolves PACKID → canonical path packId via the same
+      alias map cert-pack-ctas uses (e.g. `aws-clf-c02` →
+      `aws-cloud-practitioner`) plus slug-fallbacks (`-administrator`,
+      `-fundamentals`, `kubernetes-` prefix). Injects a `<a
+      href="/path.html?pack=…" class="detail-cta detail-cta-secondary"
+      data-marker="cq:cert-quest-cta">🗺️ Open Cert Quest path</a>`
+      next to the Practice CTA. Marker class makes the script
+      idempotent. **All 28 detail pages updated, zero misses.**
+- [x] ✅ Cache bumped 71 → 72, sw.js CACHE_VERSION → v86.
+- [ ] **Deferred:** per-module next-step CTAs and visible progress
+      tracking. ~28 pages × 5–8 `<details>` modules each = ~150 sites,
+      and each needs a per-module mapping to a quiz subset that
+      doesn't exist in `data/free/*.json` yet. Track-able once
+      per-module quiz grouping is added to the question banks.
 
 ### 5.4 — Remove `/stats.html` (consolidate into `/profile.html`) ✅ SHIPPED 2026-05-15
 
