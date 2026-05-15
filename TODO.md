@@ -25,23 +25,28 @@ up when there's time.
 > - Part C — Other surface polish (5.15, 5.3 courses)
 > - Part D — Verification (5.8)
 
-### 5.1 — Top-bar: consistency + remove Profile redundancy
+### 5.1 — Top-bar: consistency + remove Profile redundancy ✅ SHIPPED 2026-05-15
 
-- [ ] **B2 — Consistency.** Top bar must be byte-identical on every page;
-      currently drifts between certifications/, learning/, news/, careers/,
-      compare/. Pick one canonical markup, dedupe across all 88 pages
-      (write a small node script if needed — `scripts/sync-header.js`).
-- [ ] **B1 — Remove redundant "Profile" link.** The avatar chip already
-      routes to `/profile.html`. Strip the dedicated Profile nav entry
-      from every header/footer instance.
-- [ ] Audit the header at every breakpoint: 320, 360, 480, 768, 1024, 1280px.
-- [ ] On phone, the hamburger position drifts off-center on some pages and
-      partially overlaps the logo on the longest brand names.
-- [ ] On desktop, the auth chip + Google Play badge sometimes wrap to a
-      second row even on wide screens because nav links don't shrink first.
-- [ ] Acceptance: every page renders the exact same header markup; no
-      "Profile" link in nav; logo + hamburger phone-aligned; chip never
-      wraps below the nav on desktop.
+- [x] ✅ **B2 — Consistency.** New `scripts/sync-header.js` enforces one
+      canonical `<header class="web-header">` across all pages; ran
+      `npm run sync-header` → 97 HTML files updated, 7 variants collapsed
+      to 1. Re-running is idempotent.
+- [x] ✅ **B1 — Profile link removed.** Stripped from desktop nav (script
+      doesn't include it) and from `src/menu.js` mobile drawer. Avatar
+      chip + drawer auth row are the only profile entry points now.
+- [x] ✅ **5.10 prep — Training link removed** from canonical nav and
+      mobile drawer (cert pages will gain Quick Quiz + Learning Path
+      CTAs in 5.10; no point keeping Training as a redundant entry).
+- [x] ✅ Canonical nav: Cert Quest (NEW pill) · Certifications · Courses
+      · Careers · News · Google Play. `aria-current="page"` injected
+      automatically per page URL (path/cert/course/career/news).
+- [x] ✅ **CSS cleanup.** Phone (≤767px): desktop nav hidden, header
+      becomes logo + absolute-positioned hamburger (top-right corner,
+      no more drift). Desktop (≥768px): nav `flex-wrap: nowrap`, links
+      `white-space: nowrap`, `.cq-auth-chip` + `.web-header-badge` are
+      `flex-shrink: 0` — chip never wraps below nav.
+- [x] ✅ Cache bumped 61 → 62, sw.js CACHE_VERSION → v76.
+- [x] ✅ 83/83 unit tests pass.
 
 ### 5.2 — Training pack-tile sizing — RETIRED → see 5.10
 

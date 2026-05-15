@@ -59,12 +59,6 @@
           '<span class="mobile-menu-emoji">🗺️</span>Cert Quest' +
           '<span class="mobile-menu-pill">NEW</span>' +
         '</a>' +
-        '<a href="/profile.html">' +
-          '<span class="mobile-menu-emoji">🦑</span>Your profile' +
-        '</a>' +
-        '<a href="/train.html">' +
-          '<span class="mobile-menu-emoji">🎯</span>Training' +
-        '</a>' +
         '<a href="/certifications/">' +
           '<span class="mobile-menu-emoji">🏅</span>Certifications' +
         '</a>' +

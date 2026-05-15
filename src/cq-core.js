@@ -1,4 +1,4 @@
-/* CertQuests core bundle — generated 2026-05-15T06:34:17.140Z
+/* CertQuests core bundle — generated 2026-05-15T07:41:27.703Z
  *
  * This file is concatenated by scripts/build-core.js. Do not edit by hand;
  * edit the source modules in src/*.js and re-run `npm run build-core`.
@@ -1111,12 +1111,6 @@
         '<a href="/path.html" class="mobile-menu-new">' +
           '<span class="mobile-menu-emoji">🗺️</span>Cert Quest' +
           '<span class="mobile-menu-pill">NEW</span>' +
-        '</a>' +
-        '<a href="/profile.html">' +
-          '<span class="mobile-menu-emoji">🦑</span>Your profile' +
-        '</a>' +
-        '<a href="/train.html">' +
-          '<span class="mobile-menu-emoji">🎯</span>Training' +
         '</a>' +
         '<a href="/certifications/">' +
           '<span class="mobile-menu-emoji">🏅</span>Certifications' +
