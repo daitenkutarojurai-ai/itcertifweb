@@ -5,6 +5,274 @@ up when there's time.
 
 ---
 
+## P1 — Phase 6: Authority + tools layer (2026-05-15, planned)
+
+> Net-new feature batch (13 items) targeting SEO authority, lead-gen and
+> retention. Three are calculators (client-side JS), eight are content
+> templates (static HTML scaled by data), and two extend the existing
+> Supabase + stats system (streaks/leaderboards, comparator).
+>
+> **Stack reality:** site runs on Cloudflare Pages (not GitHub Pages).
+> No Workers/Functions yet — features below that need server-side compute
+> (Exam Radar, leaderboards) introduce Pages Functions for the first time.
+> No Brevo integration today; if a feature needs transactional email the
+> first ticket also wires Brevo (or sticks with Supabase Auth's SMTP).
+>
+> **Cross-cutting acceptance:** every feature must (a) ship as static
+> HTML where possible (SEO-indexable), (b) reuse the canonical header
+> (`scripts/sync-header.js`), and (c) add a `?v=N` cache-bust per
+> existing convention.
+
+### 6.1 — Salary After Certification (SEO anchor)
+
+URL: `/salaire/<cert>/<pays>` · static pages, scales by template
+- **Priority:** P0 (highest CPM keywords on the site)
+- **Complexity:** L (data-heavy)
+- **Dependencies:** salary tables — LinkedIn Salary Insights export,
+  APEC, Glassdoor, INSEE; refresh quarterly. Stored as
+  `data/salary/<cert>.<country>.json`.
+- **Pages (4 first):** `/salaire/aws-saa/france`, `/salaire/ccna/france`,
+  `/salaire/rhcsa/france`, `/salaire/aws-saa/luxembourg`.
+- **SEO impact:** highest on the site — "salaire AWS certifié",
+  "CCNA salaire France" are top-funnel money queries.
+- **Monetization:** AdSense (high CPM finance/IT), affiliate links to
+  cert vendors + bootcamps, lead capture for ROI calc PDF.
+- **Risks:** salary sources rot fast; need a `data/salary/_meta.json`
+  that surfaces "last refreshed YYYY-MM" on every page so users
+  trust the number.
+
+### 6.2 — Cert Comparator
+
+URL: `/compare/<cert-a>-vs-<cert-b>` (extend existing `compare/` dir)
+- **Priority:** P0 (fastest payoff — uses existing pack data)
+- **Complexity:** M
+- **Dependencies:** `data/index.json` (already), per-cert summary in
+  `data/free/*.json` (already), salary data from 6.1 (overlap).
+- **Pages (3 first):** `/compare/aws-saa-vs-az-104-vs-gcp-ace`,
+  `/compare/ccna-vs-comptia-network-plus`,
+  `/compare/cissp-vs-comptia-security-plus`.
+- **SEO impact:** "AWS SAA vs Azure 104" intent queries — high
+  conversion, mid-funnel.
+- **Monetization:** AdSense + cert-vendor affiliate.
+- **Risks:** dynamic 3-way picker tempting but adds JS — start with
+  static templates, JS picker later if traffic justifies.
+
+### 6.3 — Fail Analysis (per certification)
+
+URL: `/fail-analysis/<cert>`
+- **Priority:** P1 (short content, viral)
+- **Complexity:** S (~800-word static pages)
+- **Dependencies:** Reddit/Discord scrape per cert (manual research).
+- **Pages (3 first):** `/fail-analysis/ccna`, `/fail-analysis/aws-saa`,
+  `/fail-analysis/rhcsa`.
+- **SEO impact:** "why fail CCNA", "CCNA mistakes" — bottom-funnel,
+  shareable.
+- **Monetization:** affiliate to study material, bootcamp lead gen.
+- **Risks:** quality bar — needs real data per cert (no fluff lists).
+
+### 6.4 — Study Planner
+
+URL: `/study-planner/`
+- **Priority:** P1 (lead-gen + retention)
+- **Complexity:** M (client-side date math + per-cert syllabus map)
+- **Dependencies:** per-cert syllabus tagging in `data/free/*.json`
+  (partial today; gen-paths chapters are a usable proxy). ICS export
+  uses `iCalendar` library or hand-rolled.
+- **Pages:** single SPA at `/study-planner/`.
+- **SEO impact:** moderate ("AWS study plan", "CCNA 30-day plan").
+- **Monetization:** **lead gen** — gate the ICS download or email-the-
+  plan flow behind email capture (Supabase Auth → trigger). High intent.
+- **Risks:** per-cert syllabus weights need sourcing per cert; ship
+  with 3 certs and expand.
+
+### 6.5 — CareerPaths Generator
+
+URL: `/career-path/`
+- **Priority:** P1 (lead-gen, complements `/careers/`)
+- **Complexity:** L (decision tree + salary lookup + cert sequencing)
+- **Dependencies:** existing `/careers/` content as the base
+  taxonomy, salary data from 6.1.
+- **Pages:** single SPA generator at `/career-path/`. Generated plans
+  also rendered to a sharable `/career-path/<token>` URL (token is a
+  hash of inputs — no backend storage needed).
+- **SEO impact:** moderate, but the shareable URLs grow long-tail
+  ("vendeur reconversion devops 18 mois").
+- **Monetization:** lead gen on email-the-plan flow.
+- **Risks:** decision tree complexity; cap at ~5 inputs and 3 archetypes
+  per domain to keep auditability. Salary data must be country-aware.
+
+### 6.6 — InfraCost Calculator
+
+URL: `/infracost/`
+- **Priority:** P1 (viral + tool authority)
+- **Complexity:** M (client-side calculator + lookup tables)
+- **Dependencies:** monthly-refreshed pricing data — AWS/GCP/Hetzner/
+  Fly.io/Cloudflare R2 — stored as `data/infracost/<provider>.json`.
+- **Pages:** single tool at `/infracost/`. Result pages with
+  shareable token URLs (same pattern as 6.5).
+- **SEO impact:** high — "AWS cost calculator", "GCP price comparison"
+  are evergreen queries.
+- **Monetization:** AdSense + Hetzner/Fly.io affiliate (good payouts).
+- **Risks:** pricing data goes stale fast; surface "last refreshed"
+  prominently. Consider Pages Function to fetch live pricing on first
+  load for AWS (GCP/Hetzner have no public price APIs).
+
+### 6.7 — Streaks + Leaderboards
+
+URL: extends `/profile.html`; new `/leaderboard/` page
+- **Priority:** P1 (engagement + retention multiplier)
+- **Complexity:** L (Supabase RLS + materialized view + cron refresh)
+- **Dependencies:** existing Supabase `stats` table, `auth.users`,
+  `cq-stats-v1.streakDays` (already tracked locally + synced).
+- **Pages:** `/leaderboard/` (weekly XP), profile.html badge for streak.
+- **SEO impact:** low (gated behind login).
+- **Monetization:** none direct; engagement boosts every other monetized
+  page.
+- **Risks:**
+  - Privacy/RGPD — leaderboard reveals usernames; opt-in only.
+  - Materialized view refresh budget; weekly cron via Supabase cron is
+    free (vs Cloudflare cron $).
+  - Streak calculation needs server-side enforcement; client-only is
+    trivially gameable.
+
+### 6.8 — RealityCheck IT/Carrière
+
+URL: `/reality-check/<slug>`
+- **Priority:** P2 (content authority, viral angle)
+- **Complexity:** L (research-heavy editorial)
+- **Dependencies:** Reddit/LinkedIn/APEC sources per topic.
+- **Pages (5 first):** `/reality-check/devops-100k-france`,
+  `/reality-check/aws-certifie-salaire`,
+  `/reality-check/freelance-it-revenu-reel`,
+  `/reality-check/bali-remote-worker`,
+  `/reality-check/dropshipping-2026`.
+- **SEO impact:** clickbait-adjacent intent queries — "DevOps 100k vrai
+  ou faux" — high CTR, moderate volume.
+- **Monetization:** AdSense + affiliate to bootcamps/coaching.
+- **Risks:** editorial trust — every claim needs a citation that won't
+  rot. Use Wayback Machine snapshots for sources.
+
+### 6.9 — DevStack
+
+URL: `/devstack/<entreprise>`
+- **Priority:** P2 (developer authority)
+- **Complexity:** M (per-page research)
+- **Dependencies:** public engineering blogs, conference talks,
+  GitHub orgs.
+- **Pages (4 first):** `/devstack/vinted`, `/devstack/doctolib`,
+  `/devstack/revolut-scaling`, `/devstack/netflix-infra`.
+- **SEO impact:** niche but high-quality ("Vinted tech stack",
+  "Doctolib infrastructure") — devs share these widely.
+- **Monetization:** affiliate to cloud providers + open-source tools.
+- **Risks:** stacks change; date every claim. Avoid speculation —
+  cite the source (talk, blog, GitHub).
+
+### 6.10 — PromptDungeon
+
+URL: `/prompt-dungeon/`
+- **Priority:** P2
+- **Complexity:** M (catalog + filters + copy-to-clipboard)
+- **Dependencies:** `data/prompts/<workflow>.json` schema.
+- **Pages:** index `/prompt-dungeon/` + per-workflow `/prompt-dungeon/
+  <workflow>` (4 first: AWS-cert-prep, IT-CV-writer, YouTube-shorts-tech,
+  IT-recruiter).
+- **SEO impact:** moderate — "Claude prompts AWS", "ChatGPT IT CV".
+- **Monetization:** affiliate to Claude/GPT Plus, Anthropic API
+  referral.
+- **Risks:** prompts age with model updates; mark each with model
+  version + last-tested date.
+
+### 6.11 — ToolRadar
+
+URL: `/tool-radar/<metier>`
+- **Priority:** P2 (high affiliate payouts)
+- **Complexity:** L (real benchmarking, not just lists)
+- **Dependencies:** hands-on testing budget for each tool.
+- **Pages (4 first):** `/tool-radar/meilleur-ai-developpeur`,
+  `/tool-radar/meilleur-ai-support-client`,
+  `/tool-radar/alternative-notion-ai`,
+  `/tool-radar/meilleur-ai-etudiant-it`.
+- **SEO impact:** high commercial intent — "best AI for developers".
+- **Monetization:** **highest of any feature** — AI tool affiliate
+  programs pay $50-300 per signup.
+- **Risks:** prices/features change weekly; needs editorial cadence
+  (monthly review). Surface "last reviewed" on every page.
+
+### 6.12 — FailBase
+
+URL: `/failbase/<slug>`
+- **Priority:** P2
+- **Complexity:** M (research-heavy)
+- **Dependencies:** verified historical sources (no rumors).
+- **Pages (4 first):** `/failbase/quibi-pourquoi-mort`,
+  `/failbase/nokia-erreur-fatale`, `/failbase/metaverse-meta-flop`,
+  `/failbase/pires-decisions-startup-tech`.
+- **SEO impact:** evergreen ("why did Quibi fail").
+- **Monetization:** AdSense + book affiliate (related case studies).
+- **Risks:** editorial discipline; cite verifiable sources only.
+
+### 6.13 — Exam Radar (community-sourced topic frequency)
+
+URL: `/exam-radar/<cert>`
+- **Priority:** P2 (data-dependent)
+- **Complexity:** XL — requires data-collection pipeline before any
+  page is meaningful.
+- **Dependencies:** community polling — Discord/Reddit/Telegram.
+  Storage in Supabase or new D1 table. Aggregation cron.
+- **Pages:** `/exam-radar/<cert>` per cert; data-driven heatmap of
+  topic frequency.
+- **SEO impact:** high IF data is real — "what's on the AWS SAA exam".
+- **Monetization:** lead gen + cert vendor affiliate.
+- **Risks:** **highest data-trust risk** of any feature. Without a
+  real submission pipeline, the page is fiction. Defer until 6.4 +
+  6.7 are live so we have a logged-in user base to poll.
+
+### 6.x — Implementation order (recommended)
+
+Wave 1 — SEO + lead-gen quick wins (1–2 weeks each):
+1. **6.1** Salary After Certification — highest CPM, scales by template
+2. **6.2** Cert Comparator — uses existing data, fast win
+3. **6.3** Fail Analysis — short content, viral
+4. **6.4** Study Planner — lead-gen, modest tech
+5. **6.5** Career Paths — lead-gen, complements `/careers/`
+
+Wave 2 — Tools + retention (2–3 weeks each):
+6. **6.6** InfraCost Calculator
+7. **6.7** Streaks + Leaderboards (introduces Pages Functions)
+
+Wave 3 — Content authority (rolling, 1 page/week):
+8. **6.10** PromptDungeon
+9. **6.11** ToolRadar
+10. **6.8** RealityCheck
+11. **6.9** DevStack
+12. **6.12** FailBase
+
+Wave 4 — Data-dependent (defer until pipeline exists):
+13. **6.13** Exam Radar
+
+### 6.x — Cross-cutting tech debt to address with Phase 6
+
+- [ ] **Pages Functions** — first-time introduction in 6.6 (live AWS
+      pricing fetch) or 6.7 (leaderboard refresh). Add a
+      `functions/` directory + `wrangler.jsonc` config.
+- [ ] **Brevo integration** — only if 6.4/6.5 lead-gen flows decide
+      to leave Supabase Auth's transactional email. Alternative:
+      keep Supabase + add a `marketing_emails` opt-in column.
+- [ ] **Data-freshness convention** — every data-driven page (salary,
+      pricing, tool radar) MUST surface "last reviewed YYYY-MM" near
+      the headline. Bake into a shared `<DataFreshness>` partial.
+- [ ] **Shareable-result URLs** — 6.5 + 6.6 use deterministic input
+      hashes as URL tokens (no backend persistence). Document the
+      pattern once so subsequent calculators reuse it.
+
+### 6.x — Estimated total
+
+~10–14 weeks across the four waves at one feature/week pace. Wave 1
+alone (6.1 → 6.5) yields 12+ new SEO-targeted pages and the two
+lead-gen flows that drive everything else.
+
+---
+
 ## P0 — Phase 5: Desktop + game-feel rebuild + IA cleanup (2026-05-13, expanded 2026-05-15)
 
 > Live audit on phone + desktop + a second user pass on 2026-05-15 surfaced

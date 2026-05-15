@@ -122,15 +122,27 @@ package.json              npm test / npm run gen-paths / npm run build-core
 - **Phase 4.3.6 — path-progress tests** SHIPPED (2026-05-13). Extracted
   `src/path-progress.js` (pure, Node-CommonJS + browser-global dual export),
   rewired `path.js` to delegate, +25 unit tests → 83/83 passing.
-- **Phase 5 — Mobile + UX polish + video-game HUD** IN PROGRESS (P0).
-  - 5.1 Top-bar icon placement (desktop + phone)
-  - 5.2 Training: uniform pack-tile sizing
-  - 5.3 `/courses/` rework (biggest, last)
-  - 5.4 Remove `/stats.html` (consolidate into `/profile.html`)
-  - 5.5 Mascot squid centering inside the bubble
-  - 5.6 Hearts → continuous health bar (same data, new visual)
-  - 5.7 Chess-Kombat-style HUD box during sessions
-  See `TODO.md` Phase 5 for the acceptance criteria of each ticket.
+- **Phase 5 — Mobile + UX polish + video-game HUD** SHIPPED (2026-05-15).
+  All ten tickets shipped: 5.1 canonical top-bar + Profile-link removal,
+  5.2 retired (superseded by 5.10), 5.3 course→path cross-link (partial),
+  5.4 stats→profile redirect, 5.5 mascot centering, 5.6 health bar +
+  damage flash + cooldown gate (path-mode writes, train-mode read-only),
+  5.7 HUD always-on for /path.html + combo-tick wire, 5.10 IA collapse
+  (`/train.html` → `/certifications/` with dual CTAs per pack), 5.11
+  path-sheet desktop sizing, 5.12 chest reward stack with stagger,
+  5.13 Yes/No drill declarative rewriter, 5.14 per-node audit pass
+  (multi-correct quiz fix), 5.15 train mode-picker desktop card grid.
+  See `TODO.md` Phase 5 for shipped checklists.
+- **Phase 6 — Authority + tools layer** PLANNED (2026-05-15).
+  13-feature batch targeting SEO + lead-gen + retention. Three calculators
+  (InfraCost, Career Paths, Study Planner — client-side JS), eight content
+  templates (Salary by cert/country, Cert Comparator, Fail Analysis,
+  Reality Check, DevStack, PromptDungeon, ToolRadar, FailBase, Exam
+  Radar), and two engagement extensions (Streaks/Leaderboards + share).
+  Introduces Cloudflare Pages Functions (first time) for live AWS
+  pricing fetch + leaderboard refresh. See `TODO.md` Phase 6 for the
+  per-feature spec, monetization angles, and recommended four-wave
+  implementation order.
 
 ## Critical conventions
 
