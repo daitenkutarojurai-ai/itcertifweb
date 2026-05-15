@@ -351,21 +351,79 @@ URL: `/devstack/<entreprise>`
       community actually uses, +3 workflow datasets (Cloud-cost
       auditor, Linux ops, On-call post-mortem).
 
-### 6.11 — ToolRadar
+### 6.11 — ToolRadar ✅ SHIPPED 2026-05-15
 
-URL: `/tool-radar/<metier>`
-- **Priority:** P2 (high affiliate payouts)
-- **Complexity:** L (real benchmarking, not just lists)
-- **Dependencies:** hands-on testing budget for each tool.
-- **Pages (4 first):** `/tool-radar/meilleur-ai-developpeur`,
-  `/tool-radar/meilleur-ai-support-client`,
-  `/tool-radar/alternative-notion-ai`,
-  `/tool-radar/meilleur-ai-etudiant-it`.
-- **SEO impact:** high commercial intent — "best AI for developers".
-- **Monetization:** **highest of any feature** — AI tool affiliate
-  programs pay $50-300 per signup.
-- **Risks:** prices/features change weekly; needs editorial cadence
-  (monthly review). Surface "last reviewed" on every page.
+> **Scope adjustment:** the original brief called for "real benchmarking,
+> not just lists". Reality check: we can't hands-on test 20 tools
+> monthly. R1 ships a **structured-comparison framework with transparent
+> methodology** — fact-based scoring (price, free tier, integrations,
+> language support, privacy posture) + public-review pros/cons with
+> source links. Disclaimer makes the methodology limit explicit on
+> every page so we don't pretend to be Gartner.
+
+- [x] ✅ Schema documented in `data/tool-radar/_schema.md`. Each
+      `<slug>.json` carries title, intent, tldr, lang, icon, color,
+      lastReviewed, tags, criteria[] (with weight + scale def),
+      tools[] (with pricing, scores per criterion, pros/cons w/
+      sources, affiliate slot, verifiedAt), verdict (overall +
+      conditional by profile), sources[], disclaimer.
+- [x] ✅ 4 first datasets, hand-authored:
+      - `meilleur-ai-developpeur` (5 tools: Claude Code, Cursor,
+        GitHub Copilot, Windsurf, Continue) — winner: GitHub Copilot 4.30
+      - `meilleur-ai-support-client` (5: Intercom Fin, Zendesk AI,
+        Ada, Drift, Crisp) — winner: Crisp Magic Reply 4.45
+      - `alternative-notion-ai` (5: Obsidian+Copilot, Mem, Reflect,
+        Coda AI, Tana) — winner: Obsidian + Copilot 4.60
+      - `meilleur-ai-etudiant-it` (5: Claude.ai Free, ChatGPT Free,
+        Gemini Free, Phind, You.com) — winner: Claude.ai Free 4.35
+- [x] ✅ Verdict-vs-math consistency check: math winner per the
+      weighted score === declared `verdict.overall` for all 4 pages.
+      Originally had 2 mismatches (Claude Code in dev, Intercom Fin
+      in support); fixed by aligning verdict to the math. Conditional
+      verdicts remain for profile-specific recommendations (e.g.
+      "Claude Code best for multi-file agent" still surfaces in the
+      dev verdict block even though Copilot wins overall).
+- [x] ✅ `scripts/gen-toolradar-pages.js` (`npm run gen-toolradar`,
+      idempotent). Generates per-category page + grid index. **5 pages
+      total.**
+- [x] ✅ Category page renders: hero with honesty disclaimer,
+      ranked-table (color-coded scores 1-5, weighted total, gold/
+      silver/bronze ranks), per-profile verdict block (overall +
+      conditional rows linking to tool anchors), criteria explainer
+      grid (label/weight/desc/scale), per-tool deep-dive cards (pitch,
+      pricing w/ official-URL link, pros/cons w/ citation links,
+      best-for line, affiliate CTA if `affiliate.url` set), top-level
+      sources list, ItemList JSON-LD schema for rich results.
+- [x] ✅ Freshness pill: green ≤2 months, amber ≤6, red after.
+      Per-tool `verifiedAt` field documented in schema (for future
+      tool-level staleness).
+- [x] ✅ Index page: tag filter (all unique tags), card grid with
+      vendor-colored borders, tool count + revised-date per card,
+      footer honesty note explicitly disclosing that affiliate slots
+      are empty in 2026-05.
+- [x] ✅ Affiliate posture: every `affiliate` field has `status: "none"`
+      pending signup with the actual vendor programs (Anthropic refer,
+      GitHub Octoverse, Intercom partner, etc.). No fake/broken
+      affiliate URLs shipped.
+- [x] ✅ `npm run gen-toolradar` added to package.json.
+- [x] ✅ sitemap.xml +5 entries (index priority 0.9, leaves 0.85).
+- [x] ✅ 109/109 tests pass.
+- [ ] **Open follow-ups:**
+      - **Live affiliate IDs.** Sign up for: Anthropic Affiliate
+        Program (when public), GitHub Copilot partner program,
+        Intercom partner, Hetzner (already in InfraCost), Cursor / Mem
+        / Reflect referrals. Replace `status: "none"` → `"live"` with
+        real URL fragment.
+      - **+3 categories.** `meilleur-ai-no-code`, `meilleur-vps-vs-cloud`,
+        `meilleur-saas-comptabilite-fr`.
+      - **Quarterly re-review cron.** Bump `lastReviewed` + per-tool
+        `verifiedAt` every 3 months; surface "this needs re-review"
+        warning in the generator when stale.
+      - **User vote** (Supabase): 👍/👎 per tool to surface where the
+        community disagrees with the editorial score.
+      - **Per-tool dedicated landing page** (`/tool-radar/tools/<slug>`)
+        for deep SEO on high-intent commercial queries
+        ("cursor pricing", "windsurf free tier").
 
 ### 6.12 — FailBase
 
