@@ -457,8 +457,8 @@
         </div>
       </div>
 
-      <div class="module-card">
-        <div class="module-num">Module 6</div>
+      <div class="module-card is-expanded">
+        <div class="module-num">Module 6<span class="chapter-badge">3 lessons</span></div>
         <div class="module-title">Virtual Networking — VNets, Subnets, and Connectivity</div>
         <p class="module-desc">Design and implement Azure virtual networks. Plan IP address spaces, subnets, and CIDR allocations that avoid overlap. Configure Network Security Groups (NSG) with inbound/outbound rules using service tags and Application Security Groups (ASG). Implement VNet peering (local and global) and understand the non-transitive peering limitation. Connect on-premises to Azure using VPN Gateway (Policy-based vs Route-based, active-active, BGP) and Azure ExpressRoute (private peering vs Microsoft peering).</p>
         <div class="module-topics">
@@ -471,6 +471,103 @@
           <span class="topic-tag">Azure Bastion for secure VM access</span>
           <span class="topic-tag">User-defined routes (UDR) and forced tunneling</span>
         </div>
+
+        <details>
+          <summary class="chapter-toggle" role="button">
+            📖 Read in-depth chapter
+            <span class="chapter-toggle-icon">▾</span>
+          </summary>
+          <div class="chapter-content">
+
+            <div class="lesson-block">
+              <div class="lesson-title-row">
+                <span class="lesson-num">Lesson 6.1</span>
+                <span class="lesson-title">VNets, subnets, and address-space planning</span>
+              </div>
+              <p class="lesson-intro">
+                Every Azure deployment with private IP traffic lives inside a Virtual Network. The decisions you make on day one — address space, subnet layout, reserved IPs — are the hardest to undo, because changing a VNet's address range later requires either repeering everything or accepting downtime. AZ-104 expects you to size CIDRs correctly the first time.
+              </p>
+              <div class="lesson-section-head">Key concepts</div>
+              <ul class="lesson-bullets">
+                <li><strong>Address space rules:</strong> a VNet can carry one or more RFC1918 CIDR blocks. Avoid overlap with on-prem, with peered VNets, and with any subnet you might peer to later. Plan a region-wide supernet (e.g., <code>10.10.0.0/16</code> for eastus2, <code>10.20.0.0/16</code> for westus2) and carve subnets out of it.</li>
+                <li><strong>Subnet sizing:</strong> Azure reserves 5 IPs per subnet (network + first three + broadcast). A <code>/29</code> gives you 3 usable addresses, not 8 — sometimes too small for a gateway subnet. The GatewaySubnet must be at least <code>/27</code> (recommended <code>/26</code>) to support all SKUs and active-active deployments.</li>
+                <li><strong>Reserved special subnets:</strong> name matters. <code>GatewaySubnet</code> is the only subnet a VPN/ExpressRoute Gateway can deploy into. <code>AzureBastionSubnet</code> must be <code>/26</code> or larger. <code>AzureFirewallSubnet</code> must be <code>/26</code> or larger. These names are exact-match; misspell them and the deploy fails.</li>
+                <li><strong>Service endpoints vs private endpoints:</strong> a <em>service endpoint</em> turns Azure traffic to a PaaS service (Storage, SQL, KeyVault) onto the Microsoft backbone but the service keeps its public IP. A <em>private endpoint</em> assigns the PaaS service a private IP inside your subnet, and pairs with a private DNS zone for name resolution — the modern preferred pattern for everything new.</li>
+                <li><strong>Subnet delegation:</strong> certain services (Azure Container Instances, App Service VNet Integration, SQL Managed Instance) require a subnet they fully control. Delegate the subnet to the service at create time; it can't be added later without rebuilding.</li>
+              </ul>
+              <div class="lesson-section-head">Concrete example</div>
+              <p>
+                A two-region web app. Region 1 takes <code>10.10.0.0/16</code>, region 2 takes <code>10.20.0.0/16</code> — no overlap, peerable. Inside region 1, carve <code>10.10.1.0/24</code> for the app tier (~250 usable IPs is plenty), <code>10.10.2.0/24</code> for data, and <code>10.10.255.0/27</code> for the GatewaySubnet (32 IPs, satisfies the <code>/27</code> minimum). Add a private endpoint for the Storage Account into the data subnet so blob traffic never traverses the public internet, and link the private DNS zone <code>privatelink.blob.core.windows.net</code> to both VNets.
+              </p>
+              <div class="lesson-takeaway">
+                <strong>Key takeaway:</strong> CIDR mistakes are migration-expensive. Plan a region-wide supernet on day one, leave gaps for future subnets, and use private endpoints — not service endpoints — for anything new. Memorise the reserved subnet names exactly.
+              </div>
+              <div class="lesson-quiz">
+                <div class="lesson-quiz-head">⚡ Mini-quiz</div>
+                Practise VNet sizing and reserved-subnet rules → <a href="/train.html?pack=az-104&amp;mode=study">study mode (10 questions)</a>.
+              </div>
+            </div>
+
+            <div class="lesson-block">
+              <div class="lesson-title-row">
+                <span class="lesson-num">Lesson 6.2</span>
+                <span class="lesson-title">NSGs, ASGs, and user-defined routes</span>
+              </div>
+              <p class="lesson-intro">
+                Once the VNet is built, two layers control traffic: Network Security Groups filter what's allowed, and User-Defined Routes change where traffic goes. Both are simple in isolation, but exam scenarios almost always combine them — and the priority and direction rules trip up the most candidates.
+              </p>
+              <div class="lesson-section-head">Key concepts</div>
+              <ul class="lesson-bullets">
+                <li><strong>NSG rule evaluation:</strong> rules have a priority (100-4096) and a direction (inbound / outbound). Lowest priority number wins; once a rule matches, no further rules are evaluated. The first three default rules at priority 65000-65500 are immutable — they allow intra-VNet and Load-Balancer health probes by default.</li>
+                <li><strong>Service tags:</strong> symbolic names (<code>Internet</code>, <code>VirtualNetwork</code>, <code>AzureLoadBalancer</code>, <code>Storage.EastUS</code>) that resolve to Microsoft-maintained IP lists. Use them instead of hard-coding CIDRs — Microsoft updates the underlying lists as services scale.</li>
+                <li><strong>Application Security Groups (ASG):</strong> tag VMs / NICs with an ASG name and reference the ASG in NSG rules instead of IPs. Lets you express "allow web-tier to talk to data-tier" semantically. Both source and destination of an NSG rule can be ASGs in the same VNet.</li>
+                <li><strong>NSG attachment:</strong> at the NIC or at the subnet (or both — they both apply). When both attach, the rule must allow at BOTH layers for inbound and at BOTH layers for outbound. Attaching at the subnet is the recommended scale-out pattern.</li>
+                <li><strong>User-Defined Routes:</strong> a route table associated to a subnet overrides Azure's default system routes. Common pattern: route <code>0.0.0.0/0</code> with next hop <code>Virtual Appliance</code> at the NVA's IP to force all egress through a firewall. Don't forget to enable IP forwarding on the NVA NIC itself.</li>
+              </ul>
+              <div class="lesson-section-head">Concrete example</div>
+              <p>
+                A three-tier app. Tag web VMs with ASG <code>asg-web</code>, app VMs with <code>asg-app</code>, DB VMs with <code>asg-db</code>. Subnet NSG: priority 100 inbound — allow from <code>Internet</code> to <code>asg-web</code> on 443 only; priority 110 inbound — allow from <code>asg-web</code> to <code>asg-app</code> on 8080 only; priority 120 — allow from <code>asg-app</code> to <code>asg-db</code> on 1433 only; priority 4096 — deny everything else inbound. Egress to all internet flows through a UDR pointing to a Palo Alto NVA in the hub VNet.
+              </p>
+              <div class="lesson-takeaway">
+                <strong>Key takeaway:</strong> lowest priority wins, both NIC and subnet NSGs apply, ASGs let you describe intent instead of IPs, and UDRs are how you force traffic through an inspection appliance. NSGs filter, UDRs steer — different tools, never substitute for each other.
+              </div>
+              <div class="lesson-quiz">
+                <div class="lesson-quiz-head">⚡ Mini-quiz</div>
+                Drill NSG priority and UDR mechanics → <a href="/train.html?pack=az-104&amp;mode=quick">quick quiz (5 questions)</a>.
+              </div>
+            </div>
+
+            <div class="lesson-block">
+              <div class="lesson-title-row">
+                <span class="lesson-num">Lesson 6.3</span>
+                <span class="lesson-title">Hybrid connectivity — peering, VPN Gateway, ExpressRoute</span>
+              </div>
+              <p class="lesson-intro">
+                Real environments stitch Azure to other Azure and to on-prem. Three primary options exist and the exam routinely asks which to pick given a bandwidth, latency, and SLA constraint. The single rule that catches most candidates: VNet peering is <em>not transitive</em>.
+              </p>
+              <div class="lesson-section-head">Key concepts</div>
+              <ul class="lesson-bullets">
+                <li><strong>VNet peering:</strong> connects two VNets at the Azure backbone — sub-millisecond, fully-meshed once configured. Local peering is within a region; global peering crosses regions. Always non-transitive: A↔B and B↔C does NOT give you A↔C. Hub-and-spoke designs use a Network Virtual Appliance or Azure Firewall in the hub to forward between spokes.</li>
+                <li><strong>Gateway transit:</strong> a peering flag that lets a spoke use the hub's VPN/ExpressRoute Gateway to reach on-prem. Enable <code>Use remote gateways</code> on the spoke side and <code>Allow gateway transit</code> on the hub side. Without it, each spoke would need its own gateway.</li>
+                <li><strong>VPN Gateway:</strong> Policy-based for legacy IKEv1 + static routes, single tunnel — basically deprecated. Route-based for IKEv2, BGP, multiple tunnels, point-to-site (P2S) and VNet-to-VNet — the choice for everything new. SKUs <code>VpnGw1</code>–<code>VpnGw5</code> scale bandwidth and concurrent tunnels.</li>
+                <li><strong>Active-active VPN:</strong> deploy two gateway instances in different Availability Zones, each with its own public IP. Both terminate tunnels concurrently for higher throughput and zone-redundant failover. Required for any production workload that needs the 99.95% Gateway SLA.</li>
+                <li><strong>ExpressRoute:</strong> private circuit through a connectivity provider, bypassing the public internet. <em>Private peering</em> connects on-prem to your Azure VNets; <em>Microsoft peering</em> connects on-prem to Microsoft 365 / public Azure PaaS over the private circuit. ExpressRoute Global Reach connects two ExpressRoute circuits to each other over the Microsoft backbone (useful for branch-to-branch over Azure).</li>
+              </ul>
+              <div class="lesson-section-head">Concrete example</div>
+              <p>
+                Hub-and-spoke design. Hub VNet holds the VPN Gateway terminating an on-prem IPsec tunnel. Two spokes (prod, dev) peer to the hub with <code>Allow gateway transit</code> on the hub side and <code>Use remote gateways</code> on the spoke side. The prod spoke can now reach on-prem through the hub gateway. To allow prod ↔ dev traffic (which peering alone won't deliver because peering is non-transitive), deploy an Azure Firewall in the hub and add UDRs in each spoke pointing inter-spoke traffic at the firewall.
+              </p>
+              <div class="lesson-takeaway">
+                <strong>Key takeaway:</strong> peering is fast and non-transitive — that one fact drives every hub-and-spoke design. Route-based VPN Gateway for everything new, ExpressRoute when you need a private circuit with SLA, Global Reach to connect circuits. Memorise the gateway-transit flag pair — that question is almost guaranteed.
+              </div>
+              <div class="lesson-quiz">
+                <div class="lesson-quiz-head">⚡ Mini-quiz</div>
+                Test your hybrid-connectivity decisions → <a href="/train.html?pack=az-104&amp;mode=study">study mode (10 questions)</a>.
+              </div>
+            </div>
+
+          </div>
+        </details>
       </div>
 
       <div class="module-card">
