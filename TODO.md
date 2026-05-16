@@ -541,9 +541,10 @@ up when there's time.
 - [x] ✅ sitemap.xml +5 entries (index 0.85, leaves 0.8).
 - [x] ✅ 109/109 tests pass.
 - [ ] **Open follow-ups:**
-      - **+5 datasets:** "Why Yahoo missed Google search", "Theranos
-        deep dive standalone", "Juicero $400 fridge", "Pets.com
-        2000 IPO", "Stadia Google killed it again".
+      - **+5 datasets:** "Why Yahoo missed Google search" ✅,
+        "Theranos deep dive standalone", "Juicero $400 fridge" ✅,
+        "Pets.com 2000 IPO" ✅, "Stadia Google killed it again" ✅
+        (2026-05-16: Stadia post-mortem shipped — 4/5 datasets done).
       - **Affiliate slots:** book affiliates for "The Cult of We"
         (WeWork), "Bad Blood" (Theranos), "Operation Elop" (Nokia),
         etc. — natural Amazon affiliate fit per page.
