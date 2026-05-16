@@ -1,7 +1,7 @@
 # Question-bank audit
 
-Generated: 2026-05-16T07:58:28.180Z
-Packs scanned: **54** · questions scanned: **2742** · flagged: **2005** (73.1%)
+Generated: 2026-05-16T08:03:08.807Z
+Packs scanned: **54** · questions scanned: **2742** · flagged: **1997** (72.8%)
 
 ## Methodology
 
@@ -27,7 +27,6 @@ Packs scanned: **54** · questions scanned: **2742** · flagged: **2005** (73.1%
 | `az-900` | 91 | 87 | 96% | 84 | 82 | 0 | 3 |
 | `rhcsa` | 61 | 57 | 93% | 50 | 57 | 0 | 0 |
 | `comptia-network-plus` | 91 | 85 | 93% | 67 | 81 | 0 | 0 |
-| `az-104` | 56 | 51 | 91% | 32 | 47 | 0 | 0 |
 | `aws-ans-c01` | 60 | 52 | 87% | 43 | 39 | 0 | 0 |
 | `aws-clf-c02` | 98 | 84 | 86% | 0 | 84 | 0 | 0 |
 | `aws-sap-c02` | 10 | 8 | 80% | 0 | 8 | 0 | 0 |
@@ -36,6 +35,7 @@ Packs scanned: **54** · questions scanned: **2742** · flagged: **2005** (73.1%
 | `dp-900` | 10 | 8 | 80% | 2 | 8 | 0 | 0 |
 | `gcp-pcse` | 10 | 8 | 80% | 0 | 8 | 0 | 0 |
 | `snowpro-core` | 10 | 8 | 80% | 1 | 8 | 0 | 0 |
+| `az-104` | 56 | 43 | 77% | 18 | 38 | 0 | 0 |
 | `sc-900` | 60 | 46 | 77% | 29 | 35 | 0 | 0 |
 | `cissp` | 25 | 19 | 76% | 3 | 19 | 0 | 0 |
 | `az-305` | 61 | 46 | 75% | 9 | 43 | 0 | 0 |
