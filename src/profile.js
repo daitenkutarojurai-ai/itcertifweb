@@ -80,6 +80,46 @@
     }
   }
 
+  function renderMilestones(stats) {
+    var host = $('profile-milestones');
+    if (!host) return;
+    var laurelsCount = 0;
+    try { laurelsCount = (JSON.parse(localStorage.getItem('cq-laurels-v1') || '[]') || []).length; } catch (_) {}
+    var hadDiag = false;
+    try {
+      var perPack = stats.perPack || {};
+      hadDiag = Object.values(perPack).some(function (p) { return p && p.diagnosticAt; });
+    } catch (_) {}
+    var milestones = [
+      { id: 'first-10',   emoji: '🥉', name: 'First steps',  desc: 'Answer 10 questions',         done: (stats.questionsAnswered || 0) >= 10,    progress: Math.min(1, (stats.questionsAnswered || 0) / 10) },
+      { id: 'first-100',  emoji: '🥈', name: 'Centurion',    desc: 'Answer 100 questions',        done: (stats.questionsAnswered || 0) >= 100,   progress: Math.min(1, (stats.questionsAnswered || 0) / 100) },
+      { id: 'first-1000', emoji: '🥇', name: 'Ironman',      desc: 'Answer 1,000 questions',      done: (stats.questionsAnswered || 0) >= 1000,  progress: Math.min(1, (stats.questionsAnswered || 0) / 1000) },
+      { id: 'streak-3',   emoji: '🔥', name: 'Warming up',   desc: '3-day streak',                done: (stats.streakDays || 0) >= 3,            progress: Math.min(1, (stats.streakDays || 0) / 3) },
+      { id: 'streak-7',   emoji: '🔥🔥', name: 'On fire',     desc: '7-day streak',                done: (stats.streakDays || 0) >= 7,            progress: Math.min(1, (stats.streakDays || 0) / 7) },
+      { id: 'streak-30',  emoji: '🌟', name: 'Untouchable',  desc: '30-day streak',               done: (stats.streakDays || 0) >= 30,           progress: Math.min(1, (stats.streakDays || 0) / 30) },
+      { id: 'diag-1',     emoji: '🧪', name: 'Self-aware',   desc: 'Take your first diagnostic',  done: hadDiag,                                  progress: hadDiag ? 1 : 0 },
+      { id: 'laurel-1',   emoji: '🌿', name: 'Boss slayer',  desc: 'Earn your first laurel',      done: laurelsCount >= 1,                        progress: Math.min(1, laurelsCount / 1) },
+      { id: 'level-10',   emoji: '⚡', name: 'Apprentice',   desc: 'Reach level 10',              done: (stats.level || 1) >= 10,                progress: Math.min(1, (stats.level || 1) / 10) },
+      { id: 'level-20',   emoji: '⭐', name: 'Adept',        desc: 'Reach level 20',              done: (stats.level || 1) >= 20,                progress: Math.min(1, (stats.level || 1) / 20) },
+      { id: 'level-30',   emoji: '👑', name: 'Master',       desc: 'Reach level 30 (max)',        done: (stats.level || 1) >= 30,                progress: Math.min(1, (stats.level || 1) / 30) }
+    ];
+    var unlocked = milestones.filter(function (m) { return m.done; }).length;
+    host.innerHTML = milestones.map(function (m) {
+      var pct = Math.round(m.progress * 100);
+      return '<div class="profile-milestone' + (m.done ? ' is-done' : '') + '">' +
+        '<div class="profile-milestone-emoji" aria-hidden="true">' + (m.done ? m.emoji : '🔒') + '</div>' +
+        '<div class="profile-milestone-body">' +
+          '<div class="profile-milestone-name">' + m.name + '</div>' +
+          '<div class="profile-milestone-desc">' + m.desc + '</div>' +
+          (m.done ? '' :
+            '<div class="profile-milestone-bar"><div class="profile-milestone-bar-fill" style="width:' + pct + '%"></div></div>') +
+        '</div>' +
+      '</div>';
+    }).join('');
+    var countEl = $('milestones-count');
+    if (countEl) countEl.textContent = unlocked + ' / ' + milestones.length + ' unlocked';
+  }
+
   function renderHats() {
     if (!window.cqCosmetics) return;
     window.cqCosmetics.catalog().then(function (hats) {
@@ -478,6 +518,7 @@
     renderHero(stats);
     renderStats(stats);
     renderHeatmap(stats);
+    renderMilestones(stats);
     renderHats();
     renderLaurels();
     renderAccount();

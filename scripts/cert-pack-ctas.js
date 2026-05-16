@@ -93,7 +93,7 @@ function renderTile(brand, pack) {
         data-name="${name}"
         data-brand="${escapeHtml(brand.name)}"
         data-question-count="${qCount}"
-        data-full-count="${fullCount}">🚀 Start training</button>`;
+        data-full-count="${fullCount}">Start <span class="pack-cta-arrow">→</span></button>`;
 
   return `
     <div class="pack-tile">

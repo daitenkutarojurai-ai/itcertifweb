@@ -21,6 +21,7 @@ const NAV = [
   { href: '/path.html',         label: 'Cert Quest', cls: 'web-header-link-new', pill: 'NEW', match: /^\/path\.html$/ },
   { href: '/certifications/',   label: 'Certifications',                                       match: /^\/certifications\// },
   { href: '/courses/',          label: 'Courses',                                              match: /^\/courses\// },
+  { href: '/cheatsheets/',      label: 'Cheatsheets',                                          match: /^\/cheatsheets\// },
   { href: '/careers/',          label: 'Careers',                                              match: /^\/careers\// },
   { href: '/news/',             label: 'News',                                                 match: /^\/news\// },
 ];

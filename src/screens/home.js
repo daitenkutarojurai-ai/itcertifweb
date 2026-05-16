@@ -428,10 +428,28 @@ async function autostartPicker(brand, pack) {
 // we don't open a second picker. Loads the pack JSON, applies mode-specific
 // question counts (and stratified sampling for diagnostic), and navigates to
 // the quiz screen directly.
+function showLoadingOverlay(label) {
+  if (document.getElementById('cq-loading-overlay')) return;
+  const el = document.createElement('div');
+  el.id = 'cq-loading-overlay';
+  el.innerHTML = `<div class="cq-loading-card"><div class="cq-loading-spinner"></div><div class="cq-loading-label">${label}</div></div>`;
+  document.body.appendChild(el);
+}
+function hideLoadingOverlay() {
+  document.getElementById('cq-loading-overlay')?.remove();
+}
 async function autostartDirect(brand, pack, mode) {
+  const modeLabel = mode === 'diagnostic' ? 'Preparing your diagnostic…'
+    : mode === 'full' ? 'Loading exam…'
+    : mode === 'study' ? 'Loading study mode…'
+    : 'Loading quiz…';
+  showLoadingOverlay(modeLabel);
   const data = await loadPack(pack.file);
   const questions = data?.questions || [];
-  if (!questions.length) return;
+  if (!questions.length) {
+    hideLoadingOverlay();
+    return;
+  }
 
   const QUICK_COUNT = 5;
   const STUDY_COUNT = 10;
@@ -440,9 +458,12 @@ async function autostartDirect(brand, pack, mode) {
 
   if (mode === 'diagnostic') {
     const sample = stratifiedSample(questions, DIAG_COUNT);
+    if (!sample.length) { hideLoadingOverlay(); return; }
+    hideLoadingOverlay();
     appNavigate('quiz', { pack: packWithBrand, questions: sample, mode: 'diagnostic', count: sample.length });
     return;
   }
+  hideLoadingOverlay();
   if (mode === 'study') {
     appNavigate('quiz', { pack: packWithBrand, questions, mode: 'study', count: STUDY_COUNT });
     return;
@@ -459,8 +480,16 @@ async function autostartDirect(brand, pack, mode) {
 // Stratified sample copied locally so we don't have to export from app.js;
 // keeps the dependency direction one-way (screens → app, not the reverse).
 // Mirrors the implementation in src/app.js — keep in sync.
+function isValidQuestion(q) {
+  if (!q.options || q.options.length !== 4) return false;
+  if (Array.isArray(q.correct)) {
+    return q.correct.length >= 1 &&
+           q.correct.every(i => Number.isInteger(i) && i >= 0 && i < 4);
+  }
+  return Number.isInteger(q.correct) && q.correct >= 0 && q.correct < 4;
+}
 function stratifiedSample(questions, count) {
-  const valid = questions.filter(q => q.options?.length === 4 && q.correct >= 0 && q.correct < 4);
+  const valid = questions.filter(isValidQuestion);
   if (valid.length <= count) return shuffle(valid.slice());
   const buckets = new Map();
   for (const q of valid) {

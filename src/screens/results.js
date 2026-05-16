@@ -21,13 +21,16 @@ export function render(container, navigate, params) {
   container.innerHTML = buildHTML(pack, results, mode, newAchievements);
   attachListeners(container, navigate, params);
 
-  setTimeout(() => {
+  // Kick off the score / confetti / achievement animations on the next frame
+  // so they ride the screen transition instead of starting after a 250ms
+  // pause (which read as a "glitch" — static page then sudden movement).
+  requestAnimationFrame(() => {
     animateScore(results.percentage);
     playComplete(results.percentage);
     if (results.percentage >= 80) spawnConfetti();
     if (newAchievements.length > 0) showAchievements(newAchievements);
     if (goalJustCompleted) showGoalCompleteToast();
-  }, 250);
+  });
 }
 
 // ─── Diagnostic results: plan-not-score view ───────────────────────────────────

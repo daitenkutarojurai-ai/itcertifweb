@@ -5,6 +5,39 @@ up when there's time.
 
 ---
 
+## P0 — Course content rework (2026-05-16, HIGH priority)
+
+> Current `data/courses.json` chapters are too short to deliver real
+> learning value. Users will read one screen of bullets and bounce back
+> to the quiz, defeating the point of having a Courses surface at all.
+> This is the next major content investment — sized like the question
+> rewrite (rolling batches per pack, weeks of work).
+>
+> **Acceptance per course pack:**
+> - [ ] 5–10 chapters minimum (currently most have 2–3 short stubs)
+> - [ ] Each chapter has: intro paragraph · detailed explanation with
+>       diagrams or code snippets · 2-3 concrete real-world examples ·
+>       3-bullet key takeaways · linked mini-quiz (3-5 questions reusing
+>       existing question banks via qids)
+> - [ ] Markdown source so non-engineers can co-author
+> - [ ] Schema.org `Course` / `LearningResource` JSON-LD per course
+>
+> **Highest-leverage packs to expand first (by traffic):**
+> 1. Linux fundamentals (rhcsa, lpic-1) — gateway audience, low CPM but
+>    huge funnel
+> 2. AWS core services (clf-c02, saa-c03) — highest-CPM cohort
+> 3. Kubernetes (cka, ckad, cks) — committed audience, compares against
+>    killer.sh-style depth
+> 4. Networking (ccna, comptia-network-plus) — foundational, long shelf
+> 5. Security (security+, cysa, cissp) — large funnel
+> 6. CI/CD & IaC (terraform-003, github-actions, docker-dca)
+>
+> **Shipped 2026-05-16:** "📘 More chapters & deeper content rolling in"
+> placeholder banner on `/courses/` index with a visible progress bar.
+> Sets expectations without faking it.
+
+---
+
 ## P1 — Phase 6: Authority + tools layer (2026-05-15, planned)
 
 > Net-new feature batch (13 items) targeting SEO authority, lead-gen and

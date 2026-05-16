@@ -187,7 +187,7 @@
           : s.hearts < MAX
             ? "Next heart in <strong>" + fmtMs(nextRegenMs()) + "</strong>."
             : "You're at full health. Go practice!") + '</p>' +
-        '<a href="/news/" class="cq-hearts-cta">Read a tip while you wait →</a>' +
+        '<a href="/news/" class="cq-hearts-cta">Read the news while you wait →</a>' +
       '</div>';
     document.body.appendChild(modal);
     setTimeout(function () { modal.classList.add('is-open'); }, 10);
@@ -251,7 +251,7 @@
         '<p class="cq-out-of-life-sub">Next heart in</p>' +
         '<div class="cq-out-of-life-timer" aria-live="polite">--:--</div>' +
         '<div class="cq-out-of-life-bar"><div class="cq-out-of-life-bar-fill"></div></div>' +
-        '<a href="/news/" class="cq-out-of-life-link">Read a tip while you wait →</a>' +
+        '<a href="/news/" class="cq-out-of-life-link">Read the news while you wait →</a>' +
         '<button type="button" class="cq-out-of-life-close" aria-label="Close">Hide</button>' +
       '</div>';
     document.body.appendChild(overlay);

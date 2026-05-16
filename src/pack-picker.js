@@ -35,6 +35,13 @@
   function gotoMode(packId, mode) {
     var url = '/train.html?pack=' + encodeURIComponent(packId) +
               '&mode=' + encodeURIComponent(mode);
+    // Show a quick "Loading…" so the user has feedback while the redirect
+    // resolves and train.html boots — important for slow networks where the
+    // brief blank gap reads as "nothing happened".
+    var lo = document.createElement('div');
+    lo.id = 'cq-loading-overlay';
+    lo.innerHTML = '<div class="cq-loading-card"><div class="cq-loading-spinner"></div><div class="cq-loading-label">Loading…</div></div>';
+    document.body.appendChild(lo);
     window.location.href = url;
   }
 
@@ -140,8 +147,10 @@
           var mode = card.dataset.mode;
           if (mode === 'diagnostic') {
             var goAhead = function () {
-              close();
-              setTimeout(function () { gotoMode(pack, 'diagnostic'); }, 200);
+              // Don't wait for the modal fade-out — the user has committed and
+              // we want the quiz to start as fast as possible. The redirect
+              // itself unloads the page, so the modal disappears either way.
+              gotoMode(pack, 'diagnostic');
             };
             goAhead.cancel = function () {
               renderPicker(modal, brand, name, fullCount);
@@ -149,8 +158,7 @@
             };
             renderDiagIntro(modal, pack, name, goAhead);
           } else {
-            close();
-            setTimeout(function () { gotoMode(pack, mode); }, 200);
+            gotoMode(pack, mode);
           }
         });
       });
