@@ -130,6 +130,20 @@
       } catch (_) {}
       inject(pathHost); return;
     }
+    /* Certification brand pages: inject above the pack grid so users see
+       today's quest before scanning the exam list. The brand-section is
+       the second <section> on every certifications/<brand>.html page. */
+    var brandSection = document.querySelector('section.brand-section');
+    if (brandSection) {
+      var wrap = document.createElement('div');
+      wrap.className = 'cq-daily-banner-host';
+      wrap.style.maxWidth = '960px';
+      wrap.style.margin = '0 auto 18px';
+      wrap.style.padding = '0 24px';
+      brandSection.parentNode.insertBefore(wrap, brandSection);
+      inject(wrap);
+      return;
+    }
     /* Homepage: prepend after the onboarding-zone (or just inside main) */
     var ob = document.getElementById('onboarding-mount');
     if (ob && ob.parentNode) {

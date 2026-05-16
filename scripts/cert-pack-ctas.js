@@ -82,9 +82,12 @@ function renderTile(brand, pack) {
 
   const pathId = pathPackIdFor(pack.id);
   const hasPath = pathPacks.has(pathId);
+  // Always emit a secondary slot so every tile shares the same grid layout.
+  // When no path exists yet, render a disabled "Learning path soon" tag in
+  // place of the live link.
   const learn = hasPath
     ? `<a href="/path.html?pack=${pathId}" class="pack-cta pack-cta-secondary">🗺️ Learning path</a>`
-    : '';
+    : `<span class="pack-cta pack-cta-secondary pack-cta-disabled" aria-disabled="true" title="Learning path coming soon">🗺️ Path soon</span>`;
   const startBtn = `<button type="button" class="pack-cta pack-cta-primary" data-pack-picker
         data-pack="${escapeHtml(pack.id)}"
         data-name="${name}"

@@ -1,4 +1,4 @@
-/* CertQuests core bundle — generated 2026-05-15T11:43:23.629Z
+/* CertQuests core bundle — generated 2026-05-16T07:08:12.218Z
  *
  * This file is concatenated by scripts/build-core.js. Do not edit by hand;
  * edit the source modules in src/*.js and re-run `npm run build-core`.
@@ -1155,6 +1155,20 @@
         if (pp.get('pack')) return;
       } catch (_) {}
       inject(pathHost); return;
+    }
+    /* Certification brand pages: inject above the pack grid so users see
+       today's quest before scanning the exam list. The brand-section is
+       the second <section> on every certifications/<brand>.html page. */
+    var brandSection = document.querySelector('section.brand-section');
+    if (brandSection) {
+      var wrap = document.createElement('div');
+      wrap.className = 'cq-daily-banner-host';
+      wrap.style.maxWidth = '960px';
+      wrap.style.margin = '0 auto 18px';
+      wrap.style.padding = '0 24px';
+      brandSection.parentNode.insertBefore(wrap, brandSection);
+      inject(wrap);
+      return;
     }
     /* Homepage: prepend after the onboarding-zone (or just inside main) */
     var ob = document.getElementById('onboarding-mount');

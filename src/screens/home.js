@@ -258,6 +258,7 @@ function attachListeners(container, navigate, brands) {
   const brandParam   = params.get('brand');
   const autostartVal = params.get('autostart');    // 'quick' | 'full' | 'study' | null
   const autostart    = !!autostartVal;
+  const modeParam    = params.get('mode');         // direct-launch from cert-page picker — skips the train.html picker
   const qidsParam    = params.get('qids');         // path-node focused subset (comma-separated IDs)
   let targetBrandId = null;
   let targetPackId  = null;
@@ -271,16 +272,22 @@ function attachListeners(container, navigate, brands) {
     if (b) targetBrandId = b.id;
   }
 
-  // ─── Autostart: deep-link auto-opens the mode picker (Quick / Full / Study)
-  // The user still chooses the mode — we just skip the "scroll to pack and click"
-  // step. Falls through to the regular home render so the picker overlays it.
-  if (autostart && targetPackId) {
+  // ─── Direct-launch from the certifications-page picker.
+  // The cert page already showed the 4-mode picker; ?mode=<choice> tells us
+  // to skip our own picker and launch the chosen mode immediately.
+  if (modeParam && targetPackId) {
+    const brand = brands.find(br => br.packs.some(p => p.id === targetPackId));
+    const pack  = brand?.packs.find(p => p.id === targetPackId);
+    if (pack?.available && ['quick','full','study','diagnostic'].includes(modeParam)) {
+      try { history.replaceState(null, '', location.pathname); } catch {}
+      setTimeout(() => autostartDirect(brand, pack, modeParam), 50);
+    }
+  } else if (autostart && targetPackId) {
+    // Legacy autostart=1: open the picker so the user can choose.
     const brand = brands.find(br => br.packs.some(p => p.id === targetPackId));
     const pack  = brand?.packs.find(p => p.id === targetPackId);
     if (pack?.available) {
-      // Strip query so a refresh lands on plain Home, not the autostart loop
       try { history.replaceState(null, '', location.pathname); } catch {}
-      // Defer until after this render cycle so the home screen is the backdrop
       if (qidsParam) {
         const ids = qidsParam.split(',').map(s => s.trim()).filter(Boolean);
         setTimeout(() => autostartFocused(brand, pack, ids, autostartVal || 'quick'), 50);
@@ -414,6 +421,84 @@ async function autostartPicker(brand, pack) {
   const data = await loadPack(pack.file);
   if (!data?.questions?.length) return;
   showModePicker({ ...pack, brandName: brand.name }, data.questions);
+}
+
+// ─── Direct-launch helper ────────────────────────────────────────────────────
+// Cert pages open their own 4-mode picker; `?mode=<choice>` routes us here so
+// we don't open a second picker. Loads the pack JSON, applies mode-specific
+// question counts (and stratified sampling for diagnostic), and navigates to
+// the quiz screen directly.
+async function autostartDirect(brand, pack, mode) {
+  const data = await loadPack(pack.file);
+  const questions = data?.questions || [];
+  if (!questions.length) return;
+
+  const QUICK_COUNT = 5;
+  const STUDY_COUNT = 10;
+  const DIAG_COUNT  = 10;
+  const packWithBrand = { ...pack, brandName: brand.name };
+
+  if (mode === 'diagnostic') {
+    const sample = stratifiedSample(questions, DIAG_COUNT);
+    appNavigate('quiz', { pack: packWithBrand, questions: sample, mode: 'diagnostic', count: sample.length });
+    return;
+  }
+  if (mode === 'study') {
+    appNavigate('quiz', { pack: packWithBrand, questions, mode: 'study', count: STUDY_COUNT });
+    return;
+  }
+  if (mode === 'full') {
+    const fullCount = Math.min(questions.length, pack.full_count || questions.length);
+    appNavigate('quiz', { pack: packWithBrand, questions, mode: 'full', count: fullCount });
+    return;
+  }
+  // default: quick
+  appNavigate('quiz', { pack: packWithBrand, questions, mode: 'quick', count: QUICK_COUNT });
+}
+
+// Stratified sample copied locally so we don't have to export from app.js;
+// keeps the dependency direction one-way (screens → app, not the reverse).
+// Mirrors the implementation in src/app.js — keep in sync.
+function stratifiedSample(questions, count) {
+  const valid = questions.filter(q => q.options?.length === 4 && q.correct >= 0 && q.correct < 4);
+  if (valid.length <= count) return shuffle(valid.slice());
+  const buckets = new Map();
+  for (const q of valid) {
+    const tag  = (q.tags && q.tags[0]) || '_untagged';
+    const diff = q.difficulty || 'medium';
+    const key  = `${tag}::${diff}`;
+    if (!buckets.has(key)) buckets.set(key, []);
+    buckets.get(key).push(q);
+  }
+  for (const arr of buckets.values()) shuffle(arr);
+  const result = [];
+  const used = new Set();
+  const keys = shuffle([...buckets.keys()]);
+  let madeProgress = true;
+  while (result.length < count && madeProgress) {
+    madeProgress = false;
+    for (const key of keys) {
+      if (result.length >= count) break;
+      const pick = buckets.get(key).shift();
+      if (pick) { result.push(pick); used.add(pick.id); madeProgress = true; }
+    }
+  }
+  if (result.length < count) {
+    const leftovers = valid.filter(q => !used.has(q.id));
+    shuffle(leftovers);
+    for (const q of leftovers) {
+      if (result.length >= count) break;
+      result.push(q);
+    }
+  }
+  return result;
+}
+function shuffle(arr) {
+  for (let i = arr.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [arr[i], arr[j]] = [arr[j], arr[i]];
+  }
+  return arr;
 }
 
 // ─── Path-node focused quiz ──────────────────────────────────────────────────

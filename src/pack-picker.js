@@ -1,12 +1,14 @@
 /**
  * pack-picker.js — opens the mode-picker modal in-place on certifications pages.
  *
- * Wires every `<button data-pack-picker>` on the page: clicking the button
- * opens a 4-mode modal (Diagnostic / Quick Quiz / Full Exam / Study Mode)
- * styled the same as the modal in src/app.js. Picking a mode navigates to
- * `/train.html?pack=<id>&autostart=1`, which the home screen recognises and
- * uses to launch the actual quiz — the popup itself does not load the pack
- * JSON, so the cert page stays light.
+ * Each `<button data-pack-picker>` on the page opens a 4-mode modal
+ * (Diagnostic / Quick Quiz / Full Exam / Study Mode). Selecting Quick / Full /
+ * Study navigates to `/train.html?pack=<id>&mode=<choice>` — the home screen
+ * detects the `mode` param and launches the chosen mode directly, so the
+ * picker shown here is the ONLY picker the user sees end-to-end.
+ *
+ * Diagnostic shows the same intro framing the in-app picker uses (placement
+ * test explanation) before redirecting, so users understand it's not a quiz.
  *
  * Required button attributes:
  *   data-pack-picker        marker, value ignored
@@ -14,17 +16,15 @@
  *   data-name               pack display name (modal sub-header)
  *   data-brand              brand display name (modal header)
  *   data-question-count     number of questions available right now (chip)
- *   data-full-count         exam-blueprint count, optional (Full Exam chip)
- *   data-path               truthy if a learning path exists (currently unused
- *                           here — Learning Path link is a separate CTA)
+ *   data-full-count         exam-blueprint count (Full Exam chip), optional
  */
 (function () {
   if (window.__packPickerInit) return;
   window.__packPickerInit = true;
 
-  const QUICK_COUNT = 5;
-  const STUDY_COUNT = 10;
-  const DIAG_COUNT  = 10;
+  var QUICK_COUNT = 5;
+  var STUDY_COUNT = 10;
+  var DIAG_COUNT  = 10;
 
   function escape(s) {
     return String(s)
@@ -33,105 +33,148 @@
   }
 
   function gotoMode(packId, mode) {
-    const url = `/train.html?pack=${encodeURIComponent(packId)}&autostart=${encodeURIComponent(mode)}`;
+    var url = '/train.html?pack=' + encodeURIComponent(packId) +
+              '&mode=' + encodeURIComponent(mode);
     window.location.href = url;
   }
 
+  function renderPicker(modal, brand, name, fullCount) {
+    modal.querySelector('.modal-header').innerHTML =
+      '<div class="modal-pack-name" id="mode-modal-title">' + escape(brand || name) + '</div>' +
+      '<div class="modal-pack-sub">' + escape(name) + '</div>';
+    modal.querySelector('.modal-body').innerHTML =
+      '<button class="mode-card mode-card-diag" type="button" data-mode="diagnostic">' +
+        '<div class="mode-icon">🧪</div>' +
+        '<div class="mode-info">' +
+          '<div class="mode-title">Diagnostic <span class="mode-badge-new">New · for first-timers</span></div>' +
+          '<div class="mode-desc">' + DIAG_COUNT + ' questions across all topics · Get a personalized study plan</div>' +
+        '</div>' +
+        '<div class="mode-chevron">→</div>' +
+      '</button>' +
+      '<button class="mode-card" type="button" data-mode="quick">' +
+        '<div class="mode-icon">⚡</div>' +
+        '<div class="mode-info">' +
+          '<div class="mode-title">Quick Quiz</div>' +
+          '<div class="mode-desc">' + QUICK_COUNT + ' random questions · ~2 min</div>' +
+        '</div>' +
+        '<div class="mode-chevron">→</div>' +
+      '</button>' +
+      '<button class="mode-card" type="button" data-mode="full">' +
+        '<div class="mode-icon">📋</div>' +
+        '<div class="mode-info">' +
+          '<div class="mode-title">Full Exam</div>' +
+          '<div class="mode-desc">' + fullCount + ' questions · Exam simulation</div>' +
+        '</div>' +
+        '<div class="mode-chevron">→</div>' +
+      '</button>' +
+      '<button class="mode-card mode-card-study" type="button" data-mode="study">' +
+        '<div class="mode-icon">📖</div>' +
+        '<div class="mode-info">' +
+          '<div class="mode-title">Study Mode</div>' +
+          '<div class="mode-desc">' + STUDY_COUNT + ' questions · No timer · Learn at your pace</div>' +
+        '</div>' +
+        '<div class="mode-chevron">→</div>' +
+      '</button>';
+  }
+
+  function renderDiagIntro(modal, pack, name, onConfirm) {
+    modal.querySelector('.modal-header').innerHTML =
+      '<div class="modal-pack-name">🧪 Diagnostic test</div>' +
+      '<div class="modal-pack-sub">' + escape(name) + '</div>';
+    modal.querySelector('.modal-body').innerHTML =
+      '<div class="diag-intro">' +
+        '<p class="diag-intro-lede">This isn\'t a quiz — it\'s a placement test. We\'ll use your answers to build a personalized study plan.</p>' +
+        '<ul class="diag-intro-list">' +
+          '<li><strong>10 questions</strong> stratified across topics and difficulty</li>' +
+          '<li><strong>No time pressure</strong> — answer at your own pace</li>' +
+          '<li><strong>No hearts lost</strong> — wrong answers cost nothing</li>' +
+          '<li><strong>Be honest</strong> — guessing inflates the readiness signal</li>' +
+        '</ul>' +
+        '<p class="diag-intro-outro">Takes about 5–8 minutes. You\'ll get a per-topic breakdown, a readiness flag, and a recommended next step.</p>' +
+        '<div class="diag-intro-actions">' +
+          '<button class="diag-intro-back" type="button" id="diag-intro-back">← Pick another mode</button>' +
+          '<button class="diag-intro-start" type="button" id="diag-intro-start">Start diagnostic →</button>' +
+        '</div>' +
+      '</div>';
+    modal.querySelector('#diag-intro-start').addEventListener('click', onConfirm);
+    modal.querySelector('#diag-intro-back').addEventListener('click', function () {
+      // Re-render the picker on the same modal.
+      onConfirm.cancel && onConfirm.cancel();
+    });
+  }
+
   function open(btn) {
-    const pack  = btn.dataset.pack;
-    const name  = btn.dataset.name  || pack;
-    const brand = btn.dataset.brand || '';
-    const qCount = Number(btn.dataset.questionCount) || 0;
-    const fullCount = Number(btn.dataset.fullCount) || qCount;
+    var pack  = btn.dataset.pack;
+    var name  = btn.dataset.name  || pack;
+    var brand = btn.dataset.brand || '';
+    var qCount = Number(btn.dataset.questionCount) || 0;
+    var fullCount = Number(btn.dataset.fullCount) || qCount;
     if (!pack) return;
 
-    document.getElementById('mode-modal')?.remove();
+    var existing = document.getElementById('mode-modal');
+    if (existing) existing.remove();
 
-    const modal = document.createElement('div');
+    var modal = document.createElement('div');
     modal.id = 'mode-modal';
-    modal.innerHTML = `
-      <div class="modal-backdrop" id="modal-backdrop"></div>
-      <div class="modal-sheet" role="dialog" aria-modal="true" aria-labelledby="mode-modal-title">
-        <div class="modal-handle"></div>
-
-        <div class="modal-header">
-          <div class="modal-pack-name" id="mode-modal-title">${escape(brand || name)}</div>
-          <div class="modal-pack-sub">${escape(name)}</div>
-        </div>
-
-        <div class="modal-body">
-
-          <button class="mode-card mode-card-diag" type="button" data-mode="diagnostic">
-            <div class="mode-icon">🧪</div>
-            <div class="mode-info">
-              <div class="mode-title">Diagnostic <span class="mode-badge-new">New · for first-timers</span></div>
-              <div class="mode-desc">${DIAG_COUNT} questions across all topics · Get a personalized study plan</div>
-            </div>
-            <div class="mode-chevron">→</div>
-          </button>
-
-          <button class="mode-card" type="button" data-mode="quick">
-            <div class="mode-icon">⚡</div>
-            <div class="mode-info">
-              <div class="mode-title">Quick Quiz</div>
-              <div class="mode-desc">${QUICK_COUNT} random questions · ~2 min</div>
-            </div>
-            <div class="mode-chevron">→</div>
-          </button>
-
-          <button class="mode-card" type="button" data-mode="full">
-            <div class="mode-icon">📋</div>
-            <div class="mode-info">
-              <div class="mode-title">Full Exam</div>
-              <div class="mode-desc">${fullCount} questions · Exam simulation</div>
-            </div>
-            <div class="mode-chevron">→</div>
-          </button>
-
-          <button class="mode-card mode-card-study" type="button" data-mode="study">
-            <div class="mode-icon">📖</div>
-            <div class="mode-info">
-              <div class="mode-title">Study Mode</div>
-              <div class="mode-desc">${STUDY_COUNT} questions · No timer · Learn at your pace</div>
-            </div>
-            <div class="mode-chevron">→</div>
-          </button>
-
-        </div>
-      </div>
-    `;
+    modal.innerHTML =
+      '<div class="modal-backdrop" id="modal-backdrop"></div>' +
+      '<div class="modal-sheet" role="dialog" aria-modal="true" aria-labelledby="mode-modal-title">' +
+        '<div class="modal-handle"></div>' +
+        '<div class="modal-header"></div>' +
+        '<div class="modal-body"></div>' +
+      '</div>';
     document.body.appendChild(modal);
 
-    requestAnimationFrame(() => {
-      modal.querySelector('.modal-sheet').classList.add('visible');
-      modal.querySelector('.modal-backdrop').classList.add('visible');
+    var sheet = modal.querySelector('.modal-sheet');
+    var backdrop = modal.querySelector('.modal-backdrop');
+
+    function close() {
+      sheet.classList.remove('visible');
+      backdrop.classList.remove('visible');
+      setTimeout(function () { modal.remove(); }, 300);
+    }
+
+    function wireModeButtons() {
+      modal.querySelectorAll('[data-mode]').forEach(function (card) {
+        card.addEventListener('click', function () {
+          var mode = card.dataset.mode;
+          if (mode === 'diagnostic') {
+            var goAhead = function () {
+              close();
+              setTimeout(function () { gotoMode(pack, 'diagnostic'); }, 200);
+            };
+            goAhead.cancel = function () {
+              renderPicker(modal, brand, name, fullCount);
+              wireModeButtons();
+            };
+            renderDiagIntro(modal, pack, name, goAhead);
+          } else {
+            close();
+            setTimeout(function () { gotoMode(pack, mode); }, 200);
+          }
+        });
+      });
+    }
+
+    renderPicker(modal, brand, name, fullCount);
+    wireModeButtons();
+
+    requestAnimationFrame(function () {
+      sheet.classList.add('visible');
+      backdrop.classList.add('visible');
     });
 
-    const close = () => {
-      modal.querySelector('.modal-sheet').classList.remove('visible');
-      modal.querySelector('.modal-backdrop').classList.remove('visible');
-      setTimeout(() => modal.remove(), 300);
-    };
-
-    modal.querySelector('#modal-backdrop').addEventListener('click', close);
+    backdrop.addEventListener('click', close);
     document.addEventListener('keydown', function escHandler(e) {
       if (e.key === 'Escape') { close(); document.removeEventListener('keydown', escHandler); }
-    });
-
-    modal.querySelectorAll('[data-mode]').forEach(card => {
-      card.addEventListener('click', () => {
-        const mode = card.dataset.mode;
-        close();
-        setTimeout(() => gotoMode(pack, mode), 200);
-      });
     });
   }
 
   function init() {
-    document.querySelectorAll('button[data-pack-picker]').forEach(btn => {
+    document.querySelectorAll('button[data-pack-picker]').forEach(function (btn) {
       if (btn.__packPickerBound) return;
       btn.__packPickerBound = true;
-      btn.addEventListener('click', (e) => { e.preventDefault(); open(btn); });
+      btn.addEventListener('click', function (e) { e.preventDefault(); open(btn); });
     });
   }
 
