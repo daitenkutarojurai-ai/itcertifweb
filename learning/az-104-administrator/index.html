@@ -524,8 +524,8 @@
         </details>
       </div>
 
-      <div class="module-card">
-        <div class="module-num">Module 4</div>
+      <div class="module-card is-expanded">
+        <div class="module-num">Module 4<span class="chapter-badge">3 lessons</span></div>
         <div class="module-title">Azure Virtual Machines — Deployment, Sizing, and High Availability</div>
         <p class="module-desc">Deploy and manage Azure VMs across the full lifecycle. Select the right VM size family (general purpose, compute optimised, memory optimised, GPU) for each workload. Architect for high availability using Availability Sets (fault domains, update domains) and Availability Zones. Configure VM Scale Sets with autoscale rules, custom images, and instance health probes. Manage OS disks, data disks (managed vs unmanaged), disk caching modes, and Azure Disk Encryption (ADE).</p>
         <div class="module-topics">
@@ -538,6 +538,104 @@
           <span class="topic-tag">Custom script extensions and cloud-init</span>
           <span class="topic-tag">Azure Dedicated Hosts</span>
         </div>
+
+        <details>
+          <summary class="chapter-toggle" role="button">
+            📖 Read in-depth chapter
+            <span class="chapter-toggle-icon">▾</span>
+          </summary>
+          <div class="chapter-content">
+
+            <div class="lesson-block">
+              <div class="lesson-title-row">
+                <span class="lesson-num">Lesson 4.1</span>
+                <span class="lesson-title">VM size families — picking the right SKU</span>
+              </div>
+              <p class="lesson-intro">
+                Azure has ~400 VM SKUs. The exam doesn't ask you to memorise all of them — it asks you to map a workload to the right <em>family letter</em> and to know the gotchas of the families candidates love (B-series burstable) and hate (oversized memory-optimised running CPU-bound code). Pick the wrong family and you either pay 3× or hit a credit cliff.
+              </p>
+              <div class="lesson-section-head">Key concepts</div>
+              <ul class="lesson-bullets">
+                <li><strong>General purpose (B, D, Dsv5, Av2):</strong> balanced CPU-to-memory. <code>B-series</code> is burstable with CPU credits — cheap for idle workloads, performance cliff when credits exhaust. <code>D-series</code> is the production default for web tier / app tier; <code>Dsv5</code> with Premium SSD is current-gen.</li>
+                <li><strong>Compute optimised (F, Fsv2):</strong> high CPU-to-memory ratio. Good for build agents, batch processing, gaming servers, transcoding. Never use for in-memory databases — you'll run out of RAM before you saturate CPU.</li>
+                <li><strong>Memory optimised (E, Esv5, M):</strong> high memory-to-CPU. Right for SAP HANA, large SQL servers, in-memory caches, Redis at scale. The <code>M-series</code> goes up to multiple TB of RAM but is expensive per hour.</li>
+                <li><strong>Storage optimised (L, Lsv3):</strong> local NVMe attached. Best for NoSQL, Cassandra, MongoDB, big-data — anything that wants ephemeral fast scratch. Data on the local NVMe is LOST on deallocate; never store production state there.</li>
+                <li><strong>GPU (N — NC for compute, ND for deep learning, NV for visualisation):</strong> CUDA workloads, ML training, remote desktop rendering. Expensive, capacity-constrained — production deployments often hit quota limits before cost limits.</li>
+                <li><strong>Dedicated Hosts:</strong> physical-server allocation reserved to your subscription. Required for some BYOL licensing (Windows Server, SQL Server) and for compliance regimes that demand hardware isolation. Pay for the host whether VMs run on it or not.</li>
+              </ul>
+              <div class="lesson-section-head">Concrete example</div>
+              <p>
+                A team complains that their B4ms VMs running a chat app "go slow at peak". Diagnosis: B-series CPU credit exhaustion under sustained load. Two-step fix: (1) right-size to <strong>D4ds_v5</strong> for the production tier — D-series has no credit mechanism, sustained CPU is a non-event; (2) keep the B-series for staging where workloads are bursty. Always look at the <em>CPU Credits Remaining</em> metric in Azure Monitor when investigating "slow" B-series VMs.
+              </p>
+              <div class="lesson-takeaway">
+                <strong>Key takeaway:</strong> B for burstable / dev / non-prod, D for balanced production, F for CPU-bound batch, E/M for memory-bound, L for local-NVMe workloads, N for GPU, dedicated hosts only when licensing or compliance forces it.
+              </div>
+              <div class="lesson-quiz">
+                <div class="lesson-quiz-head">⚡ Mini-quiz</div>
+                Practise VM-family decisions → <a href="/train.html?pack=az-104&amp;mode=study">study mode (10 questions)</a>.
+              </div>
+            </div>
+
+            <div class="lesson-block">
+              <div class="lesson-title-row">
+                <span class="lesson-num">Lesson 4.2</span>
+                <span class="lesson-title">Availability — Sets, Zones, and Scale Sets</span>
+              </div>
+              <p class="lesson-intro">
+                Single-VM deployments have no SLA. Azure publishes a specific compute SLA only when you deploy redundantly using one of three patterns: Availability Sets (in-region rack spread), Availability Zones (in-region datacentre spread), or VM Scale Sets (autoscaled fleet). Picking between them is a question of cost, scale, and the SLA the workload actually requires.
+              </p>
+              <div class="lesson-section-head">Key concepts</div>
+              <ul class="lesson-bullets">
+                <li><strong>Availability Set:</strong> a logical grouping that spreads VMs across <em>fault domains</em> (different racks/PDUs in the same datacentre) and <em>update domains</em> (groups updated separately during maintenance). Default 3 FD × 5 UD. SLA: <strong>99.95%</strong> with 2+ VMs in the set. Same-region, same-datacentre — does not survive a building outage.</li>
+                <li><strong>Availability Zone:</strong> physically separate datacentres in one region (typically 3 zones, often miles apart). Place ≥2 VMs across ≥2 zones for SLA <strong>99.99%</strong> — the strongest in-region option. Resources are zonal (pinned to a zone) or zone-redundant (LB / IP spans zones).</li>
+                <li><strong>VM Scale Set (VMSS):</strong> auto-scaling group. Two orchestration modes: <em>Uniform</em> (identical instances, simpler, faster scale, can't mix sizes) and <em>Flexible</em> (heterogeneous, can mix sizes/zones, supports up to 1000 VMs, modern default). Flexible mode combines the SLA of AZs with autoscale.</li>
+                <li><strong>Autoscale rules:</strong> trigger on metric (CPU, memory, custom Application Insights) or schedule. Always pair scale-out and scale-in rules; set a cooldown long enough that new instances absorb load before scale-in fires (avoids the flapping you saw in Module 6's UDR lesson, applied to compute).</li>
+                <li><strong>Proximity Placement Group (PPG):</strong> places VMs in the same physical rack/cluster for lowest latency between them. Required for tight-latency workloads (HPC, in-region clusters). Can combine with Availability Sets (PPG inside set) but NOT with multi-zone deployments.</li>
+              </ul>
+              <div class="lesson-section-head">Concrete example</div>
+              <p>
+                A retail site needs to handle Black Friday traffic with a 99.99% SLA. Design: deploy a <strong>VMSS in Flexible mode</strong> spread across three Availability Zones, autoscale 4-40 instances on CPU&gt;70%, behind a zone-redundant Standard Load Balancer. SLA matches AZ deployment (99.99%) AND auto-scales for the peak. The same workload on an Availability Set would be capped at 99.95% AND wouldn't survive a zone outage.
+              </p>
+              <div class="lesson-takeaway">
+                <strong>Key takeaway:</strong> Availability Set = 99.95% in-region rack spread, easy retrofit. Availability Zone = 99.99% datacentre spread, modern default. VMSS Flexible across zones = same 99.99% PLUS autoscale. Use PPG only when latency matters more than the AZ spread.
+              </div>
+              <div class="lesson-quiz">
+                <div class="lesson-quiz-head">⚡ Mini-quiz</div>
+                Drill Availability Set vs Zone vs VMSS decisions → <a href="/train.html?pack=az-104&amp;mode=quick">quick quiz (5 questions)</a>.
+              </div>
+            </div>
+
+            <div class="lesson-block">
+              <div class="lesson-title-row">
+                <span class="lesson-num">Lesson 4.3</span>
+                <span class="lesson-title">Managed disks, encryption, and VM extensions</span>
+              </div>
+              <p class="lesson-intro">
+                Disks and extensions are the bookends of VM provisioning. Disks determine the performance ceiling and the cost floor; extensions are how you wire automation into first boot so you never need to manually log into a VM after deploy.
+              </p>
+              <div class="lesson-section-head">Key concepts</div>
+              <ul class="lesson-bullets">
+                <li><strong>Managed disk tiers:</strong> <code>Standard HDD</code> (cheap, dev/test, low IOPS), <code>Standard SSD</code> (entry-level production, web servers), <code>Premium SSD</code> (production database OS, low-latency tier), <code>Premium SSD v2</code> (independently configurable IOPS / throughput / size — the modern default for performance-sensitive workloads), <code>Ultra Disk</code> (sub-millisecond, expensive, narrow VM-family support).</li>
+                <li><strong>Disk caching modes:</strong> <code>None</code> (Ultra / write-heavy logs), <code>ReadOnly</code> (database data files), <code>ReadWrite</code> (OS disks). Misconfigured caching is a common database-performance complaint — a SQL log file with ReadWrite cache is slower than no cache because Azure must flush on every write.</li>
+                <li><strong>Azure Disk Encryption (ADE) vs Server-Side Encryption (SSE):</strong> SSE is on by default for every disk (platform-managed key or CMK). ADE is BitLocker (Windows) / dm-crypt (Linux) inside the guest, with the unlock key in Azure Key Vault — needed when the OS itself must enforce disk-level encryption (compliance regimes). The two compose: SSE encrypts the underlying storage, ADE encrypts inside the OS.</li>
+                <li><strong>Cloud-init (Linux) and Custom Script Extension (Windows + Linux):</strong> two ways to run first-boot configuration. Cloud-init runs from a YAML file in the OS profile — declarative, idempotent, the Linux default. Custom Script Extension downloads and runs a shell/PowerShell script after boot — works on any OS, supported by ARM/Bicep templates.</li>
+                <li><strong>Other key extensions:</strong> <code>Domain Join</code> (joins Windows VMs to AD), <code>Azure Monitor Agent (AMA)</code> (sends metrics + logs to Log Analytics), <code>Network Watcher Agent</code> (enables packet capture + IP flow verify), <code>VM Backup</code> (consistent snapshots via Recovery Services Vault). Extensions are declarative in templates and run on every (re)deploy.</li>
+              </ul>
+              <div class="lesson-section-head">Concrete example</div>
+              <p>
+                A SQL Server VM is hitting IOPS ceilings on its <strong>P30 Premium SSD</strong> (5,000 IOPS). Options: (a) bump to P40 — doubles cost, only marginally faster; (b) migrate to <strong>Premium SSD v2</strong> with 16,000 provisioned IOPS — cheaper than P50 and IOPS independently dialled. While doing the migration, leave the OS disk on P10 (read-cache enabled, only the OS reads matter), set the SQL log disk caching to <strong>None</strong>, and the data disk caching to <strong>ReadOnly</strong>. Lock the OS-level disk encryption via ADE pulling its key from Key Vault. Disk choice + caching together drop the IOPS complaint without touching the VM size.
+              </p>
+              <div class="lesson-takeaway">
+                <strong>Key takeaway:</strong> Premium SSD v2 is the modern performance default. Caching mode follows the workload (None for logs, ReadOnly for data files, ReadWrite for OS). SSE is automatic; reach for ADE only when compliance demands guest-level encryption. Use extensions for every post-deploy step — never SSH/RDP to configure.
+              </div>
+              <div class="lesson-quiz">
+                <div class="lesson-quiz-head">⚡ Mini-quiz</div>
+                Practise disk tier and caching scenarios → <a href="/train.html?pack=az-104&amp;mode=study">study mode (10 questions)</a>.
+              </div>
+            </div>
+
+          </div>
+        </details>
       </div>
 
       <div class="module-card">
