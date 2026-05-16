@@ -311,10 +311,108 @@
         <div class="module-desc">Pass-Through Authentication (PTA) vs Password Hash Sync vs ADFS federation for compliance requirements; Azure Monitor Agent (AMA) with Data Collection Rules (DCRs); Application Insights for APM and distributed tracing; Log Analytics workspace retention tiers (Analytics vs Basic vs Auxiliary); dual-destination Diagnostic Settings pattern for cost-optimized compliance logging; Management Group subscription hierarchy design.</div>
       </div>
 
-      <div class="module-card">
-        <div class="module-num">Module 03</div>
+      <div class="module-card is-expanded">
+        <div class="module-num">Module 03<span class="chapter-badge">3 lessons</span></div>
         <div class="module-title">Data Storage Solutions</div>
         <div class="module-desc">Blob lifecycle management policies (Hot → Cool → Archive tier transitions); Azure SQL Database Serverless auto-pause for dev/test cost optimization; Cosmos DB NoSQL API multi-region write (multi-master) and consistency levels; ADLS Gen2 hierarchical namespace for analytics workloads; Azure Files Premium with SMB and AD DS integration; Azure Cache for Redis Standard vs Premium with geo-replication; IoT Hub + Stream Analytics + Synapse pipeline architecture.</div>
+
+        <details>
+          <summary class="chapter-toggle" role="button">📖 Read in-depth chapter <span class="chapter-toggle-icon">▾</span></summary>
+          <div class="chapter-content">
+
+            <div class="lesson-block">
+              <div class="lesson-title-row">
+                <span class="lesson-pos">Lesson 3.1</span>
+                <span class="lesson-title">Picking the right Azure data store</span>
+              </div>
+              <p class="lesson-intro">
+                AZ-305 doesn't ask "which one is fastest"; it asks "which one fits these constraints". The exam loves scenarios where you must match data shape, access pattern, latency, cost, and consistency to the right Azure data service. Memorise the decision tree.
+              </p>
+              <div class="lesson-section-head">Key concepts</div>
+              <ul class="lesson-bullets">
+                <li><strong>Relational, OLTP:</strong> <em>Azure SQL Database</em> for fully managed (DTU or vCore, Serverless option for dev/test). <em>Azure SQL Managed Instance</em> for migrating SQL Server with SQL Agent, cross-DB queries, near-100% SQL Server feature compatibility.</li>
+                <li><strong>NoSQL document / KV / graph:</strong> <em>Cosmos DB</em> across five APIs (Core SQL, MongoDB, Cassandra, Gremlin, Table). Globally distributed, multi-region writes, RU-based capacity, five consistency levels.</li>
+                <li><strong>Analytical / big data:</strong> <em>ADLS Gen2</em> (hierarchical namespace on Blob — POSIX-like ACLs, ideal for Spark/Hadoop), <em>Azure Synapse Analytics</em> (data warehouse + Spark + Pipelines in one), <em>Databricks</em> (managed Spark).</li>
+                <li><strong>Object storage:</strong> <em>Blob Storage</em> for unstructured. Hot / Cool / Cold / Archive tiers. Use Blob lifecycle policies to age data through tiers automatically.</li>
+                <li><strong>File shares:</strong> <em>Azure Files</em> for SMB/NFS shared file systems — Premium tier for low-latency, AD DS integration for kerberos auth. <em>Azure NetApp Files</em> for high-IOPS / enterprise NAS workloads.</li>
+                <li><strong>Cache:</strong> <em>Azure Cache for Redis</em> — Premium tier supports VNet integration, clustering, geo-replication.</li>
+                <li><strong>Streaming + IoT:</strong> <em>IoT Hub</em> (millions of devices), <em>Event Hubs</em> (high-throughput ingestion), <em>Stream Analytics</em> (T-SQL on streams).</li>
+              </ul>
+              <div class="lesson-section-head">Concrete example</div>
+              <p>
+                A retailer's data platform: (1) the catalog (1M products, looked up by SKU, &lt;10ms target) → <strong>Cosmos DB Core SQL</strong> with session consistency. (2) The transaction store (orders, foreign keys, ACID) → <strong>Azure SQL Database Business Critical</strong>. (3) Cold order history (5+ years, compliance retention) → <strong>Blob Storage</strong> with lifecycle policy Hot → Cool at 30 days → Archive at 1 year. (4) Real-time clickstream → <strong>Event Hubs</strong> → <strong>Stream Analytics</strong> → <strong>Synapse</strong> for analytics. Five purpose-built services, none of them stretched outside their sweet spot.
+              </p>
+              <div class="lesson-takeaway">
+                <strong>Key takeaway:</strong> match data shape and access pattern to the purpose-built service. Don't stretch one service across all workloads. AZ-305 questions almost always have one obvious "ideal" answer once you classify the workload correctly.
+              </div>
+              <div class="lesson-quiz">
+                <div class="lesson-quiz-head">⚡ Mini-quiz</div>
+                Drill data-service selection scenarios → <a href="/train.html?pack=az-305&amp;mode=study">study mode (10 questions)</a>.
+              </div>
+            </div>
+
+            <div class="lesson-block">
+              <div class="lesson-title-row">
+                <span class="lesson-pos">Lesson 3.2</span>
+                <span class="lesson-title">Cosmos DB — partitioning, RUs, and consistency</span>
+              </div>
+              <p class="lesson-intro">
+                Cosmos DB shows up in nearly every AZ-305 exam. The defining decisions are partition key, throughput model (provisioned RUs vs serverless vs autoscale), and consistency level. Get these wrong and you either overpay massively or hit throttling under load.
+              </p>
+              <div class="lesson-section-head">Key concepts</div>
+              <ul class="lesson-bullets">
+                <li><strong>Partition key:</strong> chosen at container creation, immutable. Drives physical partition placement. Pick a property with high cardinality and even access distribution — same rules as DynamoDB. Hot partitions cap your effective throughput at 10k RUs regardless of total provisioned.</li>
+                <li><strong>Request Units (RU):</strong> abstract throughput unit covering CPU + IOPS + memory. 1 KB point read = 1 RU; 1 KB write = ~5 RU. Provisioned throughput pays for reserved RU/s; serverless pays per million RU consumed; autoscale scales between min and max (paying for max consumed in any hour).</li>
+                <li><strong>Throughput modes:</strong> <em>Provisioned</em> for predictable steady traffic. <em>Serverless</em> for &lt;5,000 RU bursts. <em>Autoscale</em> for variable traffic where peak &lt;10× minimum. Switch between provisioned and autoscale freely; serverless is a separate account type.</li>
+                <li><strong>Consistency levels:</strong> <em>Strong</em> (linearisable, no multi-region writes), <em>Bounded staleness</em> (read lags by &lt;K writes or T seconds), <em>Session</em> (read your own writes — default for SDK), <em>Consistent prefix</em>, <em>Eventual</em>. Trading off stronger consistency for higher latency.</li>
+                <li><strong>Multi-region writes:</strong> every region is writeable. Conflict resolution by last-writer-wins (default), custom UDF, or conflicts feed for manual handling. Required for active-active geo deployments.</li>
+                <li><strong>Indexing policy:</strong> by default everything is indexed (expensive on writes). Customise to exclude properties you never query on — significant write-RU savings on write-heavy workloads.</li>
+              </ul>
+              <div class="lesson-section-head">Concrete example</div>
+              <p>
+                A global IoT platform stores 10M device records, accessed by deviceId 99% of the time and by region 1% of the time. Design: container with <code>partitionKey: /deviceId</code> (10M distinct values — perfect cardinality, even distribution). Throughput: <strong>autoscale 4,000-40,000 RU/s</strong> (10× variance). Consistency: <strong>session</strong> (SDK default, sufficient for IoT use case). Indexing policy excludes the verbose telemetry payload property — saves ~30% on write RUs. Multi-region writes enabled in three regions for active-active. Region queries handled by a separate GSI-style approach with a synced read-only collection partitioned by region.
+              </p>
+              <div class="lesson-takeaway">
+                <strong>Key takeaway:</strong> partition key + RU model + consistency level are the three defining Cosmos DB decisions. Most enterprise scenarios end at session consistency with autoscale throughput. Customise the indexing policy on write-heavy workloads.
+              </div>
+              <div class="lesson-quiz">
+                <div class="lesson-quiz-head">⚡ Mini-quiz</div>
+                Practise Cosmos DB partition + RU decisions → <a href="/train.html?pack=az-305&amp;mode=quick">quick quiz (5 questions)</a>.
+              </div>
+            </div>
+
+            <div class="lesson-block">
+              <div class="lesson-title-row">
+                <span class="lesson-pos">Lesson 3.3</span>
+                <span class="lesson-title">Storage redundancy, lifecycle policies, and access control</span>
+              </div>
+              <p class="lesson-intro">
+                The "storage detail" questions on AZ-305 are about durability options (LRS/ZRS/GRS/GZRS), automated lifecycle tiering, and access patterns (SAS / RBAC / private endpoints). Get the redundancy choice right based on RPO requirement; let lifecycle policies do the cost optimisation.
+              </p>
+              <div class="lesson-section-head">Key concepts</div>
+              <ul class="lesson-bullets">
+                <li><strong>Redundancy options:</strong> LRS (3 copies in one DC, cheapest), ZRS (3 copies across 3 AZs, survives AZ outage), GRS (LRS + async geo-replication to paired region), GZRS (ZRS + geo). Read-Access variants (RA-GRS, RA-GZRS) make the secondary readable.</li>
+                <li><strong>Storage account kinds:</strong> StorageV2 (GPv2, modern default), BlockBlobStorage (Premium SSD-backed, low-latency for blobs), FileStorage (Premium for Files). Skip GPv1 — it can't do access tiers.</li>
+                <li><strong>Blob lifecycle policies:</strong> JSON rules on a storage account that transition blobs between tiers and delete them based on age or last access. Daily evaluation, no extra cost. Standard pattern: Hot → Cool at 30d, Cool → Archive at 90d, delete at 7y.</li>
+                <li><strong>Immutable storage (WORM):</strong> time-based retention policy or legal hold. Once locked, even the owner can't delete until the policy expires. Required for SEC 17a-4 / FINRA compliance.</li>
+                <li><strong>Access patterns:</strong> <em>SAS</em> (account / service / user-delegation — prefer user-delegation, key-less and revocable), <em>RBAC on data plane</em> (Storage Blob Data Reader / Contributor — for service principals and managed identities), <em>private endpoints</em> (subnet-attached private IP — modern default for VNet-attached workloads), <em>storage firewall</em> (IP + VNet rules with default-deny).</li>
+                <li><strong>Encryption:</strong> at rest by default (Microsoft-managed key). Customer-managed keys (CMK) for compliance — key stored in Azure Key Vault, audited rotation. Encryption in transit via "Secure transfer required" (TLS 1.2 minimum).</li>
+              </ul>
+              <div class="lesson-section-head">Concrete example</div>
+              <p>
+                A media archive holds petabytes of video files with 7-year retention. Access pattern: heavy in first 30 days, sporadic for 90 days, near-zero after. Design: <strong>StorageV2</strong> with <strong>GZRS</strong> redundancy (survives region outage). <strong>Lifecycle policy</strong>: Hot → Cool at 30 days → Cold at 90 → Archive at 180 → delete at 7 years. <strong>Time-based immutability</strong> (locked 7y) on the legal-hold container. Access via <strong>private endpoints</strong> from the video-processing VNet; public endpoint disabled. Application identities use <strong>RBAC on data plane</strong>; external auditors get scoped <strong>user-delegation SAS</strong> tokens, 1-hour expiry.
+              </p>
+              <div class="lesson-takeaway">
+                <strong>Key takeaway:</strong> redundancy choice tracks RPO requirement. Lifecycle policies replace manual tiering. User-delegation SAS replaces account-key SAS for revocable, scoped access. Private endpoints replace service endpoints for new builds.
+              </div>
+              <div class="lesson-quiz">
+                <div class="lesson-quiz-head">⚡ Mini-quiz</div>
+                Drill redundancy + lifecycle + access scenarios → <a href="/train.html?pack=az-305&amp;mode=study">study mode (10 questions)</a>.
+              </div>
+            </div>
+
+          </div>
+        </details>
       </div>
 
       <div class="module-card is-expanded">
@@ -420,10 +518,108 @@
         </details>
       </div>
 
-      <div class="module-card">
-        <div class="module-num">Module 05</div>
+      <div class="module-card is-expanded">
+        <div class="module-num">Module 05<span class="chapter-badge">3 lessons</span></div>
         <div class="module-title">Network &amp; Connectivity Design</div>
         <div class="module-desc">Virtual WAN Secured Hub with Azure Firewall for intent-based routing across all connected spokes; ExpressRoute for SLA-backed private connectivity vs Site-to-Site VPN; Traffic Manager routing methods (Performance, Geographic, Weighted) with endpoint health probes; Application Gateway end-to-end SSL with backend HTTPS settings; NSG outbound rules with service tags + VNet Service Endpoints; Private Endpoints for Key Vault, Storage, and SQL with Azure Private DNS Zone integration.</div>
+
+        <details>
+          <summary class="chapter-toggle" role="button">📖 Read in-depth chapter <span class="chapter-toggle-icon">▾</span></summary>
+          <div class="chapter-content">
+
+            <div class="lesson-block">
+              <div class="lesson-title-row">
+                <span class="lesson-pos">Lesson 5.1</span>
+                <span class="lesson-title">Hub-and-spoke and Virtual WAN topologies</span>
+              </div>
+              <p class="lesson-intro">
+                Azure networking design at scale almost always lands on hub-and-spoke or Virtual WAN. Pick the wrong one and your transit cost explodes or you can't route between regions. AZ-305 tests the topology decision and the configuration flags that make peering / gateway-transit actually work.
+              </p>
+              <div class="lesson-section-head">Key concepts</div>
+              <ul class="lesson-bullets">
+                <li><strong>Hub-and-spoke (traditional):</strong> one hub VNet per region with shared services (firewall, gateway, DNS), spokes peer to the hub. Build it yourself with VNet peering. Cost: per-peering and per-GB egress.</li>
+                <li><strong>Virtual WAN:</strong> Microsoft-managed hub-and-spoke at global scale. Single Virtual WAN resource holds multiple hubs (one per region) and orchestrates peering between them. Supports VPN, ExpressRoute, and Secure Hub (built-in Firewall + Routing Intent).</li>
+                <li><strong>Gateway transit flag pair:</strong> on the hub-side peering, enable <code>Allow gateway transit</code>; on the spoke-side, enable <code>Use remote gateways</code>. Now the spoke uses the hub's VPN/ExpressRoute Gateway. Without it, every spoke needs its own gateway.</li>
+                <li><strong>Peering non-transitivity:</strong> A↔B and B↔C does NOT give A↔C. To allow spoke-to-spoke traffic in hub-and-spoke, deploy an NVA or Azure Firewall in the hub and add UDRs in each spoke. Virtual WAN's Secure Hub does this natively via Routing Intent.</li>
+                <li><strong>Address space planning:</strong> assign a region-wide supernet (e.g., 10.10.0.0/16 for eastus2). Carve spokes from that. Reserve 10.255.0.0/16 (or similar) for the hub's GatewaySubnet / AzureFirewallSubnet / AzureBastionSubnet — those need specific names AND minimum sizes.</li>
+                <li><strong>When to pick which:</strong> &lt; 10 spokes in one region → hand-rolled hub-and-spoke is fine. Multi-region or &gt; 20 spokes → Virtual WAN. Need to integrate SD-WAN appliances → Virtual WAN. Tight cost optimisation in a small footprint → hand-rolled.</li>
+              </ul>
+              <div class="lesson-section-head">Concrete example</div>
+              <p>
+                A multinational retailer with three regions and 60 spoke VNets total. Choice: <strong>Virtual WAN</strong> with one hub per region. Each hub is a <strong>Secure Hub</strong> running Azure Firewall with <strong>Routing Intent</strong> configured for private + internet inspection. Spokes peer to their regional hub; cross-region traffic flows through the Microsoft backbone between hubs at no per-peering cost. ExpressRoute circuits terminate at one hub per region; failover via Global Reach.
+              </p>
+              <div class="lesson-takeaway">
+                <strong>Key takeaway:</strong> Virtual WAN for &gt; 1 region or &gt; 20 spokes; hand-rolled hub-and-spoke for smaller scope. Always use Routing Intent / Azure Firewall to route between spokes (peering is non-transitive). Plan address space at region-supernet scope.
+              </div>
+              <div class="lesson-quiz">
+                <div class="lesson-quiz-head">⚡ Mini-quiz</div>
+                Drill hub-and-spoke vs Virtual WAN decisions → <a href="/train.html?pack=az-305&amp;mode=study">study mode (10 questions)</a>.
+              </div>
+            </div>
+
+            <div class="lesson-block">
+              <div class="lesson-title-row">
+                <span class="lesson-pos">Lesson 5.2</span>
+                <span class="lesson-title">Hybrid connectivity — VPN, ExpressRoute, and SD-WAN</span>
+              </div>
+              <p class="lesson-intro">
+                Connecting on-prem to Azure has three primary options: VPN over the public internet, ExpressRoute private circuits, and SD-WAN integration. AZ-305 tests when to pick each based on bandwidth, SLA, latency, and cost.
+              </p>
+              <div class="lesson-section-head">Key concepts</div>
+              <ul class="lesson-bullets">
+                <li><strong>Site-to-Site VPN:</strong> IPsec tunnel over the internet. SKUs <code>VpnGw1</code> through <code>VpnGw5</code> scale bandwidth and concurrent tunnels. Active-active across AZs for the gateway 99.95% SLA. Cheap (~$140/mo for VpnGw1) but no bandwidth guarantee.</li>
+                <li><strong>ExpressRoute:</strong> private circuit through a connectivity provider — bypasses the public internet, comes with an SLA (99.9 or 99.95% with redundant circuits). Two peering types: <em>private</em> (Azure VNets), <em>Microsoft</em> (Microsoft 365 / public Azure PaaS over the private circuit).</li>
+                <li><strong>ExpressRoute Global Reach:</strong> connects two ExpressRoute circuits to each other through the Microsoft backbone. Useful for branch-to-branch traffic without backhauling through HQ.</li>
+                <li><strong>ExpressRoute FastPath:</strong> bypasses the ExpressRoute Gateway data path for direct circuit-to-VM traffic. Higher throughput, requires Ultra Performance SKU. Needed for &gt;10 Gbps real-world throughput.</li>
+                <li><strong>SD-WAN integration:</strong> Virtual WAN supports SD-WAN partner appliances (Cisco SD-WAN, Aruba, Versa, etc.) as VNet-deployed CPE. The branch office connects to its SD-WAN appliance, which terminates into the regional Virtual WAN hub. Great for retail / 100+ branches.</li>
+                <li><strong>Cost vs criticality:</strong> VPN for dev/test and small businesses; ExpressRoute for production with bandwidth or SLA requirements; ExpressRoute + VPN failover when ExpressRoute downtime would cost more than the VPN keep-alive.</li>
+              </ul>
+              <div class="lesson-section-head">Concrete example</div>
+              <p>
+                A bank needs to connect HQ (200 Mbps, sustained) and 40 branch offices to Azure with SLA-backed connectivity. Design: <strong>ExpressRoute</strong> circuit at HQ (500 Mbps, dual circuits in different ER providers for 99.95% SLA), terminated at the Virtual WAN hub. Branches connect via <strong>SD-WAN appliances</strong> (Cisco vEdge in Virtual WAN partner pattern) that route into the same hub. Backup VPN tunnels from HQ to Azure as failover for the unlikely dual-ER outage.
+              </p>
+              <div class="lesson-takeaway">
+                <strong>Key takeaway:</strong> VPN for cheap / low-stakes. ExpressRoute for production with SLA. Global Reach for branch-to-branch. SD-WAN integration when you have many branches. ExpressRoute + VPN failover when SLA matters more than cost.
+              </div>
+              <div class="lesson-quiz">
+                <div class="lesson-quiz-head">⚡ Mini-quiz</div>
+                Practise hybrid connectivity scenarios → <a href="/train.html?pack=az-305&amp;mode=quick">quick quiz (5 questions)</a>.
+              </div>
+            </div>
+
+            <div class="lesson-block">
+              <div class="lesson-title-row">
+                <span class="lesson-pos">Lesson 5.3</span>
+                <span class="lesson-title">Private endpoints, DNS, and global load balancing</span>
+              </div>
+              <p class="lesson-intro">
+                The last network design lesson covers the three pieces every modern Azure architecture needs: private endpoints (no public IPs), Azure DNS Private Resolver (hybrid name resolution), and global load balancing (Front Door vs Traffic Manager).
+              </p>
+              <div class="lesson-section-head">Key concepts</div>
+              <ul class="lesson-bullets">
+                <li><strong>Private endpoints:</strong> a NIC in your VNet with a private IP that resolves to a PaaS service (Storage, SQL, Key Vault, App Service, &amp;c.). Disable the public endpoint entirely once private endpoints are in place. The modern AZ-305 default for any PaaS-to-VNet integration.</li>
+                <li><strong>Azure Private DNS zones:</strong> required for name resolution to the private endpoint's IP. Each PaaS service has a documented Private DNS zone name (<code>privatelink.blob.core.windows.net</code>, <code>privatelink.database.windows.net</code>). Link the zone to every VNet that needs to resolve.</li>
+                <li><strong>Azure DNS Private Resolver:</strong> the managed bridge for hybrid DNS. Inbound endpoints answer queries from on-prem; outbound endpoints forward configured zones to on-prem resolvers. Replaces the old DNS-forwarder-VM pattern.</li>
+                <li><strong>Service endpoints vs private endpoints:</strong> service endpoints route traffic to PaaS over the Microsoft backbone but keep the public IP. Private endpoints make the PaaS endpoint private. New designs almost always pick private endpoints.</li>
+                <li><strong>Traffic Manager (DNS):</strong> global load balancer based on DNS resolution. Methods: Performance (lowest latency), Geographic (per source country), Weighted, Priority (active/passive). Failover bounded by client DNS TTL — typically 30s+. Use when sub-second failover isn't required.</li>
+                <li><strong>Azure Front Door (anycast):</strong> global L7 reverse proxy at Microsoft edge POPs. WAF, CDN caching, sub-second failover, URL-based routing. Premium tier adds private origin support (your origins don't need public IPs). The modern default for global L7.</li>
+                <li><strong>Decision pattern:</strong> Regional internal/external → Load Balancer / Application Gateway. Global L7 + WAF + edge caching → Front Door. Global DNS-based without WAF/caching → Traffic Manager. Static assets only → Front Door / CDN.</li>
+              </ul>
+              <div class="lesson-section-head">Concrete example</div>
+              <p>
+                A global SaaS needs (1) WAF and edge caching at &lt;100ms RTT globally, (2) all PaaS services accessed privately from the app VNet, (3) on-prem clients can resolve Azure Private DNS records. Design: <strong>Azure Front Door Premium</strong> in front, two regional origin groups, WAF in Prevention mode, caching <code>/static/*</code>. App VNet uses <strong>private endpoints</strong> for Storage, SQL, Key Vault — all public endpoints disabled. <strong>Azure DNS Private Resolver</strong> with inbound endpoint exposes the Private DNS zones to on-prem resolvers via DNS conditional forwarders.
+              </p>
+              <div class="lesson-takeaway">
+                <strong>Key takeaway:</strong> private endpoints + Private DNS zones for all new PaaS integrations. Front Door for global L7 (modern default); Traffic Manager only when DNS-only failover suffices. DNS Private Resolver bridges Azure Private DNS to on-prem.
+              </div>
+              <div class="lesson-quiz">
+                <div class="lesson-quiz-head">⚡ Mini-quiz</div>
+                Drill private endpoint + global LB scenarios → <a href="/train.html?pack=az-305&amp;mode=study">study mode (10 questions)</a>.
+              </div>
+            </div>
+
+          </div>
+        </details>
       </div>
 
       <div class="module-card">
