@@ -782,8 +782,8 @@
         </div>
       </div>
 
-      <div class="module-card">
-        <div class="module-num">Module 8</div>
+      <div class="module-card is-expanded">
+        <div class="module-num">Module 8<span class="chapter-badge">3 lessons</span></div>
         <div class="module-title">Monitoring, Backup, and Azure Site Recovery</div>
         <p class="module-desc">Keep Azure resources healthy and recoverable. Configure Azure Monitor with metrics, diagnostic settings, and Log Analytics workspaces. Build alerts using metric alert rules, log query alerts, and activity log alerts routed to action groups (email, SMS, webhook, Logic App). Protect VMs and Azure SQL with Azure Backup (Recovery Services Vault, backup policies, soft-delete). Replicate VMs to a secondary region with Azure Site Recovery for disaster recovery — understand RPO, RTO, test failover vs planned failover vs unplanned failover.</p>
         <div class="module-topics">
@@ -796,6 +796,106 @@
           <span class="topic-tag">Azure Site Recovery — replication, failover, failback</span>
           <span class="topic-tag">Azure Monitor Workbooks and Insights</span>
         </div>
+
+        <details>
+          <summary class="chapter-toggle" role="button">
+            📖 Read in-depth chapter
+            <span class="chapter-toggle-icon">▾</span>
+          </summary>
+          <div class="chapter-content">
+
+            <div class="lesson-block">
+              <div class="lesson-title-row">
+                <span class="lesson-num">Lesson 8.1</span>
+                <span class="lesson-title">Azure Monitor — metrics, logs, and diagnostic settings</span>
+              </div>
+              <p class="lesson-intro">
+                Every Azure resource emits two kinds of telemetry: <em>metrics</em> (numeric time series, 1-minute granularity, kept 93 days for free) and <em>logs</em> (timestamped JSON records, sent to a Log Analytics workspace you own, kept as long as you pay for). Knowing which signal your alert needs — and where it lives — is what AZ-104 tests on this topic.
+              </p>
+              <div class="lesson-section-head">Key concepts</div>
+              <ul class="lesson-bullets">
+                <li><strong>Platform metrics vs custom metrics:</strong> platform metrics (CPU %, network bytes, request count) are emitted by every Azure service automatically. Custom metrics come from inside your app via the Azure Monitor Metrics API or Application Insights SDK. Both are stored in the same time-series store; both feed metric alerts.</li>
+                <li><strong>Activity log:</strong> tenant-wide control-plane log — who created/modified/deleted what, when, from which IP. Default-on, immutable, 90-day retention. The auditing source of record (you saw this in Module 1's policy lesson).</li>
+                <li><strong>Diagnostic settings:</strong> the bridge that exports resource-specific logs and metrics to a destination (Log Analytics workspace, Storage Account, or Event Hub). Without a diagnostic setting, resource logs are NOT collected. Set per-resource or via Azure Policy at scale.</li>
+                <li><strong>Log Analytics workspace:</strong> the queryable log store. One workspace per region per "data sovereignty boundary" is the practical pattern. Pricing tiers: Pay-as-you-go (per GB ingested), Commitment Tiers (capacity reservation, ~30% cheaper), Sentinel-tier when SIEM is on.</li>
+                <li><strong>KQL (Kusto Query Language):</strong> the read language for Log Analytics. Pipe-style — <code>AzureActivity | where TimeGenerated &gt; ago(1h) | where OperationName == "Delete Virtual Machine" | project Caller, ResourceId</code>. Know <code>where</code>, <code>summarize</code>, <code>join</code>, <code>project</code>, <code>ago()</code>, <code>bin()</code>.</li>
+                <li><strong>Insights:</strong> pre-built dashboards on top of Log Analytics — <em>VM Insights</em> (perf, dependency map), <em>Container Insights</em> (AKS), <em>Application Insights</em> (web apps, distributed traces). Each Insights solution provisions the right diagnostic settings + queries automatically.</li>
+              </ul>
+              <div class="lesson-section-head">Concrete example</div>
+              <p>
+                You need to know which storage account had the most blob requests in the last 24 hours, by client IP. Steps: (1) on each storage account, create a <strong>diagnostic setting</strong> sending <code>StorageRead</code>, <code>StorageWrite</code>, and <code>StorageDelete</code> categories to your Log Analytics workspace; (2) wait for ingestion; (3) run the KQL query <code>StorageBlobLogs | summarize count() by AccountName, CallerIpAddress | top 10 by count_ desc</code>. Without the diagnostic setting in step 1, the data simply doesn't exist — metrics alone wouldn't break down by IP.
+              </p>
+              <div class="lesson-takeaway">
+                <strong>Key takeaway:</strong> metrics for fast numeric monitoring, logs (via diagnostic settings to Log Analytics) for forensic detail. KQL is the language of logs — learn enough <code>where</code> / <code>summarize</code> / <code>project</code> to answer "who did what" questions in seconds.
+              </div>
+              <div class="lesson-quiz">
+                <div class="lesson-quiz-head">⚡ Mini-quiz</div>
+                Practise metric-vs-log decisions → <a href="/train.html?pack=az-104&amp;mode=study">study mode (10 questions)</a>.
+              </div>
+            </div>
+
+            <div class="lesson-block">
+              <div class="lesson-title-row">
+                <span class="lesson-num">Lesson 8.2</span>
+                <span class="lesson-title">Alert rules and Action Groups</span>
+              </div>
+              <p class="lesson-intro">
+                Telemetry only matters if someone is told when it crosses a line. Azure has three alert-rule types and one reusable notification primitive (Action Groups). The exam routinely asks you to pick the right rule type given a condition — most candidates default to "metric alert" even when a "log query alert" is the correct answer.
+              </p>
+              <div class="lesson-section-head">Key concepts</div>
+              <ul class="lesson-bullets">
+                <li><strong>Metric alert:</strong> evaluates a platform-or-custom metric on a frequency (every minute) against a static or dynamic threshold. Fast (sub-minute latency), cheap (~$0.10/month per signal), no KQL. Right for CPU %, request count, queue depth — anything that is a numeric time series.</li>
+                <li><strong>Log query (scheduled query) alert:</strong> runs a KQL query against Log Analytics on a schedule (5 minutes minimum). Right when the condition can only be expressed as a query — "more than 5 failed sign-ins from one IP in 10 minutes", "any 5xx response from the API tier". Slower and pricier than metric alerts but vastly more expressive.</li>
+                <li><strong>Activity log alert:</strong> fires when a control-plane event matches a filter — "anyone deleting a VM in subscription X", "any role assignment created at subscription scope". Free, sub-minute latency, the standard "governance event" alarm.</li>
+                <li><strong>Action Groups:</strong> a reusable bundle of notification targets (email, SMS, voice call, push, webhook, Azure Function, Logic App, Event Hub, ITSM connector). One Action Group is referenced by many alert rules — change the on-call rotation once, every alert follows.</li>
+                <li><strong>Action Rules and alert suppression:</strong> Action Rules add or override notification behaviour by scope/filter (suppress all alerts during a maintenance window, change severity, route by tag). Lets you keep alert rules clean and handle exceptions declaratively.</li>
+                <li><strong>Severity and auto-resolution:</strong> severities Sev 0 (critical) → Sev 4 (verbose). Alerts auto-resolve when the condition clears — so dashboards reflect <em>current</em> state, not historical fires. Action Groups send a notification on both fire and resolve unless explicitly suppressed.</li>
+              </ul>
+              <div class="lesson-section-head">Concrete example</div>
+              <p>
+                A pager rotation needs to be notified when a production VM is deleted by ANY user. The right design: an <strong>Activity Log alert</strong> with the filter <code>Operation: Microsoft.Compute/virtualMachines/delete</code> + <code>Status: Succeeded</code>, scoped to the production subscription, severity Sev 1, action group <code>ag-prod-oncall</code> (PagerDuty webhook + email). A metric alert would not work — there's no metric for "deletion happened". A log query alert would work but is slower and costs more. Activity log alert is the right primitive.
+              </p>
+              <div class="lesson-takeaway">
+                <strong>Key takeaway:</strong> metric alert for numeric thresholds, log query alert when the condition is a query, activity log alert for governance events. Always route through Action Groups — never hard-code recipients on individual alert rules.
+              </div>
+              <div class="lesson-quiz">
+                <div class="lesson-quiz-head">⚡ Mini-quiz</div>
+                Drill alert-rule-type decisions → <a href="/train.html?pack=az-104&amp;mode=quick">quick quiz (5 questions)</a>.
+              </div>
+            </div>
+
+            <div class="lesson-block">
+              <div class="lesson-title-row">
+                <span class="lesson-num">Lesson 8.3</span>
+                <span class="lesson-title">Azure Backup and Azure Site Recovery</span>
+              </div>
+              <p class="lesson-intro">
+                Backup is "I deleted the data, give me a copy". Site Recovery is "the whole region is gone, give me a running system". They sound similar and run in the same Recovery Services Vault, but they answer different questions — and the exam loves to put both choices in the same answer list to see which one you reach for.
+              </p>
+              <div class="lesson-section-head">Key concepts</div>
+              <ul class="lesson-bullets">
+                <li><strong>Recovery Services Vault:</strong> the regional container for Azure Backup AND Azure Site Recovery. One vault per region, per workload group. Storage redundancy (LRS / ZRS / GRS) chosen at create — GRS gives cross-region copies of backups for "the primary region is gone" scenarios.</li>
+                <li><strong>Azure Backup — VM:</strong> snapshot-based, application-consistent on Windows (VSS) and Linux (pre/post scripts). Backup policy defines schedule (daily / weekly), retention (daily / weekly / monthly / yearly — the GFS pattern), and instant-restore snapshots. Restore points are immutable per Soft Delete (14 days default, up to 180 days).</li>
+                <li><strong>Azure Backup — other workloads:</strong> SQL on IaaS (transaction-log backups, point-in-time restore to second-level granularity), Azure Files (snapshot-based with policy), SAP HANA, MARS agent for individual files/folders on-prem, Azure Backup Server for Hyper-V / VMware on-prem.</li>
+                <li><strong>Azure Site Recovery (ASR):</strong> continuous replication to a secondary region. Two terms to know cold: <strong>RPO</strong> (Recovery Point Objective — how much data you can afford to lose, typically minutes for ASR), <strong>RTO</strong> (Recovery Time Objective — how long restoration takes, typically minutes-to-hours). ASR's RPO is sub-minute for most VM sizes.</li>
+                <li><strong>Three failover modes:</strong> <em>Test failover</em> creates an isolated copy in the secondary region — non-disruptive, the ONLY mode safe to run on a real Tuesday. <em>Planned failover</em> shuts the primary down cleanly, replicates the last delta, then brings up the secondary — zero data loss, used for region migrations. <em>Unplanned failover</em> brings up the secondary immediately, accepting whatever data was replicated — used during real disasters.</li>
+                <li><strong>Failback:</strong> after primary is healthy again, replicate the secondary's writes back to primary, then planned-failover to primary. Don't skip the test-failover step before going live — it's the only safe way to validate the DR runbook quarterly.</li>
+              </ul>
+              <div class="lesson-section-head">Concrete example</div>
+              <p>
+                A regulated workload has two requirements: (1) <strong>recover deleted SQL data</strong> within 5 minutes of a user error; (2) <strong>survive a regional outage</strong> with an RPO under 1 minute and an RTO under 30 minutes. Two distinct controls: enable <strong>Azure Backup for Azure SQL</strong> with transaction-log retention 30 days (satisfies #1 — point-in-time restore is second-level granularity); separately enable <strong>Azure Site Recovery</strong> on the SQL Server VMs replicating to a paired region, run a quarterly test-failover to validate the DR runbook (satisfies #2). Both run in the same Recovery Services Vault but solve different problems.
+              </p>
+              <div class="lesson-takeaway">
+                <strong>Key takeaway:</strong> Backup for granular point-in-time recovery, ASR for regional failover. Both live in the Recovery Services Vault. Memorise the three failover modes — Test (safe), Planned (zero data loss, primary cooperative), Unplanned (immediate, may lose seconds of writes).
+              </div>
+              <div class="lesson-quiz">
+                <div class="lesson-quiz-head">⚡ Mini-quiz</div>
+                Practise Backup-vs-ASR scenarios → <a href="/train.html?pack=az-104&amp;mode=study">study mode (10 questions)</a>.
+              </div>
+            </div>
+
+          </div>
+        </details>
       </div>
 
     </div>
