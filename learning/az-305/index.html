@@ -305,10 +305,107 @@
         </details>
       </div>
 
-      <div class="module-card">
-        <div class="module-num">Module 02</div>
+      <div class="module-card is-expanded">
+        <div class="module-num">Module 02<span class="chapter-badge">3 lessons</span></div>
         <div class="module-title">Hybrid Identity &amp; Monitoring</div>
         <div class="module-desc">Pass-Through Authentication (PTA) vs Password Hash Sync vs ADFS federation for compliance requirements; Azure Monitor Agent (AMA) with Data Collection Rules (DCRs); Application Insights for APM and distributed tracing; Log Analytics workspace retention tiers (Analytics vs Basic vs Auxiliary); dual-destination Diagnostic Settings pattern for cost-optimized compliance logging; Management Group subscription hierarchy design.</div>
+
+        <details>
+          <summary class="chapter-toggle" role="button">📖 Read in-depth chapter <span class="chapter-toggle-icon">▾</span></summary>
+          <div class="chapter-content">
+
+            <div class="lesson-block">
+              <div class="lesson-title-row">
+                <span class="lesson-pos">Lesson 2.1</span>
+                <span class="lesson-title">Hybrid identity sync — PHS, PTA, federation</span>
+              </div>
+              <p class="lesson-intro">
+                Hybrid identity is the bridge between on-prem Active Directory and Microsoft Entra ID. Three sync modes have different security postures, operational costs, and failure characteristics. The exam asks you to map a compliance requirement to the right mode.
+              </p>
+              <div class="lesson-section-head">Key concepts</div>
+              <ul class="lesson-bullets">
+                <li><strong>Password Hash Sync (PHS):</strong> Entra Connect syncs a hash of the on-prem password hash to Entra ID. Users authenticate at Entra; on-prem doesn't need to be reachable. Simplest, default, supports Entra ID smart features (leaked-credential detection, Conditional Access). Most teams should pick this.</li>
+                <li><strong>Pass-Through Authentication (PTA):</strong> Entra Connect installs lightweight agents on-prem that validate passwords against on-prem AD on every sign-in. Password never leaves on-prem. Use when policy requires the password validation to happen on-prem. Requires multiple agents for HA.</li>
+                <li><strong>Federation (ADFS / third-party):</strong> Entra ID redirects auth to on-prem ADFS or a SAML IdP. Most operationally expensive (own ADFS farm) and most fragile. Used only when smart cards, third-party MFA, or specific token claims are non-negotiable.</li>
+                <li><strong>Seamless SSO:</strong> can be added to PHS or PTA — Kerberos-based, no add'l prompt for users already signed into the on-prem domain. Federation has SSO inherent.</li>
+                <li><strong>Entra Cloud Sync:</strong> newer lightweight alternative to Entra Connect for simple sync scenarios. Supports multi-forest from a single sync engine. Doesn't yet match Connect's full feature set; check current docs before committing.</li>
+                <li><strong>Disaster scenarios:</strong> PHS keeps auth working even when on-prem is offline. PTA fails closed. Federation fails closed AND requires complex Multi-Site / WAP farm DR. PHS is the cheapest "still works when AD is down" option.</li>
+              </ul>
+              <div class="lesson-section-head">Concrete example</div>
+              <p>
+                A 5,000-user firm migrates to Microsoft 365 and Entra ID. Compliance dictates "password validation must happen on-prem". Security wants leaked-credential detection. Both are required. Choice: <strong>PTA + PHS together</strong> — PTA validates the actual sign-in; PHS sends hashes for leaked-credential detection (which compares to Microsoft's known-bad list, not as primary auth). Add <strong>Seamless SSO</strong> for domain-joined laptops. Federation explicitly avoided as overkill.
+              </p>
+              <div class="lesson-takeaway">
+                <strong>Key takeaway:</strong> PHS for default and disaster resilience. PTA when on-prem MUST validate. Federation only when claims/MFA/smart-card requirements force it. PHS + PTA combined is a legitimate hybrid pattern.
+              </div>
+              <div class="lesson-quiz">
+                <div class="lesson-quiz-head">⚡ Mini-quiz</div>
+                Drill hybrid sync decisions → <a href="/train.html?pack=az-305&amp;mode=study">study mode (10 questions)</a>.
+              </div>
+            </div>
+
+            <div class="lesson-block">
+              <div class="lesson-title-row">
+                <span class="lesson-pos">Lesson 2.2</span>
+                <span class="lesson-title">Monitoring architecture — Log Analytics, AMA, DCR</span>
+              </div>
+              <p class="lesson-intro">
+                AZ-305's monitoring questions are about architecture, not config. Pick the right workspace topology, the right collection mechanism, and the right retention tier — get any wrong and you either lose evidence or pay ten times the necessary cost.
+              </p>
+              <div class="lesson-section-head">Key concepts</div>
+              <ul class="lesson-bullets">
+                <li><strong>Log Analytics workspace topology:</strong> one workspace per region per data-sovereignty boundary is the common pattern. Resist the "one global workspace" temptation — egress to another region costs more than per-workspace overhead.</li>
+                <li><strong>Azure Monitor Agent (AMA):</strong> the modern unified agent (replacing the legacy Log Analytics Agent / OMS Agent). Targets VMs / VMSS / Arc-enabled servers via association with Data Collection Rules.</li>
+                <li><strong>Data Collection Rules (DCR):</strong> declarative resource that specifies WHAT to collect (perf counters, syslog, custom logs) and WHERE to send it. Multiple DCRs can target the same VM via Data Collection Rule Associations (DCRA). Replaces per-workspace agent config of the old model.</li>
+                <li><strong>Retention tiers:</strong> <em>Analytics</em> (full-feature, queryable in the standard UI, expensive) — 30/60/90 days standard. <em>Basic</em> (limited query, cheaper, KQL <code>search</code> + filters only) — useful for long-tail debug data. <em>Archive</em> (long-term, restore-to-query) — for compliance retention.</li>
+                <li><strong>Dual-destination pattern:</strong> send the same data to BOTH a Log Analytics workspace (for queryable hot data, 30-day retention) AND a Storage Account (long-term archive at 1/10th the cost). DCRs make this straightforward.</li>
+                <li><strong>Application Insights:</strong> APM + distributed tracing for apps. Workspace-based mode is the only supported option now — the AI data lives in your Log Analytics workspace. Used for end-to-end transaction tracing, dependency maps, and live-traffic exception streaming.</li>
+              </ul>
+              <div class="lesson-section-head">Concrete example</div>
+              <p>
+                A global retailer with strict 7-year audit-log retention and a 90-day operational retention. Design: <strong>one Log Analytics workspace per region</strong> for operational data (90-day retention on Analytics tier). For audit logs: separate <strong>Diagnostic Setting destinations</strong> on each workload — Activity Log + key resources stream to BOTH the regional workspace AND a centralised <strong>Storage Account</strong> with immutability locked for 7 years. AMA + DCRs handle the VM-side collection; Application Insights covers the application tier with workspace-based mode.
+              </p>
+              <div class="lesson-takeaway">
+                <strong>Key takeaway:</strong> per-region workspaces, AMA + DCRs for unified collection, dual-destination for hot+cold retention, Application Insights in workspace-based mode. Resist global-workspace centralisation.
+              </div>
+              <div class="lesson-quiz">
+                <div class="lesson-quiz-head">⚡ Mini-quiz</div>
+                Practise monitoring topology scenarios → <a href="/train.html?pack=az-305&amp;mode=quick">quick quiz (5 questions)</a>.
+              </div>
+            </div>
+
+            <div class="lesson-block">
+              <div class="lesson-title-row">
+                <span class="lesson-pos">Lesson 2.3</span>
+                <span class="lesson-title">Alerts, action groups, and Sentinel integration</span>
+              </div>
+              <p class="lesson-intro">
+                Logs only matter if they fire alerts. AZ-305 tests your design judgment on which alert type for which condition, and on whether Sentinel belongs in the architecture.
+              </p>
+              <div class="lesson-section-head">Key concepts</div>
+              <ul class="lesson-bullets">
+                <li><strong>Alert rule types:</strong> <em>Metric</em> (numeric time series), <em>Log query</em> (KQL on Log Analytics), <em>Activity log</em> (control-plane events), <em>Smart Detector</em> (Application Insights anomalies). Pick by what your condition can be expressed as.</li>
+                <li><strong>Action groups:</strong> reusable notification bundles — email, SMS, voice call, push, webhook, Logic App, Azure Function, ITSM. One action group used by many alerts; updating the on-call rotation is one operation, not 50.</li>
+                <li><strong>Action rules:</strong> override notification behaviour by scope/filter — suppress all alerts during a maintenance window, change severity, route by tag.</li>
+                <li><strong>Workbooks and dashboards:</strong> Workbooks are interactive parameterised reports built on KQL. Dashboards aggregate metric tiles, log charts, and pinned visuals into a single view. Both deploy as ARM resources alongside the workload.</li>
+                <li><strong>Microsoft Sentinel:</strong> SIEM + SOAR built on top of Log Analytics. Adds analytics rules (KQL detections), incidents, automation playbooks (Logic Apps), and threat intelligence. Use when security ops needs queue-style incident management — not just "alert someone".</li>
+                <li><strong>Defender for Cloud vs Sentinel:</strong> Defender is the CSPM + workload-protection layer (vulnerabilities, misconfig, agent-based runtime protection). Sentinel is the SIEM. Most enterprises run both — Defender feeds findings into Sentinel as alerts.</li>
+              </ul>
+              <div class="lesson-section-head">Concrete example</div>
+              <p>
+                A regulated workload needs: (1) page on-call when VM CPU &gt; 90% for 10 minutes, (2) page security when a privileged-account sign-in happens from an unusual location, (3) SOC analyst workflow for security incidents. Design: (1) <strong>Metric alert</strong> on the VM Insights CPU metric → action group <code>ag-oncall</code> (PagerDuty webhook). (2) <strong>Log query alert</strong> on a SigninLogs KQL query → action group <code>ag-security</code> + auto-create incident in <strong>Microsoft Sentinel</strong>. (3) Sentinel analytics rule with the same logic + playbook to auto-disable the user via Logic App on critical risk. SOC works the Sentinel incidents queue.
+              </p>
+              <div class="lesson-takeaway">
+                <strong>Key takeaway:</strong> metric / log query / activity log alerts handle most cases; Sentinel adds incident workflow when security ops needs a queue. Action groups own routing; alerts own conditions; don't conflate them.
+              </div>
+              <div class="lesson-quiz">
+                <div class="lesson-quiz-head">⚡ Mini-quiz</div>
+                Drill alert + Sentinel integration scenarios → <a href="/train.html?pack=az-305&amp;mode=study">study mode (10 questions)</a>.
+              </div>
+            </div>
+
+          </div>
+        </details>
       </div>
 
       <div class="module-card is-expanded">
@@ -622,16 +719,212 @@
         </details>
       </div>
 
-      <div class="module-card">
-        <div class="module-num">Module 06</div>
+      <div class="module-card is-expanded">
+        <div class="module-num">Module 06<span class="chapter-badge">3 lessons</span></div>
         <div class="module-title">Compute &amp; Integration Services</div>
         <div class="module-desc">Azure Batch for HPC scale-to-zero workloads with spot VM pricing; AKS with KEDA + HPA for mixed scaling microservices; Container Apps for serverless containers with sidecar support and scale-to-zero; Azure Migrate Discovery &amp; Assessment appliance for right-sizing and dependency mapping; Azure Database Migration Service (DMS) online mode for minimal-downtime SQL migrations; API Management (APIM) for rate limiting, JWT validation, developer portal, and product subscriptions; Service Bus message sessions for exactly-once ordered financial transaction processing.</div>
+
+        <details>
+          <summary class="chapter-toggle" role="button">📖 Read in-depth chapter <span class="chapter-toggle-icon">▾</span></summary>
+          <div class="chapter-content">
+
+            <div class="lesson-block">
+              <div class="lesson-title-row">
+                <span class="lesson-pos">Lesson 6.1</span>
+                <span class="lesson-title">Choosing compute — VMs, App Service, Containers, Functions</span>
+              </div>
+              <p class="lesson-intro">
+                Azure compute is a ladder of abstractions from raw VMs up to serverless functions. AZ-305 asks you to climb the ladder — pick the highest-abstraction option that satisfies the requirement, because each step up cuts operational toil.
+              </p>
+              <div class="lesson-section-head">Key concepts</div>
+              <ul class="lesson-bullets">
+                <li><strong>Azure VMs:</strong> full control + responsibility for OS patching. Use only when you need OS-level access, specific kernels, GPUs not in PaaS, or licensing tied to physical CPU sockets.</li>
+                <li><strong>App Service:</strong> managed web hosting. Standard / Premium / Isolated tiers. Slot swap, autoscale, custom domains, managed identities. Right for stateless web apps, APIs, background jobs (WebJobs).</li>
+                <li><strong>Azure Container Instances (ACI):</strong> single-container serverless runs. Pay per second. Right for batch jobs, ephemeral tasks, virtual-kubelet bursts from AKS.</li>
+                <li><strong>Container Apps:</strong> managed Kubernetes-shaped serverless containers. KEDA-based scaling (including scale-to-zero), Dapr sidecars, revisions for blue/green. The modern "I have a container but don't want full AKS" answer.</li>
+                <li><strong>AKS:</strong> managed Kubernetes — control plane free, pay only for worker nodes. Right when you need K8s primitives, complex orchestration, helm ecosystem, or third-party operators.</li>
+                <li><strong>Functions:</strong> event-driven serverless. Consumption (true serverless), Premium (warm), App Service plan (predictable cost). Right for trigger-driven workflows, glue code, event handlers.</li>
+                <li><strong>Azure Batch:</strong> managed batch + HPC. Scale-to-zero, Spot VM support, low-priority pools. Right for one-off massive parallel jobs (rendering, scientific compute).</li>
+              </ul>
+              <div class="lesson-section-head">Concrete example</div>
+              <p>
+                A SaaS team has: (1) a long-running web tier (state in DB only), (2) a containerised image-processing service that scales 0 → 200 on bursts, (3) a CSV-to-DB ETL that runs nightly, (4) a research team's nightly molecular-dynamics simulation across hundreds of cores. Choices: (1) <strong>App Service</strong> Premium V3 with autoscale. (2) <strong>Container Apps</strong> with KEDA queue-triggered scale 0-200. (3) <strong>Function App</strong> on Consumption plan, time trigger. (4) <strong>Azure Batch</strong> low-priority Spot pool — scales to zero between runs.
+              </p>
+              <div class="lesson-takeaway">
+                <strong>Key takeaway:</strong> climb the ladder. Functions for triggers, Container Apps for scale-to-zero microservices, App Service for stateless web, AKS only when you need K8s, Batch for HPC, VMs only when forced.
+              </div>
+              <div class="lesson-quiz">
+                <div class="lesson-quiz-head">⚡ Mini-quiz</div>
+                Drill compute-selection scenarios → <a href="/train.html?pack=az-305&amp;mode=study">study mode (10 questions)</a>.
+              </div>
+            </div>
+
+            <div class="lesson-block">
+              <div class="lesson-title-row">
+                <span class="lesson-pos">Lesson 6.2</span>
+                <span class="lesson-title">API Management — façade, security, and developer experience</span>
+              </div>
+              <p class="lesson-intro">
+                Azure API Management (APIM) sits in front of your APIs and adds rate limiting, transformation, auth, and a developer portal. AZ-305 tests when APIM is the right choice and which tier / topology fits.
+              </p>
+              <div class="lesson-section-head">Key concepts</div>
+              <ul class="lesson-bullets">
+                <li><strong>Tier ladder:</strong> Consumption (pay-per-call serverless), Developer (non-prod single instance), Basic / Standard / Premium (multi-region, multi-AZ, VNet integration), Isolated (dedicated single-tenant, regulated industries).</li>
+                <li><strong>Premium-only features:</strong> multi-region deployment, VNet integration with internal mode (no public IP), self-hosted gateway (run APIM gateway on-prem or in another cloud), Availability Zone deployment.</li>
+                <li><strong>Policies:</strong> XML pipeline (inbound, backend, outbound, on-error). Rate limit, set-header, set-backend-service, validate-jwt, cache-lookup, mock-response, return-response. The composability is what makes APIM more than just a reverse proxy.</li>
+                <li><strong>Products and subscriptions:</strong> a product is a curated bundle of APIs with a subscription key. Consumers subscribe to products via the developer portal. Per-product rate limits and approval workflows.</li>
+                <li><strong>Backends:</strong> point to App Service, Function App, AKS, on-prem (via VNet), or third-party HTTP endpoints. APIM caches credentials and provides one consistent client-facing surface for many backends.</li>
+                <li><strong>Self-hosted gateway:</strong> the APIM gateway as a container you run anywhere — on-prem, AWS, edge. Control plane in Azure; data plane wherever needed. Solves "API is on-prem but I want APIM features".</li>
+              </ul>
+              <div class="lesson-section-head">Concrete example</div>
+              <p>
+                A bank exposes 40 internal APIs to external partners with: (1) per-partner rate limits, (2) JWT validation against partner IdPs, (3) audit logging, (4) regulatory requirement that one of the APIs runs in-DC behind a firewall. Choice: <strong>APIM Premium</strong> with multi-region deployment for SLA, VNet integration in internal mode. Each partner gets a <em>Product</em> wrapping selected APIs, with per-product rate-limit policies. <strong>Self-hosted gateway</strong> runs on-prem for the regulated API; same APIM management plane handles policy.
+              </p>
+              <div class="lesson-takeaway">
+                <strong>Key takeaway:</strong> APIM Premium for production multi-region with VNet integration. Self-hosted gateway extends the data plane to on-prem / other clouds. Products + subscriptions = monetisation / partner-tier model.
+              </div>
+              <div class="lesson-quiz">
+                <div class="lesson-quiz-head">⚡ Mini-quiz</div>
+                Practise APIM tier and policy scenarios → <a href="/train.html?pack=az-305&amp;mode=quick">quick quiz (5 questions)</a>.
+              </div>
+            </div>
+
+            <div class="lesson-block">
+              <div class="lesson-title-row">
+                <span class="lesson-pos">Lesson 6.3</span>
+                <span class="lesson-title">Migration and integration — Azure Migrate, DMS, Service Bus</span>
+              </div>
+              <p class="lesson-intro">
+                AZ-305 tests migration design more than tooling specifics. Know what each tool does, which one is the right fit, and the order to combine them in a phased migration.
+              </p>
+              <div class="lesson-section-head">Key concepts</div>
+              <ul class="lesson-bullets">
+                <li><strong>Azure Migrate:</strong> the umbrella tool with Discovery & Assessment, Server Migration (powered by ASR), and Database Migration (powered by DMS). Always start here — the discovery appliance maps on-prem dependencies and right-sizes Azure VMs.</li>
+                <li><strong>Database Migration Service (DMS):</strong> two modes — <em>offline</em> (cutover at the end, downtime equal to migration), <em>online</em> (continuous replication, near-zero downtime cutover via DNS flip). Online supports SQL Server → Azure SQL Database / Managed Instance, MySQL, PostgreSQL.</li>
+                <li><strong>Server Migration:</strong> uses ASR-style replication. Same continuous-replication model, planned-failover semantics for the cutover. Right for VM-level migrations from VMware, Hyper-V, AWS, GCP.</li>
+                <li><strong>Service Bus:</strong> enterprise message bus — queues, topics/subscriptions, sessions for ordered processing, dead-letter queues, scheduled messages, duplicate detection. Pick over Event Grid when you need queue-style competing-consumer semantics and ordering.</li>
+                <li><strong>Event Grid:</strong> publish/subscribe for state-change events at massive scale. System topics from Azure services (blob created, VM started), custom topics from your apps, partner topics from SaaS. Push delivery, retries, dead-letter.</li>
+                <li><strong>Decision pattern:</strong> Service Bus when you need ordering / sessions / queues / competing consumers / FIFO. Event Grid when you need pub/sub with massive fan-out. Both can coexist in a single architecture (Service Bus for transactional flows; Event Grid for state-change broadcasts).</li>
+              </ul>
+              <div class="lesson-section-head">Concrete example</div>
+              <p>
+                A bank migrates a 100-VM on-prem datacentre with an Oracle DB to Azure with near-zero downtime. Plan: phase 1 — <strong>Azure Migrate Discovery</strong> appliance maps dependencies, right-sizes VMs, identifies the Oracle DB as the integration bottleneck. Phase 2 — <strong>Server Migration</strong> replicates VMs continuously, app team validates in a test failover. Phase 3 — <strong>DMS online mode</strong> replicates Oracle → Azure Database for PostgreSQL (with schema conversion via SSMA). Cutover: short read-only window, DMS final sync, DNS flip to the Azure endpoints. Total cutover downtime: &lt; 10 minutes.
+              </p>
+              <div class="lesson-takeaway">
+                <strong>Key takeaway:</strong> Azure Migrate first for discovery + right-sizing. DMS online for DB cutover with minimal downtime. Service Bus for ordered/queue messaging, Event Grid for pub/sub state changes; they coexist.
+              </div>
+              <div class="lesson-quiz">
+                <div class="lesson-quiz-head">⚡ Mini-quiz</div>
+                Drill migration + messaging scenarios → <a href="/train.html?pack=az-305&amp;mode=study">study mode (10 questions)</a>.
+              </div>
+            </div>
+
+          </div>
+        </details>
       </div>
 
-      <div class="module-card">
-        <div class="module-num">Module 07</div>
+      <div class="module-card is-expanded">
+        <div class="module-num">Module 07<span class="chapter-badge">3 lessons</span></div>
         <div class="module-title">Advanced Architecture Patterns</div>
         <div class="module-desc">Managed Identity (system-assigned vs user-assigned) for zero-credential service-to-service auth; Azure Front Door + Cosmos DB multi-master for active-active global deployments; Azure Blueprints for subscription-level governance scaffolding with versioned artifacts; Data Box / Data Box Heavy for offline petabyte-scale data transfer; App Service HttpQueueLength autoscale for queue-based scaling beyond CPU; Event Grid for event-driven blob processing and pub/sub patterns; Azure Blueprints vs Terraform vs Azure Policy: governance tool selection criteria.</div>
+
+        <details>
+          <summary class="chapter-toggle" role="button">📖 Read in-depth chapter <span class="chapter-toggle-icon">▾</span></summary>
+          <div class="chapter-content">
+
+            <div class="lesson-block">
+              <div class="lesson-title-row">
+                <span class="lesson-pos">Lesson 7.1</span>
+                <span class="lesson-title">Managed identities and zero-credential service auth</span>
+              </div>
+              <p class="lesson-intro">
+                Hard-coded secrets are the easiest credential-theft path. Managed identities eliminate them — Azure issues short-lived tokens to your resource automatically. AZ-305 expects you to design every service-to-service auth around managed identities by default.
+              </p>
+              <div class="lesson-section-head">Key concepts</div>
+              <ul class="lesson-bullets">
+                <li><strong>System-assigned MI:</strong> tied to the resource's lifecycle — created/deleted with the resource. Use when one identity per resource is the right scope. The default for most cases.</li>
+                <li><strong>User-assigned MI:</strong> standalone resource you create, assign to multiple resources. Use when many resources share one role (e.g., a fleet of VMs all accessing the same Key Vault) or when you need to grant access BEFORE the resource exists.</li>
+                <li><strong>Federated identity credentials:</strong> let an external workload (GitHub Actions, AWS, Kubernetes via OIDC) trade its identity for an Azure token without secrets. Right for CI/CD pipelines connecting to Azure.</li>
+                <li><strong>RBAC + Key Vault references:</strong> grant the MI a data-plane role on the target (Storage Blob Data Reader, SQL DB Contributor, Key Vault Secrets User). In App Service / Functions, use <code>@Microsoft.KeyVault(SecretUri=...)</code> in app settings — the runtime fetches with the MI; no code changes.</li>
+                <li><strong>Service Connector:</strong> newer abstraction that wires identity + connection for App Service / Container Apps / Functions → DB / Storage / Cache. Reduces the boilerplate of provisioning + permission + config string.</li>
+                <li><strong>Audit trail:</strong> every MI token request is logged in the resource's Activity Log and (if signed-in) in Entra ID sign-in logs. Forensic-ready by default — vs hard-coded secrets which leave no audit trail when reused.</li>
+              </ul>
+              <div class="lesson-section-head">Concrete example</div>
+              <p>
+                A web app on App Service needs to read secrets from Key Vault, write blobs to Storage, and connect to Azure SQL DB. Design: enable <strong>system-assigned managed identity</strong> on the App Service. Grant: <em>Key Vault Secrets User</em> on the vault, <em>Storage Blob Data Contributor</em> on the storage account, <em>db_datareader + db_datawriter</em> mapped to the MI on the SQL DB. App settings reference Key Vault secrets via <code>@Microsoft.KeyVault</code> URIs. No connection strings with passwords anywhere. Pipeline uses <strong>federated identity credentials</strong> from GitHub Actions OIDC for deploys.
+              </p>
+              <div class="lesson-takeaway">
+                <strong>Key takeaway:</strong> system-assigned for "one identity per resource", user-assigned for "one identity across many resources or pre-existing". Federated identity credentials for non-Azure CI/CD. Eliminate every connection string with a password.
+              </div>
+              <div class="lesson-quiz">
+                <div class="lesson-quiz-head">⚡ Mini-quiz</div>
+                Drill managed-identity scenarios → <a href="/train.html?pack=az-305&amp;mode=study">study mode (10 questions)</a>.
+              </div>
+            </div>
+
+            <div class="lesson-block">
+              <div class="lesson-title-row">
+                <span class="lesson-pos">Lesson 7.2</span>
+                <span class="lesson-title">IaC at scale — Bicep, ARM, Terraform, Deployment Stacks</span>
+              </div>
+              <p class="lesson-intro">
+                AZ-305 covers IaC at the architectural level — which tool fits which org, how to gate deploys, how to handle drift. Picking the right tool is as much culture as technology.
+              </p>
+              <div class="lesson-section-head">Key concepts</div>
+              <ul class="lesson-bullets">
+                <li><strong>ARM JSON:</strong> the legacy template format. Verbose, ugly, but the substrate everything else compiles to. Read-only in practice — you'll rarely hand-write ARM in 2026.</li>
+                <li><strong>Bicep:</strong> Microsoft's DSL over ARM. Cleaner syntax, modules, conditional resources, loops. Transpiles to ARM. Free, first-class Azure support. The native AZ-305 IaC answer.</li>
+                <li><strong>Terraform:</strong> HashiCorp's multi-cloud IaC. Same use cases as Bicep for Azure-only, plus consistent tooling if your org runs multi-cloud. Use when the org already has Terraform skills.</li>
+                <li><strong>Deployment Stacks:</strong> a managed deployment with deny assignments — Azure prevents resources owned by the stack from being modified or deleted outside the stack. Replaces Azure Blueprints. Critical for governance scaffolding.</li>
+                <li><strong>Template Specs:</strong> versioned Bicep/ARM templates stored as Azure resources. Share approved templates centrally; consumers deploy by reference. Used in landing-zone patterns to publish a "compliant network" template that BU teams reuse.</li>
+                <li><strong>Drift detection:</strong> Bicep / Terraform <code>plan</code> shows the diff between declared state and actual. Azure Policy (with <code>Audit</code> effect) detects post-deploy configuration changes. Combine — IaC for greenfield + Policy for ongoing compliance enforcement.</li>
+              </ul>
+              <div class="lesson-section-head">Concrete example</div>
+              <p>
+                An enterprise builds a landing zone — repeatable subscription scaffolding with mandatory policies, hub VNet, monitoring workspace. Old way: Azure Blueprints. Modern way: <strong>Bicep modules</strong> published as <strong>Template Specs</strong>, deployed via <strong>Deployment Stacks</strong> with <code>denySettings: denyDelete</code> so BU teams can't accidentally delete the shared resources. Azure Policy initiative attached at the MG above the subscription enforces ongoing compliance (no public IPs without exemption, etc.). Drift detection via Policy audit + monthly Bicep diff reports.
+              </p>
+              <div class="lesson-takeaway">
+                <strong>Key takeaway:</strong> Bicep + Template Specs + Deployment Stacks is the modern AZ-305 governance stack. Terraform when the org has the skills and multi-cloud. Blueprints is legacy — call it out but use Deployment Stacks for new builds.
+              </div>
+              <div class="lesson-quiz">
+                <div class="lesson-quiz-head">⚡ Mini-quiz</div>
+                Practise IaC tooling selection → <a href="/train.html?pack=az-305&amp;mode=quick">quick quiz (5 questions)</a>.
+              </div>
+            </div>
+
+            <div class="lesson-block">
+              <div class="lesson-title-row">
+                <span class="lesson-pos">Lesson 7.3</span>
+                <span class="lesson-title">Cost optimization, FinOps, and right-sizing</span>
+              </div>
+              <p class="lesson-intro">
+                The final design domain on AZ-305 is FinOps — designing for cost is as architecturally important as designing for availability. The exam tests cost-management primitives, commitment-based discounts, and the trade-offs of cost-optimised architectures.
+              </p>
+              <div class="lesson-section-head">Key concepts</div>
+              <ul class="lesson-bullets">
+                <li><strong>Reservations:</strong> 1- or 3-year commitments on specific SKUs (VMs, SQL DB, Cosmos DB, App Service, Synapse). 30-65% discount. Use for steady-state predictable workloads. Convertible reservations let you exchange SKUs.</li>
+                <li><strong>Savings Plans (compute):</strong> 1- or 3-year commitment to a $/hour spend across compute (VMs, App Service, Container Instances, Functions Premium). More flexible than VM Reservations — covers SKU changes automatically.</li>
+                <li><strong>Spot VMs:</strong> up to 90% discount, can be evicted with 30-second notice. Right for fault-tolerant batch / dev-test / stateless workloads. Combine with VMSS for graceful eviction handling.</li>
+                <li><strong>Azure Hybrid Benefit:</strong> use existing Windows Server / SQL Server licenses on Azure to skip the per-OS cost. Major saving on lift-and-shift migrations.</li>
+                <li><strong>Cost analysis + Budgets:</strong> Cost Management gives you slice-by-tag analytics and per-subscription budgets with threshold alerts. AZ-305 expects you to design "tag-everything" from day 1 so chargeback works.</li>
+                <li><strong>FinOps tooling integration:</strong> export Cost Management data to Storage → ingest into Power BI or third-party (CloudHealth, Apptio). Combine actual cost with capacity / utilisation metrics to find under-used resources for right-sizing.</li>
+                <li><strong>Architecture trade-offs:</strong> serverless (Consumption Functions, Container Apps scale-to-zero) trades latency for cost at low utilisation. PaaS (App Service) is a middle ground. IaaS (VMs) is cheapest at high steady utilisation if you've also bought reservations.</li>
+              </ul>
+              <div class="lesson-section-head">Concrete example</div>
+              <p>
+                A 24/7 SaaS with predictable baseline + 4× peak. Cost design: <strong>baseline VMs covered by a 3-year Savings Plan</strong> for the steady tier (~50% discount). Peak handled by <strong>Spot VMSS</strong> instances (90% discount, accept eviction during scale-down). Windows licenses come from on-prem via <strong>Azure Hybrid Benefit</strong>. <strong>Cost Management budgets</strong> at the subscription level with 80%/100% alerts; <strong>tagging policy</strong> enforces <code>CostCenter</code> + <code>Environment</code> + <code>Owner</code> on every resource via Modify policy effect. Monthly Power BI report cross-references cost with VM Insights utilisation to flag right-sizing candidates.
+              </p>
+              <div class="lesson-takeaway">
+                <strong>Key takeaway:</strong> Reservations / Savings Plans for steady baseline, Spot for fault-tolerant burst, Hybrid Benefit for license re-use. Tag from day 1 — chargeback is impossible without it. Right-size on data, not gut feel.
+              </div>
+              <div class="lesson-quiz">
+                <div class="lesson-quiz-head">⚡ Mini-quiz</div>
+                Drill cost-optimisation scenarios → <a href="/train.html?pack=az-305&amp;mode=study">study mode (10 questions)</a>.
+              </div>
+            </div>
+
+          </div>
+        </details>
       </div>
 
     </div>
