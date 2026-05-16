@@ -1,0 +1,197 @@
+{
+  "meta": {
+    "id": "gcp-pcse",
+    "name": "Google Cloud Professional Cloud Security Engineer",
+    "vendor": "Google Cloud",
+    "version": "1.0.0",
+    "question_count": 10,
+    "last_updated": "2026-05-16",
+    "notes": "Initial pack: 10 questions covering identity, data, network, application, detection, and compliance domains."
+  },
+  "questions": [
+    {
+      "id": "pcse-001",
+      "question": "A SaaS company runs analytics jobs on AWS that must query BigQuery datasets. The security team wants to eliminate long-lived service account keys currently stored in AWS Secrets Manager. Which approach reduces credential exposure most effectively?",
+      "options": [
+        "Rotate the service account key every 24 hours from a Lambda and write it to AWS Secrets Manager.",
+        "Use Workload Identity Federation so AWS workloads exchange their IAM role for short-lived tokens.",
+        "Embed the service account key in the container image and pin the image digest in deployments.",
+        "Issue one service account per AWS workload and grant AWS admins the Token Creator role on them."
+      ],
+      "correct": 1,
+      "explanation": "Workload Identity Federation lets external workloads (AWS, Azure, OIDC providers) impersonate Google service accounts using short-lived, automatically-rotated STS tokens, removing the need to store any long-lived key material outside Google Cloud. Key rotation still leaves a downloadable secret at rest; embedding keys in images is worse; granting Token Creator to humans only widens the blast radius.",
+      "tags": [
+        "iam",
+        "identity-federation",
+        "gcp-pcse"
+      ],
+      "difficulty": "medium"
+    },
+    {
+      "id": "pcse-002",
+      "question": "A developer needs to list objects in a single Cloud Storage bucket but must not download, modify, or delete any of them. Which assignment best fits the principle of least privilege?",
+      "options": [
+        "Grant roles/storage.objectViewer at the project level so the developer can browse all storage.",
+        "Grant roles/storage.legacyBucketReader at the bucket level for backward-compatible read access.",
+        "Grant a custom role at the bucket scope containing only the storage.objects.list permission.",
+        "Grant roles/viewer at the project level so the developer can inspect resource metadata widely."
+      ],
+      "correct": 2,
+      "explanation": "A custom role scoped to the bucket with just storage.objects.list grants the exact ability requested and nothing more. roles/storage.objectViewer also grants storage.objects.get (object download). roles/storage.legacyBucketReader confers read on bucket contents including downloads. roles/viewer at project scope is far too broad and applies to every resource in the project.",
+      "tags": [
+        "iam",
+        "least-privilege",
+        "custom-roles",
+        "gcp-pcse"
+      ],
+      "difficulty": "medium"
+    },
+    {
+      "id": "pcse-003",
+      "question": "A regulated bank stores compliance archives in Cloud Storage and must hold the encryption keys in its own on-premises HSM, with all key operations auditable and revocable by the bank's HSM administrators. Which option meets these requirements?",
+      "options": [
+        "Use Google-managed encryption keys with Access Transparency enabled to capture all access events.",
+        "Use Cloud KMS with software-protected keys stored in a dedicated multi-region key ring resource.",
+        "Use Cloud KMS with HSM-protected keys created in the same region as the storage bucket itself.",
+        "Use Cloud External Key Manager so the keys remain hosted in the bank's external HSM appliance."
+      ],
+      "correct": 3,
+      "explanation": "Cloud External Key Manager (Cloud EKM) keeps the key material in an external partner HSM (or the customer's own HSM via EKM-VPC); Google never sees the raw key and the bank can revoke access at the source. Google-managed keys give no customer control; software-protected and HSM-protected KMS keys remain inside Google's boundary, which fails the on-premises custody requirement.",
+      "tags": [
+        "kms",
+        "ekm",
+        "encryption",
+        "gcp-pcse"
+      ],
+      "difficulty": "hard"
+    },
+    {
+      "id": "pcse-004",
+      "question": "A retailer must scan customer support transcripts in Cloud Storage for credit card numbers and email addresses, then redact those fields before downstream analytics teams access the data. Which managed service is purpose-built for this workflow?",
+      "options": [
+        "Sensitive Data Protection (Cloud DLP) with infoType detectors and a de-identification template.",
+        "Cloud Functions triggered by uploads that run a regex-based redaction script on each transcript.",
+        "BigQuery column-level access policies applied after the raw transcripts land in a staging table.",
+        "Confidential VM nodes that decrypt and re-encrypt transcripts using customer-supplied keys only."
+      ],
+      "correct": 0,
+      "explanation": "Sensitive Data Protection (formerly Cloud DLP) provides managed infoType detectors for PCI, PII and similar categories and supports de-identification transformations such as redaction, masking, and tokenization driven by templates. Hand-rolled regex misses many variants and creates maintenance burden; column-level access controls hide values but do not redact them; Confidential VMs protect data in use, not classify or redact it.",
+      "tags": [
+        "data-protection",
+        "dlp",
+        "gcp-pcse"
+      ],
+      "difficulty": "medium"
+    },
+    {
+      "id": "pcse-005",
+      "question": "A research team's BigQuery dataset holds genomic records subject to data exfiltration rules. The CISO wants to prevent authorized users from copying the dataset to projects outside an approved boundary even when their IAM permissions would otherwise allow it. Which control enforces this?",
+      "options": [
+        "Add a deny policy on roles/bigquery.dataOwner for any principal outside the approved project list.",
+        "Define a VPC Service Controls perimeter around the projects with BigQuery as a restricted service.",
+        "Apply an organization policy that constrains allowedExternalUsers to the research team's identity.",
+        "Configure column-level access controls on the genomic columns and audit reads through Cloud Logging."
+      ],
+      "correct": 1,
+      "explanation": "VPC Service Controls draw a context-aware perimeter around restricted services (BigQuery, GCS, etc.). Cross-perimeter API calls are blocked regardless of IAM grants, defeating the classic 'copy to my own project' exfiltration pattern. IAM deny policies cannot model a project boundary; allowedExternalUsers is not a real constraint; column-level controls do not stop a permitted user from exporting the full table.",
+      "tags": [
+        "vpc-service-controls",
+        "exfiltration",
+        "gcp-pcse"
+      ],
+      "difficulty": "hard"
+    },
+    {
+      "id": "pcse-006",
+      "question": "A workload runs in a VPC subnet with no external IP and needs to call the storage.googleapis.com API. Traffic must not traverse the public internet, and the workload must keep using the existing hostname. Which configuration achieves this?",
+      "options": [
+        "Enable Private Google Access on the subnet so traffic to Google APIs flows over Google's network.",
+        "Deploy a Cloud NAT gateway and restrict its egress allow list to Google API IP ranges only.",
+        "Build a Cloud VPN tunnel between the VPC and a Google-managed VPN endpoint for storage traffic.",
+        "Use Cloud Interconnect with VLAN attachments advertising only Google API prefixes to the VPC."
+      ],
+      "correct": 0,
+      "explanation": "Private Google Access lets VMs without external IPs reach Google APIs and services via the existing googleapis.com endpoints; traffic stays on Google's internal network. Cloud NAT still uses public IPs by definition. There is no customer-facing Google-managed VPN endpoint for Storage. Cloud Interconnect addresses on-prem-to-VPC connectivity, not in-VPC API egress.",
+      "tags": [
+        "networking",
+        "private-google-access",
+        "gcp-pcse"
+      ],
+      "difficulty": "medium"
+    },
+    {
+      "id": "pcse-007",
+      "question": "A GKE cluster runs payment workloads. The platform team must guarantee that only images signed by the production CI pipeline can be deployed, and this guarantee must hold even if a developer's IAM permissions are misconfigured. Which feature provides it?",
+      "options": [
+        "Enable Container Analysis vulnerability scanning and block any image with critical findings here.",
+        "Configure Workload Identity so only the CI service account is allowed to push to Artifact Registry.",
+        "Enable Binary Authorization with an attestor policy that requires signatures from the CI's key.",
+        "Set up an admission webhook that blocks Pods whose image digests differ from a manifest list."
+      ],
+      "correct": 2,
+      "explanation": "Binary Authorization is a deploy-time policy enforced by GKE: a Pod cannot start unless its image has the attestations the policy requires (e.g., a signature from the CI pipeline's KMS key). Vulnerability scanning rates risk but does not gate deploys by default. Restricting push permissions does not stop someone with deploy rights from pulling an unsigned image. A custom webhook is brittle and bypassable if disabled or misconfigured.",
+      "tags": [
+        "gke",
+        "binary-authorization",
+        "supply-chain",
+        "gcp-pcse"
+      ],
+      "difficulty": "hard"
+    },
+    {
+      "id": "pcse-008",
+      "question": "An internal HR app on Compute Engine should be reachable by employees from any network without a VPN, while still enforcing strong identity-based access checks. Which solution meets both requirements with the least operational overhead?",
+      "options": [
+        "Front the app with Identity-Aware Proxy attached to a global external HTTPS load balancer.",
+        "Restrict the firewall to corporate office IP ranges and have employees connect via Cloud VPN.",
+        "Deploy Cloud Armor with a geo-IP policy that allows traffic only from countries where staff live.",
+        "Place the VM in a private VPC and expose it through a Bastion host that enforces SSH key auth."
+      ],
+      "correct": 0,
+      "explanation": "Identity-Aware Proxy is the BeyondCorp building block for context-aware access to HTTPS apps: users authenticate with Google identity, IAP checks IAM grants, and the backend never sees unauthenticated traffic. It removes the VPN entirely. IP-based restrictions are weak identity signals; geo policies do not authenticate users; a Bastion gives SSH, not HTTP app access.",
+      "tags": [
+        "iap",
+        "beyondcorp",
+        "zero-trust",
+        "gcp-pcse"
+      ],
+      "difficulty": "medium"
+    },
+    {
+      "id": "pcse-009",
+      "question": "A central security team must continuously inventory misconfigurations such as public Cloud Storage buckets, unrestricted firewall rules, and over-privileged service accounts across the entire organization. Which service provides this aggregated posture view?",
+      "options": [
+        "Cloud Asset Inventory exports paired with custom BigQuery scheduled queries that run each hour.",
+        "Cloud Logging sinks aggregating Cloud Audit Logs into a central project for SIEM forwarding tasks.",
+        "Security Command Center with Security Health Analytics enabled at the organization-node level.",
+        "Recommender insights gathered through the gcloud recommender command-line interface daily here."
+      ],
+      "correct": 2,
+      "explanation": "Security Command Center is GCP's posture and threat-management hub. Its Security Health Analytics module continuously detects high-impact misconfigurations (public buckets, open firewalls, weak IAM bindings) across every project in the organization. Asset Inventory exposes raw state but leaves detection to you; Cloud Logging is reactive on events, not posture; Recommender focuses on optimization hints, not security findings.",
+      "tags": [
+        "scc",
+        "posture-management",
+        "gcp-pcse"
+      ],
+      "difficulty": "medium"
+    },
+    {
+      "id": "pcse-010",
+      "question": "A compliance officer requires that no Compute Engine VM in any project under the organization can be created with an external IP address. The control must apply to every existing and future project without per-project firewall edits. Which mechanism enforces this?",
+      "options": [
+        "Apply the constraints/compute.vmExternalIpAccess organization policy at the org node with deny-all.",
+        "Edit the default VPC in each project to remove the auto-mode subnets that assign external IPs.",
+        "Create a deny IAM policy on roles/compute.networkAdmin to block staff from attaching public IPs.",
+        "Schedule a Cloud Function to scan all projects nightly and delete instances that hold public IPs."
+      ],
+      "correct": 0,
+      "explanation": "Organization Policy with the constraints/compute.vmExternalIpAccess list constraint set to deny-all at the organization node blocks the creation of any VM with an external IP and is inherited by every child project, existing and future. Manually editing each project's VPC will not scale and does not prevent users from re-adding external IPs. Removing the role removes legitimate work too. A nightly cleanup job is reactive and leaves a window of exposure.",
+      "tags": [
+        "organization-policy",
+        "compliance",
+        "gcp-pcse"
+      ],
+      "difficulty": "medium"
+    }
+  ]
+}
