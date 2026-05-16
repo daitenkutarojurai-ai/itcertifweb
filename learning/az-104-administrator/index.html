@@ -766,8 +766,8 @@
         </details>
       </div>
 
-      <div class="module-card">
-        <div class="module-num">Module 7</div>
+      <div class="module-card is-expanded">
+        <div class="module-num">Module 7<span class="chapter-badge">3 lessons</span></div>
         <div class="module-title">Load Balancing, DNS, and Network Services</div>
         <p class="module-desc">Distribute traffic and resolve names at scale with Azure network services. Compare Azure Load Balancer (Layer 4, internal vs public, Basic vs Standard SKU) with Application Gateway (Layer 7, WAF, SSL termination, URL-based routing). Use Azure DNS to host public and private zones, configure custom domains for App Services, and delegate subdomains. Understand Traffic Manager (DNS-based global routing) and Azure Front Door (anycast CDN with WAF) for multi-region scenarios.</p>
         <div class="module-topics">
@@ -780,6 +780,106 @@
           <span class="topic-tag">Azure Front Door vs CDN</span>
           <span class="topic-tag">Network Watcher tools (IP flow verify, NSG diagnostics)</span>
         </div>
+
+        <details>
+          <summary class="chapter-toggle" role="button">
+            📖 Read in-depth chapter
+            <span class="chapter-toggle-icon">▾</span>
+          </summary>
+          <div class="chapter-content">
+
+            <div class="lesson-block">
+              <div class="lesson-title-row">
+                <span class="lesson-num">Lesson 7.1</span>
+                <span class="lesson-title">Azure Load Balancer — Layer 4 traffic distribution</span>
+              </div>
+              <p class="lesson-intro">
+                Azure Load Balancer is the regional Layer-4 distributor — it forwards TCP/UDP packets to a backend pool based on a five-tuple hash, without ever looking inside the payload. It's free for inbound rules, blisteringly fast, and the right choice anywhere you don't need URL-aware routing. The exam routinely contrasts the SKUs and the public-vs-internal split, so know both cold.
+              </p>
+              <div class="lesson-section-head">Key concepts</div>
+              <ul class="lesson-bullets">
+                <li><strong>Public vs Internal:</strong> a <em>public</em> Load Balancer has a public frontend IP and faces the internet (typical: web tier). An <em>internal</em> Load Balancer has a private frontend IP in a VNet (typical: app-tier balancing for tier-to-tier traffic). The backend pool can be VMs, VMSS, or specific NICs.</li>
+                <li><strong>Basic vs Standard SKU:</strong> Basic is legacy (deprecating Sept 2025), no SLA, no Availability Zones, no HA Ports. Standard is the modern default — 99.99% SLA when zone-redundant, Availability Zone support, HA Ports rule, secure-by-default (must be allowed by NSG explicitly). Always pick Standard for new builds.</li>
+                <li><strong>Load balancing rules:</strong> map a frontend (IP+port) to a backend pool + health probe. Distribution mode: <code>5-tuple</code> hash (default, true round-robin-ish), <code>Source IP</code> (2-tuple, session affinity), <code>Source IP and Protocol</code> (3-tuple). Use 5-tuple unless an app needs sticky sessions and can't store state externally.</li>
+                <li><strong>Health probes:</strong> TCP, HTTP, or HTTPS (HTTPS Standard SKU only). Backend instance is considered unhealthy after configurable consecutive failures. Probe path/protocol is what tells the LB whether to keep sending traffic. Build a real probe endpoint in your app (e.g., <code>/healthz</code>) — don't probe <code>/</code>.</li>
+                <li><strong>Outbound rules and SNAT:</strong> Standard LB needs explicit outbound rules (or assign a Public IP per VM) — internet egress is NOT default-on like the Basic SKU. SNAT port exhaustion is the most common production failure: each backend gets a finite pool of ephemeral ports for outbound connections. Mitigation: more frontend IPs, NAT Gateway, or fewer egress connections.</li>
+                <li><strong>HA Ports:</strong> a single rule (port=0) that load-balances every TCP/UDP flow simultaneously. Required for active-active NVA deployments (firewalls, security appliances) — without HA Ports you'd need a rule per port, which doesn't scale to "all ports".</li>
+              </ul>
+              <div class="lesson-section-head">Concrete example</div>
+              <p>
+                A web tier of 6 Linux VMs across 3 Availability Zones needs internet-facing load balancing with 99.99% SLA. Design: deploy a <strong>Standard SKU public Load Balancer</strong>, zone-redundant frontend IP, backend pool of all 6 VMs, an HTTP health probe pointing at <code>/healthz</code> on port 8080, a load-balancing rule mapping public 443 to backend 8080 with 5-tuple distribution. Add an outbound rule with 16 SNAT ports per VM (or attach NAT Gateway for cleaner egress). Basic SKU would not meet the 99.99% requirement and is being retired anyway.
+              </p>
+              <div class="lesson-takeaway">
+                <strong>Key takeaway:</strong> Standard SKU, zone-redundant, dedicated health-probe endpoint, deliberate SNAT planning (NAT Gateway or extra frontend IPs). 5-tuple distribution unless you genuinely need affinity. HA Ports for NVA pairs.
+              </div>
+              <div class="lesson-quiz">
+                <div class="lesson-quiz-head">⚡ Mini-quiz</div>
+                Drill Load Balancer SKU and SNAT decisions → <a href="/train.html?pack=az-104&amp;mode=study">study mode (10 questions)</a>.
+              </div>
+            </div>
+
+            <div class="lesson-block">
+              <div class="lesson-title-row">
+                <span class="lesson-num">Lesson 7.2</span>
+                <span class="lesson-title">Application Gateway — Layer 7 routing and WAF</span>
+              </div>
+              <p class="lesson-intro">
+                When traffic decisions depend on the HTTP method, path, host header, or cookie, you've moved out of Layer 4 territory and need an Application Gateway. AG terminates TLS, reads the request, and applies routing rules — plus an optional Web Application Firewall that blocks OWASP-top-10 attacks inline.
+              </p>
+              <div class="lesson-section-head">Key concepts</div>
+              <ul class="lesson-bullets">
+                <li><strong>v1 vs v2 SKU:</strong> v1 is deprecated. v2 (Standard_v2, WAF_v2) is the modern default — autoscaling, zone-redundant, supports HTTP/2 and private endpoints, header rewrites, static VIP for the lifetime of the gateway. Never deploy v1 for new workloads.</li>
+                <li><strong>Listeners:</strong> the entry point — protocol (HTTP/HTTPS), port, hostname, optional TLS cert. Multi-site listeners use the SNI hostname to route different domains through one frontend IP. Wildcard listeners (e.g., <code>*.contoso.com</code>) reduce listener sprawl.</li>
+                <li><strong>Backend pools and HTTP settings:</strong> the backend pool can be VMs, VMSS, App Services, IP addresses, or FQDNs. HTTP settings define the protocol and port AG uses to talk to the backend, the cookie-based affinity setting, connection draining, and which probe to use.</li>
+                <li><strong>Routing rules:</strong> <em>basic</em> (one listener → one backend pool) or <em>path-based</em> (listener → URL path map with multiple paths each going to a backend pool). Path-based routing lets you fan <code>/api/*</code> to one backend pool and <code>/static/*</code> to another, behind a single IP and TLS cert.</li>
+                <li><strong>SSL termination and end-to-end TLS:</strong> AG can terminate TLS at the gateway (offload — backend traffic is plaintext, simpler) OR re-encrypt to the backend (end-to-end, backend cert must be trusted by AG). End-to-end is what compliance regimes typically demand.</li>
+                <li><strong>WAF:</strong> the WAF_v2 SKU adds Web Application Firewall with the OWASP Core Rule Set. Two modes: <em>Detection</em> (logs only) and <em>Prevention</em> (blocks). Start in Detection to find false positives, then switch to Prevention. Custom rules support rate limiting per IP.</li>
+              </ul>
+              <div class="lesson-section-head">Concrete example</div>
+              <p>
+                A SaaS platform hosts <code>app.contoso.com</code> (web tier in eastus2) and <code>api.contoso.com</code> (API tier in the same region). They want one public IP, one TLS certificate (wildcard), WAF protection, and SQL-injection blocking. Design: <strong>Application Gateway WAF_v2</strong> with one frontend IP, two multi-site listeners (one per hostname using SNI), two backend pools (one VMSS each), end-to-end TLS using the same wildcard cert. WAF mode set to Prevention with OWASP CRS 3.2 plus a custom rate-limit rule of 100 req/min per source IP. A plain Standard Load Balancer would not enable any of the host-aware routing or WAF protection.
+              </p>
+              <div class="lesson-takeaway">
+                <strong>Key takeaway:</strong> Layer 4 = Standard Load Balancer (cheap, fast, no app awareness). Layer 7 = Application Gateway v2 (host/path routing, TLS offload, WAF). Pick WAF_v2 anytime traffic from the public internet hits HTTP — not just for compliance.
+              </div>
+              <div class="lesson-quiz">
+                <div class="lesson-quiz-head">⚡ Mini-quiz</div>
+                Practise L4-vs-L7 routing decisions → <a href="/train.html?pack=az-104&amp;mode=quick">quick quiz (5 questions)</a>.
+              </div>
+            </div>
+
+            <div class="lesson-block">
+              <div class="lesson-title-row">
+                <span class="lesson-num">Lesson 7.3</span>
+                <span class="lesson-title">Global load balancing and DNS — Traffic Manager, Front Door, Azure DNS</span>
+              </div>
+              <p class="lesson-intro">
+                Load Balancer and Application Gateway are <em>regional</em> — they distribute traffic inside one region. When you need to balance across regions or serve global users from the closest edge, you reach for one of two distinct primitives: Traffic Manager (DNS-based) or Azure Front Door (anycast). DNS itself — Azure DNS public and private zones — sits underneath everything.
+              </p>
+              <div class="lesson-section-head">Key concepts</div>
+              <ul class="lesson-bullets">
+                <li><strong>Azure DNS public zones:</strong> host a public domain (<code>contoso.com</code>) in Azure. You delegate at the registrar by setting NS records to Azure's name servers. Records: A, AAAA, CNAME, MX, TXT, NS, SOA, SRV, CAA. Alias records (special A/AAAA/CNAME) auto-update when they point at an Azure resource (e.g., a Public IP — IP changes, alias follows).</li>
+                <li><strong>Azure Private DNS zones:</strong> private resolution inside one or more VNets. Link the zone to each VNet (<em>registration link</em> for the home VNet — auto-creates records for VMs; <em>resolution links</em> for VNets that should just resolve). The standard pattern for Private Endpoint name resolution (<code>privatelink.blob.core.windows.net</code>).</li>
+                <li><strong>Traffic Manager (DNS):</strong> a global DNS-based load balancer — clients resolve the Traffic Manager hostname to one of N regional endpoints. Routing methods: <em>Performance</em> (closest endpoint by latency), <em>Geographic</em> (by source country/region — compliance), <em>Weighted</em> (manual %), <em>Priority</em> (active/passive failover), <em>Multivalue</em>, <em>Subnet</em>. DNS-based means failover latency is bounded by client TTL caching (~30s to several minutes).</li>
+                <li><strong>Azure Front Door (anycast):</strong> a global L7 reverse proxy with an anycast IP that terminates at the nearest Microsoft edge POP. Includes WAF, caching, URL-based routing, instant failover. Use over Traffic Manager whenever you need (a) sub-second failover, (b) WAF at the edge, or (c) CDN caching. Standard / Premium tiers — Premium adds private origin support.</li>
+                <li><strong>Azure CDN:</strong> a content delivery network for static assets. Front Door overlaps in functionality and is increasingly the recommended choice for both CDN and global LB. CDN profiles from Microsoft, Akamai, Verizon — Akamai/Verizon variants are being retired in favour of Microsoft-native Front Door Standard.</li>
+                <li><strong>Decision pattern:</strong> regional internal/external traffic → Load Balancer. Regional HTTP with routing/WAF → Application Gateway. Global, multi-region with DNS-failover acceptable → Traffic Manager. Global L7 with WAF + caching + instant failover → Front Door. Static assets → Front Door / CDN.</li>
+              </ul>
+              <div class="lesson-section-head">Concrete example</div>
+              <p>
+                A global e-commerce site needs (1) edge caching of static assets, (2) WAF at the edge, (3) sub-second failover from primary (eastus2) to secondary (westeurope) on regional outage. Design: <strong>Azure Front Door Premium</strong> with two origin groups (one per region), priority-based routing (eastus2 primary, westeurope failover), WAF policy in Prevention mode, caching policy on <code>/static/*</code> with 1-hour TTL. Host the domain in <strong>Azure DNS public zone</strong> with an alias CNAME pointing at the Front Door endpoint. Traffic Manager would not give edge caching or sub-second failover; a single regional Application Gateway would not survive a region outage.
+              </p>
+              <div class="lesson-takeaway">
+                <strong>Key takeaway:</strong> regional = Load Balancer / Application Gateway. Global = Traffic Manager (DNS-based) or Front Door (anycast + edge). Front Door is the modern default for global L7 + WAF + caching. Azure DNS underneath both.
+              </div>
+              <div class="lesson-quiz">
+                <div class="lesson-quiz-head">⚡ Mini-quiz</div>
+                Drill global vs regional load-balancing decisions → <a href="/train.html?pack=az-104&amp;mode=study">study mode (10 questions)</a>.
+              </div>
+            </div>
+
+          </div>
+        </details>
       </div>
 
       <div class="module-card is-expanded">
