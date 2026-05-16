@@ -5,8 +5,8 @@
     "vendor": "HashiCorp",
     "version": "1.0.3",
     "question_count": 161,
-    "last_updated": "2026-05-13",
-    "notes": " [bulk-tag pass: added `terraform-003` tag to 161 questions] [terraform batch 1: 14 scenario rewrites] [terraform batch 2: 16 scenario rewrites] [terraform batch 3: 18 scenario rewrites] [terraform batch 4: 17 scenario rewrites] [terraform batch 5: 20 scenario rewrites] [terraform batch 6: 22 scenario rewrites] [terraform batch 7: 22 scenario rewrites] [terraform batch 8: 15 scenario rewrites] [terraform batch 9: 5 final scenario rewrites]"
+    "last_updated": "2026-05-16",
+    "notes": " [bulk-tag pass: added `terraform-003` tag to 161 questions] [terraform batch 1: 14 scenario rewrites] [terraform batch 2: 16 scenario rewrites] [terraform batch 3: 18 scenario rewrites] [terraform batch 4: 17 scenario rewrites] [terraform batch 5: 20 scenario rewrites] [terraform batch 6: 22 scenario rewrites] [terraform batch 7: 22 scenario rewrites] [terraform batch 8: 15 scenario rewrites] [terraform batch 9: 5 final scenario rewrites] [terraform-003 batch 1 (2026-05-16): 10 structural rewrites — tf-019/023/054/074/095/096/127/134/136/148. Original distractors were stub fragments; replaced with plausible same-domain alternatives.]"
   },
   "questions": [
     {
@@ -368,22 +368,21 @@
     },
     {
       "id": "tf-019",
-      "question": "A resource needs to be RECREATED on the next apply (e.g., a corrupted EC2 instance). Two approaches: (A) `terraform taint <addr>` — marks the resource for recreation; deprecated in 0.15.4+. (B) `terraform apply -replace=<addr>` — modern equivalent; doesn't mutate state until apply. Which describes the difference?",
+      "question": "A corrupted EC2 instance managed by Terraform must be recreated on the next apply. Two CLI approaches exist: `terraform taint <addr>` (deprecated in 0.15.4+) marks the resource as needing recreation; `terraform apply -replace=<addr>` (introduced in 0.15.2) does the same job declaratively without writing to state ahead of time. Which statement is correct?",
       "options": [
-        "Taint newer — reversed",
-        "Same — false",
-        "`terraform taint` (deprecated since 0.15.4) marked a resource as tainted in state, forcing recreation on next apply; the modern replacement is `terraform apply -replace=<address>` which is non-mutating in plan and only acts on apply",
-        "`-replace` only with count — false"
+        "`terraform taint` is the newer command and supersedes `-replace`",
+        "Both commands behave identically and are still equally recommended",
+        "`-replace=<addr>` is the supported approach; `taint` is deprecated in 0.15.4+",
+        "`-replace` only works when the resource uses `count` or `for_each`"
       ],
       "correct": 2,
-      "explanation": "terraform taint aws_instance.web: marks in state, next apply destroys+recreates. Deprecated in v0.15+. Modern: terraform apply -replace=aws_instance.web — same effect, but integrated into plan/apply workflow. Shows in plan as '-/+' replace. Use for: corrupted instances, force new AMI, rotate certificates embedded in resource.",
+      "explanation": "`terraform taint` mutated state directly and could leave stale taints behind on failed plans, which is why 0.15.4+ deprecated it. `terraform apply -replace=<addr>` produces the same effect — Terraform plans to destroy and recreate the named resource — but the intent travels with the plan rather than being stored in state ahead of time. It works for any resource address, with or without count/for_each.",
       "tags": [
+        "lifecycle",
         "cli",
-        "taint-replace",
         "terraform-003"
       ],
       "difficulty": "medium",
-      "_normalized": true,
       "rewritten": true
     },
     {
@@ -447,22 +446,21 @@
     },
     {
       "id": "tf-023",
-      "question": "Terraform AUTOMATICALLY infers dependencies between resources from attribute references (`aws_security_group.web.id` → SG must be created first). But sometimes a dependency is REAL but not reflected in any attribute reference (e.g., IAM policy must exist before a Lambda even though Lambda doesn't reference the policy directly). The meta-argument `depends_on = [aws_iam_policy.lambda_policy]` makes the dependency explicit. Which describes it?",
+      "question": "Terraform automatically infers dependencies from attribute references — `aws_security_group.web.id` makes the SG a prerequisite of the resource that reads it. Sometimes a dependency is real (e.g., an IAM policy must exist before a Lambda that uses it implicitly via a side channel) but no attribute reference connects them. Which language feature handles this case?",
       "options": [
-        "Parallel — opposite",
-        "Module order — too narrow",
-        "Explicitly declares that one resource (or module / data source) depends on another — Terraform handles implicit dependencies from attribute references; `depends_on` is for cases where the dependency exists but isn't visible in references",
-        "Implicit only — false"
+        "Setting `parallelism = 1` on the CLI to serialise the apply",
+        "Wrapping the resources in the same module to imply ordering",
+        "Using the `depends_on` meta-argument to declare the dependency",
+        "Relying on implicit ordering — Terraform creates resources alphabetically"
       ],
       "correct": 2,
-      "explanation": "depends_on: use when dependency isn't captured by references. Example: EC2 instance that needs IAM instance profile to be fully propagated before it launches (even though it references the profile, the IAM propagation delay isn't captured). Module-level depends_on: all resources in module depend on specified resources. Use sparingly — hurts parallelism.",
+      "explanation": "`depends_on` is the explicit-dependency meta-argument. It accepts a list of resource, module, or data-source addresses and forces Terraform to treat one resource as a prerequisite of another even when no attribute reference exists. `parallelism` only caps how many resources are operated on in parallel; modules don't imply order; Terraform never guarantees alphabetical creation.",
       "tags": [
-        "meta-arguments",
+        "dependencies",
         "depends-on",
         "terraform-003"
       ],
       "difficulty": "medium",
-      "_normalized": true,
       "rewritten": true
     },
     {
@@ -1067,22 +1065,21 @@
     },
     {
       "id": "tf-054",
-      "question": "A team wants to commit `terraform { backend \"s3\" { ... } }` to VCS but the S3 bucket name + region must be ENVIRONMENT-SPECIFIC (dev vs prod). The backend block supports only constants (no variables). The fix: declare a PARTIAL backend config (just `backend \"s3\" {}`) and provide the rest via `terraform init -backend-config=...` or a config file. Which describes this?",
+      "question": "A team wants to commit a `terraform { backend \"s3\" { ... } }` block to VCS, but the S3 bucket name and region must differ between dev and prod. The backend block accepts only literal values — no variables, no locals. Which pattern lets the same config target different backends per environment?",
       "options": [
-        "Incomplete setup — partial truth",
-        "Partial backend configuration — backend block contains only the type + non-sensitive constants; values like bucket / region / dynamodb_table provided at `init` time via `-backend-config=key=value` flags or `-backend-config=<file>`",
-        "Development-only — false",
-        "Broken — false"
+        "Commit a fully-configured backend block; rely on the workspace name suffix",
+        "Use a partial backend configuration; supply the rest via `-backend-config`",
+        "Use the http backend with environment-specific URLs and skip S3 entirely",
+        "Inject backend values via Terraform variables defined in `terraform.tfvars`"
       ],
       "correct": 1,
-      "explanation": "Partial backend config: terraform { backend 'S3' { bucket='my-bucket', key='prod/terraform.tfstate', region='us-east-1' } }. Credentials via env vars (AWS_ACCESS_KEY_ID) or -backend-config='profile=myprofile'. Or: terraform init -backend-config=backend.conf (file with sensitive values, gitignored). Principle: infrastructure code in git, credentials in secure store.",
+      "explanation": "A partial backend block contains only the constants that don't change between environments (e.g., `backend \"s3\" {}`) and is finalised at init time with `terraform init -backend-config=dev.tfbackend` or `-backend-config=key=value`. Workspaces all share one backend by design. Terraform explicitly forbids variable references inside a backend block, so a `.tfvars` approach won't work.",
       "tags": [
-        "state",
-        "backend-partial",
+        "backends",
+        "partial-config",
         "terraform-003"
       ],
-      "difficulty": "hard",
-      "_normalized": true,
+      "difficulty": "medium",
       "rewritten": true
     },
     {
@@ -1471,22 +1468,21 @@
     },
     {
       "id": "tf-074",
-      "question": "A team uses Terraform Cloud's `remote` backend. They run `terraform apply` from their laptop. Instead of running plan + apply LOCALLY, the CLI uploads the configuration to Terraform Cloud, which executes plan + apply in its own SECURE EXECUTION ENVIRONMENT (with provider credentials stored centrally), streams output back. Which describes the run workflow?",
+      "question": "A team uses Terraform Cloud as their `remote` backend. From a developer laptop they run `terraform apply`. Instead of running plan and apply locally, the CLI uploads the configuration, Terraform Cloud executes plan + apply in its own remote execution environment, then streams output back to the CLI. What is this workflow called?",
       "options": [
-        "Weekdays only — false",
-        "Same as local — false",
-        "Requires Vault — false",
-        "Terraform Cloud `run` workflow — when using TFC as backend, the CLI triggers a `run` (plan + apply) executed in TFC's secure execution environment; centralised credentials, audit log, policy checks; output streamed back to the CLI; supports speculative plans on PRs"
+        "Speculative-only plans — apply still runs on the developer's machine",
+        "Local execution mode — Terraform Cloud is used only for state storage",
+        "CLI-driven run workflow — TFC executes plan + apply and streams output",
+        "Agent pool execution — only available with self-hosted Terraform Enterprise"
       ],
-      "correct": 3,
-      "explanation": "Terraform Cloud runs: (1) CLI-driven: local terraform apply → run in TC → output streamed back. (2) VCS-driven: push to connected repo → automatic plan → manual/auto apply. (3) API-driven: trigger via API. Run queue: sequential per workspace. Logs: stored in TC for 6 months. Notifications: Slack, PagerDuty, email on state changes.",
+      "correct": 2,
+      "explanation": "The CLI-driven run workflow uses `cloud {}` (or the legacy `remote` backend) to trigger a remote run in Terraform Cloud whenever the developer types `terraform plan` or `apply` locally. Provider credentials live in TFC, the plan and apply execute there, and logs stream back. Local-execution mode is the alternative where TFC only stores state. Speculative plans run on PRs in the VCS-driven workflow. Agent pools relate to private network targets.",
       "tags": [
         "terraform-cloud",
         "run-workflow",
         "terraform-003"
       ],
       "difficulty": "medium",
-      "_normalized": true,
       "rewritten": true
     },
     {
@@ -1895,42 +1891,40 @@
     },
     {
       "id": "tf-095",
-      "question": "A Terraform configuration has a `provisioner \"local-exec\" { command = \"...\" }` inside a resource. HashiCorp DOCUMENTS provisioners as a LAST RESORT: they break Terraform's declarative model, fail mid-run leaving partial state, don't integrate with the dependency graph, can't be reliably retried. Recommended alternatives: cloud-init, Packer (bake the AMI), config management (Ansible / Chef), or `null_resource` with `triggers`. Which describes provisioners?",
+      "question": "A Terraform configuration uses `provisioner \"local-exec\" { command = \"…\" }` inside a resource. HashiCorp documents provisioners as a LAST RESORT because they break Terraform's declarative model, can leave resources tainted on failure, and aren't supported by every cloud. Which statement reflects the recommended use of provisioners?",
       "options": [
-        "Recommended — false",
-        "DB setup only — false",
-        "Required for all — false",
-        "Provisioners (local-exec / remote-exec / file) run during resource lifecycle but should be a LAST RESORT — break Terraform's declarative model, hard to retry, no dependency-graph integration; prefer cloud-init / Packer / config management"
+        "Provisioners are the recommended way to manage software inside new VMs",
+        "Provisioners are a last resort; prefer cloud-init / Packer / config-mgmt tools",
+        "Provisioners are required for any database setup tied to a resource lifecycle",
+        "Provisioners are required for every cloud-resource block to bootstrap state"
       ],
-      "correct": 3,
-      "explanation": "Provisioners: use as last resort. Problems: if provisioner fails after resource created: resource tainted (next apply destroys+recreates). No plan-time validation. Not repeatable (can't re-run without destroy). Better alternatives: AWS EC2 user_data (cloud-init), custom AMIs with Packer, Ansible separate run, AWS SSM Run Command, Lambda for automation.",
+      "correct": 1,
+      "explanation": "Provisioners (local-exec, remote-exec, file) execute imperatively during create or destroy and force a taint on failure, which makes them brittle in CI/CD. HashiCorp's guidance is to use cloud-native bootstrap (user_data / cloud-init), build images with Packer, or run Ansible/Chef/Puppet after provisioning — and only fall back to provisioners when there's no alternative.",
       "tags": [
         "provisioners",
-        "avoid",
+        "best-practices",
         "terraform-003"
       ],
       "difficulty": "medium",
-      "_normalized": true,
       "rewritten": true
     },
     {
       "id": "tf-096",
-      "question": "Two unrelated concepts share the word 'workspace'. (A) `terraform.workspace` — Terraform CLI's local feature, swaps state-file suffix. (B) Terraform Cloud workspaces — a TFC-level isolation boundary with its own variables, secrets, run history, state, RBAC. They are NOT mapped 1:1. Which describes the difference?",
+      "question": "Two unrelated concepts share the word 'workspace': (A) `terraform.workspace` — a CLI-only feature that swaps the state-file suffix within a single backend; (B) Terraform Cloud workspaces — a TFC-level isolation boundary with its own variables, secrets, run history, state, and RBAC. Which statement correctly distinguishes them?",
       "options": [
-        "1:1 — false",
-        "CLI workspaces: local Terraform feature, switches state-file (workspace-suffixed); Terraform Cloud workspaces: TFC-level isolation with own variables, secrets, run history, state, RBAC; NOT mapped 1:1",
-        "CLI deprecated — false",
-        "Same — false"
+        "CLI workspaces map 1:1 onto Terraform Cloud workspaces by default",
+        "CLI workspaces have been deprecated and Cloud workspaces replace them",
+        "Both are identical features — only the storage location differs",
+        "CLI workspaces swap state within one backend; TFC workspaces isolate everything"
       ],
-      "correct": 1,
-      "explanation": "Naming confusion: CLI workspaces = lightweight state isolation (same backend). TC workspaces = separate Terraform environments with own config, state, credentials, permissions, VCS. When using Terraform Cloud backend: terraform workspace commands map to TC workspaces. TC workspaces recommended over CLI workspaces for team use.",
+      "correct": 3,
+      "explanation": "CLI workspaces are a lightweight, single-backend state-isolation feature — handy for env-per-state in a small project. TFC workspaces are full isolation boundaries: per-workspace variables, secrets, RBAC, run history, VCS link. They are not 1:1 with CLI workspaces, neither has been deprecated, and they solve very different problems.",
       "tags": [
         "workspaces",
         "cli-vs-cloud",
         "terraform-003"
       ],
       "difficulty": "hard",
-      "_normalized": true,
       "rewritten": true
     },
     {
@@ -2540,22 +2534,21 @@
     },
     {
       "id": "tf-127",
-      "question": "Inside a `lifecycle` block: `precondition { condition = …; error_message = … }` validates BEFORE the resource is created / updated. `postcondition { … }` validates AFTER apply. Different from `validation` in variables (which runs at plan-time, variable-scope). These are resource-scoped + run within the apply pipeline. Which describes pre/postcondition?",
+      "question": "A `variable` block needs to reject any value the caller passes that isn't an SSH-compatible CIDR (must match the regex `^\\d+\\.\\d+\\.\\d+\\.\\d+\\/\\d+$`). The check should run at plan time and fail with a clear message before any resource is touched. Which Terraform feature implements this?",
       "options": [
-        "Build conditions — wrong concept",
-        "Loop conditions — wrong concept",
-        "Module requirements — wrong concept",
-        "Validation checks within a `lifecycle` block of a resource or data source — `precondition` validates BEFORE creation/update (fails plan on false), `postcondition` validates AFTER (fails apply on false); different from variable validation (which runs at plan time, variable-scope)"
+        "An `assert` block at the root module level after the variable is declared",
+        "A `validation { condition = … error_message = … }` block on the variable",
+        "A `precondition` block inside every resource that reads the variable",
+        "A `lifecycle { prevent_destroy = true }` block, which validates inputs"
       ],
-      "correct": 3,
-      "explanation": "lifecycle { precondition { condition = var.instance_type != 't3.nano' error_message = 'Instance type too small for production.' } }. Checks run during plan. Custom error messages guide users. Better than null_resource workarounds. Postcondition verifies the resource was created as expected.",
+      "correct": 1,
+      "explanation": "Variable-level validation lives inside the variable block itself: `validation { condition = can(regex(\"^…\", var.cidr)); error_message = \"…\" }`. It fires at plan time. There is no `assert` block. `precondition`/`postcondition` are lifecycle features for resources and outputs (1.2+) and don't gate variable values directly. `prevent_destroy` only blocks destroy operations.",
       "tags": [
+        "variables",
         "validation",
-        "pre-post-condition",
         "terraform-003"
       ],
-      "difficulty": "hard",
-      "_normalized": true,
+      "difficulty": "medium",
       "rewritten": true
     },
     {
@@ -2681,22 +2674,21 @@
     },
     {
       "id": "tf-134",
-      "question": "Two related concepts. (A) Terraform WORKSPACE — Terraform CLI's local feature, named instances of state within a single backend (`default`, plus user-created); switch with `terraform workspace select`. (B) Terraform CLOUD WORKSPACE — TFC-level isolation boundary with its own variables, run history, state file, RBAC. The two are similarly NAMED but different SCOPE. Which describes the distinction?",
+      "question": "Two related Terraform concepts: (A) Terraform CLI workspace — a named instance of state inside a single backend (e.g. `default`, `dev`, `prod`); switched with `terraform workspace select`. (B) Terraform Cloud workspace — a TFC-level isolation boundary with its own variables, run history, state file, and RBAC. Which statement correctly distinguishes them?",
       "options": [
-        "Terraform CLI workspaces: named instances of state within a single backend (`default`, plus user-created); switch with `terraform workspace select`; isolate state per workspace. Terraform Cloud workspaces: TFC-level isolation boundary with own variables, run history, state, RBAC; NOT 1:1 with CLI workspaces",
-        "Same — false",
-        "Need Cloud — false",
-        "Workspaces deprecated — false"
+        "CLI workspaces are named instances of state within one backend; Cloud workspaces are full isolation boundaries",
+        "Both concepts are identical and refer to the same isolation primitive",
+        "CLI workspaces require Terraform Cloud as their backend to function",
+        "Workspaces (CLI and Cloud) have both been deprecated in Terraform 1.x"
       ],
       "correct": 0,
-      "explanation": "Workspaces: terraform workspace new dev. ${terraform.workspace} interpolation in code. Limitation: same backend, easy to accidentally modify wrong workspace. For production: separate backends per environment often preferred over workspaces. Terraform Cloud: workspaces = full isolated config + state + variables.",
+      "explanation": "CLI workspaces share the same backend and only swap which state file is active — handy for quick env-per-state, but easy to apply to the wrong one. Cloud workspaces are first-class isolation: each has its own variables, runs, history, RBAC, and VCS link. When using TFC as the backend, `terraform workspace` commands map onto TFC workspaces, but the two concepts are not interchangeable.",
       "tags": [
         "workspaces",
         "cli-vs-environment",
         "terraform-003"
       ],
       "difficulty": "medium",
-      "_normalized": true,
       "rewritten": true
     },
     {
@@ -2722,22 +2714,21 @@
     },
     {
       "id": "tf-136",
-      "question": "Terraform Cloud (TFC) supports VCS-DRIVEN workflows. Connect a TFC workspace to a GitHub / GitLab / Bitbucket repo. Pull requests trigger SPECULATIVE PLANS — TFC runs plan, posts the diff as PR comment. Merges to `main` trigger an APPLY automatically (with optional manual gate). Drift detection runs periodically. Which describes it?",
+      "question": "Terraform Cloud supports a VCS-driven workflow. A TFC workspace is connected to a GitHub, GitLab, or Bitbucket repository. Pull requests trigger speculative plans whose output is posted as a PR comment; merges to the default branch trigger applies (auto or with a manual gate). Drift detection runs on a schedule. Which describes this workflow?",
       "options": [
-        "Manual — false",
-        "CLI-only — false",
-        "Connect a TFC workspace to a VCS repo (GitHub / GitLab / Bitbucket); PRs trigger SPECULATIVE plans posted as PR comments; merges to the target branch trigger applies (auto or with manual gate); drift detection scheduled; the canonical TFC IaC workflow",
-        "Local-only — false"
+        "Apply runs only when the CLI is invoked locally by a team member",
+        "TFC's CLI-only workflow — apply happens on each developer's machine",
+        "TFC's VCS-driven workflow — PRs speculatively plan, merges apply",
+        "TFC's API-driven workflow — only available when calling the runs endpoint"
       ],
       "correct": 2,
-      "explanation": "VCS workflow: PR → Terraform Cloud runs speculative plan → plan output shown in PR checks → review changes → merge → Terraform Cloud runs apply automatically. Plan includes: additions, changes, destructions. Team can review infrastructure changes like code changes. Integrates with branch protection rules.",
+      "explanation": "VCS-driven is one of three TFC run-trigger modes alongside CLI-driven and API-driven. The defining property is that runs are triggered automatically by repository events: a PR opens → speculative plan, a merge to main → apply. Drift detection adds a scheduled plan on top. CLI-driven workflows trigger from `terraform apply` on a laptop; API-driven from a direct call to the runs endpoint.",
       "tags": [
         "terraform-cloud",
         "vcs-workflow",
         "terraform-003"
       ],
       "difficulty": "medium",
-      "_normalized": true,
       "rewritten": true
     },
     {
@@ -2962,22 +2953,21 @@
     },
     {
       "id": "tf-148",
-      "question": "A Terraform configuration needs to (a) send a structured tag map to AWS Lambda as a JSON-encoded environment variable, and (b) read a JSON-formatted output from a `data \"external\"` script back into a Terraform map. `jsonencode({…})` converts an HCL value → JSON string; `jsondecode(\"…\")` parses JSON string → HCL value. Which describes them?",
+      "question": "A Terraform configuration needs to (a) send a structured tag map to AWS Lambda as a JSON-encoded environment variable, and (b) read a JSON-formatted output from a `data \"external\"` script back into a Terraform map. Which pair of built-in functions does this?",
       "options": [
-        "Serialise HCL→JSON / parse JSON→HCL — `jsonencode(value)` produces a JSON string from a Terraform value (great for serialising into env vars or files); `jsondecode(string)` parses a JSON string into Terraform structure (great for reading external script output)",
-        "Same direction — false",
-        "Yamls only — false",
-        "Networking — wrong category"
+        "`jsonencode(value)` serialises HCL→JSON; `jsondecode(string)` parses JSON→HCL",
+        "`jsondecode(value)` serialises HCL→JSON; `jsonencode(string)` parses JSON→HCL",
+        "`yamlencode` and `yamldecode` are required because env vars must be YAML",
+        "`templatefile()` with a JSON template handles both encoding and parsing"
       ],
       "correct": 0,
-      "explanation": "jsonencode({ Version = '2012-10-17', Statement = [...] }): creates valid JSON string for IAM policy. jsondecode(data.aws_secretsmanager_secret_version.creds.secret_string): parse JSON secret back to map. Better than heredoc JSON: handles quoting, validates syntax, supports HCL expressions inside.",
+      "explanation": "`jsonencode(value)` converts a Terraform value into a JSON string — perfect for env vars, IAM policy strings, or templated config files. `jsondecode(string)` does the reverse: parse a JSON string into HCL types you can index normally. The direction is easy to mix up, which is why a reversed pair is the most plausible distractor. `yamlencode/yamldecode` exist but are for YAML, and `templatefile()` is for substitution, not parsing.",
       "tags": [
         "functions",
         "json",
         "terraform-003"
       ],
       "difficulty": "medium",
-      "_normalized": true,
       "rewritten": true
     },
     {
