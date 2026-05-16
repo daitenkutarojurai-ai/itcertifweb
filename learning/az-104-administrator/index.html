@@ -397,8 +397,8 @@
         </details>
       </div>
 
-      <div class="module-card">
-        <div class="module-num">Module 2</div>
+      <div class="module-card is-expanded">
+        <div class="module-num">Module 2<span class="chapter-badge">3 lessons</span></div>
         <div class="module-title">Governance Tools — Cost Management, Tags, and Blueprints</div>
         <p class="module-desc">Apply financial governance and resource organisation at scale. Use Azure Cost Management + Billing to set budgets, create cost alerts, and analyse spend by tag. Design tagging strategies that support chargebacks and policy compliance. Use Azure Blueprints (now largely superseded by deployment stacks) to bundle policies, role assignments, and ARM templates into a repeatable governance artefact.</p>
         <div class="module-topics">
@@ -409,6 +409,106 @@
           <span class="topic-tag">Azure Advisor recommendations</span>
           <span class="topic-tag">Azure Service Health alerts</span>
         </div>
+
+        <details>
+          <summary class="chapter-toggle" role="button">
+            📖 Read in-depth chapter
+            <span class="chapter-toggle-icon">▾</span>
+          </summary>
+          <div class="chapter-content">
+
+            <div class="lesson-block">
+              <div class="lesson-title-row">
+                <span class="lesson-num">Lesson 2.1</span>
+                <span class="lesson-title">Cost Management — budgets, alerts, and analysis</span>
+              </div>
+              <p class="lesson-intro">
+                Azure bills every resource by the second and surfaces the total in Cost Management. Setting it up correctly is half "configure budgets" and half "tag everything so you can break costs down". AZ-104 expects you to know which control sits at which scope and which alert pattern is correct for which audience.
+              </p>
+              <div class="lesson-section-head">Key concepts</div>
+              <ul class="lesson-bullets">
+                <li><strong>Cost Management scope:</strong> a budget can be scoped to a management group, subscription, resource group, or even a billing scope (EA, MCA). Lower scopes inherit upward visibility but you set the budget at the level you want to control. Use management-group budgets for shared services, subscription budgets for business units, resource-group budgets for projects.</li>
+                <li><strong>Budgets vs cost alerts:</strong> a <em>budget</em> is a target amount with threshold alerts (e.g., 50%, 80%, 100% of $5,000/month). A <em>cost alert</em> is a generic notification when monthly spend exceeds a fixed dollar value, regardless of any planned budget. Budgets are the standard answer for "percentage-of-plan" notifications.</li>
+                <li><strong>Actual vs Forecasted:</strong> alert thresholds can fire on the actual spend or on the forecast Azure projects for the remaining period. Forecasted alerts let you act before the overage happens. Pair both — actual at 100% as a tripwire, forecasted at 120% as a "we will overshoot" warning.</li>
+                <li><strong>Cost analysis:</strong> the analytics UI for slicing spend by tag, resource group, service, region, meter, time period. Save common views for monthly reviews. Export Cost Management data to a Storage Account on a schedule for long-term retention or Power BI dashboards.</li>
+                <li><strong>Action targets:</strong> budget alerts route through Action Groups (the same primitive as Azure Monitor alerts — see Module 8). Email and webhook are the most common. Integrate to PagerDuty / Slack / Teams via the webhook target.</li>
+                <li><strong>Reservations and Savings Plans:</strong> not directly tested at the configuration level on AZ-104, but you should know that <em>Reservations</em> are commitment-based discounts for fixed SKUs/regions, <em>Savings Plans</em> are flexible commitment to a $/hour spend, and Azure Advisor surfaces both as recommendations when usage warrants.</li>
+              </ul>
+              <div class="lesson-section-head">Concrete example</div>
+              <p>
+                A FinOps team needs notification when monthly spend on the <code>prod</code> subscription hits 80% of its $30k budget AND when forecast spend exceeds $36k. Design: a <strong>subscription-scope budget</strong> of $30,000/month with alert thresholds at 50% / 80% / 100% on Actual cost, plus a forecast threshold at 120% on Forecasted cost. Action group <code>ag-finops-alerts</code> routes to email + the Slack webhook. The 80% Actual alert and the 120% Forecast alert are independent signals — both fire if both conditions trip, giving the team multiple chances to react.
+              </p>
+              <div class="lesson-takeaway">
+                <strong>Key takeaway:</strong> budgets at the scope you want to control, alerts on both Actual and Forecast, Action Groups for routing. Reservations and Savings Plans are the cost-optimisation lever — surface them via Advisor.
+              </div>
+              <div class="lesson-quiz">
+                <div class="lesson-quiz-head">⚡ Mini-quiz</div>
+                Practise budget-scope and alert-mode decisions → <a href="/train.html?pack=az-104&amp;mode=study">study mode (10 questions)</a>.
+              </div>
+            </div>
+
+            <div class="lesson-block">
+              <div class="lesson-title-row">
+                <span class="lesson-num">Lesson 2.2</span>
+                <span class="lesson-title">Tags and tag enforcement via Azure Policy</span>
+              </div>
+              <p class="lesson-intro">
+                Tags are key/value pairs you attach to resources (and resource groups, and subscriptions). They cost nothing, but every downstream control — cost allocation, automated start/stop, RBAC scoping, lifecycle policies — depends on them being consistent. The exam asks how to apply them at scale and how to enforce they exist.
+              </p>
+              <div class="lesson-section-head">Key concepts</div>
+              <ul class="lesson-bullets">
+                <li><strong>Tag mechanics:</strong> up to 50 tags per resource (some services cap lower), case-insensitive keys, values up to 256 chars. Tags are NOT inherited automatically from resource group or subscription to child resources — you have to set them on each resource explicitly (or enforce them via Policy).</li>
+                <li><strong>Policy Append effect:</strong> the <em>Append</em> policy effect adds a tag to a resource at create time, but ONLY if the resource is being created or updated. It does NOT modify existing non-compliant resources. Use when you want defaults applied to new deployments without breaking existing ones.</li>
+                <li><strong>Policy Modify effect:</strong> the <em>Modify</em> effect can add/remove/replace tags on existing resources via a remediation task. Modify is the right answer when "fix every resource currently missing the CostCenter tag". Modify needs a managed identity assigned to the policy assignment.</li>
+                <li><strong>Inherit tag from resource group:</strong> Azure ships a built-in policy called <em>Inherit a tag from the resource group</em> with Modify effect. Assign it once per subscription with the tag name parameterised; every child resource gets the RG's tag value applied via remediation. The standard pattern for "stamp the env tag everywhere".</li>
+                <li><strong>Tag-based billing and Cost Management:</strong> Cost Management can group/slice by tag IF the tag exists on the resource at the time the cost meter is recorded. Tags applied after the fact don't retroactively reattribute past costs — start tagging on day 1.</li>
+                <li><strong>RBAC for tag management:</strong> the built-in <em>Tag Contributor</em> role grants tag management at the assigned scope. The <em>Tag Reader</em> role is read-only. Use these to delegate tag management to FinOps without granting broader resource permissions.</li>
+              </ul>
+              <div class="lesson-section-head">Concrete example</div>
+              <p>
+                A subsidiary needs every new resource to inherit the resource group's <code>CostCenter</code> tag, and the FinOps team needs to back-fill the tag on existing resources that lack it. Two assignments solve this: (1) the built-in <strong>Inherit a tag from the resource group</strong> policy with parameter <code>tagName=CostCenter</code>, Modify effect, scope: subscription. Run a remediation task after assignment to apply to existing resources. (2) A separate <strong>Require a tag on resources</strong> policy with Deny effect blocks future creates that omit the tag. Together: existing resources are fixed, new ones can't be created non-compliant.
+              </p>
+              <div class="lesson-takeaway">
+                <strong>Key takeaway:</strong> tags don't inherit by default — use Policy with the Modify effect to enforce them on existing AND new resources. Append for "new only", Modify (+ remediation) for "everything". Tag from day 1 or your Cost Management views will be useless.
+              </div>
+              <div class="lesson-quiz">
+                <div class="lesson-quiz-head">⚡ Mini-quiz</div>
+                Drill tag policy effects → <a href="/train.html?pack=az-104&amp;mode=quick">quick quiz (5 questions)</a>.
+              </div>
+            </div>
+
+            <div class="lesson-block">
+              <div class="lesson-title-row">
+                <span class="lesson-num">Lesson 2.3</span>
+                <span class="lesson-title">Service Health, Advisor, and deployment governance</span>
+              </div>
+              <p class="lesson-intro">
+                Three more governance surfaces complete the AZ-104 picture: Service Health tells you when Microsoft has an issue, Advisor tells you when YOU have an issue, and Blueprints / deployment stacks let you bundle infrastructure + policy as one artefact.
+              </p>
+              <div class="lesson-section-head">Key concepts</div>
+              <ul class="lesson-bullets">
+                <li><strong>Azure Service Health:</strong> tenant-aware view of Azure-side incidents, planned maintenance, and health advisories filtered to subscriptions and regions you actually use. Distinct from the public status page (azure.status.microsoft) which is global and noisy. Always configure Service Health alerts — they're free.</li>
+                <li><strong>Service Health alerts:</strong> create an alert rule of type <em>Service Health</em>, pick service / region / event type (Service Issue, Planned Maintenance, Health Advisory, Security Advisory), route through an Action Group. The right answer for "page me when Azure has an outage in my region".</li>
+                <li><strong>Resource Health:</strong> per-resource Microsoft-reported health status (Available, Unavailable, Unknown). Useful as a fast first check during incident triage. Resource Health alerts can fire when a specific resource transitions to Unavailable.</li>
+                <li><strong>Azure Advisor:</strong> recommendation engine across five pillars — Cost, Security, Reliability, Operational Excellence, Performance. Cost recommendations surface Reservation/Savings-Plan opportunities (Module 2.1) and underutilised VMs. Security recommendations are shared with Microsoft Defender for Cloud. Set up Advisor digest emails monthly per subscription.</li>
+                <li><strong>Azure Blueprints:</strong> a now-legacy artefact that bundles ARM templates + policies + role assignments + resource groups into a single deployable unit, with version locking. Microsoft is deprecating Blueprints in favour of <em>Template Specs</em> and <em>Deployment Stacks</em> — know Blueprints exist (they still appear on the exam) but recommend Deployment Stacks for new builds.</li>
+                <li><strong>Deployment Stacks:</strong> the modern replacement — a managed deployment that owns its child resources, prevents drift via <em>deny assignments</em>, and supports clean teardown of everything in the stack. The GitOps-compatible answer for "deploy a landing zone reproducibly".</li>
+              </ul>
+              <div class="lesson-section-head">Concrete example</div>
+              <p>
+                A platform team builds an Azure Landing Zone — a repeatable bundle of management groups, subscriptions, policy assignments, and shared services. Old way: Azure Blueprint with locked version. Modern way: a <strong>Deployment Stack</strong> containing the ARM/Bicep templates with <em>deny-delete</em> on the resources it creates, plus an associated Policy Initiative at the management-group scope. Add a <strong>Service Health alert</strong> on all subscriptions for region-wide Service Issues routed to the platform team's Teams channel, and an Advisor digest email for the cost-management lead.
+              </p>
+              <div class="lesson-takeaway">
+                <strong>Key takeaway:</strong> Service Health for Microsoft-side incidents, Advisor for your own optimisation backlog. Blueprints still appear on the exam but Deployment Stacks are what you'd build today. Always wire Service Health alerts — they cost nothing and catch the "is it me or Azure" question before you're 30 minutes into a wild-goose debug.
+              </div>
+              <div class="lesson-quiz">
+                <div class="lesson-quiz-head">⚡ Mini-quiz</div>
+                Test Service Health and Advisor scenarios → <a href="/train.html?pack=az-104&amp;mode=study">study mode (10 questions)</a>.
+              </div>
+            </div>
+
+          </div>
+        </details>
       </div>
 
       <div class="module-card is-expanded">
@@ -638,8 +738,8 @@
         </details>
       </div>
 
-      <div class="module-card">
-        <div class="module-num">Module 5</div>
+      <div class="module-card is-expanded">
+        <div class="module-num">Module 5<span class="chapter-badge">3 lessons</span></div>
         <div class="module-title">App Service, Containers, and Serverless Compute</div>
         <p class="module-desc">Deploy web applications and containerised workloads using Azure PaaS compute. Configure Azure App Service plans (Free, Shared, Basic, Standard, Premium, Isolated), deployment slots for blue-green releases, and auto-scale rules. Run containers with Azure Container Instances (ACI) for quick ad-hoc tasks and Azure Kubernetes Service (AKS) for orchestrated workloads. Understand Azure Functions consumption vs Premium plan and when to use them.</p>
         <div class="module-topics">
@@ -651,6 +751,106 @@
           <span class="topic-tag">Azure Functions — consumption vs Premium</span>
           <span class="topic-tag">Managed identities for App Service</span>
         </div>
+
+        <details>
+          <summary class="chapter-toggle" role="button">
+            📖 Read in-depth chapter
+            <span class="chapter-toggle-icon">▾</span>
+          </summary>
+          <div class="chapter-content">
+
+            <div class="lesson-block">
+              <div class="lesson-title-row">
+                <span class="lesson-num">Lesson 5.1</span>
+                <span class="lesson-title">App Service — plans, scaling, and deployment slots</span>
+              </div>
+              <p class="lesson-intro">
+                Azure App Service is the PaaS workhorse for web apps and APIs. The unit of compute is the <em>App Service plan</em> — the VM SKU and instance count that hosts one or more apps. Picking the right plan tier and using deployment slots properly are the two App Service decisions the exam tests heaviest.
+              </p>
+              <div class="lesson-section-head">Key concepts</div>
+              <ul class="lesson-bullets">
+                <li><strong>Plan tiers ladder:</strong> <code>F1</code> Free / <code>D1</code> Shared (dev only — no custom domains, limited CPU minutes), <code>B</code> Basic (small workloads, manual scale), <code>S</code> Standard (production minimum — autoscale, 5 deployment slots, custom domains + SNI), <code>P</code>/<code>Pv2</code>/<code>Pv3</code> Premium (faster VMs, 20 slots, better autoscale), <code>I</code> Isolated (App Service Environment — single-tenant in your VNet).</li>
+                <li><strong>Scale up vs scale out:</strong> <em>Scale up</em> changes the instance SKU (more CPU/RAM per instance). <em>Scale out</em> increases the instance count. Scale out is automatic via autoscale rules (the same metric/schedule pattern as VMSS). Scale up requires moving the plan to a larger tier — a brief restart on each app.</li>
+                <li><strong>Deployment slots:</strong> staging environments inside the same App Service plan — separate hostnames, separate app settings, but shared compute. The canonical pattern: deploy to <code>staging</code>, run smoke tests, then <em>swap</em> with production. Swap warms up the new instance before flipping the hostname — zero-downtime deploys.</li>
+                <li><strong>Slot settings:</strong> some app settings are "slot-specific" (don't swap) — connection strings to staging databases, environment markers. Mark them as <em>slot settings</em> in the configuration UI; they stay with the slot during swap.</li>
+                <li><strong>Custom domains and TLS:</strong> bind a custom domain via DNS verification (CNAME or TXT record). Upload a TLS cert (PFX) or use App Service Managed Certificates (free, auto-renewing, for non-naked-domain CNAMEs). For App-Service-managed certs, the domain must already be bound and the validation record visible.</li>
+                <li><strong>VNet integration vs Private Endpoint:</strong> <em>VNet integration</em> gives the App outbound access into a VNet (talks to your databases). <em>Private endpoint</em> exposes the App over a private IP for inbound traffic from a VNet. Both can be combined for fully private apps.</li>
+              </ul>
+              <div class="lesson-section-head">Concrete example</div>
+              <p>
+                A startup runs production on a Standard S1 App Service plan and wants zero-downtime deploys. Design: enable a <strong>staging deployment slot</strong>, configure the CI pipeline to deploy each release to staging, run health checks against the staging URL, then issue a <strong>swap</strong>. Mark the <code>APPINSIGHTS_INSTRUMENTATIONKEY</code> as a slot setting so staging and production each use their own Application Insights resource. Autoscale rule on the plan: scale out from 2 to 6 instances when CPU &gt; 70% for 10 minutes.
+              </p>
+              <div class="lesson-takeaway">
+                <strong>Key takeaway:</strong> Standard or Premium for production (slots + autoscale + custom domains). Deployment slot swap is the AZ-104 answer for zero-downtime releases. Mark environment-specific config as slot settings. VNet integration for outbound; private endpoint for inbound.
+              </div>
+              <div class="lesson-quiz">
+                <div class="lesson-quiz-head">⚡ Mini-quiz</div>
+                Practise plan-tier and slot-swap scenarios → <a href="/train.html?pack=az-104&amp;mode=study">study mode (10 questions)</a>.
+              </div>
+            </div>
+
+            <div class="lesson-block">
+              <div class="lesson-title-row">
+                <span class="lesson-num">Lesson 5.2</span>
+                <span class="lesson-title">Containers in Azure — ACR, ACI, AKS</span>
+              </div>
+              <p class="lesson-intro">
+                Azure has three primary container services: a registry to store images (ACR), a fastest-path-to-run primitive (ACI), and a full orchestrator (AKS). The exam asks you to pick the right one for the workload — most candidates over-reach for AKS when ACI or App Service Containers would do.
+              </p>
+              <div class="lesson-section-head">Key concepts</div>
+              <ul class="lesson-bullets">
+                <li><strong>Azure Container Registry (ACR):</strong> private Docker / OCI registry. Tiers: <code>Basic</code> (dev), <code>Standard</code> (small prod), <code>Premium</code> (geo-replication, private endpoints, content trust, customer-managed keys). Image scanning via Microsoft Defender for Containers.</li>
+                <li><strong>Authentication to ACR:</strong> three options — <em>admin user</em> (single account, fine for testing — disable in production), <em>service principal</em> (CI/CD pipelines), <em>managed identity</em> (the modern preferred way — AKS / ACI / App Service pull directly using their assigned managed identity, no secrets).</li>
+                <li><strong>Azure Container Instances (ACI):</strong> single-container or container-group serverless compute. Pay per second of CPU/memory. Best for: scheduled batch jobs, ephemeral CI build agents, bursty workloads from AKS via the Virtual Kubelet. NOT a long-running web tier — no built-in load balancing or autoscaling group.</li>
+                <li><strong>Azure Kubernetes Service (AKS):</strong> managed Kubernetes — Microsoft runs the control plane free of charge, you pay only for worker nodes. The right answer when you need K8s primitives (Deployments, Services, NetworkPolicies, custom controllers, helm charts). Node pools can mix VM SKUs and zone-spreads; integrates with Azure CNI for VNet-native pod IPs.</li>
+                <li><strong>AKS cluster choices:</strong> auto-upgrade channels (none / patch / stable / rapid), node-image-only upgrades vs full cluster upgrades, system vs user node pools, scaling: <em>Cluster Autoscaler</em> (node count) plus <em>Horizontal Pod Autoscaler</em> (replica count). AKS-specific RBAC integrates with Entra ID for kubectl auth.</li>
+                <li><strong>App Service for Containers:</strong> often forgotten — App Service can run a custom Docker image directly. No Kubernetes, no learning curve, slot swap and managed identities all still work. The right answer when "we packaged the app as a container but only need one to a few replicas".</li>
+              </ul>
+              <div class="lesson-section-head">Concrete example</div>
+              <p>
+                A team wants to run a nightly data-import job from a custom Python image. They don't run any other containers. Design: build the image and push to an <strong>ACR Basic</strong> registry. Use an <strong>ACI container group</strong> with restart policy <code>OnFailure</code>, scheduled via an <strong>Azure Logic App</strong> or <strong>Automation runbook</strong> every night at 02:00 UTC. ACI's managed identity pulls from ACR — no service-principal secret to rotate. AKS would be overkill (no orchestration needed); App Service Containers would keep the import running as a server, not as a one-off job.
+              </p>
+              <div class="lesson-takeaway">
+                <strong>Key takeaway:</strong> ACR for images. ACI for one-off / bursty / no-orchestration. AKS when you need K8s. App Service for Containers as a quiet middle option. Always authenticate via managed identity — never the ACR admin user in production.
+              </div>
+              <div class="lesson-quiz">
+                <div class="lesson-quiz-head">⚡ Mini-quiz</div>
+                Drill ACI vs AKS vs App Service decisions → <a href="/train.html?pack=az-104&amp;mode=quick">quick quiz (5 questions)</a>.
+              </div>
+            </div>
+
+            <div class="lesson-block">
+              <div class="lesson-title-row">
+                <span class="lesson-num">Lesson 5.3</span>
+                <span class="lesson-title">Azure Functions — triggers, plans, and managed identities</span>
+              </div>
+              <p class="lesson-intro">
+                Functions is Azure's event-driven serverless compute — write code that runs in response to a trigger (HTTP request, timer, queue message, blob created) and let the platform handle scaling. The exam tests you on hosting plans (which has the biggest cost/cold-start trade-off) and on the security primitive (managed identities) that ties Functions to the rest of Azure.
+              </p>
+              <div class="lesson-section-head">Key concepts</div>
+              <ul class="lesson-bullets">
+                <li><strong>Hosting plans:</strong> <em>Consumption</em> (true serverless — pay per execution and per GB-second, cold starts of a few hundred ms, 10-minute max execution), <em>Premium</em> (pre-warmed instances, no cold start, VNet integration, longer execution), <em>App Service Plan</em> (run Functions on an existing plan — same compute, predictable cost). Consumption is the default; Premium when cold start hurts.</li>
+                <li><strong>Triggers and bindings:</strong> each function has exactly one trigger (HTTP, Timer, Queue, Blob, Event Grid, Service Bus, Cosmos DB) and zero or more bindings (input/output for blob, queue, table, Cosmos). Bindings remove boilerplate — declare them in <code>function.json</code> and the runtime injects the connection.</li>
+                <li><strong>Durable Functions:</strong> extension for orchestrating long-running workflows with checkpointing — chained activities, fan-out/fan-in patterns, human-approval steps with timers. The right answer when you need workflow state to survive a process restart.</li>
+                <li><strong>Managed identities:</strong> system-assigned (lifecycle tied to the resource) or user-assigned (independent, reusable across resources). Enable on the Function App and grant data-plane RBAC on target services (Storage Blob Data Reader, etc.). No connection strings, no secrets.</li>
+                <li><strong>Key Vault references:</strong> in App Settings, write <code>@Microsoft.KeyVault(SecretUri=...)</code> and the Function fetches the secret at runtime using its managed identity. Centralises secret management without code changes.</li>
+                <li><strong>Cold starts and mitigation:</strong> on Consumption, the first request to an idle instance pays a cold-start penalty (200ms-1s for .NET, more for Python). Mitigations: use Premium plan (always-warm), use a Timer-triggered Function to ping the HTTP endpoint every 5 minutes, or accept the latency for low-traffic apps.</li>
+              </ul>
+              <div class="lesson-section-head">Concrete example</div>
+              <p>
+                A function ingests files from a Storage Account blob container, processes each one, and writes the result to a Cosmos DB collection. Design: Function App on the <strong>Consumption plan</strong>, blob trigger on the source container, Cosmos DB output binding. Enable <strong>system-assigned managed identity</strong>, grant it <em>Storage Blob Data Contributor</em> on the source storage and <em>Cosmos DB Built-in Data Contributor</em> on the target — no connection strings anywhere. Cold start is fine; the trigger is batch and doesn't need sub-100ms latency. If the workload grows to need VNet integration to a private Cosmos endpoint, upgrade the plan to Premium.
+              </p>
+              <div class="lesson-takeaway">
+                <strong>Key takeaway:</strong> Consumption plan for true serverless cost. Premium when you can't tolerate cold starts or need VNet integration. Managed identities + Key Vault references for secrets. Durable Functions for stateful workflows. One trigger per function, many bindings.
+              </div>
+              <div class="lesson-quiz">
+                <div class="lesson-quiz-head">⚡ Mini-quiz</div>
+                Test Functions plan and managed-identity decisions → <a href="/train.html?pack=az-104&amp;mode=study">study mode (10 questions)</a>.
+              </div>
+            </div>
+
+          </div>
+        </details>
       </div>
 
       <div class="module-card is-expanded">
