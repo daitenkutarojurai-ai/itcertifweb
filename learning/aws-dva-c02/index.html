@@ -378,10 +378,10 @@
         </div>
 
         <!-- Module 2 -->
-        <div class="module-card">
+        <div class="module-card is-expanded">
           <div class="module-num">02</div>
           <div class="module-body">
-            <h3>API Gateway — REST, HTTP &amp; WebSocket APIs</h3>
+            <h3>API Gateway — REST, HTTP &amp; WebSocket APIs<span class="chapter-badge">3 lessons</span></h3>
             <p>Build and secure APIs the AWS way. Covers REST vs HTTP API differences, Lambda proxy vs custom integration, request/response mapping templates, stage variables, caching and throttling, usage plans and API keys, Lambda authorizers, Cognito User Pool authorizers, CORS configuration, canary deployments, and WebSocket APIs for real-time bidirectional communication.</p>
             <div class="module-topics">
               <span class="topic-chip">proxy-integration</span>
@@ -395,6 +395,103 @@
             </div>
           </div>
           <div class="module-dur">~4h</div>
+
+          <details>
+            <summary class="chapter-toggle" role="button">📖 Read in-depth chapter <span class="chapter-toggle-icon">▾</span></summary>
+            <div class="chapter-content">
+
+              <div class="lesson-block">
+                <div class="lesson-title-row">
+                  <span class="lesson-pos">Lesson 2.1</span>
+                  <span class="lesson-title">REST vs HTTP API — picking the right gateway</span>
+                </div>
+                <p class="lesson-intro">
+                  API Gateway has two flavours that get confused all the time: <em>REST API</em> (the original, feature-complete) and <em>HTTP API</em> (newer, simpler, ~70% cheaper). The exam loves edge-case questions on which features exist in which flavour, because picking the wrong one costs you either money or capability.
+                </p>
+                <div class="lesson-section-head">Key concepts</div>
+                <ul class="lesson-bullets">
+                  <li><strong>HTTP API:</strong> the modern, low-cost option. JWT authorizers via Cognito or any OIDC provider, simple request/response, auto-deployed stages, CORS first-class. NO request/response mapping templates, NO API keys / usage plans, NO caching, NO WAF integration (until recently — check the current docs). Use for serverless microservices that don't need transformation.</li>
+                  <li><strong>REST API:</strong> the full-feature option. Lambda + Cognito authorizers, request/response mapping (VTL), API keys + usage plans, response caching, WAF, private API endpoints with VPC interface endpoints. Costs ~3.5× HTTP API. Use when you need any of those features.</li>
+                  <li><strong>Lambda integrations:</strong> <em>proxy</em> integration (the default — full request passed as JSON, full response expected back) vs <em>custom</em> integration (you write mapping templates to translate). Proxy is what 95% of teams use; custom only when you must integrate a non-Lambda backend or transform the contract.</li>
+                  <li><strong>Stages and stage variables:</strong> a stage is a named deployment of the API (<code>dev</code>, <code>prod</code>). Stage variables are key/value pairs accessible from integrations and authorizers — use them to point at different Lambda aliases per environment (e.g., <code>${stageVariables.lambdaAlias}</code>).</li>
+                  <li><strong>Throttling and caching:</strong> account-level throttle (10,000 RPS soft limit), stage-level throttle (override per stage), method-level throttle (per-route override). Caching only on REST API — TTL up to 1 hour, cache key includes path + headers you opt into. Cache cost scales with size.</li>
+                  <li><strong>Endpoint types:</strong> <em>Edge-optimised</em> (CloudFront in front, default for REST), <em>Regional</em> (your region only, faster from same-region clients), <em>Private</em> (REST only — accessible only via VPC interface endpoint). HTTP APIs are always Regional.</li>
+                </ul>
+                <div class="lesson-section-head">Concrete example</div>
+                <p>
+                  A SaaS startup needs a public API with three properties: (1) cost-efficient, (2) authenticated via Cognito User Pool JWT, (3) protected by simple per-stage rate limits. Choice: <strong>HTTP API</strong> with a JWT authorizer pointing at the Cognito issuer, stages <code>dev</code> and <code>prod</code> with stage-level throttling (e.g., 100 / 1000 RPS). Saves ~70% vs REST. If later the team needs request transformation or response caching, they migrate to a REST API — but only then.
+                </p>
+                <div class="lesson-takeaway">
+                  <strong>Key takeaway:</strong> HTTP API for cost-effective serverless APIs with JWT auth. REST API when you need mapping templates, API keys, caching, or WAF. Proxy integration almost always; custom only when forced.
+                </div>
+                <div class="lesson-quiz">
+                  <div class="lesson-quiz-head">⚡ Mini-quiz</div>
+                  Drill REST vs HTTP API decisions → <a href="/train.html?pack=aws-dva-c02&amp;mode=study">study mode (10 questions)</a>.
+                </div>
+              </div>
+
+              <div class="lesson-block">
+                <div class="lesson-title-row">
+                  <span class="lesson-pos">Lesson 2.2</span>
+                  <span class="lesson-title">Authorizers — IAM, Cognito, Lambda, JWT</span>
+                </div>
+                <p class="lesson-intro">
+                  API Gateway has four authorizer types, each suited to a different identity story. The exam asks you to pick the right one given a description of the client population — corporate users, consumer app, server-to-server, third-party integration.
+                </p>
+                <div class="lesson-section-head">Key concepts</div>
+                <ul class="lesson-bullets">
+                  <li><strong>IAM authorizer (Sigv4):</strong> the caller signs requests with AWS credentials. Right for service-to-service inside AWS — e.g., a Lambda in another account calling your API. Free, no Lambda invocation per call. Doesn't fit end-user clients.</li>
+                  <li><strong>Cognito User Pool authorizer:</strong> the caller presents a Cognito JWT in the Authorization header. API Gateway validates the JWT against the configured Cognito pool. Right for consumer apps where Cognito handles sign-up / sign-in / MFA / federation.</li>
+                  <li><strong>Lambda authorizer (custom):</strong> a Lambda function you write evaluates the request (token-based on Authorization header, OR request-based on multiple inputs) and returns an IAM policy that allows or denies. Used for third-party JWT validation (Auth0, Okta, Firebase), custom business rules, or PII-aware decisions. Cache results to avoid invoking on every request — TTL up to 1 hour.</li>
+                  <li><strong>JWT authorizer (HTTP API only):</strong> built-in OIDC JWT validation against any issuer (Cognito, Auth0, Azure AD). Same feel as Lambda authorizer but no Lambda — config-only, free, fast. Use whenever the identity story is "any OIDC IdP".</li>
+                  <li><strong>API keys + usage plans:</strong> distinct from authorizers — API keys identify the CALLING SYSTEM (not the user), bind to usage plans that enforce per-key throttle + quota (RPS + monthly request count). Use for paid-tier rate limiting or partner API access. Always combine with an authorizer for real auth — API keys alone are not authentication.</li>
+                  <li><strong>CORS:</strong> handled by API Gateway via OPTIONS preflight responses. HTTP API has first-class CORS config (just declare allowed origins/methods/headers). REST API requires enabling CORS on each method — easy to miss and the most common "my API doesn't work in the browser" complaint.</li>
+                </ul>
+                <div class="lesson-section-head">Concrete example</div>
+                <p>
+                  A B2B SaaS API needs: (1) end-user auth via the customer's own SSO (any OIDC), (2) partner-level rate limits on shared keys, (3) admin endpoints callable only from internal AWS Lambda. Design: <strong>HTTP API</strong> with a <strong>JWT authorizer</strong> pointing at the customer's OIDC issuer for user routes; <strong>API keys + usage plans</strong> on top of the JWT for per-partner quotas; a separate <strong>REST API</strong> (or routes within the HTTP API) with <strong>IAM authorization</strong> for the internal admin endpoints. Three identity stories, three authorizer types, one logical API.
+                </p>
+                <div class="lesson-takeaway">
+                  <strong>Key takeaway:</strong> IAM for service-to-service inside AWS. Cognito for consumer apps. JWT (HTTP API) for OIDC providers. Lambda authorizer for everything bespoke. API keys are for billing tier, not authentication.
+                </div>
+                <div class="lesson-quiz">
+                  <div class="lesson-quiz-head">⚡ Mini-quiz</div>
+                  Practise authorizer-type decisions → <a href="/train.html?pack=aws-dva-c02&amp;mode=quick">quick quiz (5 questions)</a>.
+                </div>
+              </div>
+
+              <div class="lesson-block">
+                <div class="lesson-title-row">
+                  <span class="lesson-pos">Lesson 2.3</span>
+                  <span class="lesson-title">Deployment, observability, and WebSockets</span>
+                </div>
+                <p class="lesson-intro">
+                  How you ship to API Gateway determines the blast radius of a bad release. Add CloudWatch + X-Ray and you can find regressions before customers do. WebSockets are the off-spec topic that always catches one or two candidates per exam.
+                </p>
+                <div class="lesson-section-head">Key concepts</div>
+                <ul class="lesson-bullets">
+                  <li><strong>Canary deployments (REST API):</strong> deploy a new version to the same stage but route a small % of traffic to it. Run for a defined window; promote if metrics are clean; roll back by re-deploying the prior version. Integrates with CodeDeploy for automatic rollback on alarm.</li>
+                  <li><strong>HTTP API auto-deploy:</strong> changes to an HTTP API can be auto-deployed to the configured stage — simpler but less control. Use stage variables and feature flags to decouple risky changes from the deploy.</li>
+                  <li><strong>CloudWatch metrics:</strong> per-stage / per-method <code>4XXError</code>, <code>5XXError</code>, <code>Count</code>, <code>Latency</code>, <code>IntegrationLatency</code>. Build dashboards for p50/p99 latency and error rate; alarm on 5XX rate &gt; 1% over 5 minutes.</li>
+                  <li><strong>Access logging:</strong> per-request log entries (JSON) sent to CloudWatch Logs or Kinesis Firehose. Enable to debug specific requests by request ID. Costs ingestion fees — sample if traffic is huge.</li>
+                  <li><strong>X-Ray tracing:</strong> enable on the stage to capture per-segment latency through the integration. Lambda must opt-in to X-Ray (env var + IAM permissions). Surfaces "DynamoDB call took 800ms" inside an otherwise unexplainable 1.2s API response.</li>
+                  <li><strong>WebSocket APIs:</strong> a separate API type for bidirectional, stateful connections. Routes are keyed by <code>$connect</code>, <code>$disconnect</code>, <code>$default</code>, and message-payload routes you define. Storage of connection IDs is your job — DynamoDB is the canonical backing store. Backend (typically Lambda) calls <code>PostToConnection</code> via the management API to push messages to specific clients.</li>
+                </ul>
+                <div class="lesson-section-head">Concrete example</div>
+                <p>
+                  A trading-platform team needs a real-time price-update feed to thousands of browsers. Design: <strong>WebSocket API</strong> with <code>$connect</code> Lambda that writes the connectionId + userId to a DynamoDB connections table, <code>$disconnect</code> Lambda that deletes the row. A separate price-publisher Lambda triggered by a Kinesis stream reads all active connections and calls <code>PostToConnection</code> per subscriber. Add X-Ray for end-to-end latency tracing. Per-stage CloudWatch alarm on <code>ConnectCount</code> sudden drops signals a backend issue.
+                </p>
+                <div class="lesson-takeaway">
+                  <strong>Key takeaway:</strong> canary deployments for safe rollouts (REST), auto-deploy for speed (HTTP). CloudWatch + access logs + X-Ray for observability. WebSocket APIs need you to manage connection state — DynamoDB is the canonical store.
+                </div>
+                <div class="lesson-quiz">
+                  <div class="lesson-quiz-head">⚡ Mini-quiz</div>
+                  Test deployment and observability scenarios → <a href="/train.html?pack=aws-dva-c02&amp;mode=study">study mode (10 questions)</a>.
+                </div>
+              </div>
+
+            </div>
+          </details>
         </div>
 
         <!-- Module 3 -->
@@ -522,10 +619,10 @@
         </div>
 
         <!-- Module 4 -->
-        <div class="module-card">
+        <div class="module-card is-expanded">
           <div class="module-num">04</div>
           <div class="module-body">
-            <h3>Messaging — SQS, SNS, Kinesis &amp; EventBridge</h3>
+            <h3>Messaging — SQS, SNS, Kinesis &amp; EventBridge<span class="chapter-badge">3 lessons</span></h3>
             <p>Decoupled event-driven architectures are a core DVA-C02 topic. Learn when to use SQS (durable queuing), SNS (fan-out pub/sub), Kinesis Data Streams (ordered high-throughput streaming), and EventBridge (event routing with schema registry). Key concepts: SQS visibility timeout and DLQ, FIFO vs Standard queues, SNS subscription filters, Kinesis shard management and Lambda parallelization factor, and EventBridge rules and targets.</p>
             <div class="module-topics">
               <span class="topic-chip">sqs-visibility-timeout</span>
@@ -538,6 +635,103 @@
             </div>
           </div>
           <div class="module-dur">~4h</div>
+
+          <details>
+            <summary class="chapter-toggle" role="button">📖 Read in-depth chapter <span class="chapter-toggle-icon">▾</span></summary>
+            <div class="chapter-content">
+
+              <div class="lesson-block">
+                <div class="lesson-title-row">
+                  <span class="lesson-pos">Lesson 4.1</span>
+                  <span class="lesson-title">SQS — Standard, FIFO, visibility timeout, DLQs</span>
+                </div>
+                <p class="lesson-intro">
+                  SQS is the durable queue. Producers write, consumers poll, the queue keeps the message until acknowledged. Two queue types — Standard (high throughput, at-least-once, no ordering) and FIFO (exactly-once, ordered, lower throughput) — and a small set of operational levers that the exam tests heavily.
+                </p>
+                <div class="lesson-section-head">Key concepts</div>
+                <ul class="lesson-bullets">
+                  <li><strong>Standard vs FIFO:</strong> Standard supports unlimited throughput, best-effort ordering, at-least-once delivery (duplicates possible). FIFO is strict ordering inside a <em>MessageGroupId</em>, exactly-once when <code>ContentBasedDeduplication</code> is on, max ~3000 msg/sec with high throughput mode. FIFO queue names must end with <code>.fifo</code>.</li>
+                  <li><strong>Visibility timeout:</strong> when a consumer receives a message, it's invisible to others for the visibility timeout (default 30s, max 12h). If the consumer fails before deleting, the message becomes visible again. Tune to slightly longer than your slowest consumer; too short causes duplicate processing.</li>
+                  <li><strong>Long polling:</strong> set <code>ReceiveMessageWaitTimeSeconds = 20</code> (max). The Receive API call holds open until a message arrives or 20s elapse — drastically cuts cost vs short polling (~$0.40/M reqs adds up fast on a hot consumer).</li>
+                  <li><strong>Dead Letter Queue (DLQ):</strong> a second SQS queue that receives messages that have been received but not deleted N times (<code>maxReceiveCount</code>, default 3). Lets poison messages drain off the main queue. DLQ for FIFO must also be FIFO; DLQ for Standard can be Standard.</li>
+                  <li><strong>Message size:</strong> up to 256 KB. For larger payloads, store the body in S3 and put the S3 URL in the SQS message (the <em>Extended Client Library</em> does this automatically). Compresses large-payload pipelines without changing producer/consumer code much.</li>
+                  <li><strong>Delay queues and delays per message:</strong> a queue-level <code>DelaySeconds</code> (up to 15 minutes) postpones visibility for every new message. Per-message delay is supported on Standard only. Useful for scheduled retries or pacing downstream systems.</li>
+                </ul>
+                <div class="lesson-section-head">Concrete example</div>
+                <p>
+                  An e-commerce order pipeline processes ~5,000 orders/sec at peak. Orders for the same customer must be processed in order, but order between different customers doesn't matter. Choice: <strong>FIFO queue with high-throughput mode</strong> + <code>MessageGroupId = customerId</code> so each customer becomes a strict-order shard while different customers run in parallel. Visibility timeout 60s (consumer p99 is 30s). DLQ with <code>maxReceiveCount = 5</code>. <code>ContentBasedDeduplication</code> on, so the producer's retry of the same body doesn't double-process.
+                </p>
+                <div class="lesson-takeaway">
+                  <strong>Key takeaway:</strong> Standard for max throughput + tolerable duplicates. FIFO when order or exactly-once matters — group by MessageGroupId to retain per-shard ordering with parallel consumers. Visibility timeout &gt; max processing time. DLQs always — drain poison messages.
+                </div>
+                <div class="lesson-quiz">
+                  <div class="lesson-quiz-head">⚡ Mini-quiz</div>
+                  Practise SQS queue-type and DLQ scenarios → <a href="/train.html?pack=aws-dva-c02&amp;mode=study">study mode (10 questions)</a>.
+                </div>
+              </div>
+
+              <div class="lesson-block">
+                <div class="lesson-title-row">
+                  <span class="lesson-pos">Lesson 4.2</span>
+                  <span class="lesson-title">SNS, EventBridge, and event-routing patterns</span>
+                </div>
+                <p class="lesson-intro">
+                  SNS and EventBridge both deliver events to multiple subscribers, but they target different patterns. SNS is the simple fan-out pub/sub — one topic, many subscribers, optional filter. EventBridge is the routing bus — one event, many rules that fire targets based on content matching against a schema. Picking between them is a frequent exam question.
+                </p>
+                <div class="lesson-section-head">Key concepts</div>
+                <ul class="lesson-bullets">
+                  <li><strong>SNS topics:</strong> publish once, fan-out to many subscribers. Subscriber types: SQS, Lambda, HTTP(S) endpoint, email, SMS, mobile push, Kinesis Data Firehose, application endpoints. Standard topics (best-effort order, at-least-once) and FIFO topics (with FIFO SQS subscribers, deduplication, group-by-MessageGroupId).</li>
+                  <li><strong>SNS subscription filters:</strong> JSON policy attached to a subscription that tests message attributes (and optionally body in newer regions). Only matching messages are delivered. Avoid sending every message to every subscriber when only a subset cares.</li>
+                  <li><strong>Cross-region/cross-account fan-out:</strong> SNS topics can have subscribers in other regions and accounts. The standard pattern for "one publisher, multiple business-unit consumers".</li>
+                  <li><strong>EventBridge:</strong> a managed event bus with rules. Each rule has an event pattern (content-based filter) and one or more targets (Lambda, Step Functions, SQS, SNS, Kinesis, ECS, Batch, etc.). Schema registry can auto-discover and version event schemas. Three bus types: <em>default</em> (AWS service events), <em>custom</em> (your events), <em>partner</em> (SaaS integrations like Auth0, Datadog, Shopify).</li>
+                  <li><strong>Scheduled rules:</strong> EventBridge supports cron-style rules (the modern replacement for CloudWatch Events). Trigger Lambda on a schedule with a richer expression language than the legacy CloudWatch syntax.</li>
+                  <li><strong>EventBridge Pipes (newer):</strong> point-to-point integration with optional filter and enrichment between source (SQS/Kinesis/DynamoDB Stream) and target (Lambda/Step Functions/SNS/etc.). Replaces the "Lambda just to translate" anti-pattern for many integrations.</li>
+                </ul>
+                <div class="lesson-section-head">Concrete example</div>
+                <p>
+                  An order-published event needs to: (1) fan out to a billing service, an inventory service, and a notifications service; (2) only the notifications service cares about <code>orderTotal &gt; $500</code> (VIP customers). Choice A (SNS): one topic, three SQS subscribers, an SNS <strong>subscription filter</strong> on the notifications subscriber matching <code>{"orderTotal": [{"numeric": [">", 500]}]}</code>. Choice B (EventBridge): one event, three rules. SNS is simpler and free for the fan-out itself. EventBridge wins when content routing gets more complex or you want schema discovery.
+                </p>
+                <div class="lesson-takeaway">
+                  <strong>Key takeaway:</strong> SNS for simple fan-out with optional filters. EventBridge for content-routed, schema-versioned event buses. Both are pub/sub — the choice depends on filtering richness and schema needs.
+                </div>
+                <div class="lesson-quiz">
+                  <div class="lesson-quiz-head">⚡ Mini-quiz</div>
+                  Drill SNS vs EventBridge decisions → <a href="/train.html?pack=aws-dva-c02&amp;mode=quick">quick quiz (5 questions)</a>.
+                </div>
+              </div>
+
+              <div class="lesson-block">
+                <div class="lesson-title-row">
+                  <span class="lesson-pos">Lesson 4.3</span>
+                  <span class="lesson-title">Kinesis Data Streams — shards, ordering, and Lambda integration</span>
+                </div>
+                <p class="lesson-intro">
+                  When you need ordered, high-throughput, replayable streams (real-time clickstream, telemetry, financial ticks), Kinesis Data Streams is the answer. The mental model is fundamentally different from SQS — partitioned by shard, consumers track position, retention up to 365 days. Exam questions focus on shard scaling and Lambda integration parallelism.
+                </p>
+                <div class="lesson-section-head">Key concepts</div>
+                <ul class="lesson-bullets">
+                  <li><strong>Shards:</strong> the unit of throughput. Each shard supports 1 MB/sec or 1000 records/sec write, 2 MB/sec read. Capacity scales by adding shards. Provisioned mode (you size manually) vs On-Demand mode (auto-scales up to peak ~30× over 24h).</li>
+                  <li><strong>Partition key:</strong> producer-supplied; hashed to determine which shard. Records with the same partition key always land in the same shard, preserving order WITHIN that key. Even distribution is your job — a hot partition key creates a hot shard exactly like DynamoDB.</li>
+                  <li><strong>Retention:</strong> 24 hours by default, configurable up to 365 days. Replay-capable — a downstream consumer can re-process the last 7 days by resetting its position. Cost increases with retention.</li>
+                  <li><strong>Lambda as consumer:</strong> Lambda polls the stream via event source mapping. <em>Parallelization factor</em> (1-10) increases how many Lambda invocations process records FROM ONE SHARD concurrently — useful when downstream work is slow and records-per-shard exceeds Lambda's throughput. Use carefully — invocations within a shard see records out of original order.</li>
+                  <li><strong>Failure handling for stream consumers:</strong> a failing batch BLOCKS the shard (Lambda retries indefinitely by default). Mitigations: <code>BisectBatchOnFunctionError</code> (split the batch and retry halves), <code>MaximumRetryAttempts</code> (cap retries), <code>OnFailure</code> destination (SQS/SNS DLQ for unprocessable records). Without these, one poison record halts the entire shard.</li>
+                  <li><strong>Enhanced Fan-out:</strong> per-consumer dedicated 2 MB/sec read throughput, push-based via HTTP/2. Use when multiple consumers compete for the same shard's read capacity. Costs more — only justified for 3+ consumers.</li>
+                </ul>
+                <div class="lesson-section-head">Concrete example</div>
+                <p>
+                  A telemetry pipeline ingests sensor readings at 50 MB/sec, must preserve per-sensor ordering, and runs a real-time anomaly detector. Design: Kinesis Data Stream with 50 shards (on-demand mode for variable load), <code>PartitionKey = sensorId</code>. Anomaly Lambda as consumer with <strong>parallelizationFactor = 1</strong> (we need order per sensor — bumping the factor would interleave records). Add <strong>BisectBatchOnFunctionError</strong> + <strong>OnFailure destination</strong> SQS DLQ so a poison record doesn't block the shard. Retention bumped to 7 days for replay during incidents.
+                </p>
+                <div class="lesson-takeaway">
+                  <strong>Key takeaway:</strong> Kinesis for ordered, replayable, partitioned streams. Shards are the throughput unit. Partition keys determine ordering scope. Lambda parallelization factor gates how concurrent processing within a shard is — be deliberate. Always configure failure handling — the default blocks the shard.
+                </div>
+                <div class="lesson-quiz">
+                  <div class="lesson-quiz-head">⚡ Mini-quiz</div>
+                  Practise shard sizing and Lambda integration scenarios → <a href="/train.html?pack=aws-dva-c02&amp;mode=study">study mode (10 questions)</a>.
+                </div>
+              </div>
+
+            </div>
+          </details>
         </div>
 
         <!-- Module 5 -->
