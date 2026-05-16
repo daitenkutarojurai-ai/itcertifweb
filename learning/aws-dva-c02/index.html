@@ -735,10 +735,10 @@
         </div>
 
         <!-- Module 5 -->
-        <div class="module-card">
+        <div class="module-card is-expanded">
           <div class="module-num">05</div>
           <div class="module-body">
-            <h3>Security — Cognito, IAM, KMS &amp; Secrets Manager</h3>
+            <h3>Security — Cognito, IAM, KMS &amp; Secrets Manager<span class="chapter-badge">3 lessons</span></h3>
             <p>Security is 26% of DVA-C02. This module covers Cognito User Pools vs Identity Pools and when to use each, ID token vs Access token vs Refresh token, fine-grained DynamoDB/S3 access with identity pool policy variables, IAM roles for Lambda and cross-account access, resource-based policies, KMS envelope encryption with GenerateDataKey, Secrets Manager automatic rotation, SSM Parameter Store SecureString, and S3 presigned URLs.</p>
             <div class="module-topics">
               <span class="topic-chip">cognito-user-pools</span>
@@ -752,13 +752,110 @@
             </div>
           </div>
           <div class="module-dur">~5h</div>
+
+          <details>
+            <summary class="chapter-toggle" role="button">📖 Read in-depth chapter <span class="chapter-toggle-icon">▾</span></summary>
+            <div class="chapter-content">
+
+              <div class="lesson-block">
+                <div class="lesson-title-row">
+                  <span class="lesson-pos">Lesson 5.1</span>
+                  <span class="lesson-title">Cognito — User Pools vs Identity Pools</span>
+                </div>
+                <p class="lesson-intro">
+                  Cognito has two products that share a brand but solve different problems. User Pools are the directory; Identity Pools are the AWS-credential vending machine. Most apps use both together — the exam loves the "which one for which job" distinction.
+                </p>
+                <div class="lesson-section-head">Key concepts</div>
+                <ul class="lesson-bullets">
+                  <li><strong>User Pool:</strong> a managed user directory — sign-up, sign-in, password reset, MFA, social logins, custom attributes, hosted UI. Issues JWTs (ID + Access + Refresh tokens) to authenticated users. Use it whenever your app needs an "account" concept.</li>
+                  <li><strong>Identity Pool (Federated Identities):</strong> exchanges a token (from Cognito User Pool OR third-party IdP OR Google/Facebook/Apple) for TEMPORARY AWS credentials via STS AssumeRoleWithWebIdentity. Use to grant browser/mobile apps direct AWS access (S3 upload, DynamoDB read).</li>
+                  <li><strong>JWT trio:</strong> <em>ID token</em> contains user identity claims (use for "who is this user"). <em>Access token</em> authorises access to resources (use to call APIs). <em>Refresh token</em> long-lived, swap for new ID+Access. Default expiry: ID/Access 1h, Refresh 30d.</li>
+                  <li><strong>Policy variables in Identity Pool roles:</strong> <code>${cognito-identity.amazonaws.com:sub}</code> resolves to the user's unique identity ID. Use in IAM policies (<code>"Resource": "arn:aws:s3:::mybucket/${cognito-identity.amazonaws.com:sub}/*"</code>) to give each user their own folder without writing per-user policies.</li>
+                  <li><strong>Cognito Triggers (User Pool Lambda):</strong> hook into pre-signup, post-confirmation, custom message, pre-auth, post-auth, pre-token-generation. Use pre-token-generation to inject custom claims (org_id, tier) into the JWT.</li>
+                  <li><strong>SAML / OIDC federation:</strong> User Pools can federate to a corporate IdP (Okta, Azure AD via SAML or OIDC). Users authenticate at the IdP; Cognito issues its own JWT with the federation claims merged in. Common in B2B SaaS.</li>
+                </ul>
+                <div class="lesson-section-head">Concrete example</div>
+                <p>
+                  A mobile app needs (1) user accounts with email + Google sign-in, (2) per-user private S3 photo storage. Design: <strong>Cognito User Pool</strong> for sign-up/sign-in (Google federated). After auth, the app exchanges the User Pool JWT at the <strong>Identity Pool</strong> for temporary AWS credentials. The Identity Pool authenticated role grants <code>s3:GetObject</code>/<code>s3:PutObject</code> on <code>mybucket/${cognito-identity.amazonaws.com:sub}/*</code> — each user can read/write only their own folder, no Lambda required between client and S3.
+                </p>
+                <div class="lesson-takeaway">
+                  <strong>Key takeaway:</strong> User Pool = directory + JWT issuer. Identity Pool = JWT → temporary AWS credentials. Most apps need both. Policy variables on the Identity Pool role enable per-user isolation without writing per-user IAM policies.
+                </div>
+                <div class="lesson-quiz">
+                  <div class="lesson-quiz-head">⚡ Mini-quiz</div>
+                  Drill Cognito User Pool vs Identity Pool decisions → <a href="/train.html?pack=aws-dva-c02&amp;mode=study">study mode (10 questions)</a>.
+                </div>
+              </div>
+
+              <div class="lesson-block">
+                <div class="lesson-title-row">
+                  <span class="lesson-pos">Lesson 5.2</span>
+                  <span class="lesson-title">IAM for developers — roles, trust policies, cross-account</span>
+                </div>
+                <p class="lesson-intro">
+                  IAM on the DVA-C02 exam is heavy on practical role design rather than policy syntax memorisation. Understanding execution roles, trust relationships, and cross-account access patterns is what separates a passing score from a fail.
+                </p>
+                <div class="lesson-section-head">Key concepts</div>
+                <ul class="lesson-bullets">
+                  <li><strong>Execution role:</strong> the IAM role a Lambda (or ECS task, EC2, etc.) assumes when it runs. Grants the function permissions to call AWS APIs. The role's trust policy must allow <code>lambda.amazonaws.com</code> as principal.</li>
+                  <li><strong>Identity-based vs resource-based policies:</strong> identity-based policies attach to IAM users/roles ("this role can do X"). Resource-based policies attach to resources ("anyone listed here can do X to me") — S3 bucket policies, Lambda resource policies, KMS key policies. Resource-based policies enable cross-account access without role chaining.</li>
+                  <li><strong>STS AssumeRole:</strong> the cross-account mechanism. Account A's role has a trust policy allowing Account B's principal to assume it. Account B calls <code>sts:AssumeRole</code> and gets temporary credentials that act as Account A's role for up to 12 hours.</li>
+                  <li><strong>Lambda invocation permission (resource policy):</strong> for cross-account Lambda invokes, add a resource-based policy on the Lambda using <code>lambda:AddPermission</code> — that's how API Gateway in account B is allowed to invoke a Lambda in account A.</li>
+                  <li><strong>Policy evaluation logic:</strong> deny anywhere wins. Explicit allow needed somewhere. Resource-based policies CAN grant access without an identity-based policy in the same account (cross-account requires both ends).</li>
+                  <li><strong>Permissions boundary:</strong> the maximum permissions a role/user can have. Used to delegate role-creation safely — devs can create roles, but the permissions boundary caps what those roles can do.</li>
+                </ul>
+                <div class="lesson-section-head">Concrete example</div>
+                <p>
+                  A Lambda in account A needs to read DynamoDB in account B. Design: in account B, create an IAM role with <code>dynamodb:GetItem</code> on the target table; its trust policy allows the Lambda execution role from account A. The Lambda code calls <code>STS AssumeRole</code> at startup (cached for ~50min), uses the temporary credentials in a DynamoDB client. Alternative for one-off cross-account writes: a resource-based policy on the DynamoDB table itself — simpler but doesn't carry over to Streams or backups.
+                </p>
+                <div class="lesson-takeaway">
+                  <strong>Key takeaway:</strong> execution role for in-account permissions, AssumeRole + trust policy for cross-account. Resource-based policies enable cross-account without role chaining where supported. Deny always wins; explicit allow always required.
+                </div>
+                <div class="lesson-quiz">
+                  <div class="lesson-quiz-head">⚡ Mini-quiz</div>
+                  Practise role/trust/cross-account scenarios → <a href="/train.html?pack=aws-dva-c02&amp;mode=quick">quick quiz (5 questions)</a>.
+                </div>
+              </div>
+
+              <div class="lesson-block">
+                <div class="lesson-title-row">
+                  <span class="lesson-pos">Lesson 5.3</span>
+                  <span class="lesson-title">KMS, Secrets Manager, Parameter Store, and presigned URLs</span>
+                </div>
+                <p class="lesson-intro">
+                  Encryption keys and secrets management round out the security domain. The exam distinguishes Secrets Manager from Parameter Store routinely, and asks about KMS envelope encryption mechanics whenever a workflow involves "encrypt this 500 MB file".
+                </p>
+                <div class="lesson-section-head">Key concepts</div>
+                <ul class="lesson-bullets">
+                  <li><strong>KMS envelope encryption:</strong> KMS keys are 4 KB and can't encrypt large objects directly. Instead: call <code>GenerateDataKey</code> which returns a plaintext data key AND an encrypted version of that data key. Encrypt your large blob locally with the plaintext data key, discard the plaintext, store the encrypted blob + the encrypted data key together. To decrypt: <code>Decrypt</code> the data key with KMS, use plaintext data key to decrypt the blob.</li>
+                  <li><strong>Customer-Managed Keys (CMK) vs AWS-managed keys vs AWS-owned keys:</strong> CMK is the only one where you control the key policy, rotation, deletion. CMK comes in symmetric (default), asymmetric (RSA/ECC), and HMAC variants.</li>
+                  <li><strong>Secrets Manager:</strong> rotates secrets automatically via a Lambda rotation function. Built-in rotation for RDS, DocumentDB, Redshift, Redshift Serverless. Higher cost than Parameter Store. Use whenever automatic rotation matters.</li>
+                  <li><strong>SSM Parameter Store SecureString:</strong> stores secrets encrypted with KMS. Free (Standard tier, up to 4 KB per parameter), no built-in rotation. Use for config that rotates manually or rarely (DB endpoints, feature flags, ENV-prefixed values).</li>
+                  <li><strong>S3 presigned URLs:</strong> a signed URL with embedded credentials and short expiry that allows the holder to GET or PUT a specific S3 object without AWS credentials. Common pattern: client calls Lambda → Lambda generates presigned URL → client uploads directly to S3, bypassing Lambda payload limits (6 MB sync, 256 KB async).</li>
+                  <li><strong>S3 server-side encryption options:</strong> SSE-S3 (AWS-managed key, AES256), SSE-KMS (KMS CMK, auditable, more expensive — invokes <code>Decrypt</code> on every GET unless caching is on), SSE-C (you provide the key on every request — rare).</li>
+                </ul>
+                <div class="lesson-section-head">Concrete example</div>
+                <p>
+                  A user uploads a 500 MB report through a web app. The Lambda backend can't accept 500 MB payloads. Design: Lambda exposes an API that, on request, calls <code>S3.getSignedUrl('putObject', ...)</code> with a 15-minute expiry and returns the URL to the client. The browser PUTs the file directly to S3. S3 is configured with <strong>SSE-KMS using a CMK</strong>. After upload, S3 ObjectCreated event triggers a downstream Lambda. To decrypt: that Lambda has <code>kms:Decrypt</code> on the CMK; reads the encrypted data-key from the object metadata; uses KMS to decrypt it; uses the plaintext data key to decrypt the report locally.
+                </p>
+                <div class="lesson-takeaway">
+                  <strong>Key takeaway:</strong> envelope encryption is the standard pattern for &gt;4 KB plaintext. Secrets Manager for auto-rotated DB creds; Parameter Store SecureString for cheaper static secrets. Presigned URLs bypass Lambda payload limits for large uploads/downloads.
+                </div>
+                <div class="lesson-quiz">
+                  <div class="lesson-quiz-head">⚡ Mini-quiz</div>
+                  Practise KMS, Secrets Manager, and presigned-URL scenarios → <a href="/train.html?pack=aws-dva-c02&amp;mode=study">study mode (10 questions)</a>.
+                </div>
+              </div>
+
+            </div>
+          </details>
         </div>
 
         <!-- Module 6 -->
-        <div class="module-card">
+        <div class="module-card is-expanded">
           <div class="module-num">06</div>
           <div class="module-body">
-            <h3>CI/CD — CodeCommit, CodeBuild, CodeDeploy &amp; CodePipeline</h3>
+            <h3>CI/CD — CodeCommit, CodeBuild, CodeDeploy &amp; CodePipeline<span class="chapter-badge">3 lessons</span></h3>
             <p>The deployment domain (24%) focuses on AWS-native CI/CD. Learn CodePipeline stage architecture (Source → Build → Deploy), CodeBuild buildspec.yml phases, compute types, and artifact caching, CodeDeploy deployment strategies for EC2/ECS/Lambda (AllAtOnce, Rolling, Blue/Green, Canary, Linear), AppSpec hooks (BeforeInstall, AfterInstall, ValidateService), CloudWatch alarm rollback, and CodeArtifact for private package management.</p>
             <div class="module-topics">
               <span class="topic-chip">codepipeline-stages</span>
@@ -772,13 +869,110 @@
             </div>
           </div>
           <div class="module-dur">~5h</div>
+
+          <details>
+            <summary class="chapter-toggle" role="button">📖 Read in-depth chapter <span class="chapter-toggle-icon">▾</span></summary>
+            <div class="chapter-content">
+
+              <div class="lesson-block">
+                <div class="lesson-title-row">
+                  <span class="lesson-pos">Lesson 6.1</span>
+                  <span class="lesson-title">CodePipeline and CodeBuild — pipeline anatomy</span>
+                </div>
+                <p class="lesson-intro">
+                  CodePipeline orchestrates the source → build → deploy flow. CodeBuild executes the actual build. Together they're AWS's native CI alternative to GitHub Actions / GitLab CI / Jenkins. Exam questions focus on stages, actions, and where artifacts flow.
+                </p>
+                <div class="lesson-section-head">Key concepts</div>
+                <ul class="lesson-bullets">
+                  <li><strong>Pipeline anatomy:</strong> stages run sequentially; actions within a stage can run in parallel or sequentially. Each action has an input artifact and an output artifact (S3-backed). Common stages: Source → Build → Test → Deploy. Stages can include manual approval actions.</li>
+                  <li><strong>Sources:</strong> CodeCommit (deprecated for new accounts), GitHub, Bitbucket, GitLab, S3, ECR (for container builds). Push triggers webhook events on connected repos; CodeStar Connections handles the OAuth.</li>
+                  <li><strong>CodeBuild buildspec.yml:</strong> phases are <em>install</em> (runtime + tools), <em>pre_build</em> (login, fetch deps), <em>build</em> (compile/test), <em>post_build</em> (push artifacts). <code>artifacts</code> section names what to upload. <code>cache.paths</code> caches dependency dirs across builds — major time savings for npm/maven.</li>
+                  <li><strong>CodeBuild compute types:</strong> Small (3 GB / 2 vCPU) → Large (15 GB / 8 vCPU) → 2XLarge (145 GB / 72 vCPU). Pay per minute, billed in 1-min increments. Use Arm Graviton compute for ~20% cost savings when your build supports it.</li>
+                  <li><strong>Environment variables and Parameter Store / Secrets Manager:</strong> CodeBuild buildspec can reference SSM Parameter Store or Secrets Manager secrets directly — no need to bake credentials into the project. Use <code>parameter-store</code> or <code>secrets-manager</code> keys in the env section.</li>
+                  <li><strong>CodeArtifact:</strong> managed package repo for npm, Maven, PyPI, NuGet. Supports upstream proxies to public registries with caching. Use to enforce internal package use, mitigate supply-chain attacks, and lock versions across teams.</li>
+                </ul>
+                <div class="lesson-section-head">Concrete example</div>
+                <p>
+                  A Node.js Lambda needs a pipeline: GitHub → build (with cached node_modules) → deploy via CloudFormation. Design: CodePipeline with three stages. Source: GitHub via CodeStar connection. Build: CodeBuild project with buildspec phases (install nvm-aliased Node 20, pre_build runs <code>npm ci</code>, build runs <code>npm test</code> + <code>sam build</code>, artifacts publish the .aws-sam directory). Cache S3 location for node_modules. Deploy: CloudFormation action with the SAM-built template. Manual approval before the prod deploy stage. Total pipeline runtime: ~3 minutes after cache warm-up.
+                </p>
+                <div class="lesson-takeaway">
+                  <strong>Key takeaway:</strong> CodePipeline orchestrates, CodeBuild executes. buildspec phases + cache.paths are the leverage points. Parameter Store / Secrets Manager keep secrets out of buildspec. CodeArtifact for private packages and supply-chain control.
+                </div>
+                <div class="lesson-quiz">
+                  <div class="lesson-quiz-head">⚡ Mini-quiz</div>
+                  Practise pipeline + buildspec scenarios → <a href="/train.html?pack=aws-dva-c02&amp;mode=study">study mode (10 questions)</a>.
+                </div>
+              </div>
+
+              <div class="lesson-block">
+                <div class="lesson-title-row">
+                  <span class="lesson-pos">Lesson 6.2</span>
+                  <span class="lesson-title">CodeDeploy strategies — Lambda, ECS, EC2</span>
+                </div>
+                <p class="lesson-intro">
+                  CodeDeploy automates the deploy phase. The exam tests deployment strategies (how traffic shifts) and AppSpec hooks (what runs at each phase). Get the strategy wrong and you either ship too fast or take down production.
+                </p>
+                <div class="lesson-section-head">Key concepts</div>
+                <ul class="lesson-bullets">
+                  <li><strong>Lambda strategies:</strong> <em>AllAtOnce</em> (instant cut-over, riskiest), <em>Canary</em> (X% for N minutes, then 100%), <em>Linear</em> (X% every N minutes, e.g., 10% every 10 min). CodeDeploy shifts traffic between two Lambda aliases via weighted aliases.</li>
+                  <li><strong>ECS strategies:</strong> <em>Rolling</em> (replace tasks in batches — supports minimumHealthyPercent / maximumPercent), <em>Blue/Green</em> (provision new task set, swap target group at the ALB). Blue/Green supports the same Canary/Linear shift percentages as Lambda.</li>
+                  <li><strong>EC2/on-prem strategies:</strong> <em>In-place</em> (replace one or batches at a time — needs CodeDeploy agent on the instance), <em>Blue/Green</em> (provision new ASG, swap behind ALB). In-place is what you SHOULD avoid for prod — no rollback path if the agent fails mid-deploy.</li>
+                  <li><strong>AppSpec hooks (Lambda):</strong> <code>BeforeAllowTraffic</code> (run smoke tests before any traffic shifts), <code>AfterAllowTraffic</code> (validation after the shift completes). Each hook is itself a Lambda. Return a status to CodeDeploy via the SDK.</li>
+                  <li><strong>AppSpec hooks (EC2):</strong> <code>ApplicationStop</code>, <code>BeforeInstall</code>, <code>AfterInstall</code>, <code>ApplicationStart</code>, <code>ValidateService</code>. Scripts in the appspec.yml run on the target instance via the CodeDeploy agent.</li>
+                  <li><strong>Automatic rollback:</strong> CodeDeploy can roll back when a CloudWatch alarm fires during deployment. Configure the deployment group with the alarm; if it transitions to ALARM during the shift window, CodeDeploy reverses the alias weight back to the old version. Set this up — manual rollback during an incident is too slow.</li>
+                </ul>
+                <div class="lesson-section-head">Concrete example</div>
+                <p>
+                  Production Lambda deployment with safety: deployment group uses <strong>Canary10Percent10Minutes</strong>. <strong>BeforeAllowTraffic</strong> hook runs an integration test against the new alias before any production traffic is shifted. <strong>AfterAllowTraffic</strong> hook runs a smoke test against the production alias after 100% shift. CloudWatch alarm: error rate &gt; 1% on the new alias over 5 minutes. If the alarm fires during the 10-min canary window, CodeDeploy auto-rolls back to v(N-1). Combined with the SAM <code>DeploymentPreference</code> in template, this gives full GitOps deploys with no manual intervention.
+                </p>
+                <div class="lesson-takeaway">
+                  <strong>Key takeaway:</strong> Lambda uses alias weight shifts (Canary/Linear/AllAtOnce). ECS supports Blue/Green via target-group swap. EC2 prefers Blue/Green over in-place. Always configure alarm-based automatic rollback — fast detection is the whole point of canary.
+                </div>
+                <div class="lesson-quiz">
+                  <div class="lesson-quiz-head">⚡ Mini-quiz</div>
+                  Drill CodeDeploy strategy decisions → <a href="/train.html?pack=aws-dva-c02&amp;mode=quick">quick quiz (5 questions)</a>.
+                </div>
+              </div>
+
+              <div class="lesson-block">
+                <div class="lesson-title-row">
+                  <span class="lesson-pos">Lesson 6.3</span>
+                  <span class="lesson-title">Blue/Green at the load balancer — ECS and EC2 patterns</span>
+                </div>
+                <p class="lesson-intro">
+                  Blue/Green deployments for ECS and EC2 use load-balancer-level target-group swaps. The mental model is two parallel environments (blue = current, green = new) where CodeDeploy decides when to flip. Exam scenarios test whether you understand which traffic goes where during each phase.
+                </p>
+                <div class="lesson-section-head">Key concepts</div>
+                <ul class="lesson-bullets">
+                  <li><strong>Two target groups:</strong> the ALB has two target groups (TG-blue and TG-green) registered on different listener rules. CodeDeploy controls which TG receives production traffic (the "production listener") and which receives test traffic (the "test listener", optional).</li>
+                  <li><strong>Deployment flow (ECS):</strong> CodeDeploy creates the green task set, registers tasks into TG-green, runs your AppSpec test hook against the test listener (if configured), then shifts production listener from blue to green. After a configurable wait window, terminates the blue task set.</li>
+                  <li><strong>Original revision termination:</strong> by default 5 minutes after successful shift. Tunable up to many hours — increase if you want a manual gate before tearing down the old environment.</li>
+                  <li><strong>Test listener:</strong> optional separate port (typically 8080) on the ALB pointing at TG-green. Lets validation hooks call the new version with real traffic-shape requests before production users see it.</li>
+                  <li><strong>EC2 Blue/Green:</strong> CodeDeploy provisions a new ASG with the new version, registers its instances into TG-green, and swaps. The old ASG can be retained (manual decommission) or destroyed automatically. Faster rollback than in-place — original ASG is still running.</li>
+                  <li><strong>Cost vs safety trade-off:</strong> Blue/Green doubles infrastructure for the duration of the deploy window. For small services that cost is trivial. For massive ECS clusters, factor it into the deploy plan.</li>
+                </ul>
+                <div class="lesson-section-head">Concrete example</div>
+                <p>
+                  An ECS service runs 20 tasks behind an ALB. Deployment goal: shift to a new image with a 5-minute validation window, automatic rollback on 5XX rate &gt; 0.5%. Setup: CodeDeploy deployment group references the ECS service. The ALB has TG-blue (current 20 tasks) and TG-green (empty). Listener rules: prod on :443 → TG-blue; test on :8080 → TG-green. On deploy, CodeDeploy starts 20 new tasks into TG-green, runs <strong>BeforeAllowTraffic</strong> hook against <code>:8080</code>, then shifts <code>:443</code> from TG-blue to TG-green. CloudWatch alarm watches 5XX. After 5 minutes without alarm, old task set terminates; with alarm, traffic reverts and green tears down.
+                </p>
+                <div class="lesson-takeaway">
+                  <strong>Key takeaway:</strong> Blue/Green = two target groups + listener swap. ECS Blue/Green is the standard prod deploy pattern. EC2 Blue/Green beats in-place for rollback speed. Test listener for pre-traffic validation. Tune termination wait based on how long you want to keep the rollback option alive.
+                </div>
+                <div class="lesson-quiz">
+                  <div class="lesson-quiz-head">⚡ Mini-quiz</div>
+                  Practise Blue/Green scenarios → <a href="/train.html?pack=aws-dva-c02&amp;mode=study">study mode (10 questions)</a>.
+                </div>
+              </div>
+
+            </div>
+          </details>
         </div>
 
         <!-- Module 7 -->
-        <div class="module-card">
+        <div class="module-card is-expanded">
           <div class="module-num">07</div>
           <div class="module-body">
-            <h3>Infrastructure as Code — CloudFormation, SAM &amp; CDK</h3>
+            <h3>Infrastructure as Code — CloudFormation, SAM &amp; CDK<span class="chapter-badge">3 lessons</span></h3>
             <p>Every AWS developer needs IaC skills. This module covers CloudFormation template anatomy (Parameters, Mappings, Conditions, Resources, Outputs), Change Sets for safe updates, cross-stack references with Exports/ImportValue, custom resources, DeletionPolicy (Retain, Snapshot, Delete), and stack failure behavior. Then SAM: Transform declaration, AWS::Serverless::Function, sam local invoke/start-api for local testing. Finally CDK: L1/L2/L3 constructs, cdk synth/deploy, and why CDK synthesizes to CloudFormation.</p>
             <div class="module-topics">
               <span class="topic-chip">change-sets</span>
@@ -791,13 +985,110 @@
             </div>
           </div>
           <div class="module-dur">~4h</div>
+
+          <details>
+            <summary class="chapter-toggle" role="button">📖 Read in-depth chapter <span class="chapter-toggle-icon">▾</span></summary>
+            <div class="chapter-content">
+
+              <div class="lesson-block">
+                <div class="lesson-title-row">
+                  <span class="lesson-pos">Lesson 7.1</span>
+                  <span class="lesson-title">CloudFormation — template anatomy and Change Sets</span>
+                </div>
+                <p class="lesson-intro">
+                  CloudFormation is the substrate underneath every AWS IaC tool. Templates declare desired state; CloudFormation reconciles. The exam tests template sections (Parameters, Mappings, Conditions, Resources, Outputs), update mechanics (Change Sets), and resource lifecycle attributes (DeletionPolicy, UpdateReplacePolicy).
+                </p>
+                <div class="lesson-section-head">Key concepts</div>
+                <ul class="lesson-bullets">
+                  <li><strong>Template sections:</strong> <code>Parameters</code> (input values), <code>Mappings</code> (lookup tables — region → AMI), <code>Conditions</code> (boolean expressions used to gate resources), <code>Resources</code> (the actual AWS resources to create), <code>Outputs</code> (values to expose, optionally exported for cross-stack).</li>
+                  <li><strong>Intrinsic functions:</strong> <code>!Ref</code> (resource ID or parameter value), <code>!GetAtt Resource.Attribute</code> (specific attribute), <code>!Sub "${var}"</code> (string substitution), <code>!FindInMap</code>, <code>!If [Condition, ValueIfTrue, ValueIfFalse]</code>, <code>!Join</code>.</li>
+                  <li><strong>Change Sets:</strong> a preview of what an update will do — added, modified, removed resources, and whether modifications require replacement. Create a Change Set; review; Execute (or Discard). Best practice: always create a Change Set for production stack updates instead of direct UpdateStack.</li>
+                  <li><strong>Cross-stack references:</strong> a stack can <code>Export</code> outputs (must be unique per region); other stacks <code>ImportValue</code> them. The downside: once an export is consumed, the producing stack can't update or delete that output. For loose coupling, use Parameter Store or Systems Manager references instead.</li>
+                  <li><strong>Lifecycle attributes:</strong> <code>DeletionPolicy: Retain</code> keeps a resource on stack delete (databases, S3 buckets with data); <code>Snapshot</code> creates a final snapshot first (RDS, EBS); <code>Delete</code> (default). <code>UpdateReplacePolicy</code> applies when a property change forces resource replacement.</li>
+                  <li><strong>Stack failure behaviour:</strong> default rollback on failure — undo any resources created in the failed update. <code>DisableRollback</code> keeps the partial state for debugging. Failed-create stacks must be DeleteStack'd before retry; failed-update stacks can be retried after fixing the template.</li>
+                </ul>
+                <div class="lesson-section-head">Concrete example</div>
+                <p>
+                  A stack defines an RDS instance and a Lambda that connects to it. Risk: rerunning the stack with a different DBInstanceClass forces replacement, losing data. Mitigations: set <code>DeletionPolicy: Snapshot</code> AND <code>UpdateReplacePolicy: Snapshot</code> on the RDS resource. Before deploying any change touching the DB, create a Change Set to preview replacement actions. For the Lambda's DB endpoint reference, prefer <strong>Parameter Store</strong> (the Lambda reads <code>/myapp/db-endpoint</code> at runtime) over CloudFormation <code>ImportValue</code> — that decouples future RDS stack rebuilds from the Lambda stack.
+                </p>
+                <div class="lesson-takeaway">
+                  <strong>Key takeaway:</strong> Change Sets are the safety net for prod updates. DeletionPolicy + UpdateReplacePolicy protect stateful resources. Cross-stack <code>Export/ImportValue</code> creates tight coupling — use Parameter Store for loosely coupled references.
+                </div>
+                <div class="lesson-quiz">
+                  <div class="lesson-quiz-head">⚡ Mini-quiz</div>
+                  Drill template structure and lifecycle scenarios → <a href="/train.html?pack=aws-dva-c02&amp;mode=study">study mode (10 questions)</a>.
+                </div>
+              </div>
+
+              <div class="lesson-block">
+                <div class="lesson-title-row">
+                  <span class="lesson-pos">Lesson 7.2</span>
+                  <span class="lesson-title">SAM — serverless-focused CloudFormation</span>
+                </div>
+                <p class="lesson-intro">
+                  SAM (Serverless Application Model) is CloudFormation with shorthand for Lambda, API Gateway, and DynamoDB. Templates start with <code>Transform: AWS::Serverless-2016-10-31</code>; SAM CLI handles local testing and packaging. The exam asks about the SAM-specific resources and the local-dev workflow.
+                </p>
+                <div class="lesson-section-head">Key concepts</div>
+                <ul class="lesson-bullets">
+                  <li><strong>Transform directive:</strong> <code>Transform: AWS::Serverless-2016-10-31</code> at the top of the template tells CloudFormation to expand SAM shorthand into native resources during deployment. <code>AWS::Serverless::Function</code> with a few lines expands to a full Lambda + execution role + log group + event mappings.</li>
+                  <li><strong>AWS::Serverless::Function:</strong> the SAM Lambda resource. Properties: <code>CodeUri</code>, <code>Handler</code>, <code>Runtime</code>, <code>Events</code> (Api, S3, SQS, SNS, EventBridge, Schedule). Inline policies via <code>Policies</code> property — point at AWS-managed policy names, ARNs, or inline policy docs.</li>
+                  <li><strong>AWS::Serverless::Api:</strong> SAM API Gateway resource. Supports auth, CORS, stage variables. Often you don't need to declare it explicitly — declaring an <code>Api</code> event on a Function auto-creates a default API.</li>
+                  <li><strong>SAM CLI commands:</strong> <code>sam build</code> (bundles dependencies into <code>.aws-sam/build</code>), <code>sam local invoke</code> (run Lambda locally in Docker), <code>sam local start-api</code> (run API Gateway + Lambdas locally), <code>sam deploy</code> (package + deploy via CloudFormation).</li>
+                  <li><strong>DeploymentPreference:</strong> SAM resource attribute that wires CodeDeploy. <code>Type: Canary10Percent10Minutes</code>, <code>Type: Linear10PercentEvery10Minutes</code>, <code>Type: AllAtOnce</code>. Add <code>Alarms</code> list — auto-rollback if any alarm fires during the deploy.</li>
+                  <li><strong>SAM packaging:</strong> <code>sam package</code> uploads artifacts to S3 and outputs a deploy-ready template with S3 URIs. Used by CodePipeline-driven flows where a build step runs sam package and the deploy step uses the output template directly.</li>
+                </ul>
+                <div class="lesson-section-head">Concrete example</div>
+                <p>
+                  A team prototypes a new API locally. <code>sam local start-api</code> runs API Gateway + Lambdas on <code>localhost:3000</code>, executing the same code that will run in AWS. They iterate, then commit. CI runs <code>sam build</code> + <code>sam deploy --guided</code> for staging. The template's Function has <code>DeploymentPreference: Type: Canary10Percent10Minutes</code> with a 5XX-rate alarm, so every prod deploy is auto-canary'd. Cuts iteration time vs deploying-to-test-each-time, and provides safety on top.
+                </p>
+                <div class="lesson-takeaway">
+                  <strong>Key takeaway:</strong> SAM = CloudFormation shorthand for serverless. <code>sam local</code> is the productivity lever for iteration. <code>DeploymentPreference</code> wires CodeDeploy without writing CodeDeploy resources manually.
+                </div>
+                <div class="lesson-quiz">
+                  <div class="lesson-quiz-head">⚡ Mini-quiz</div>
+                  Practise SAM template + local-dev scenarios → <a href="/train.html?pack=aws-dva-c02&amp;mode=quick">quick quiz (5 questions)</a>.
+                </div>
+              </div>
+
+              <div class="lesson-block">
+                <div class="lesson-title-row">
+                  <span class="lesson-pos">Lesson 7.3</span>
+                  <span class="lesson-title">CDK — IaC in real programming languages</span>
+                </div>
+                <p class="lesson-intro">
+                  CDK lets you define infrastructure in TypeScript, Python, Java, C#, or Go. The CDK compiler (<code>cdk synth</code>) produces a CloudFormation template that gets deployed. You get types, autocomplete, loops, and unit tests — but the substrate is still CloudFormation. The exam tests construct levels and the synth/deploy flow.
+                </p>
+                <div class="lesson-section-head">Key concepts</div>
+                <ul class="lesson-bullets">
+                  <li><strong>Construct levels:</strong> <em>L1</em> = raw CloudFormation resources (Cfn* classes), 1:1 mapping. <em>L2</em> = curated AWS abstractions (e.g., <code>Bucket</code>, <code>Function</code>) — sensible defaults, fewer required props. <em>L3</em> = patterns (e.g., <code>LoadBalancedFargateService</code>) — opinionated combos of L2 constructs solving a common problem.</li>
+                  <li><strong>App, Stack, Construct hierarchy:</strong> a CDK <em>App</em> contains one or more <em>Stacks</em>; a Stack contains <em>Constructs</em>. Each Stack synthesises to one CloudFormation stack. Use one Stack per deployable unit / environment.</li>
+                  <li><strong>cdk commands:</strong> <code>cdk synth</code> outputs CloudFormation. <code>cdk diff</code> compares your code's synth output to the deployed stack. <code>cdk deploy</code> deploys; <code>cdk destroy</code> tears down. <code>cdk bootstrap</code> creates the CDKToolkit stack (the S3 bucket and IAM roles CDK uses) — once per account/region.</li>
+                  <li><strong>Context and environment:</strong> the <code>env</code> property on a Stack ties it to a specific account and region. Without it, the Stack is environment-agnostic but can't use environment-specific Lookups. CDK pulls account-specific data (AMIs, VPCs) into <code>cdk.context.json</code> for reproducibility.</li>
+                  <li><strong>Assets:</strong> CDK auto-uploads Lambda code, Docker images, and arbitrary files referenced in your code to the bootstrap S3 bucket / ECR. No manual <code>sam package</code> step.</li>
+                  <li><strong>Testing:</strong> CDK supports unit testing of synthesised templates via the <code>aws-cdk-lib/assertions</code> module — assert "the stack contains an S3 bucket with versioning enabled" without deploying.</li>
+                </ul>
+                <div class="lesson-section-head">Concrete example</div>
+                <p>
+                  A team writes a CDK stack in TypeScript that creates a Lambda (from <code>./src</code>), an API Gateway HTTP API integration, and a DynamoDB table. The stack uses <strong>L2 constructs</strong>: <code>new lambda.Function(...)</code>, <code>new apigatewayv2.HttpApi(...)</code>, <code>new dynamodb.Table(...)</code>. A unit test asserts the table has <code>BillingMode: PAY_PER_REQUEST</code>. CI runs <code>cdk synth</code> to produce CloudFormation, then <code>cdk deploy</code> to push. <code>cdk diff</code> in the PR review shows exactly what will change before merging.
+                </p>
+                <div class="lesson-takeaway">
+                  <strong>Key takeaway:</strong> CDK = programming-language IaC that compiles to CloudFormation. L1 raw / L2 curated / L3 patterns. Bootstrap once per env. Use <code>cdk diff</code> in CI for safety. Same deployment substrate (CloudFormation) — same rollback / change-set guarantees.
+                </div>
+                <div class="lesson-quiz">
+                  <div class="lesson-quiz-head">⚡ Mini-quiz</div>
+                  Test CDK construct-level and command scenarios → <a href="/train.html?pack=aws-dva-c02&amp;mode=study">study mode (10 questions)</a>.
+                </div>
+              </div>
+
+            </div>
+          </details>
         </div>
 
         <!-- Module 8 -->
-        <div class="module-card">
+        <div class="module-card is-expanded">
           <div class="module-num">08</div>
           <div class="module-body">
-            <h3>Observability &amp; Optimization — X-Ray, CloudWatch &amp; Step Functions</h3>
+            <h3>Observability &amp; Optimization — X-Ray, CloudWatch &amp; Step Functions<span class="chapter-badge">3 lessons</span></h3>
             <p>The troubleshooting domain (18%) demands deep observability skills. Master AWS X-Ray: active tracing, segments/subsegments, annotations (indexed, filterable) vs metadata (not indexed), sampling rules, and capturing AWS SDK calls with captureAWSv3Client. CloudWatch: Lambda standard metrics (Duration, Errors, Throttles, ConcurrentExecutions), custom metrics via PutMetricData, Log Insights query syntax, and alarms for automated rollbacks. Step Functions: state machine design patterns (sequential, parallel, wait, error catch/retry), Express vs Standard workflows, and when to use Step Functions vs SQS for orchestration.</p>
             <div class="module-topics">
               <span class="topic-chip">x-ray-annotations</span>
@@ -811,6 +1102,103 @@
             </div>
           </div>
           <div class="module-dur">~3h</div>
+
+          <details>
+            <summary class="chapter-toggle" role="button">📖 Read in-depth chapter <span class="chapter-toggle-icon">▾</span></summary>
+            <div class="chapter-content">
+
+              <div class="lesson-block">
+                <div class="lesson-title-row">
+                  <span class="lesson-pos">Lesson 8.1</span>
+                  <span class="lesson-title">X-Ray — distributed tracing on AWS</span>
+                </div>
+                <p class="lesson-intro">
+                  X-Ray traces a request across all the AWS services it touches — API Gateway → Lambda → DynamoDB → SNS — so you can find the slow segment without guessing. The exam tests annotations vs metadata, sampling rules, and which services support native integration.
+                </p>
+                <div class="lesson-section-head">Key concepts</div>
+                <ul class="lesson-bullets">
+                  <li><strong>Segments and subsegments:</strong> a <em>segment</em> is one service's contribution to the trace (one Lambda invocation, one API Gateway request). <em>Subsegments</em> are nested operations (an SDK call, a DB query). Segments aggregate into a <em>trace</em> identified by a trace ID propagated end-to-end.</li>
+                  <li><strong>Active tracing:</strong> enable on Lambda and API Gateway via a single config flag (or SAM property). The runtime auto-captures segments + AWS SDK subsegments. No code change.</li>
+                  <li><strong>Annotations vs metadata:</strong> <em>annotations</em> are key/value pairs indexed by X-Ray — filterable in the console (<code>annotation.user = 'alice'</code>). Limit ~50 per segment. <em>Metadata</em> is unindexed — visible in the trace UI but not searchable. Use annotations for facets (userId, region, route); metadata for debug context (request body, headers).</li>
+                  <li><strong>captureAWSv3Client / captureHTTPSGlobal:</strong> SDK helpers that wrap AWS clients and Node's https module so all outgoing calls automatically generate subsegments. Without them, your downstream calls appear as black boxes.</li>
+                  <li><strong>Sampling rules:</strong> default rule is 1 req/sec + 5% of additional reqs. Custom rules (priority-ordered) match by service name, http method, URL — set higher sample rates for low-traffic endpoints, low rates for chatty ones. Sampling decisions made at the entry point and propagated.</li>
+                  <li><strong>ServiceLens and Insights:</strong> X-Ray ServiceLens combines traces + metrics + alarms into a service map view. X-Ray Insights surfaces anomaly-based notifications when error or latency suddenly deviates from baseline.</li>
+                </ul>
+                <div class="lesson-section-head">Concrete example</div>
+                <p>
+                  An API has p99 spikes intermittently. Enable X-Ray active tracing on API Gateway + Lambda. In the Lambda code, <code>const AWSXRay = require('aws-xray-sdk-core')</code>; wrap the AWS SDK clients; add <code>segment.addAnnotation('userId', event.requestContext.authorizer.userId)</code>. After a day of traffic, query the trace UI: filter by <code>responsetime &gt; 1</code> AND <code>annotation.userId = 'X'</code>. Service map shows DynamoDB Query taking 800ms of the 1.2s response. Now you have something to optimise.
+                </p>
+                <div class="lesson-takeaway">
+                  <strong>Key takeaway:</strong> X-Ray active tracing + annotations on key facets + SDK capture turns "the API is slow sometimes" into "this Query against table X is slow for users in cohort Y". Sampling rules keep cost in check.
+                </div>
+                <div class="lesson-quiz">
+                  <div class="lesson-quiz-head">⚡ Mini-quiz</div>
+                  Drill X-Ray annotation, sampling, and capture scenarios → <a href="/train.html?pack=aws-dva-c02&amp;mode=study">study mode (10 questions)</a>.
+                </div>
+              </div>
+
+              <div class="lesson-block">
+                <div class="lesson-title-row">
+                  <span class="lesson-pos">Lesson 8.2</span>
+                  <span class="lesson-title">CloudWatch — metrics, logs, alarms, Log Insights</span>
+                </div>
+                <p class="lesson-intro">
+                  CloudWatch is the operational telemetry plane — metrics for time series, Logs for searchable text, alarms for actions. The exam asks both about default Lambda metrics and about Log Insights query syntax.
+                </p>
+                <div class="lesson-section-head">Key concepts</div>
+                <ul class="lesson-bullets">
+                  <li><strong>Lambda standard metrics:</strong> <em>Invocations</em>, <em>Errors</em>, <em>Duration</em> (avg / max / p50 / p99), <em>Throttles</em> (concurrency-limit denials), <em>ConcurrentExecutions</em>, <em>UnreservedConcurrentExecutions</em>, <em>ProvisionedConcurrencyUtilization</em>. Free metrics, 1-minute granularity.</li>
+                  <li><strong>Custom metrics:</strong> <code>PutMetricData</code> writes custom metric values. Cost ~$0.30 per metric per month. Embed dimensions (function name, region) but keep dimension cardinality bounded — high cardinality = many metrics = expensive.</li>
+                  <li><strong>Embedded Metric Format (EMF):</strong> write logs in a special JSON schema; CloudWatch auto-parses them into metrics. No <code>PutMetricData</code> API call — cheaper at scale because you pay per log line, not per metric value.</li>
+                  <li><strong>Alarms:</strong> evaluate a metric (or expression) over N periods. <em>Static threshold</em>, <em>anomaly detection</em>, <em>missing data treatment</em> (Missing / NotBreaching / Breaching / Ignore). Multi-metric expressions use <code>SELECT</code>-style syntax (<code>m1 / m2 &gt; 0.05</code>).</li>
+                  <li><strong>Log Insights query syntax:</strong> pipe-style. <code>fields @timestamp, @message | filter @message like /ERROR/ | sort @timestamp desc | limit 50</code>. Aggregations: <code>stats count() by bin(5m)</code>, <code>stats avg(@duration) by @log</code>. Saves to dashboards.</li>
+                  <li><strong>Lambda Insights:</strong> opt-in deep telemetry (memory utilisation, network throughput, runtime details) via a managed layer. Adds ~$0.20/M invocations. Use when standard metrics aren't enough to diagnose performance.</li>
+                </ul>
+                <div class="lesson-section-head">Concrete example</div>
+                <p>
+                  A Lambda has rising error rate. Investigation: Log Insights query <code>filter @message like /ERROR/ | stats count() by bin(5m)</code> shows the spike's timeline. Drill in: <code>filter @message like /ERROR/ | parse @message "error: *" as err | stats count() by err</code> bins by error string. Top error is "Throttling" → DynamoDB is throttling the Lambda. Check the standard <em>Throttles</em> metric and the DynamoDB <em>UserErrors</em>. Fix: switch DynamoDB to on-demand mode, set an alarm on <em>Errors</em> &gt; 5% for future regressions.
+                </p>
+                <div class="lesson-takeaway">
+                  <strong>Key takeaway:</strong> Lambda standard metrics are free and rich. Custom metrics via EMF cost less than <code>PutMetricData</code> at scale. Log Insights' pipe syntax answers "what's failing and how often" in 30 seconds. Alarms turn metrics into actions.
+                </div>
+                <div class="lesson-quiz">
+                  <div class="lesson-quiz-head">⚡ Mini-quiz</div>
+                  Practise metric, log-insights, and alarm scenarios → <a href="/train.html?pack=aws-dva-c02&amp;mode=quick">quick quiz (5 questions)</a>.
+                </div>
+              </div>
+
+              <div class="lesson-block">
+                <div class="lesson-title-row">
+                  <span class="lesson-pos">Lesson 8.3</span>
+                  <span class="lesson-title">Step Functions — orchestration patterns</span>
+                </div>
+                <p class="lesson-intro">
+                  Step Functions orchestrate Lambdas (and other AWS services) into state machines. They handle retries, parallel execution, human-approval waits, and ACID-like cross-service rollback with Saga patterns. The exam asks when to use Step Functions vs SQS vs direct Lambda invocation.
+                </p>
+                <div class="lesson-section-head">Key concepts</div>
+                <ul class="lesson-bullets">
+                  <li><strong>State machines:</strong> Amazon States Language (ASL) JSON defines states. State types: <em>Task</em> (invoke a Lambda / service), <em>Choice</em> (branch), <em>Parallel</em> (run branches concurrently), <em>Map</em> (iterate over a collection), <em>Wait</em> (pause for time/timestamp), <em>Pass</em> (no-op transformation), <em>Succeed</em>, <em>Fail</em>.</li>
+                  <li><strong>Standard vs Express workflows:</strong> <em>Standard</em> — durable, up to 1-year runtime, exactly-once execution, $25/M state transitions. <em>Express</em> — high-throughput (100k/sec), 5-minute max, at-least-once, billed by duration + memory + count. Express for high-volume short-lived; Standard for long-running workflows.</li>
+                  <li><strong>Retry and Catch:</strong> per-state <code>Retry</code> handles transient failures with exponential backoff. <code>Catch</code> matches specific error codes and routes to a different state. Cleaner than wrapping every Lambda in retry logic.</li>
+                  <li><strong>Service integrations:</strong> two flavours — <em>Request Response</em> (call service, get response, move on), <em>Run a Job (.sync)</em> (call service, wait for completion before next state — supports Batch jobs, Glue, ECS tasks), <em>Wait for Callback (.waitForTaskToken)</em> (pause until an external system calls back with a task token — for human approvals, third-party webhooks).</li>
+                  <li><strong>Saga pattern:</strong> a transaction across multiple services modeled as a sequence of forward steps each with a compensating-undo step. If step 3 fails, run undo-step-2 and undo-step-1 in reverse order. Step Functions Parallel + Catch routes are the natural fit.</li>
+                  <li><strong>When NOT to use Step Functions:</strong> simple "Lambda calls Lambda" doesn't need orchestration overhead — just invoke directly. High-volume fire-and-forget event processing — SNS or SQS is cheaper. Step Functions cost adds up at hundreds-of-thousands-per-day workflows.</li>
+                </ul>
+                <div class="lesson-section-head">Concrete example</div>
+                <p>
+                  An order-fulfillment workflow: validate order → reserve inventory → charge card → ship order. If charge fails, release inventory. If ship fails, refund card + release inventory. Design: a Step Functions <strong>Standard workflow</strong>. Each step is a Lambda task with <code>Retry</code> on transient errors and <code>Catch</code> on business errors routing to a compensating-action branch. Inventory release and card refund themselves are Lambda tasks. Standard workflow's exactly-once semantics ensure no double-charge.
+                </p>
+                <div class="lesson-takeaway">
+                  <strong>Key takeaway:</strong> Step Functions for multi-step workflows that need retries, branching, parallel execution, or human approvals. Standard for durability and exactly-once; Express for high volume and short workflows. Saga pattern + Catch for cross-service rollback. Don't reach for it for simple Lambda chains.
+                </div>
+                <div class="lesson-quiz">
+                  <div class="lesson-quiz-head">⚡ Mini-quiz</div>
+                  Drill Step Functions vs alternatives → <a href="/train.html?pack=aws-dva-c02&amp;mode=study">study mode (10 questions)</a>.
+                </div>
+              </div>
+
+            </div>
+          </details>
         </div>
 
       </div>
