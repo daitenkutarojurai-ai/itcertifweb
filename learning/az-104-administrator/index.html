@@ -411,8 +411,8 @@
         </div>
       </div>
 
-      <div class="module-card">
-        <div class="module-num">Module 3</div>
+      <div class="module-card is-expanded">
+        <div class="module-num">Module 3<span class="chapter-badge">3 lessons</span></div>
         <div class="module-title">Azure Storage — Accounts, Redundancy, and Access Control</div>
         <p class="module-desc">Master the Azure Storage platform that underpins blobs, files, queues, and tables. Choose the right redundancy tier (LRS, ZRS, GRS, GZRS, RA-GRS) for each workload's RPO requirements. Configure storage accounts with the correct performance tier (Standard vs Premium), access tier (Hot, Cool, Cold, Archive), and lifecycle management policies. Secure storage with Shared Access Signatures, Microsoft Entra ID RBAC, and storage account firewall rules with private endpoints.</p>
         <div class="module-topics">
@@ -424,6 +424,104 @@
           <span class="topic-tag">Immutable storage (WORM policies)</span>
           <span class="topic-tag">Storage encryption and CMK</span>
         </div>
+
+        <details>
+          <summary class="chapter-toggle" role="button">
+            📖 Read in-depth chapter
+            <span class="chapter-toggle-icon">▾</span>
+          </summary>
+          <div class="chapter-content">
+
+            <div class="lesson-block">
+              <div class="lesson-title-row">
+                <span class="lesson-num">Lesson 3.1</span>
+                <span class="lesson-title">Storage accounts and the redundancy ladder</span>
+              </div>
+              <p class="lesson-intro">
+                Every blob, file share, queue, and table in Azure lives inside a storage account. The account fixes three things you can't easily change later: the kind (general-purpose v2, BlockBlob, FileStorage), the performance tier (Standard or Premium), and the redundancy model (LRS / ZRS / GRS / GZRS, with optional RA suffix). Picking the right combination is the most-asked storage topic on AZ-104.
+              </p>
+              <div class="lesson-section-head">Key concepts</div>
+              <ul class="lesson-bullets">
+                <li><strong>Account kinds:</strong> <code>StorageV2</code> (GPv2) is the modern default — supports blobs, files, queues, tables, all tiers. <code>BlockBlobStorage</code> is Premium-only for blobs needing low-latency. <code>FileStorage</code> is Premium-only for SMB/NFS file shares. Avoid the legacy <code>Storage</code> (GPv1) — it can't do access tiers.</li>
+                <li><strong>LRS (Locally Redundant):</strong> 3 synchronous copies inside one datacentre. Cheapest, 11 nines durability. Survives disk and rack failure, NOT a building failure. Default for dev/test and anything you can re-derive.</li>
+                <li><strong>ZRS (Zone Redundant):</strong> 3 synchronous copies across 3 availability zones in one region. Survives a whole AZ outage. Same cost as LRS+ in regions that support it; should be the default for new production accounts.</li>
+                <li><strong>GRS (Geo Redundant):</strong> LRS in the primary region + asynchronous copy to a paired secondary region. Survives region-wide failure but secondary copy is hours behind. Read-Access variant (RA-GRS) lets you read from the secondary at any time.</li>
+                <li><strong>GZRS (Geo-Zone Redundant):</strong> ZRS in primary + async copy to a secondary region. The strongest option short of customer-managed multi-region replication. RA-GZRS adds secondary read access. Required for the 99.99% read-access SLA on multi-region critical workloads.</li>
+                <li><strong>What you CAN change vs CAN'T:</strong> redundancy is changeable in-place between LRS↔GRS and ZRS↔GZRS once provisioned. Switching across the LRS↔ZRS divide requires a customer-managed copy. Account kind is immutable — pick correctly.</li>
+              </ul>
+              <div class="lesson-section-head">Concrete example</div>
+              <p>
+                A SaaS company stores customer file uploads. The legal team requires the data survive a regional outage and the read SLA must be 99.99%. Picking <code>StorageV2</code> + Standard + <strong>RA-GZRS</strong> satisfies all three. If they later relax the regional-outage requirement (the data can be re-uploaded), they can downgrade to ZRS in-place to cut cost roughly in half. The account kind stays GPv2 throughout.
+              </p>
+              <div class="lesson-takeaway">
+                <strong>Key takeaway:</strong> ZRS for new production by default. Add geo (G prefix) when you need cross-region durability; add RA (read access) when you need a hot secondary; switch to GZRS only when you legitimately need both. LRS is the dev/test default — never the production default.
+              </div>
+              <div class="lesson-quiz">
+                <div class="lesson-quiz-head">⚡ Mini-quiz</div>
+                Drill the LRS / ZRS / GRS / GZRS decisions → <a href="/train.html?pack=az-104&amp;mode=study">study mode (10 questions)</a>.
+              </div>
+            </div>
+
+            <div class="lesson-block">
+              <div class="lesson-title-row">
+                <span class="lesson-num">Lesson 3.2</span>
+                <span class="lesson-title">Blob access tiers, lifecycle policies, and immutability</span>
+              </div>
+              <p class="lesson-intro">
+                Storage cost on Azure is dominated by which tier your blobs sit in and how long they stay there. Tiering by hand doesn't scale; lifecycle policies move data through tiers declaratively. Add immutability when compliance needs the data to be tamper-proof.
+              </p>
+              <div class="lesson-section-head">Key concepts</div>
+              <ul class="lesson-bullets">
+                <li><strong>Four access tiers:</strong> <code>Hot</code> (frequent reads, highest storage cost, lowest access fee), <code>Cool</code> (≥30 days, cheaper storage, per-GB access fee), <code>Cold</code> (≥90 days, even cheaper, higher access fee), <code>Archive</code> (offline, cheapest storage, rehydration hours). Tier per blob, not per container.</li>
+                <li><strong>Rehydration from Archive:</strong> two priorities — <code>Standard</code> (up to 15 hours) and <code>High</code> (under 1 hour, more expensive). You can't read from Archive directly; rehydrate first to Hot or Cool, then read. Plan the cost of priority retrievals into compliance budgets.</li>
+                <li><strong>Lifecycle management policies:</strong> JSON rules with filters (prefix, blob type, days since last modified) and actions (transition tier, delete). Run daily at no cost. The canonical 7-year compliance policy: move to Cool at 30 days, Cold at 90, Archive at 180, delete at 7 years.</li>
+                <li><strong>Soft delete vs versioning:</strong> blob soft-delete is a recycle bin (retention 1-365 days), versioning keeps every write as a new version. Container soft-delete protects whole containers. Point-in-time restore (PITR) for block blobs combines versioning + change feed for granular restore.</li>
+                <li><strong>Immutable storage (WORM):</strong> two flavours — time-based retention policies block writes/deletes until the timer expires; legal holds block them until removed by an authorised user. Apply at container level. Required for SEC 17a-4 / FINRA compliance. Once locked, even the account owner cannot delete.</li>
+              </ul>
+              <div class="lesson-section-head">Concrete example</div>
+              <p>
+                A bank stores trade-confirmation PDFs that the regulator requires for seven years and must not be alterable. The right design: a dedicated container with a <strong>time-based immutability policy</strong> set to 7 years (and <em>locked</em>, so the policy itself can't be shortened), plus a <strong>lifecycle policy</strong> that transitions blobs Hot → Cool at 30 days → Cold at 90 days → Archive at 180 days. Immutability runs alongside tiering — Archive can still be immutable. After 7 years the immutability expires and a separate lifecycle rule deletes the blob.
+              </p>
+              <div class="lesson-takeaway">
+                <strong>Key takeaway:</strong> Hot/Cool/Cold/Archive plus lifecycle policy is the cost-optimisation pattern. Immutability is the compliance pattern. They compose — choose tier for cost, immutability for trust, and lifecycle to drive both.
+              </div>
+              <div class="lesson-quiz">
+                <div class="lesson-quiz-head">⚡ Mini-quiz</div>
+                Practise tier-transition and immutability scenarios → <a href="/train.html?pack=az-104&amp;mode=quick">quick quiz (5 questions)</a>.
+              </div>
+            </div>
+
+            <div class="lesson-block">
+              <div class="lesson-title-row">
+                <span class="lesson-num">Lesson 3.3</span>
+                <span class="lesson-title">Securing storage — SAS, firewall, RBAC, and encryption</span>
+              </div>
+              <p class="lesson-intro">
+                Storage accounts have public endpoints by default. Locking them down has four layers, each addressing a different attacker. The exam loves "the credential was leaked — what's the safest replacement?" questions; the answer is almost always user-delegation SAS or a private endpoint.
+              </p>
+              <div class="lesson-section-head">Key concepts</div>
+              <ul class="lesson-bullets">
+                <li><strong>Shared Key vs SAS:</strong> the account's two access keys grant full control — never embed them in clients. SAS tokens are time-bounded, scope-limited URL signatures. Three SAS types: <em>account SAS</em> (signed by access key, broad), <em>service SAS</em> (signed by access key, scoped to one service / resource), <em>user-delegation SAS</em> (signed by an Entra ID OAuth token — no account key needed, revocable, the modern preferred form).</li>
+                <li><strong>RBAC on the data plane:</strong> roles like <code>Storage Blob Data Reader</code>, <code>Storage Blob Data Contributor</code>, <code>Storage File Data SMB Share Reader</code>. These are SEPARATE from the management-plane roles (<code>Storage Account Contributor</code> can manage the account but cannot read blobs). Always assign data-plane roles for application access — no SAS needed for service principals.</li>
+                <li><strong>Storage firewall &amp; VNet rules:</strong> set <code>Public access</code> to "Selected networks", then allow specific IP CIDRs and specific subnets (subnet must have the Storage service endpoint enabled). Default-deny everything else. Combine with Trusted Microsoft Services exception so Azure Monitor / Backup can still reach the account.</li>
+                <li><strong>Private endpoints:</strong> the modern way to lock down to a VNet. The storage service gets a private IP inside your subnet; public endpoint can be disabled entirely. Pair with a Private DNS zone (<code>privatelink.blob.core.windows.net</code>) linked to the VNet so DNS resolves to the private IP. Replaces service endpoints for new builds.</li>
+                <li><strong>Encryption:</strong> data at rest is always encrypted (Microsoft-managed keys by default). Customer-Managed Keys (CMK) replace the platform key with one you hold in Azure Key Vault; required for some compliance regimes. Encryption-in-transit is enforced by setting <code>Secure transfer required</code> (TLS 1.2 minimum).</li>
+              </ul>
+              <div class="lesson-section-head">Concrete example</div>
+              <p>
+                A leaked SAS token is overwriting blobs in production. Two-step fix: (1) rotate the storage account's access keys to invalidate every account- and service-SAS token issued under those keys; (2) reissue access to applications as <strong>user-delegation SAS</strong> tokens signed by an Entra ID OAuth credential, so a future leak can be revoked by signing out the corresponding identity instead of rotating account keys. Long-term, disable Shared Key access entirely on the account and require Entra ID auth.
+              </p>
+              <div class="lesson-takeaway">
+                <strong>Key takeaway:</strong> user-delegation SAS &gt; service SAS &gt; account SAS &gt; access keys. Data-plane RBAC for services. Private endpoints &gt; service endpoints &gt; firewall &gt; nothing. CMK only when compliance requires it.
+              </div>
+              <div class="lesson-quiz">
+                <div class="lesson-quiz-head">⚡ Mini-quiz</div>
+                Test SAS-type and firewall decisions → <a href="/train.html?pack=az-104&amp;mode=study">study mode (10 questions)</a>.
+              </div>
+            </div>
+
+          </div>
+        </details>
       </div>
 
       <div class="module-card">
