@@ -1,7 +1,7 @@
 # Question-bank audit
 
-Generated: 2026-05-16T06:38:58.231Z
-Packs scanned: **53** · questions scanned: **2732** · flagged: **2005** (73.4%)
+Generated: 2026-05-16T07:58:28.180Z
+Packs scanned: **54** · questions scanned: **2742** · flagged: **2005** (73.1%)
 
 ## Methodology
 
@@ -34,10 +34,10 @@ Packs scanned: **53** · questions scanned: **2732** · flagged: **2005** (73.4%
 | `ccnp-security` | 60 | 48 | 80% | 44 | 31 | 0 | 0 |
 | `dp-700` | 10 | 8 | 80% | 0 | 8 | 0 | 0 |
 | `dp-900` | 10 | 8 | 80% | 2 | 8 | 0 | 0 |
+| `gcp-pcse` | 10 | 8 | 80% | 0 | 8 | 0 | 0 |
 | `snowpro-core` | 10 | 8 | 80% | 1 | 8 | 0 | 0 |
 | `sc-900` | 60 | 46 | 77% | 29 | 35 | 0 | 0 |
 | `cissp` | 25 | 19 | 76% | 3 | 19 | 0 | 0 |
-| `ccna` | 112 | 85 | 76% | 50 | 72 | 0 | 7 |
 | `az-305` | 61 | 46 | 75% | 9 | 43 | 0 | 0 |
 | `aws-soa-c02` | 60 | 45 | 75% | 25 | 34 | 0 | 0 |
 | `comptia-cysa` | 66 | 49 | 74% | 32 | 32 | 0 | 0 |
@@ -48,6 +48,7 @@ Packs scanned: **53** · questions scanned: **2732** · flagged: **2005** (73.4%
 | `aws-dea-c01` | 10 | 7 | 70% | 0 | 7 | 0 | 0 |
 | `aws-mla-c01` | 10 | 7 | 70% | 0 | 7 | 0 | 0 |
 | `github-foundations` | 10 | 7 | 70% | 0 | 7 | 0 | 0 |
+| `ccna` | 112 | 77 | 69% | 35 | 64 | 0 | 7 |
 | `cka` | 61 | 41 | 67% | 30 | 30 | 0 | 0 |
 | `servicenow-csa` | 61 | 41 | 67% | 23 | 37 | 0 | 0 |
 | `aws-aif-c01` | 20 | 13 | 65% | 6 | 13 | 0 | 0 |
