@@ -5,8 +5,8 @@
     "vendor": "CNCF",
     "version": "1.0.3",
     "question_count": 61,
-    "last_updated": "2026-05-03",
-    "notes": " [bulk-tag pass: added `cka` tag to 61 questions] [recall sweep: 3 balanced rewrites]"
+    "last_updated": "2026-05-16",
+    "notes": " [bulk-tag pass: added `cka` tag to 61 questions] [recall sweep: 3 balanced rewrites] [cka batch 1 (2026-05-16): 15 rewrites — cka-003/004/007/021/026/033/035/039/041/043/045/049/050/052/057. Distractors made equally specific so the correct command no longer dwarfs them.]"
   },
   "questions": [
     {
@@ -51,15 +51,15 @@
     },
     {
       "id": "cka-003",
-      "question": "You need to take a snapshot backup of etcd running as a static pod. The etcd data directory is /var/lib/etcd and certificates are in /etc/kubernetes/pki/etcd/. Which command correctly creates the snapshot?",
+      "question": "You need to take a snapshot backup of etcd running as a static pod. The data directory is /var/lib/etcd and certificates live in /etc/kubernetes/pki/etcd/. Which command correctly creates a snapshot the API server can use for a future restore?",
       "options": [
-        "etcdctl snapshot save /backup/etcd.db --endpoints=https://127.0.0.1:2379 --cacert=/etc/kubernetes/pki/etcd/ca.crt --cert=/etc/kubernetes/pki/etcd/server.crt --key=/etc/kubernetes/pki/etcd/server.key",
-        "etcdctl backup --data-dir=/var/lib/etcd --backup-dir=/backup/etcd.db",
-        "etcdctl snapshot save /backup/etcd.db --data-dir=/var/lib/etcd",
-        "kubectl exec -n kube-system etcd-master -- etcdctl snapshot save /backup/etcd.db"
+        "ETCDCTL_API=3 etcdctl snapshot save /backup/etcd.db --endpoints=https://127.0.0.1:2379 --cacert=.../ca.crt --cert=.../server.crt --key=.../server.key",
+        "etcdctl backup --data-dir /var/lib/etcd --backup-dir /backup/etcd.db --endpoints https://127.0.0.1:2379 --tls",
+        "etcdctl snapshot save /backup/etcd.db --data-dir /var/lib/etcd --skip-tls-verify --endpoints 127.0.0.1:2379",
+        "kubectl -n kube-system exec etcd-master -- etcdctl snapshot save /backup/etcd.db --tls"
       ],
       "correct": 0,
-      "explanation": "etcdctl snapshot save requires the endpoint and TLS credentials (--cacert, --cert, --key) to connect to the running etcd cluster. Without TLS flags, etcdctl will be rejected. 'etcdctl backup' is an old v2 API syntax no longer used. Running via kubectl exec without passing the certs would also fail. --data-dir is not a valid flag for snapshot save.",
+      "explanation": "`etcdctl snapshot save` is the v3 API command, and it must authenticate to the live cluster — that means passing --endpoints, --cacert, --cert, and --key. `etcdctl backup` is the deprecated v2 syntax. `--data-dir` is not a flag for `snapshot save`. Running through `kubectl exec` without mounting the certs still fails because the binary inside the pod can't read host certs without --cacert/--cert/--key.",
       "tags": [
         "etcd",
         "backup",
@@ -67,19 +67,19 @@
         "cka"
       ],
       "difficulty": "medium",
-      "_normalized": true
+      "rewritten": true
     },
     {
       "id": "cka-004",
-      "question": "After restoring an etcd snapshot to a new data directory /var/lib/etcd-restore, what must you update so that the etcd static pod uses the restored data?",
+      "question": "After restoring an etcd snapshot to a new data directory /var/lib/etcd-restore, what must change so the etcd static pod starts using the restored data?",
       "options": [
-        "Run 'kubeadm etcd restore /var/lib/etcd-restore' to reload the configuration",
-        "Edit /etc/kubernetes/manifests/etcd.yaml and update the --data-dir flag and the hostPath volume to point to /var/lib/etcd-restore",
-        "Delete the etcd pod and let the controller manager recreate it with the new data",
-        "Run 'systemctl restart etcd' on the control plane node"
+        "Run `kubeadm etcd restore /var/lib/etcd-restore` to register the new directory",
+        "Edit /etc/kubernetes/manifests/etcd.yaml: update --data-dir and the hostPath volume to /var/lib/etcd-restore",
+        "Delete the etcd pod and let the kubelet automatically pick the restored directory",
+        "Run `systemctl restart etcd` on the control-plane node after symlinking the path"
       ],
       "correct": 1,
-      "explanation": "etcd runs as a static pod managed by the kubelet. Its manifest at /etc/kubernetes/manifests/etcd.yaml defines both the --data-dir argument and the hostPath mount. You must update both the --data-dir flag value and the hostPath volume source to point to the restored directory. The kubelet detects the manifest change and restarts the pod automatically.",
+      "explanation": "etcd runs as a static pod under /etc/kubernetes/manifests/. Both the --data-dir flag passed to the etcd container AND the hostPath volume that backs that directory must point at /var/lib/etcd-restore. The kubelet detects the manifest change on disk and restarts the pod. `kubeadm etcd restore` does not exist; pod deletion alone is not enough because the kubelet recreates the pod from the unchanged manifest; etcd is not a systemd service when run as a static pod.",
       "tags": [
         "etcd",
         "restore",
@@ -87,7 +87,7 @@
         "cka"
       ],
       "difficulty": "medium",
-      "_normalized": true
+      "rewritten": true
     },
     {
       "id": "cka-005",
@@ -132,15 +132,15 @@
     },
     {
       "id": "cka-007",
-      "question": "A developer reports that 'kubectl get pods' returns 'Error from server (Forbidden)'. Their kubeconfig context is correct and points to the cluster. What is the most likely root cause?",
+      "question": "A developer reports that `kubectl get pods` returns `Error from server (Forbidden)`. Their kubeconfig context points to the right cluster and `kubectl config view` looks clean. What is the most likely root cause?",
       "options": [
-        "The kubelet on their local machine is not running",
-        "The developer's user or ServiceAccount lacks a Role or ClusterRole binding granting 'get' on pods",
-        "The developer needs to run 'kubectl auth login' to refresh credentials",
-        "The kube-apiserver certificate has expired"
+        "The kubelet on the developer's laptop is not running",
+        "The user or ServiceAccount has no Role/ClusterRole binding for `get pods`",
+        "The developer needs to run `kubectl auth login` to refresh their tokens",
+        "The kube-apiserver TLS certificate has expired on the control plane"
       ],
       "correct": 1,
-      "explanation": "A 403 Forbidden error means the request reached the API server but was denied by the RBAC authorizer. This indicates the subject (user/ServiceAccount) has no Role or ClusterRole binding that grants the 'get' verb on the 'pods' resource. A certificate expiry would produce a TLS error, not Forbidden. 'kubectl auth login' is not a standard Kubernetes command.",
+      "explanation": "A 403 Forbidden means the request reached the API server but the RBAC authoriser denied it — the calling subject has no Role or ClusterRole binding granting the `get` verb on `pods`. An expired API server cert would surface as a TLS handshake error, not Forbidden. There is no `kubectl auth login` subcommand. The kubelet is irrelevant on a client machine.",
       "tags": [
         "rbac",
         "troubleshooting",
@@ -148,7 +148,7 @@
         "cka"
       ],
       "difficulty": "easy",
-      "_normalized": true
+      "rewritten": true
     },
     {
       "id": "cka-008",
@@ -413,15 +413,15 @@
     },
     {
       "id": "cka-021",
-      "question": "A StatefulSet 'db' has 3 replicas. You notice that 'db-2' is stuck in Pending while 'db-0' and 'db-1' are Running. What is the default StatefulSet behavior that causes this sequencing?",
+      "question": "A StatefulSet `db` has 3 replicas. You notice that `db-2` is stuck in Pending while `db-0` and `db-1` are Running. Which default StatefulSet behaviour produces this sequencing?",
       "options": [
-        "The StatefulSet waits for a rolling update to complete before creating new pods",
-        "StatefulSets require all PVCs to be bound before any pod starts",
-        "StatefulSet pods must run on different nodes, and node-2 has insufficient resources",
-        "By default, StatefulSets use OrderedReady pod management: each pod must be Running and Ready before the next is created"
+        "The StatefulSet waits for a rolling update to complete before adding new pods",
+        "All PVCs must be bound by the storage class before any pod is scheduled",
+        "Pods must run on distinct nodes; node-2 has insufficient allocatable capacity",
+        "Default OrderedReady policy: each pod must be Ready before the next is created"
       ],
       "correct": 3,
-      "explanation": "The default podManagementPolicy for StatefulSets is 'OrderedReady'. Pods are created sequentially (0, 1, 2...) and each must be Running and Ready before the next pod is started. If db-1 becomes Ready but db-2 is Pending, db-2 itself has an issue (likely a PVC binding failure or scheduling issue) — it's not being held back by db-1.",
+      "explanation": "StatefulSets default to `podManagementPolicy: OrderedReady`, so pods come up sequentially (0, 1, 2…) and each must reach Running+Ready before the next is created. Since db-0 and db-1 are Running, the StatefulSet IS creating db-2 — it's Pending for its own reason (PVC binding, scheduling, etc.), not because db-1 is blocking it.",
       "tags": [
         "statefulset",
         "pod-management",
@@ -429,7 +429,7 @@
         "cka"
       ],
       "difficulty": "medium",
-      "_normalized": true
+      "rewritten": true
     },
     {
       "id": "cka-022",
@@ -513,15 +513,15 @@
     },
     {
       "id": "cka-026",
-      "question": "A NodePort Service is created for a web application. A developer cannot reach the application at <NodeIP>:30080 from outside the cluster. The pod is Running and the Service endpoint is listed. What should you check next?",
+      "question": "A NodePort Service is created for a web application. A developer cannot reach the app at <NodeIP>:30080 from outside the cluster. The pod is Running and `kubectl get endpoints` lists the Service endpoint. What should you check next?",
       "options": [
-        "The Service's clusterIP assignment",
-        "The pod's readinessProbe configuration",
-        "Whether kube-proxy is configured for IPVS instead of iptables mode",
-        "Whether the firewall or security group on the node allows inbound traffic on port 30080"
+        "The Service's clusterIP allocation in the cluster CIDR",
+        "The pod's readinessProbe configuration and timing",
+        "Whether kube-proxy is in IPVS rather than iptables mode",
+        "Whether the node firewall or cloud SG allows inbound on the port"
       ],
       "correct": 3,
-      "explanation": "If the pod is Running and the Service endpoint exists (meaning kube-proxy has created the iptables/IPVS rules), the most common remaining cause of NodePort inaccessibility from outside is a firewall or cloud security group blocking the port. On cloud providers, inbound rules for the NodePort range (default 30000-32767) must be explicitly allowed.",
+      "explanation": "Pod Running + endpoint listed means kube-proxy has installed the iptables/IPVS rule and traffic that reaches the node will be forwarded. The next-most-common blocker is the host firewall or cloud security group dropping inbound traffic on the NodePort (default range 30000-32767) — that must be explicitly allowed.",
       "tags": [
         "services",
         "nodeport",
@@ -530,7 +530,7 @@
         "cka"
       ],
       "difficulty": "medium",
-      "_normalized": true
+      "rewritten": true
     },
     {
       "id": "cka-027",
@@ -656,15 +656,15 @@
     },
     {
       "id": "cka-033",
-      "question": "You deploy a CNI plugin and observe that pods on different nodes cannot communicate. Pods on the same node communicate fine. What is the most likely issue?",
+      "question": "You roll out a CNI plugin and notice that pods on different nodes cannot reach each other, but pods on the same node communicate fine. Which root cause should you investigate first?",
       "options": [
-        "The kube-proxy daemonset is not running on all nodes",
-        "The CNI plugin has not propagated routing rules or overlay network configuration between nodes — check CNI pod logs and node routing tables",
-        "The kube-apiserver is missing the --allow-privileged=true flag",
-        "The kubelet on worker nodes is not running"
+        "kube-proxy is not running as a DaemonSet on every worker node",
+        "The CNI plugin has not propagated routes or its overlay between nodes",
+        "kube-apiserver is missing the `--allow-privileged=true` flag for the plugin",
+        "kubelet on the worker nodes has not registered with the control plane"
       ],
       "correct": 1,
-      "explanation": "Intra-node pod communication working but cross-node failing is a classic CNI routing issue. The CNI plugin (Calico, Flannel, Weave, etc.) is responsible for establishing routes between nodes so pods on different nodes can reach each other. Issues include BGP peering failures (Calico), VXLAN setup failures (Flannel), or missing routes in the OS routing table. kube-proxy handles Service routing, not pod-to-pod communication.",
+      "explanation": "Working intra-node but broken inter-node traffic is the textbook signature of a CNI routing or overlay problem: BGP peering failures (Calico), VXLAN tunnel issues (Flannel), missing routes in `ip route show` on each node. kube-proxy handles Service traffic, not pod-to-pod. The apiserver flag is unrelated, and kubelet would manifest as nodes NotReady, not partial connectivity.",
       "tags": [
         "cni",
         "networking",
@@ -672,7 +672,7 @@
         "cka"
       ],
       "difficulty": "hard",
-      "_normalized": true
+      "rewritten": true
     },
     {
       "id": "cka-034",
@@ -696,15 +696,15 @@
     },
     {
       "id": "cka-035",
-      "question": "A PersistentVolume is created with accessModes: [ReadWriteOnce] and capacity: 10Gi. A PVC requests 5Gi with accessModes: [ReadWriteOnce]. Will the PVC bind to this PV?",
+      "question": "A PersistentVolume is created with `accessModes: [ReadWriteOnce]` and `capacity: 10Gi`. A PVC then requests 5Gi with the same access mode. Does the PVC bind to that PV?",
       "options": [
-        "No, ReadWriteOnce only allows binding when capacities are equal",
-        "Yes, but the PV will be resized down to 5Gi to match the PVC",
-        "No, the PVC capacity must exactly match the PV capacity",
-        "Yes, the PVC will bind because the PV satisfies the access mode and the PV capacity (10Gi) is greater than or equal to the requested 5Gi"
+        "No — ReadWriteOnce only allows binding when PV and PVC capacities are equal",
+        "Yes, but the PV is shrunk to 5Gi to match the PVC's requested size",
+        "No — the PVC's requested capacity must exactly match the PV's capacity",
+        "Yes — the PV satisfies the access mode and exceeds the requested capacity"
       ],
       "correct": 3,
-      "explanation": "Kubernetes binds a PVC to a PV if the PV's access modes are a superset of the claim's, and the PV capacity is greater than or equal to the requested amount. The PV is not resized — the PVC gets access to the full 10Gi volume even though it only requested 5Gi. This is why over-provisioning is possible with static PVs.",
+      "explanation": "Kubernetes binds a PVC to a PV when the access modes are compatible and the PV's capacity is greater than or equal to the request. The volume is not resized — the PVC receives full access to the 10Gi PV even though it only asked for 5Gi. That's why over-provisioning is possible with static PVs.",
       "tags": [
         "pv",
         "pvc",
@@ -713,7 +713,7 @@
         "cka"
       ],
       "difficulty": "medium",
-      "_normalized": true
+      "rewritten": true
     },
     {
       "id": "cka-036",
@@ -777,15 +777,15 @@
     },
     {
       "id": "cka-039",
-      "question": "A pod's container is in 'CrashLoopBackOff' state. 'kubectl logs my-pod' shows the application exiting with 'Permission denied: /data/config.yaml'. The volume is a hostPath mount. What is the most likely fix?",
+      "question": "A pod's container is in CrashLoopBackOff. `kubectl logs` shows `Permission denied: /data/config.yaml`. The volume is a hostPath mount. Which fix addresses the cause?",
       "options": [
-        "Change the volume type from hostPath to emptyDir",
-        "Add securityContext.runAsRoot: true to the container spec",
-        "Add a securityContext to the pod or container specifying the correct fsGroup or runAsUser that has permission to read the file on the host",
-        "Set the hostPath volume type to 'DirectoryOrCreate' instead of 'Directory'"
+        "Change the volume type from hostPath to emptyDir to bypass permissions",
+        "Add `securityContext.runAsRoot: true` to the container spec instead",
+        "Add `securityContext.fsGroup` / `runAsUser` matching the file's ownership",
+        "Set the hostPath volume `type: DirectoryOrCreate` instead of `Directory`"
       ],
       "correct": 2,
-      "explanation": "A permission denied error on a volume mount usually means the process running in the container doesn't have the OS-level permissions to read the file. Setting pod securityContext.fsGroup changes the group ownership of mounted volumes, or runAsUser can match the file's owner UID. Running as root is a security risk and may not match the file permissions. 'DirectoryOrCreate' only affects whether the directory is created if missing.",
+      "explanation": "Permission denied on a mounted file is an OS-level mismatch between the container's user and the file owner. `fsGroup` chowns the mount, and `runAsUser` aligns the process UID with the file's owner. Switching to emptyDir loses the file entirely. Running as root is a security regression and still doesn't guarantee a UID match. `DirectoryOrCreate` only controls whether the directory is auto-created.",
       "tags": [
         "hostpath",
         "securitycontext",
@@ -793,7 +793,7 @@
         "cka"
       ],
       "difficulty": "medium",
-      "_normalized": true
+      "rewritten": true
     },
     {
       "id": "cka-040",
@@ -819,15 +819,15 @@
     },
     {
       "id": "cka-041",
-      "question": "A node shows status 'NotReady'. You SSH into the node and run 'systemctl status kubelet'. It shows 'Active: failed'. What is your next diagnostic step?",
+      "question": "A node shows status `NotReady`. You SSH in and run `systemctl status kubelet`; it reports `Active: failed`. What is the next diagnostic step?",
       "options": [
         "Restart the container runtime (containerd/docker) on the node",
-        "Run 'kubectl describe node <node-name>' from the control plane",
-        "Delete and recreate the node object in Kubernetes",
-        "Run 'journalctl -u kubelet -n 100' to view the kubelet's recent log output for error messages"
+        "Run `kubectl describe node <name>` from the control plane host",
+        "Delete the node object and let the cluster re-register the node",
+        "Run `journalctl -u kubelet -n 100` to inspect the kubelet's logs"
       ],
       "correct": 3,
-      "explanation": "Since you're already on the node and kubelet has failed, 'journalctl -u kubelet -n 100' is the correct next step to read the kubelet's logs and understand why it crashed. Common causes include misconfigured kubelet flags, certificate issues, or connectivity to the API server. Restarting containerd might be needed later but without reading logs first, it's a guess. 'kubectl describe node' won't help if kubelet isn't reporting.",
+      "explanation": "You're already on the node and kubelet has failed — `journalctl -u kubelet -n 100` shows why it crashed (cert issues, bad config, runtime unreachable). `kubectl describe node` reads the API server's last-known status, which won't update once kubelet is down. Restarting the runtime or deleting the node are speculative actions before reading the actual error.",
       "tags": [
         "kubelet",
         "node-notready",
@@ -835,7 +835,7 @@
         "cka"
       ],
       "difficulty": "easy",
-      "_normalized": true
+      "rewritten": true
     },
     {
       "id": "cka-042",
@@ -861,15 +861,15 @@
     },
     {
       "id": "cka-043",
-      "question": "A pod in 'ImagePullBackOff' state is failing to pull image 'registry.company.com/app:v1.2'. The image exists and credentials are correct. What should you check?",
+      "question": "A pod is in ImagePullBackOff trying to pull `registry.company.com/app:v1.2`. The image exists in the registry and human credentials work via `docker login`. What should you check first?",
       "options": [
-        "Whether an imagePullSecret referencing a docker-registry Secret with credentials for 'registry.company.com' is specified in the pod spec or ServiceAccount",
-        "Whether the pod has a valid ServiceAccount",
-        "Whether the image tag 'v1.2' uses semantic versioning",
-        "Whether the pod's nodeSelector matches a node with internet access"
+        "An imagePullSecret with credentials for that registry is wired to the pod",
+        "Whether the pod has a valid (non-default) ServiceAccount mounted",
+        "Whether the image tag `v1.2` follows strict semantic versioning rules",
+        "Whether the pod's nodeSelector targets a node with internet egress"
       ],
       "correct": 0,
-      "explanation": "ImagePullBackOff for a private registry almost always means missing or incorrect imagePullSecrets. You must create a Secret of type 'kubernetes.io/dockerconfigjson' with credentials for the registry, then reference it in the pod spec under 'imagePullSecrets' or attach it to the ServiceAccount. The exponential backoff in 'ImagePullBackOff' (vs 'ErrImagePull') indicates repeated failed attempts.",
+      "explanation": "ImagePullBackOff against a private registry is almost always missing or wrong imagePullSecrets. Create a Secret of type `kubernetes.io/dockerconfigjson` and either reference it under `spec.imagePullSecrets` in the pod or attach it to the ServiceAccount. The exponential backoff in the status (vs ErrImagePull) tells you repeated pulls have failed.",
       "tags": [
         "imagepullbackoff",
         "secrets",
@@ -877,7 +877,7 @@
         "cka"
       ],
       "difficulty": "medium",
-      "_normalized": true
+      "rewritten": true
     },
     {
       "id": "cka-044",
@@ -903,15 +903,15 @@
     },
     {
       "id": "cka-045",
-      "question": "A deployment rolling update is stuck. 'kubectl rollout status deployment/api' hangs showing '1 old replicas are pending termination'. What kubectl command would help you investigate which pod is blocking the rollout?",
+      "question": "A Deployment rolling update is stuck. `kubectl rollout status deployment/api` hangs with `1 old replicas are pending termination`. Which command best helps you find which pod is blocking the rollout?",
       "options": [
-        "kubectl delete replicaset <old-rs-name>",
-        "kubectl get replicasets -l app=api",
-        "kubectl rollout pause deployment/api",
-        "kubectl describe deployment api and then kubectl describe pod <old-pod-name> to look at termination events"
+        "`kubectl delete replicaset <old-rs-name>` and let the deployment recover",
+        "`kubectl get replicasets -l app=api` to compare desired and ready counts",
+        "`kubectl rollout pause deployment/api` to freeze the in-flight rollout",
+        "`kubectl describe pod <old-pod>` to inspect termination events and hooks"
       ],
       "correct": 3,
-      "explanation": "A stuck rolling update with old replicas pending termination usually means a pod is not terminating cleanly — it could be ignoring SIGTERM, a preStop hook is hanging, or terminationGracePeriodSeconds is very large. Describing the old pod reveals events like 'Stopping container' and any hook execution issues. 'kubectl get replicasets' shows replica counts but not the blocking reason.",
+      "explanation": "A stuck rollout pending termination usually means a pod is ignoring SIGTERM, a preStop hook is hanging, or `terminationGracePeriodSeconds` is set high. Describing the old pod surfaces the relevant events (`Stopping container`, hook execution). Listing replicasets shows replica counts but not why a pod won't go away. Deleting the old RS or pausing the rollout sidesteps diagnosis.",
       "tags": [
         "deployments",
         "rollout",
@@ -919,7 +919,7 @@
         "cka"
       ],
       "difficulty": "hard",
-      "_normalized": true
+      "rewritten": true
     },
     {
       "id": "cka-046",
@@ -984,35 +984,34 @@
     },
     {
       "id": "cka-049",
-      "question": "A cluster admin investigates why kube-controller-manager keeps restarting. The component runs as a static pod on each control-plane node. They want logs from the pod (including stderr) since the last start. Which command surfaces the relevant output?",
+      "question": "An admin investigates why kube-controller-manager keeps restarting on each control-plane node. It runs as a static pod. They want stderr / panic output from the last failed start. Which command surfaces that output?",
       "options": [
-        "`kubectl -n kube-system logs <kube-controller-manager-pod> --previous` (and check `journalctl -u kubelet` for pod-launch errors) — surfaces stderr / panic output from the failing process",
-        "`kubectl get events -A` ONLY — events are summaries; they alone do not reveal the controller-manager's stack traces or panic output",
-        "`kubectl describe node` — shows node conditions; does not surface controller-manager logs",
-        "`crictl rmp -f` on the pod — removes the pod; would destroy the only direct evidence of the crash"
+        "`kubectl -n kube-system logs <controller-manager-pod> --previous`",
+        "`kubectl get events -A | grep controller-manager` to enumerate events",
+        "`kubectl describe node <control-plane>` to read node-condition details",
+        "`crictl rmp -f <pod>` to force-remove the pod and reset its state"
       ],
       "correct": 0,
-      "explanation": "'kubectl logs --previous' (or -p) retrieves the logs from the previously terminated container instance. This is essential for CrashLoopBackOff diagnostics — the current container may not have any useful logs yet. 'kubectl describe pod' shows events but not the full log output. journalctl is for systemd services; as a static pod, the controller-manager logs are accessed via kubectl.",
+      "explanation": "`kubectl logs --previous` (or `-p`) returns logs from the previously terminated container instance — exactly what you need for CrashLoopBackOff. The current container may have no useful logs yet. Events summarise transitions but don't contain panic stack traces. `kubectl describe node` reports node-level conditions. `crictl rmp -f` destroys the evidence you're trying to read.",
       "tags": [
         "troubleshooting",
         "controller-manager",
         "cka"
       ],
       "difficulty": "medium",
-      "_normalized": true,
       "rewritten": true
     },
     {
       "id": "cka-050",
-      "question": "A node's disk pressure condition is True. You run 'kubectl describe node worker-1' and see 'DiskPressure: True'. As a result, some pods are being evicted. What is the underlying cause and immediate remediation?",
+      "question": "A node's `DiskPressure` condition is True and pods on it are being evicted. What is the underlying cause and the immediate remediation?",
       "options": [
-        "The node's CPU usage is too high; scale down workloads on the node",
-        "The kubelet's --disk-pressure-threshold is set too low; increase it in the kubelet config",
-        "The node's memory is exhausted; add swap space to the node",
-        "The node's filesystem (typically /var/lib/kubelet or /var/lib/docker or container image storage) is near capacity; free up disk space by removing unused images, logs, or data"
+        "CPU usage is too high; rebalance pod replicas off the affected node",
+        "Kubelet's eviction threshold is too low; raise `--eviction-hard` settings",
+        "Node memory is exhausted; add swap or increase the node's memory size",
+        "Filesystem is near capacity; prune images, rotate logs, free disk space"
       ],
       "correct": 3,
-      "explanation": "DiskPressure is triggered when the kubelet detects available disk space on the node falls below the eviction threshold (default: imagefs.available < 15%). Common culprits are accumulated container images, large log files, or application data. Remediation includes: 'crictl rmi --prune' to remove unused images, cleaning old logs, or expanding the disk. The kubelet evicts pods to free up space.",
+      "explanation": "DiskPressure fires when the kubelet sees `imagefs.available < 15%` (default). Common culprits are accumulated container images, log files, or application data on /var/lib/. Fix with `crictl rmi --prune`, log rotation, or expanding the disk. Memory and CPU are separate eviction signals (MemoryPressure / PIDPressure). Lowering the threshold masks the problem; the disk is genuinely full.",
       "tags": [
         "disk-pressure",
         "node-conditions",
@@ -1021,7 +1020,7 @@
         "cka"
       ],
       "difficulty": "medium",
-      "_normalized": true
+      "rewritten": true
     },
     {
       "id": "cka-051",
@@ -1046,15 +1045,15 @@
     },
     {
       "id": "cka-052",
-      "question": "After applying a new NetworkPolicy, pods in namespace 'app' can no longer reach the kube-dns Service (10.96.0.10:53). What must be added to the NetworkPolicy?",
+      "question": "After applying a new NetworkPolicy, pods in namespace `app` can no longer reach the kube-dns Service (10.96.0.10:53). What must be added so DNS works again?",
       "options": [
-        "An egress rule in the NetworkPolicy for app pods allowing UDP/TCP traffic to port 53 (to the kube-dns Service or the kube-system namespace)",
-        "A PodSelector matching kube-dns pods in the NetworkPolicy",
-        "A namespaceSelector allowing all traffic from kube-system in the ingress rules",
-        "An ingress rule allowing traffic from kube-dns to the app pods on port 53"
+        "An egress rule on the policy allowing UDP/TCP 53 to the kube-system namespace",
+        "A podSelector that matches the kube-dns pods inside the same policy object",
+        "A namespaceSelector allowing all ingress from kube-system on the policy",
+        "An ingress rule allowing the kube-dns Service to reach the app pods on 53"
       ],
       "correct": 0,
-      "explanation": "If a NetworkPolicy selects a pod and includes 'policyTypes: Egress', all egress is blocked unless explicitly allowed. DNS queries go to port 53 on the CoreDNS service. You must add an egress rule allowing UDP and TCP on port 53, either to the kube-system namespace or to the specific CoreDNS IP. Without this, DNS resolution breaks for the selected pods.",
+      "explanation": "Once a NetworkPolicy with `policyTypes: Egress` selects a pod, ALL outbound traffic is blocked unless explicitly allowed. DNS queries go to port 53 on CoreDNS in kube-system, so the fix is an egress rule allowing UDP and TCP 53 to that namespace (or to the CoreDNS pods specifically). Ingress rules don't affect outbound DNS lookups.",
       "tags": [
         "networkpolicy",
         "dns",
@@ -1063,7 +1062,7 @@
         "cka"
       ],
       "difficulty": "hard",
-      "_normalized": true
+      "rewritten": true
     },
     {
       "id": "cka-053",
@@ -1150,15 +1149,15 @@
     },
     {
       "id": "cka-057",
-      "question": "A Deployment has a readinessProbe that fails during startup. As a result, Service traffic is never routed to the new pods. The pods are Running but not Ready. Which Deployment field can you configure so that startup failures don't count as readiness failures during a defined grace period?",
+      "question": "A Deployment's readinessProbe fails during application startup, so Service traffic is never routed to the new pods. Pods are Running but never Ready. Which Deployment / pod-spec field handles slow startup without weakening steady-state readiness?",
       "options": [
-        "livenessProbe.initialDelaySeconds",
-        "spec.minReadySeconds on the Deployment",
-        "readinessProbe.initialDelaySeconds or a separate startupProbe to protect the readiness probe until the application is initialized",
-        "spec.progressDeadlineSeconds on the Deployment"
+        "Set `livenessProbe.initialDelaySeconds` to wait before liveness checks",
+        "Set `spec.minReadySeconds` on the Deployment to delay availability",
+        "Use a `startupProbe` to gate readiness/liveness until init completes",
+        "Set `spec.progressDeadlineSeconds` to extend the rollout timeout"
       ],
       "correct": 2,
-      "explanation": "readinessProbe.initialDelaySeconds delays the start of readiness checks after the container starts. Alternatively, a startupProbe (Kubernetes 1.16+) is designed specifically for slow-starting applications — it disables liveness and readiness probes until it succeeds, preventing premature failures. minReadySeconds affects when a pod is considered 'available' but doesn't protect probes. progressDeadlineSeconds is a deployment-level timeout.",
+      "explanation": "A `startupProbe` (1.16+) is designed exactly for slow-starting apps: it disables readiness and liveness probes until it itself succeeds, so a bad readiness check never fires during init. `readinessProbe.initialDelaySeconds` works for short, predictable delays but you have to pick a constant. `minReadySeconds` only delays when a pod counts as available — not the probe itself. `progressDeadlineSeconds` is a rollout timeout.",
       "tags": [
         "readiness-probe",
         "startup-probe",
@@ -1166,7 +1165,7 @@
         "cka"
       ],
       "difficulty": "medium",
-      "_normalized": true
+      "rewritten": true
     },
     {
       "id": "cka-058",

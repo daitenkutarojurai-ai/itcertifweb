@@ -1,7 +1,7 @@
 # Question-bank audit
 
-Generated: 2026-05-16T08:03:08.807Z
-Packs scanned: **54** · questions scanned: **2742** · flagged: **1997** (72.8%)
+Generated: 2026-05-16T08:06:59.808Z
+Packs scanned: **54** · questions scanned: **2742** · flagged: **1994** (72.7%)
 
 ## Methodology
 
@@ -49,12 +49,12 @@ Packs scanned: **54** · questions scanned: **2742** · flagged: **1997** (72.8%
 | `aws-mla-c01` | 10 | 7 | 70% | 0 | 7 | 0 | 0 |
 | `github-foundations` | 10 | 7 | 70% | 0 | 7 | 0 | 0 |
 | `ccna` | 112 | 77 | 69% | 35 | 64 | 0 | 7 |
-| `cka` | 61 | 41 | 67% | 30 | 30 | 0 | 0 |
 | `servicenow-csa` | 61 | 41 | 67% | 23 | 37 | 0 | 0 |
 | `aws-aif-c01` | 20 | 13 | 65% | 6 | 13 | 0 | 0 |
 | `vault-002` | 51 | 33 | 65% | 20 | 26 | 0 | 0 |
 | `aws-scs-c02` | 61 | 39 | 64% | 17 | 35 | 0 | 0 |
 | `gcp-pca` | 61 | 39 | 64% | 23 | 34 | 0 | 0 |
+| `cka` | 61 | 38 | 62% | 18 | 25 | 0 | 0 |
 | `az-400` | 10 | 6 | 60% | 0 | 6 | 0 | 0 |
 | `nse4` | 61 | 35 | 57% | 9 | 31 | 0 | 0 |
 | `pcnsa` | 61 | 34 | 56% | 0 | 34 | 0 | 0 |
