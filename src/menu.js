@@ -82,19 +82,28 @@
     document.body.appendChild(menu);
 
     var prevOverflow = '';
+    var backId = null;
     function open() {
       menu.hidden = false;
       btn.setAttribute('aria-expanded', 'true');
       prevOverflow = document.body.style.overflow || '';
       document.body.style.overflow = 'hidden';
+      if (window.cqBack && backId == null) {
+        backId = window.cqBack.push(function (fromBack) { close(fromBack); });
+      }
     }
-    function close() {
+    function close(fromBack) {
+      if (menu.hidden) return;
       menu.hidden = true;
       btn.setAttribute('aria-expanded', 'false');
       document.body.style.overflow = prevOverflow;
+      if (!fromBack && backId != null && window.cqBack) {
+        window.cqBack.dismiss(backId);
+      }
+      backId = null;
     }
     btn.addEventListener('click', open);
-    menu.querySelector('.mobile-menu-close').addEventListener('click', close);
+    menu.querySelector('.mobile-menu-close').addEventListener('click', function () { close(); });
     menu.addEventListener('click', function (e) { if (e.target === menu) close(); });
     document.addEventListener('keydown', function (e) { if (!menu.hidden && e.key === 'Escape') close(); });
 

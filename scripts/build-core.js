@@ -19,6 +19,7 @@ const path = require('path');
 
 const ORDER = [
   'app-mode.js',
+  'back-stack.js',
   'a11y.js',
   'stats.js',
   'avatar.js',

@@ -334,7 +334,7 @@
   }
 
   /* ───── Bottom-sheet ───── */
-  var sheetState = { open: false, path: null, node: null };
+  var sheetState = { open: false, path: null, node: null, backId: null };
 
   function openNodeSheet(path, node) {
     sheetState.path = path;
@@ -389,13 +389,21 @@
     sheetState.open = true;
     document.body.style.overflow = 'hidden';
     setTimeout(function () { sheet.classList.add('is-open'); }, 10);
+    if (window.cqBack && sheetState.backId == null) {
+      sheetState.backId = window.cqBack.push(function (fromBack) { closeNodeSheet(fromBack); });
+    }
   }
-  function closeNodeSheet() {
+  function closeNodeSheet(fromBack) {
+    if (!sheetState.open) return;
     var sheet = $('#node-sheet');
     sheet.classList.remove('is-open');
     sheetState.open = false;
     document.body.style.overflow = '';
     setTimeout(function () { sheet.hidden = true; }, 200);
+    if (!fromBack && sheetState.backId != null && window.cqBack) {
+      window.cqBack.dismiss(sheetState.backId);
+    }
+    sheetState.backId = null;
   }
 
   function handleStart() {
