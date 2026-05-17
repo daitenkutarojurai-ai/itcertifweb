@@ -10,7 +10,7 @@
  * Bump CACHE_VERSION to invalidate clients on next visit.
  */
 
-const CACHE_VERSION = 'v96-2026-05-17-back-button-v82';
+const CACHE_VERSION = 'v97-2026-05-17-back-button-modals-v83';
 const RUNTIME_CACHE = `cq-runtime-${CACHE_VERSION}`;
 const PRECACHE      = `cq-precache-${CACHE_VERSION}`;
 

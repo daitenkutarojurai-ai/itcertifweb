@@ -110,15 +110,26 @@ export function showModePicker(pack, questions) {
     modal.querySelector('.modal-backdrop').classList.add('visible');
   });
 
-  const close = () => {
+  let backId = null;
+  let closed = false;
+  const close = (fromBack) => {
+    if (closed) return;
+    closed = true;
     const sheet = modal.querySelector('.modal-sheet');
     const backdrop = modal.querySelector('.modal-backdrop');
     sheet.classList.remove('visible');
     backdrop.classList.remove('visible');
     setTimeout(() => modal.remove(), 300);
+    if (!fromBack && backId != null && window.cqBack) {
+      window.cqBack.dismiss(backId);
+    }
+    backId = null;
   };
+  if (window.cqBack) {
+    backId = window.cqBack.push((fromBack) => close(fromBack));
+  }
 
-  modal.querySelector('#modal-backdrop').addEventListener('click', close);
+  modal.querySelector('#modal-backdrop').addEventListener('click', () => close());
 
   const startQuiz = (mode, count, customQuestions) => {
     // Diagnostic and study modes don't consume hearts (study currently doesn't either).

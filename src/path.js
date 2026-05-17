@@ -1196,17 +1196,29 @@
         setTimeout(function () { burstConfetti({ count: 50, origin: { x: window.innerWidth*0.78, y: window.innerHeight*0.45 } }); }, 480);
         setTimeout(function () { burstConfetti({ count: 60, origin: { x: window.innerWidth/2, y: window.innerHeight*0.30 }, colors: goldColors }); }, 900);
 
-        function close() {
+        var ceremonyBackId = null;
+        var ceremonyClosed = false;
+        function close(fromBack) {
+          if (ceremonyClosed) return;
+          ceremonyClosed = true;
           overlay.classList.remove('is-open');
           document.body.style.overflow = '';
           setTimeout(function () { overlay.remove(); }, 350);
+          if (!fromBack && ceremonyBackId != null && window.cqBack) {
+            window.cqBack.dismiss(ceremonyBackId);
+          }
+          ceremonyBackId = null;
         }
-        overlay.querySelector('.cq-ceremony-dismiss').addEventListener('click', close);
-        overlay.querySelector('.cq-ceremony-backdrop').addEventListener('click', close);
+        if (window.cqBack) {
+          ceremonyBackId = window.cqBack.push(function (fromBack) { close(fromBack); });
+        }
+        overlay.querySelector('.cq-ceremony-dismiss').addEventListener('click', function () { close(); });
+        overlay.querySelector('.cq-ceremony-backdrop').addEventListener('click', function () { close(); });
         overlay.querySelector('.cq-ceremony-share').addEventListener('click', function () {
+          close();
           location.href = '/profile.html';
         });
-        overlay.addEventListener('cq:a11y-escape', close);
+        overlay.addEventListener('cq:a11y-escape', function () { close(); });
       });
   }
   window.addEventListener('cq:laurel-earned', function (e) {

@@ -135,13 +135,28 @@
     document.body.appendChild(modal);
     requestAnimationFrame(() => modal.classList.add('cq-auth-modal--visible'));
 
-    const close = () => {
+    let backId = null;
+    let closed = false;
+    const close = (fromBack) => {
+      if (closed) return;
+      closed = true;
       modal.classList.remove('cq-auth-modal--visible');
       setTimeout(() => modal.remove(), 200);
+      if (!fromBack && backId != null && window.cqBack) {
+        window.cqBack.dismiss(backId);
+      }
+      backId = null;
     };
-    modal.querySelector('.cq-auth-close').addEventListener('click', close);
-    modal.querySelector('.cq-auth-backdrop').addEventListener('click', close);
-    window.addEventListener('cq:a11y-escape', close, { once: true });
+    // Expose for the cq:auth-changed handler at the bottom of this file —
+    // when sign-in completes server-side, it should call this same path so
+    // back-stack stays balanced.
+    modal.__cqClose = close;
+    if (window.cqBack) {
+      backId = window.cqBack.push((fromBack) => close(fromBack));
+    }
+    modal.querySelector('.cq-auth-close').addEventListener('click', () => close());
+    modal.querySelector('.cq-auth-backdrop').addEventListener('click', () => close());
+    window.addEventListener('cq:a11y-escape', () => close(), { once: true });
 
     /* ── Tabs ───────────────────────────────────────────────────────── */
     const tabSignin = modal.querySelector('#cq-tab-signin');
@@ -312,12 +327,17 @@
   window.addEventListener('cq:auth-changed', (e) => {
     renderChip();
     // If a sign-in (password, magic-link callback, or OAuth callback) just
-    // landed and a modal is open, close it.
+    // landed and a modal is open, close it. Go through the modal's own
+    // close path so the back-stack history entry is balanced.
     if (e.detail && e.detail.session) {
       const m = document.getElementById('cq-auth-modal');
       if (m) {
-        m.classList.remove('cq-auth-modal--visible');
-        setTimeout(() => m.remove(), 200);
+        if (typeof m.__cqClose === 'function') {
+          m.__cqClose();
+        } else {
+          m.classList.remove('cq-auth-modal--visible');
+          setTimeout(() => m.remove(), 200);
+        }
       }
     }
   });
