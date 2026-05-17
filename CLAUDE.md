@@ -1,67 +1,121 @@
 # CertQuests — Claude Project Brief
 
-Free practice-test site for IT certifications (AWS, Azure, Cisco, CompTIA,
-GCP, Kubernetes, etc.). Static HTML/CSS/vanilla-JS hosted on Cloudflare
-Pages via `wrangler.jsonc`. The only server-side surface is Supabase
-(auth + per-user data) — everything else is shipped as static assets.
+Free practice-test for IT certifications (AWS, Azure, Cisco, CompTIA, GCP,
+Kubernetes, etc.). Static HTML/CSS/vanilla-JS hosted on Cloudflare Pages
+via `wrangler.jsonc`. The only server-side surface is Supabase (auth +
+per-user data) — everything else is shipped as static assets.
+
+> ## 🚨 Two products, one data layer — read before touching anything
+>
+> The repo ships **two distinct products** that happen to share a Git tree.
+> Do not blur them; do not "while I'm here" edit across the boundary.
+>
+> | | **Website** | **App** (Capacitor / Play Store) |
+> | --- | --- | --- |
+> | Audience | Anonymous visitors, SEO, link-builders | Signed-in / returning users on phone or web |
+> | Goal | Get found, get trusted, convert to install/signup | Daily practice, retention, gamified learning |
+> | Surfaces | `index.html` (marketing), `/courses/`, `/certifications/`, `/careers/`, `/news/`, `/cheatsheets/`, `/compare/`, `/salaire/`, `/career-path/`, `/study-planner/`, `/infracost/`, `/leaderboard/`, `/reality-check/`, `/devstack/`, `/prompt-dungeon/`, `/tool-radar/`, `/failbase/`, `/fail-analysis/`, `/learning/<pack>/`, `/tools/`, `/skills/`, `404.html`, `privacy-policy.html`, `contact.html` | `path.html`, `train.html?pack=…` runtime, `profile.html`, the in-session HUD (`src/hud.js`), hearts / cosmetics / daily / mascot, auth modal (`src/auth-ui.js`), sync (`src/sync.js`), Capacitor adapters (`src/app-mode.js`, `src/auth.js` Capacitor branches, `src/engine/notifications.js`, `src/engine/ads.js`) |
+> | "Don't touch from the other track" | Quiz runtime, gamification, HUD, profile, hearts, cosmetics, leaderboard widget, Capacitor-only behavior | Course-content HTML, careers articles, salary / comparator / reality-check / devstack / failbase / tool-radar pages, programmatic SEO pages |
+> | **Shared layer** | `data/free/<pack>.json` (question banks), `data/paths/<pack>.json` + `_index.json`, `data/courses.json`, `data/index.json`, `data/cosmetics.json`, `data/concept-library.json`, the Supabase schema (profiles, stats, path_progress, laurels, cosmetics, hearts, daily, leaderboard view), `src/cq-core.js` bundle, `src/styles/main.css`, `src/styles/desktop.css`, the canonical `<header class="web-header">`, `manifest.json`, `sw.js`. | |
+>
+> **Rules of engagement:**
+> 1. When a task says "the app" or "the website", treat the other product as read-only for that session.
+> 2. When a task is ambiguous (e.g. "make it faster", "polish UX", "go on with the roadmap"), ASK which surface before starting — there are two roadmaps and two backlogs hiding in `TODO.md`.
+> 3. Course-content expansion (P0 in `TODO.md`) is **website work**, NOT app work — the app reads the same content. Do not pull content tasks into app sessions.
+> 4. Phase 6 (Authority + Tools layer, items 6.1-6.13) is **website work** — content templates, SEO pages, calculators rendered as static HTML.
+> 5. Phase 5 (Mobile + UX polish + video-game HUD) is **app work** — quiz runtime, HUD, mode picker, path bottom-sheet, mascot.
+> 6. The shared layer (data, cq-core, canonical header) can be touched from either track — that's fine because it's shared by definition. A cache-key bump or a sw.js refresh is shared-shell maintenance, not crossing the boundary.
+> 7. The `is-app` body-class system (`src/app-mode.js` + CSS rules in `main.css`) is how the shared shell expresses "this surface is opening in-app" — extend that pattern rather than per-page conditional code when chrome needs to differ.
 
 ## Top-level layout
 
-```
-index.html                Landing page (heavy inline <style>, ~5000 lines)
-path.html                 Duolingo-style learning-path map (Phase 3)
-profile.html              Player profile: stats / hats / laurels / share PNG
-                          + Account section (sign-out, delete-account, edit username)
-train.html, stats.html, contact.html, 404.html, privacy-policy.html
-reset-password.html       Recovery callback page (Phase 3D)
-careers/, certifications/, learning/, news/, courses/, compare/
+Annotation key: 🌐 = website surface · 📱 = app surface · 🔗 = shared layer
 
-data/free/<pack>.json     Question banks (~47 certs after CISSP expansion)
-data/paths/<pack>.json    Auto-generated path definitions (40 paths)
-data/paths/_index.json    Path discovery index (for /path.html grid)
-data/paths/_skipped.json  Structured report: WHY each pack was skipped
-data/cosmetics.json       Hat catalog (13 hats — chapter rewards + level gates)
-data/concept-library.json Hand-authored teaching primers keyed by tag
+```
+index.html                🌐 Marketing landing — SEO entry point, install CTA
+                          (heavy inline <style>, ~5000 lines; the homepage IS
+                           website territory, not app territory)
+path.html                 📱 Duolingo-style learning-path map (Phase 3)
+profile.html              📱 Player profile: stats / hats / laurels / share PNG
+                          + Account section (sign-out, delete-account, edit username)
+train.html                📱 Quiz runtime when invoked as /train.html?pack=…
+                          🌐 Pack landing when invoked bare (Phase 5.10 redirected
+                             bare-page traffic into /certifications/)
+reset-password.html       📱 Recovery callback page (Phase 3D)
+404.html, contact.html, privacy-policy.html, stats.html (deprecated)
+                          🌐 Static website pages
+
+careers/, news/, courses/, certifications/, cheatsheets/, compare/, salaire/,
+career-path/, study-planner/, infracost/, leaderboard/, reality-check/,
+devstack/, prompt-dungeon/, tool-radar/, failbase/, fail-analysis/,
+learning/, tools/, skills/
+                          🌐 Website content + tools. All SEO-oriented, all
+                             produced by template scripts in `scripts/gen-*.js`.
+
+data/free/<pack>.json     🔗 Question banks (~47 certs after CISSP expansion)
+data/paths/<pack>.json    🔗 Auto-generated path definitions (40 paths)
+data/paths/_index.json    🔗 Path discovery index (for /path.html grid)
+data/paths/_skipped.json  🔗 Structured report: WHY each pack was skipped
+data/cosmetics.json       🔗 Hat catalog (13 hats — chapter rewards + level gates)
+data/concept-library.json 🔗 Hand-authored teaching primers keyed by tag
                           (45 entries — covers ~87% of concept nodes)
+data/index.json, data/courses.json, data/salary/*, data/comparisons/*,
+data/career-paths/*, data/devstack/*, data/failbase/*, data/fail-analysis/*,
+data/infracost/*, data/prompts/*, data/reality-check/*, data/tool-radar/*
+                          🔗 Either shared (banks, paths, courses) or
+                             website-only content datasets.
 
 src/
-  cq-core.js              BUNDLED — built from the 7 modules below
-                          (a11y stats avatar hearts cosmetics daily menu)
-                          Loaded once per page → 6 fewer round-trips
-  a11y.js                 Focus-trap helper; auto-attaches to [role="dialog"]
-  stats.js                Practice-stats reducer (XP / level / streak);
+  cq-core.js              🔗 BUNDLED — built from the modules below; loaded once
+                          per page so chrome + auth + stats are universal.
+  app-mode.js             🔗 Synchronous Capacitor / standalone-PWA detection;
+                          sets <html class="is-app|is-standalone|is-ios|is-android">
+                          before any other module runs. Exposes window.cqApp.
+                          (Always the first module in build-core.js ORDER.)
+  a11y.js                 🔗 Focus-trap helper; auto-attaches to [role="dialog"]
+  stats.js                🔗 Practice-stats reducer (XP / level / streak);
                           schema versioned (_v:1) + migrate() on load;
                           exposes window.cqDbg for gated debug logging;
                           Node-compatible: exports CommonJS in test mode
-  avatar.js               Header avatar chip + 30 stage emojis
-  hearts.js               5-heart lives system, 30-min regen
-  cosmetics.js            Hat unlocks + worn-hat overlay
-  daily.js                Daily quest banner ("clear 1 node → +20 XP")
+  avatar.js               🔗 Header avatar chip + 30 stage emojis
+  hearts.js               📱 5-heart lives system, 30-min regen
+  cosmetics.js            📱 Hat unlocks + worn-hat overlay
+  daily.js                📱 Daily quest banner ("clear 1 node → +20 XP")
                           hidden on /path.html?pack=… (index only)
-  menu.js                 Hamburger drawer (mobile) + sticky header scroll
-  mascot.js               Floating tip squid 🦑 (bottom-right)
-  mascot-loader.js        Lazy-loads mascot.js on first interaction / 8s idle
-  path.js                 Path-map renderer + walker + confetti + chest opener;
+  hud.js                  📱 In-session quest HUD box (Phase 5.7)
+  mascot-cheer.js         📱 Floating cheer toast on level-up / unlock events
+  menu.js                 🔗 Hamburger drawer (mobile) + sticky header scroll
+  mascot.js               📱 Floating tip squid 🦑 (bottom-right)
+  mascot-loader.js        📱 Lazy-loads mascot.js on first interaction / 8s idle
+  path.js                 📱 Path-map renderer + walker + confetti + chest opener;
                           Yes/No mini-game (replaces TF + match);
                           fires cq:path-progress-changed on inline completion
-  profile.js              /profile.html renderer + canvas share PNG
+  path-progress.js        📱 Pure helper for path progress math (CJS + browser)
+  yesno-prompt.js         📱 Pure helper that synthesises Yes/No drill prompts
+  profile.js              📱 /profile.html renderer + canvas share PNG
                           + Account section (sign-out, delete, username edit)
-  onboarding.js           Goal-picker on homepage + cert search
-  app.js                  SPA shell for the quiz/training flow
+  onboarding.js           🌐 Goal-picker on homepage + cert search
+  app.js                  📱 SPA shell for the quiz/training flow
+  pack-picker.js          🌐 /certifications/ pack tile renderer (Phase 5.10)
 
   /* Phase 3D — Supabase accounts (loaded on path/profile/train/index) */
-  auth.js                 ES module. Loads @supabase/supabase-js from
+  auth.js                 🔗 ES module. Loads @supabase/supabase-js from
                           pinned esm.sh; exposes window.cqAuth (signUp,
                           signInWithPassword, signInWithProvider, signOut,
                           requestPasswordReset, updatePassword, etc.);
                           Capacitor-aware redirect (capacitor://localhost)
-  auth-ui.js              Self-injecting header chip + tabbed sign-in/up
+  auth-ui.js              🔗 Self-injecting header chip + tabbed sign-in/up
                           modal + Google OAuth button + account menu
-  sync.js                 Bridges localStorage ↔ Supabase tables.
+  sync.js                 🔗 Bridges localStorage ↔ Supabase tables.
                           Bootstrap (push-if-cloud-empty, pull-otherwise);
                           event-driven write-through on cq:*-changed
-  reset-password.js       Page-only — handles the /reset-password.html
+  reset-password.js       🔗 Page-only — handles the /reset-password.html
                           callback: detects recovery session, posts new pw
+
+  /* App-only adapters — currently stubs, activate when Capacitor plugins
+     are added on the wrapper side. None of these belong on the website. */
+  engine/notifications.js 📱 Local notifications (Capacitor stub)
+  engine/ads.js           📱 AdMob (Capacitor stub)
 
   screens/
     home.js, quiz.js, results.js
@@ -75,11 +129,25 @@ src/
     profile.css           Profile page + Account section + empty-state
 
 scripts/
-  gen-paths.js            Generates data/paths/*.json from question banks.
+  gen-paths.js            🔗 Generates data/paths/*.json from question banks.
                           Consults data/concept-library.json; falls back to
                           secondary-tag matching, then auto-derived.
-  build-core.js           Concatenates 7 modules into src/cq-core.js
-  audit-mobile.js, …      Other one-shot scripts
+  build-core.js           🔗 Concatenates cq-core.js modules. Bump app-mode.js
+                          stays at index 0 so the env flag lands early.
+  sync-header.js          🔗 Rewrites the canonical <header class="web-header">
+                          across all HTML pages (idempotent).
+  cert-pack-ctas.js       🌐 Regenerates the per-cert pack-tile CTAs.
+  gen-salary-pages.js     🌐 Phase 6.1 — salary pages
+  gen-compare-pages.js    🌐 Phase 6.2 — comparator pages
+  gen-failanalysis-pages.js 🌐 Phase 6.3 — fail-analysis pages
+  gen-career-manifest.js  🌐 Phase 6.5 — career-path index
+  gen-reality-check-pages.js 🌐 Phase 6.8 — reality-check pages
+  gen-devstack-pages.js   🌐 Phase 6.9 — devstack pages
+  gen-prompt-pages.js     🌐 Phase 6.10 — prompt-dungeon pages
+  gen-toolradar-pages.js  🌐 Phase 6.11 — tool-radar pages
+  gen-failbase-pages.js   🌐 Phase 6.12 — failbase pages
+  audit-mobile.js         🔗 Cache-version + mobile-shell sanity check
+  …                       Other one-shot scripts (most 🌐 content generators)
 
 test/
   stats.test.js           33 unit tests via `node --test`

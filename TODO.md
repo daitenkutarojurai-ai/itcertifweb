@@ -3,9 +3,23 @@
 Living TODO. Items here are not dropped on the floor; they're things to pick
 up when there's time.
 
+> ## 🚨 Two roadmaps in here — check which surface before picking up a ticket
+>
+> This file mixes **website work** (🌐) and **app work** (📱). They share a
+> data layer but are otherwise distinct products — see `CLAUDE.md` "Two
+> products, one data layer" for the full split. Quick guide:
+>
+> | If the user said… | Pick from… | Skip… |
+> | --- | --- | --- |
+> | "work on the app" / "polish the app" / "UI / GUI" | Phase 5 tickets (5.x), 📱 items, anything in `path.html` / `train.html` runtime / `profile.html` / HUD / hearts / auth / sync | P0 course content, Phase 6.x, any "salary / comparator / reality-check / devstack / failbase / tool-radar / prompt-dungeon / career-path / fail-analysis" item |
+> | "work on the website" / "SEO" / "content" | P0 course content, Phase 6.x content templates, careers articles, news, learning hubs | Phase 5 (already shipped), HUD, hearts, in-session quiz UX |
+> | "go on with roadmap" / something ambiguous | **ASK FIRST.** Two roadmaps means two answers. | Do not guess — last time I guessed I picked website content when the user wanted app work. |
+> | "fix a bug" | Whichever surface the bug lives on. Read the file path. | The other surface. |
+> | Pure shared-layer task (cache bump, sw.js, sync-header, test fix) | Just do it — the shared shell belongs to both products. | n/a |
+
 ---
 
-## P0 — Course content rework (2026-05-16, HIGH priority)
+## P0 — Course content rework (2026-05-16, HIGH priority) 🌐 WEBSITE
 
 > Current `data/courses.json` chapters are too short to deliver real
 > learning value. Users will read one screen of bullets and bounce back
@@ -38,7 +52,7 @@ up when there's time.
 
 ---
 
-## P1 — Phase 6: Authority + tools layer (2026-05-15, planned)
+## P1 — Phase 6: Authority + tools layer (2026-05-15, planned) 🌐 WEBSITE
 
 > Net-new feature batch (13 items) targeting SEO authority, lead-gen and
 > retention. Three are calculators (client-side JS), eight are content
@@ -766,7 +780,7 @@ lead-gen flows that drive everything else.
 
 ---
 
-## P0 — Phase 5: Desktop + game-feel rebuild + IA cleanup (2026-05-13, expanded 2026-05-15)
+## P0 — Phase 5: Desktop + game-feel rebuild + IA cleanup (2026-05-13, expanded 2026-05-15) 📱 APP
 
 > Live audit on phone + desktop + a second user pass on 2026-05-15 surfaced
 > a wider batch: chrome inconsistency, IA duplication (cert pages → train
