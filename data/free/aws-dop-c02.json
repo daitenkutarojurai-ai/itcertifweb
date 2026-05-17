@@ -5,8 +5,8 @@
     "vendor": "Amazon AWS",
     "version": "1.0.0",
     "question_count": 10,
-    "last_updated": "2026-05-12",
-    "notes": " [bulk-tag pass: added `aws-dop-c02` tag to 10 questions]"
+    "last_updated": "2026-05-17",
+    "notes": " [bulk-tag pass: added `aws-dop-c02` tag to 10 questions] [hardening pass: rebalanced length variance and absolute-language tells across Q002, Q005, Q007, Q008, Q009, Q010]"
   },
   "questions": [
     {
@@ -37,7 +37,7 @@
         "Set `env.exported-variables` to include `ECR_PASSWORD`, then run `docker login -u AWS -p $ECR_PASSWORD <registry>` in the pre_build phase before the docker build step",
         "Add an `auth.ecr` block under `phases.build` with `enabled: true`, which causes CodeBuild to inject ECR registry credentials into the docker daemon for the build phase only",
         "In the pre_build phase, run `aws ecr get-login-password --region $AWS_REGION | docker login --username AWS --password-stdin <account>.dkr.ecr.$AWS_REGION.amazonaws.com`",
-        "Specify `image-pull-credentials-type: SERVICE_ROLE` in the project configuration, which automatically authenticates `docker push` operations using the CodeBuild service role's IAM permissions"
+        "Specify `image-pull-credentials-type: SERVICE_ROLE` on the CodeBuild project so the build's service role transparently authenticates `docker push` to ECR with no explicit login"
       ],
       "correct": 2,
       "explanation": "`aws ecr get-login-password` returns a short-lived auth token that `docker login --password-stdin` consumes. The CodeBuild service role must hold `ecr:GetAuthorizationToken`, `ecr:BatchCheckLayerAvailability`, and `ecr:PutImage` (or the managed policy `AmazonEC2ContainerRegistryPowerUser`). `env.exported-variables` only forwards values to subsequent CodePipeline stages and does not store credentials. There is no `auth.ecr` buildspec block. `image-pull-credentials-type: SERVICE_ROLE` controls how CodeBuild pulls its own build environment image from ECR, not how docker pushes images during the build.",
@@ -98,10 +98,10 @@
       "id": "aws-dop-c02-005",
       "question": "A SaaS company runs an active-active deployment across us-east-1 and eu-west-1 fronted by a single Route 53 hosted zone. Each region exposes a regional ALB. They need automatic failover that removes a region from DNS within minutes if its health degrades. Which Route 53 configuration meets the requirement?",
       "options": [
-        "Create simple routing records pointing to both ALBs and rely on the client browser's DNS retry to fail over if one ALB returns 5xx errors during normal operation",
+        "Create simple routing records that return both ALB addresses and rely on the client's DNS resolver retry behavior to skip a region whenever its ALB begins returning 5xx error responses",
         "Use latency-based records for both ALBs with associated Route 53 health checks; Route 53 stops returning the unhealthy record while the healthy region continues serving traffic",
-        "Configure weighted routing with weights set to 100 in each region; the weight is automatically reduced to 0 when CloudWatch alarms detect elevated 5xx error rates on the regional ALB",
-        "Use multi-value answer routing with associated TXT records that store the regional health state; resolvers parse the TXT field and skip endpoints flagged as unhealthy"
+        "Configure weighted routing with weights of 100 per region; the weight drops to 0 automatically when CloudWatch alarms fire on elevated 5xx error rates against the regional ALB endpoint",
+        "Use multi-value answer routing with associated TXT records that store the regional health state; DNS resolvers parse the TXT field on each query and skip endpoints flagged unhealthy"
       ],
       "correct": 1,
       "explanation": "Route 53 latency-based (or geolocation/multi-value) records combined with health checks remove unhealthy endpoints from query responses within the health-check evaluation window (typically 30–60 seconds). Simple routing has no health-check association. Route 53 weighted routing weights are static — they do not auto-adjust based on CloudWatch alarms. Multi-value answer routing supports health checks directly on each record; TXT records carry no special meaning to DNS resolvers.",
@@ -139,10 +139,10 @@
       "id": "aws-dop-c02-007",
       "question": "A security team requires that any IAM user creation in any account triggers an immediate Slack notification and an audit-log entry in a central S3 bucket. Which design is the most operationally efficient across an AWS Organization?",
       "options": [
-        "Enable CloudTrail in every account separately and write a Lambda in each that filters `CreateUser` events from local trails, posting to Slack and S3 via cross-account assumed roles",
-        "Use AWS Config aggregator to collect IAM resource changes and schedule a daily CloudWatch Events query that sends a summary of new IAM users to the Slack channel and S3 audit bucket",
-        "Create an organization trail in the management account and an EventBridge rule matching `CreateUser` API calls; a target Lambda posts to Slack and writes the event to the central S3 bucket",
-        "Subscribe each account's CloudTrail log group to a central Kinesis stream; consumers in the security account replay events, filter `CreateUser`, and forward matches to Slack and S3"
+        "Enable a separate CloudTrail in every member account and deploy a per-account Lambda that filters `CreateUser` events from the local trail and posts to Slack plus the central S3 bucket via cross-account roles",
+        "Use AWS Config aggregator to collect IAM resource changes and schedule a daily CloudWatch Events query that sends a summary of newly created IAM users to the Slack channel and the central S3 audit bucket",
+        "Create an organization trail in the management account and an EventBridge rule matching `CreateUser` API calls; a target Lambda posts to Slack and writes the captured event to the central S3 audit bucket",
+        "Subscribe every account's CloudTrail log group to a central Kinesis Data Stream; a consumer in the security account replays events, filters for `CreateUser`, and forwards each match to Slack and S3"
       ],
       "correct": 2,
       "explanation": "An organization trail in the management account writes management events from every member account to a single S3 bucket, satisfying the central audit requirement. EventBridge can match management-event API calls (`CreateUser`) and route to a Lambda that posts to Slack — all centrally maintained. Per-account trails and Lambdas multiply operational overhead. AWS Config aggregator runs on a periodic snapshot, not real-time. Subscribing every CloudTrail log group to Kinesis is far heavier than EventBridge for this use case.",
@@ -160,10 +160,10 @@
       "id": "aws-dop-c02-008",
       "question": "A web application reads a database password from AWS Secrets Manager. Compliance requires the password to rotate every 30 days with no application downtime. Which configuration meets the requirement?",
       "options": [
-        "Schedule an EventBridge rule every 30 days that invokes a custom Lambda to generate a new password, update RDS, overwrite the Secrets Manager value, then redeploy the application",
-        "Use AWS Systems Manager Parameter Store SecureString with a 30-day expiration policy; the parameter is automatically replaced with a new random value when expiration occurs",
-        "Store the password as a KMS-encrypted environment variable on the application and rebuild and redeploy the application every 30 days with a freshly generated database password",
-        "Enable Secrets Manager automatic rotation with the AWS-provided RDS rotation Lambda; configure a 30-day rotation schedule and have the application re-fetch on cache miss or refresh"
+        "Schedule an EventBridge rule every 30 days that invokes a custom Lambda to generate a new password, update RDS, overwrite the Secrets Manager value, then trigger a CodeDeploy redeploy of the application",
+        "Use AWS Systems Manager Parameter Store SecureString with a 30-day expiration policy; the parameter value is automatically replaced with a freshly generated random string and consumers refresh on the next read",
+        "Store the password as a KMS-encrypted environment variable and have a CodePipeline stage rebuild and redeploy the application every 30 days, generating the new database password and rotating it on RDS in the same run",
+        "Enable Secrets Manager automatic rotation with the AWS-provided RDS rotation Lambda; configure a 30-day rotation schedule and have the application re-fetch the secret on cache miss or refresh interval"
       ],
       "correct": 3,
       "explanation": "Secrets Manager native rotation orchestrates a four-step Lambda (`createSecret`, `setSecret`, `testSecret`, `finishSecret`) that uses the AWSCURRENT and AWSPENDING staging labels so the new credential is created and tested before promotion — clients reading AWSCURRENT see continuous availability. The official RDS rotation Lambdas implement this safely. A custom EventBridge rotation can work but reinvents the staging-label dance and forces app redeploys. Parameter Store has no expiration-based rotation. KMS-encrypted environment variables couple secret lifetime to the deployment pipeline.",
@@ -181,10 +181,10 @@
       "id": "aws-dop-c02-009",
       "question": "An application in account A must encrypt objects to an S3 bucket in account B using a KMS customer-managed key in account B. Which permission configuration enables this?",
       "options": [
-        "Grant the account A principal `kms:Encrypt` and `kms:GenerateDataKey` in the key policy of account B, and grant the IAM role in account A matching permissions on the key ARN",
-        "Grant `kms:*` to the account A principal in the S3 bucket policy of account B; Amazon S3 forwards the bucket policy permission to the KMS service for SSE-KMS write operations",
-        "Grant `kms:Encrypt` on `*` to the IAM role in account A — KMS trusts any caller that holds matching IAM permissions for the action regardless of the key resource policy",
-        "Leave the account B key policy at the AWS default and grant the IAM role in account A `kms:CreateGrant` on the key, which is the only supported mechanism for cross-account KMS use"
+        "Grant the account A principal `kms:Encrypt` and `kms:GenerateDataKey` in the key policy of account B, and grant the IAM role in account A matching permissions on the specific key ARN in account B",
+        "Grant `kms:*` to the account A principal in the S3 bucket policy of account B; Amazon S3 forwards the bucket policy permission to the KMS service when handling SSE-KMS write operations on objects",
+        "Grant `kms:Encrypt` on `*` to the IAM role in account A and rely on the matching IAM permission on the caller side being sufficient for KMS to authorize a cross-account encrypt call against an account B key",
+        "Leave the account B key policy at the AWS default and grant the IAM role in account A `kms:CreateGrant` on the key so that cross-account encryption flows through a grant rather than the key policy"
       ],
       "correct": 0,
       "explanation": "Cross-account KMS access requires both sides: the key policy in the owning account must grant the foreign principal access (or delegate to IAM via the `Allow access through IAM` statement), and the IAM principal in the calling account must hold matching permissions on the specific key ARN. S3 bucket policies cannot delegate KMS permissions. KMS does not trust IAM-only access on `*` — the resource policy is the gatekeeper. `CreateGrant` is one mechanism but not the only one and is not required for direct cross-account encryption.",
@@ -203,10 +203,10 @@
       "id": "aws-dop-c02-010",
       "question": "A team uses CodeDeploy in-place deployments on EC2 to roll out a Node.js service registered behind an ELB. They need to drain in-flight HTTP connections from the instance before the new version starts and to verify the new version returns 200 on `/health` before traffic resumes. Which lifecycle event hooks should they implement in `appspec.yml`?",
       "options": [
-        "Use the `BeforeAllowTraffic` hook to drain in-flight connections and the `AfterAllowTraffic` hook to verify the health endpoint returns 200 before continuing the deployment",
-        "Use the `ApplicationStop` hook to drain connections and the `BeforeInstall` hook to call the `/health` endpoint, blocking the deployment if it returns a non-200 response",
-        "Use the `BeforeBlockTraffic` hook to drain in-flight connections and the `ValidateService` hook to verify the new version's `/health` endpoint returns 200 after install completes",
-        "Use the `DownloadBundle` hook to drain connections and the `ApplicationStart` hook to validate health by polling the `/health` endpoint with a configurable retry budget"
+        "Use the `BeforeAllowTraffic` hook to drain in-flight HTTP connections and the `AfterAllowTraffic` hook to verify the `/health` endpoint returns 200 before the deployment continues to the next instance",
+        "Use the `ApplicationStop` hook to drain in-flight connections from the ELB and the `BeforeInstall` hook to call the `/health` endpoint, blocking the deployment if it returns a non-200 response",
+        "Use the `BeforeBlockTraffic` hook to drain in-flight connections from the load balancer and the `ValidateService` hook to verify the new version's `/health` endpoint returns 200 after install",
+        "Use the `DownloadBundle` hook to drain in-flight connections from the ELB and the `ApplicationStart` hook to validate the new version's `/health` endpoint by polling with a configurable retry budget"
       ],
       "correct": 2,
       "explanation": "CodeDeploy's EC2 lifecycle hooks for in-place deployments include `ApplicationStop`, `BeforeInstall`, `AfterInstall`, `ApplicationStart`, `ValidateService`, and (for ELB-attached instances) `BeforeBlockTraffic`/`AfterBlockTraffic` and `BeforeAllowTraffic`/`AfterAllowTraffic`. `BeforeBlockTraffic` runs before the instance is deregistered from the load balancer — the right place to drain. `ValidateService` runs after `ApplicationStart` and is the conventional health-check hook; a non-zero exit from its script fails the deployment. `DownloadBundle` is not a script hook (CodeDeploy executes it itself).",
