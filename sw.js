@@ -10,7 +10,7 @@
  * Bump CACHE_VERSION to invalidate clients on next visit.
  */
 
-const CACHE_VERSION = 'v99-2026-05-17-footer-hide-v85';
+const CACHE_VERSION = 'v100-2026-05-17-app-polish-v86';
 const RUNTIME_CACHE = `cq-runtime-${CACHE_VERSION}`;
 const PRECACHE      = `cq-precache-${CACHE_VERSION}`;
 
