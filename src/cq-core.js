@@ -1,10 +1,11 @@
-/* CertQuests core bundle — generated 2026-05-16T07:54:17.679Z
+/* CertQuests core bundle — generated 2026-05-17T15:21:46.785Z
  *
  * This file is concatenated by scripts/build-core.js. Do not edit by hand;
  * edit the source modules in src/*.js and re-run `npm run build-core`.
  *
  * Modules (in load order):
-  *   - a11y.js
+  *   - app-mode.js
+ *   - a11y.js
  *   - stats.js
  *   - avatar.js
  *   - hearts.js
@@ -14,6 +15,53 @@
  *   - hud.js
  *   - mascot-cheer.js
  */
+
+/* ════════ app-mode.js ════════ */
+/**
+ * src/app-mode.js — runtime environment flag
+ *
+ * Sets <html class="is-app"> when the page is loaded inside the Capacitor
+ * wrapper (Play Store / iOS shell), so CSS can hide chrome that doesn't
+ * belong in-app: the "Get on Google Play" badge, the install prompt, any
+ * future install CTAs marked with [data-hide-in-app].
+ *
+ * Detection — window.Capacitor is injected by the wrapper BEFORE any
+ * page script runs, so this runs synchronously inside cq-core (which is
+ * `defer` but still executes before DOMContentLoaded). We also expose
+ * window.cqApp.isApp so other code paths can branch without re-detecting.
+ *
+ * Exposed:
+ *   window.cqApp.isApp       boolean — true inside Capacitor
+ *   window.cqApp.platform    'web' | 'ios' | 'android'
+ *   window.cqApp.isStandalone boolean — true when launched as installed PWA
+ */
+(function () {
+  if (typeof window === 'undefined') return;
+
+  const cap = window.Capacitor;
+  const isApp = !!(cap && typeof cap.getPlatform === 'function');
+  let platform = 'web';
+  if (isApp) {
+    try { platform = cap.getPlatform() || 'web'; } catch (_) { platform = 'web'; }
+  }
+
+  // Standalone PWA — useful proxy for "feels like an app" even without Capacitor.
+  let isStandalone = false;
+  try {
+    isStandalone = (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches)
+      || window.navigator.standalone === true;
+  } catch (_) {}
+
+  const root = document.documentElement;
+  if (root) {
+    if (isApp) root.classList.add('is-app');
+    if (isStandalone) root.classList.add('is-standalone');
+    if (platform && platform !== 'web') root.classList.add('is-' + platform);
+  }
+
+  window.cqApp = Object.freeze({ isApp, platform, isStandalone });
+})();
+
 
 /* ════════ a11y.js ════════ */
 /**

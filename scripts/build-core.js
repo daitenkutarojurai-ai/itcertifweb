@@ -18,6 +18,7 @@ const fs = require('fs');
 const path = require('path');
 
 const ORDER = [
+  'app-mode.js',
   'a11y.js',
   'stats.js',
   'avatar.js',
