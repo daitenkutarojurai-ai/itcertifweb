@@ -10,7 +10,7 @@
  * Bump CACHE_VERSION to invalidate clients on next visit.
  */
 
-const CACHE_VERSION = 'v94-2026-05-17-app-mode-v80';
+const CACHE_VERSION = 'v95-2026-05-17-app-feel-v81';
 const RUNTIME_CACHE = `cq-runtime-${CACHE_VERSION}`;
 const PRECACHE      = `cq-precache-${CACHE_VERSION}`;
 
