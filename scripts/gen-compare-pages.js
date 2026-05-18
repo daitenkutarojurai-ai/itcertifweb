@@ -21,7 +21,7 @@ const SALARY_DIR = path.join(ROOT, 'data', 'salary');
 const INDEX_JSON = path.join(ROOT, 'data', 'index.json');
 const OUT_DIR  = path.join(ROOT, 'compare');
 
-const CACHE_BUST = 'v=74';
+const CACHE_BUST = 'v=87';
 
 /* ── data lookups ─────────────────────────────────────────────── */
 const certPacks = (function () {
@@ -83,7 +83,7 @@ const SHARED_STYLE = `<style>
 .breadcrumb { font-family:'JetBrains Mono',monospace; font-size:11px; letter-spacing:.1em; text-transform:uppercase; color:#506885; padding:14px 0 0; }
 .breadcrumb a { color:#7c90ae; text-decoration:none; }
 .breadcrumb a:hover { color:#e8edf8; }
-.breadcrumb span { color:#3d4f6a; margin:0 8px; }
+.breadcrumb span { color:#7c90ae; margin:0 8px; }
 
 .cmp-hero { padding: 32px 8px 8px; }
 .cmp-hero .eyebrow { display:inline-flex; align-items:center; gap:6px; font-family:'JetBrains Mono',monospace; font-size:11px; font-weight:600; letter-spacing:.12em; text-transform:uppercase; color:#a78bfa; background:rgba(168,139,250,.10); border:1px solid rgba(168,139,250,.32); padding:5px 14px; border-radius:999px; margin-bottom:14px; }
@@ -190,15 +190,45 @@ function renderCtas(certs) {
 }
 
 function jsonLd(d) {
+  const url = `https://certquests.com/compare/${d.slug}/`;
   return {
     '@context': 'https://schema.org',
-    '@type': 'Article',
-    'headline': `${d.title} — ${d.subtitle}`,
-    'description': d.tldr,
-    'datePublished': d.lastReviewed + '-01',
-    'dateModified': d.lastReviewed + '-01',
-    'url': `https://certquests.com/compare/${d.slug}/`
+    '@graph': [
+      {
+        '@type': 'Article',
+        '@id': url + '#article',
+        'headline': `${d.title} — ${d.subtitle}`,
+        'description': d.tldr,
+        'datePublished': d.lastReviewed + '-01',
+        'dateModified': d.lastReviewed + '-01',
+        'url': url,
+        'publisher': {
+          '@type': 'Organization',
+          'name': 'CertQuests',
+          'url': 'https://certquests.com/'
+        }
+      },
+      {
+        '@type': 'BreadcrumbList',
+        '@id': url + '#breadcrumbs',
+        'itemListElement': [
+          { '@type': 'ListItem', 'position': 1, 'name': 'Home', 'item': 'https://certquests.com/' },
+          { '@type': 'ListItem', 'position': 2, 'name': 'Comparateur', 'item': 'https://certquests.com/compare/' },
+          { '@type': 'ListItem', 'position': 3, 'name': d.title, 'item': url }
+        ]
+      }
+    ]
   };
+}
+
+// Cap a meta description at ≤160 chars, breaking at the last word boundary
+// and adding an ellipsis if we truncated mid-sentence.
+function capDesc(s, max = 160) {
+  if (!s) return '';
+  if (s.length <= max) return s;
+  const cut = s.slice(0, max - 1);
+  const at = cut.lastIndexOf(' ');
+  return (at > max * 0.7 ? cut.slice(0, at) : cut).replace(/[ ,;:.\-—]+$/, '') + '…';
 }
 
 function renderPage(d) {
@@ -209,8 +239,8 @@ function renderPage(d) {
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
   <meta name="theme-color" content="#06080f" />
-  <title>${esc(d.title)} — ${esc(d.subtitle)} · CertQuests</title>
-  <meta name="description" content="${esc(d.title)}. ${esc(d.tldr)}. Comparatif 2026 : prix, salaires, difficulté, profils gagnants — sources citées." />
+  <title>${esc(capDesc(`${d.title} — ${d.subtitle}`, 62))} · CertQuests</title>
+  <meta name="description" content="${esc(capDesc(`${d.title}. ${d.tldr} Comparatif 2026 : prix, salaires, difficulté, profils gagnants.`))}" />
   <meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large" />
   <link rel="canonical" href="https://certquests.com/compare/${esc(d.slug)}/" />
   <meta property="og:type" content="article" />

@@ -20,7 +20,7 @@ const ROOT = path.resolve(__dirname, '..');
 const DATA_DIR = path.join(ROOT, 'data', 'salary');
 const OUT_DIR  = path.join(ROOT, 'salaire');
 
-const CACHE_BUST = 'v=74';
+const CACHE_BUST = 'v=87';
 
 function esc(s) {
   return String(s == null ? '' : s)
@@ -76,7 +76,7 @@ const SHARED_STYLE = `<style>
 .breadcrumb { font-family:'JetBrains Mono',monospace; font-size:11px; letter-spacing:.1em; text-transform:uppercase; color:#506885; padding:14px 0 0; }
 .breadcrumb a { color:#7c90ae; text-decoration:none; }
 .breadcrumb a:hover { color:#e8edf8; }
-.breadcrumb span { color:#3d4f6a; margin:0 8px; }
+.breadcrumb span { color:#7c90ae; margin:0 8px; }
 
 .salary-hero { padding: 32px 8px 8px; }
 .salary-hero .eyebrow { display:inline-flex; align-items:center; gap:6px; font-family:'JetBrains Mono',monospace; font-size:11px; font-weight:600; letter-spacing:.12em; text-transform:uppercase; color:#a78bfa; background:rgba(168,139,250,.10); border:1px solid rgba(168,139,250,.32); padding:5px 14px; border-radius:999px; margin-bottom:14px; }
@@ -137,24 +137,49 @@ const SHARED_STYLE = `<style>
 </style>`;
 
 function jsonLd(d, payback) {
+  const url = `https://certquests.com/salaire/${d.cert}/${d.country}/`;
   return {
     '@context': 'https://schema.org',
-    '@type': 'JobPosting',
-    'title': `${d.certTitle} — Salaire ${d.countryLabel}`,
-    'description': `Fourchettes salariales (junior/senior/lead), postes accessibles, progression carrière 5 ans et ROI pour la certification ${d.certTitle} en ${d.countryLabel}. Données mises à jour ${d.lastReviewed}.`,
-    'baseSalary': {
-      '@type': 'MonetaryAmount',
-      'currency': d.currency,
-      'value': {
-        '@type': 'QuantitativeValue',
-        'minValue': d.bands.junior.min,
-        'maxValue': d.bands.lead.max,
-        'unitText': 'YEAR'
+    '@graph': [
+      {
+        '@type': 'JobPosting',
+        '@id': url + '#salary',
+        'title': `${d.certTitle} — Salaire ${d.countryLabel}`,
+        'description': `Fourchettes salariales (junior/senior/lead), postes accessibles, progression carrière 5 ans et ROI pour la certification ${d.certTitle} en ${d.countryLabel}. Données mises à jour ${d.lastReviewed}.`,
+        'baseSalary': {
+          '@type': 'MonetaryAmount',
+          'currency': d.currency,
+          'value': {
+            '@type': 'QuantitativeValue',
+            'minValue': d.bands.junior.min,
+            'maxValue': d.bands.lead.max,
+            'unitText': 'YEAR'
+          }
+        },
+        'datePosted': d.lastReviewed + '-01',
+        'url': url,
+        'hiringOrganization': { '@type': 'Organization', 'name': 'CertQuests', 'url': 'https://certquests.com/' }
+      },
+      {
+        '@type': 'BreadcrumbList',
+        '@id': url + '#breadcrumbs',
+        'itemListElement': [
+          { '@type': 'ListItem', 'position': 1, 'name': 'Home', 'item': 'https://certquests.com/' },
+          { '@type': 'ListItem', 'position': 2, 'name': 'Salaires', 'item': 'https://certquests.com/salaire/' },
+          { '@type': 'ListItem', 'position': 3, 'name': d.certTitle, 'item': `https://certquests.com/salaire/${d.cert}/` },
+          { '@type': 'ListItem', 'position': 4, 'name': d.countryLabel, 'item': url }
+        ]
       }
-    },
-    'datePosted': d.lastReviewed + '-01',
-    'url': `https://certquests.com/salaire/${d.cert}/${d.country}/`
+    ]
   };
+}
+
+function capDesc(s, max = 160) {
+  if (!s) return '';
+  if (s.length <= max) return s;
+  const cut = s.slice(0, max - 1);
+  const at = cut.lastIndexOf(' ');
+  return (at > max * 0.7 ? cut.slice(0, at) : cut).replace(/[ ,;:.\-—]+$/, '') + '…';
 }
 
 function renderPage(d) {
@@ -207,7 +232,7 @@ function renderPage(d) {
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
   <meta name="theme-color" content="#06080f" />
   <title>${esc(d.certTitle)} — Salaire ${esc(d.countryLabel)} 2026 · CertQuests</title>
-  <meta name="description" content="Salaires ${esc(d.certTitle)} en ${esc(d.countryLabel)} : fourchettes junior/senior/lead, postes accessibles, progression carrière 5 ans, comparatif par pays et ROI de la certification. Sources APEC, LinkedIn, Glassdoor — révisé ${esc(d.lastReviewed)}." />
+  <meta name="description" content="${esc(capDesc(`Salaires ${d.certTitle} en ${d.countryLabel} : fourchettes junior/senior/lead, ROI et progression carrière. Sources APEC, LinkedIn, Glassdoor — révisé ${d.lastReviewed}.`))}" />
   <meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large" />
   <link rel="canonical" href="https://certquests.com/salaire/${esc(d.cert)}/${esc(d.country)}/" />
   <meta property="og:type" content="article" />

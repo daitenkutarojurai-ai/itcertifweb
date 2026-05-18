@@ -17,7 +17,7 @@ const ROOT = path.resolve(__dirname, '..');
 const DATA_DIR = path.join(ROOT, 'data', 'tool-radar');
 const OUT_DIR  = path.join(ROOT, 'tool-radar');
 
-const CACHE_BUST = 'v=76';
+const CACHE_BUST = 'v=87';
 
 function esc(s) {
   return String(s == null ? '' : s)
@@ -59,7 +59,7 @@ const SHARED_STYLE = `<style>
 .breadcrumb { font-family:'JetBrains Mono',monospace; font-size:11px; letter-spacing:.1em; text-transform:uppercase; color:#506885; padding:14px 0 0; }
 .breadcrumb a { color:#7c90ae; text-decoration:none; }
 .breadcrumb a:hover { color:#e8edf8; }
-.breadcrumb span { color:#3d4f6a; margin:0 8px; }
+.breadcrumb span { color:#7c90ae; margin:0 8px; }
 
 .tr-hero { padding: 32px 8px 8px; }
 .tr-hero .eyebrow { display:inline-flex; align-items:center; gap:6px; font-family:'JetBrains Mono',monospace; font-size:11px; font-weight:600; letter-spacing:.12em; text-transform:uppercase; padding:5px 14px; border-radius:999px; margin-bottom:14px; }
