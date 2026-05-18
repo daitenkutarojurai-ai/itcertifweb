@@ -14,9 +14,9 @@
       "question": "A multi-account organization uses AWS Organizations across 50 member accounts. Security requires that no member account principal can ever disable AWS CloudTrail, while still allowing local admins to manage other services. Which approach scales best?",
       "options": [
         "Attach a Service Control Policy at the organization root that denies the CloudTrail stop, delete, and update API actions across all member accounts",
-        "Create an explicit-deny IAM policy in each member account and attach it manually to every existing user and role to block CloudTrail changes",
+        "Author an explicit-deny IAM policy in each member account and attach it manually to every user, role, and IAM Identity Center permission set in use",
         "Use AWS Config rules in every account that detect when CloudTrail is disabled and trigger a Lambda function to re-enable the trail after the fact",
-        "Replace each account's CloudTrail with a nightly CloudFormation StackSet redeployment so any disablement is reversed the next morning by automation"
+        "Deploy a CloudFormation StackSet that recreates each account's CloudTrail every night so any disablement is silently reversed by the scheduled stack drift run"
       ],
       "correct": 0,
       "explanation": "Service Control Policies are preventive guardrails enforced by AWS Organizations at the account level. An SCP at the root denying cloudtrail:StopLogging, cloudtrail:DeleteTrail, and cloudtrail:UpdateTrail applies to every existing and future member account without per-account toil. Per-account IAM denies require manual attachment to every principal and miss new identities. Config plus Lambda is reactive, not preventive, and leaves a gap where logging is off. Nightly StackSet redeploys are also reactive and waste effort recreating resources.",
@@ -53,13 +53,13 @@
       "id": "aws-sap-c02-003",
       "question": "An on-premises application requires NFS access and low-latency reads against a working set of a 200 TB file dataset that the team wants to standardize on Amazon S3. Which approach minimizes operational overhead?",
       "options": [
-        "Replicate the entire S3 dataset nightly to a local NAS appliance with AWS DataSync and have the application read from the on-premises NAS device",
-        "Deploy AWS Storage Gateway as a File Gateway on-premises, backed by the S3 bucket, so hot files stay cached locally for low-latency NFS reads",
-        "Mount the S3 bucket directly on each application server with s3fs-fuse and rely on the operating system page cache to absorb read latency for clients",
-        "Provision an AWS Snowball Edge on-premises and have the application read from the local appliance rather than reaching S3 across the WAN for the working set of files"
+        "Replicate the entire S3 dataset nightly to a local NAS appliance via AWS DataSync and have the application read the working set from that on-premises NAS",
+        "Deploy AWS Storage Gateway as a File Gateway on-premises, backed by the S3 bucket, so the hot working set stays cached locally for low-latency NFS reads",
+        "Mount the S3 bucket directly on each application server with s3fs-fuse and rely on the Linux page cache to absorb read latency for the NFS-facing clients",
+        "Deploy AWS Storage Gateway in Volume Gateway cached-volume mode on-premises and expose the S3-backed iSCSI volumes to the application servers as NFS exports"
       ],
       "correct": 1,
-      "explanation": "File Gateway exposes an S3 bucket as an NFS or SMB share on-premises, transparently caches frequently accessed files locally for low-latency reads, and writes new data through to S3. The dataset lives durably in S3 as the source of truth without nightly bulk replication. DataSync mirroring duplicates 200 TB and runs ongoing data drift. s3fs-fuse is fragile under heavy NFS-style use and is not officially supported for production workloads. Snowball Edge is a one-time offline transfer device, not a steady-state file service.",
+      "explanation": "File Gateway exposes an S3 bucket as an NFS or SMB share on-premises, transparently caches frequently accessed files locally for low-latency reads, and writes new data through to S3. The dataset lives durably in S3 as the source of truth without nightly bulk replication. DataSync mirroring duplicates 200 TB and runs ongoing data drift. s3fs-fuse is fragile under heavy NFS-style use and is not officially supported for production workloads. Volume Gateway is a different Storage Gateway mode that exposes iSCSI block volumes, not NFS file shares, so it does not satisfy the application's NFS access requirement.",
       "tags": [
         "storage",
         "hybrid",
@@ -73,10 +73,10 @@
       "id": "aws-sap-c02-004",
       "question": "A trading platform requires single-digit-millisecond writes from users in two AWS regions and must keep accepting writes if either region fails, with no manual failover step. Which data layer best meets these requirements?",
       "options": [
-        "An Amazon Aurora global database with a single writer in the primary region and a read-only Aurora replica running in the secondary region for reads",
+        "An Amazon Aurora global database with a single writer in the primary region and a read-only Aurora replica running in the secondary region serving reads",
         "An Amazon DynamoDB global table with active replicas in both regions, accepting writes locally in either region under last-writer-wins resolution rules",
-        "Amazon RDS for PostgreSQL Multi-AZ in the primary region plus a cross-region read replica that operators promote during a regional outage by runbook",
-        "Amazon S3 cross-region replication of database write-ahead log files between the two regions, with application-side reconciliation logic on failover"
+        "An Amazon RDS for PostgreSQL Multi-AZ deployment in the primary region plus a cross-region read replica that operators promote during a regional outage",
+        "An Amazon S3 cross-region replication pipeline copying database write-ahead log files between the two regions, with application-side reconciliation on failover"
       ],
       "correct": 1,
       "explanation": "DynamoDB global tables are multi-master: every replica region accepts writes locally and replication is eventually consistent with last-writer-wins. If one region fails the others keep serving without any manual failover, satisfying the active-active requirement. Aurora global databases have only one writer region; the secondary is read-only until a managed failover that takes minutes. RDS cross-region replicas require an operator-triggered promotion, breaking the no-manual-failover requirement. Replicating WAL files via S3 is not a primary database design and forces custom reconciliation.",
@@ -153,10 +153,10 @@
       "id": "aws-sap-c02-008",
       "question": "A microservice has intermittent 5xx errors that reproduce only in production. Engineers need to identify which downstream call is failing without modifying the service's source code. What should they do first?",
       "options": [
-        "Enable detailed CloudWatch instance monitoring on the EC2 fleet and inspect aggregated CPU and network graphs across all of the service's running instances",
-        "Turn on AWS X-Ray active tracing for the service so every downstream call is captured as a span and inspect the traces to find which span is returning the 5xx errors",
-        "Ship the service logs into Amazon S3 and use a manual grep workflow across all log files captured during the last 24 hours to find error strings in raw text",
-        "Add custom CloudWatch metrics emitted from every method in the service so that each failure path appears as a new dimension on a metric graph for engineers"
+        "Enable detailed CloudWatch instance monitoring across the EC2 fleet and inspect aggregated CPU, network, and disk graphs spanning every running instance of the service",
+        "Turn on AWS X-Ray active tracing for the service so every downstream call is captured as a span and inspect the traces to find the span returning the 5xx errors",
+        "Ship the service logs into Amazon S3 and run a manual grep workflow across the raw log files captured during the last 24 hours to look for error strings by hand",
+        "Add custom CloudWatch metrics emitted from every method in the service so that each failure path appears as a separate dimension on a metric graph for engineers to read"
       ],
       "correct": 1,
       "explanation": "X-Ray active tracing collects per-request distributed traces that show each downstream call as a span with latency and HTTP status, making intermittent 5xx errors visible end to end without modifying business logic. CloudWatch instance metrics show host-level health, not request-level failures across services. Grep on raw logs is slow and lacks request correlation. Adding custom metrics requires the code change the team is explicitly trying to avoid in this first step.",
