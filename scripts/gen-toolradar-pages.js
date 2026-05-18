@@ -296,7 +296,10 @@ function renderPage(d) {
   <meta property="og:url" content="https://certquests.com/tool-radar/${esc(d.slug)}/" />
   <meta property="og:title" content="${esc(d.title)}" />
   <meta property="og:description" content="${esc(d.tldr)}" />
-  <meta property="og:image" content="https://certquests.com/src/assets/icons/icon-512.png" />
+  <meta property="og:image" content="https://certquests.com/src/assets/og/og-default.png?v=1" />
+  <meta property="og:image:width" content="1200" />
+  <meta property="og:image:height" content="630" />
+  <meta property="og:image:type" content="image/png" />
   <meta name="twitter:card" content="summary_large_image" />
   <link rel="manifest" href="/manifest.json" />
   <link rel="icon" href="/favicon.ico?v=4" sizes="any" />
@@ -405,7 +408,10 @@ function renderIndex(datasets) {
   <meta property="og:url" content="https://certquests.com/tool-radar/" />
   <meta property="og:title" content="ToolRadar — Comparatifs AI / SaaS structurés" />
   <meta property="og:description" content="Méthodologie transparente, scoring pondéré, sources citées." />
-  <meta property="og:image" content="https://certquests.com/src/assets/icons/icon-512.png" />
+  <meta property="og:image" content="https://certquests.com/src/assets/og/og-default.png?v=1" />
+  <meta property="og:image:width" content="1200" />
+  <meta property="og:image:height" content="630" />
+  <meta property="og:image:type" content="image/png" />
   <meta name="twitter:card" content="summary_large_image" />
   <link rel="manifest" href="/manifest.json" />
   <link rel="icon" href="/favicon.ico?v=4" sizes="any" />

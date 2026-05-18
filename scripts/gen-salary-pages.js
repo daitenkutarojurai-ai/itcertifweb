@@ -239,7 +239,10 @@ function renderPage(d) {
   <meta property="og:url" content="https://certquests.com/salaire/${esc(d.cert)}/${esc(d.country)}/" />
   <meta property="og:title" content="${esc(d.certTitle)} — Salaire ${esc(d.countryLabel)} 2026" />
   <meta property="og:description" content="Fourchettes salariales junior/senior/lead, postes accessibles, ROI de la certification — révisé ${esc(d.lastReviewed)}." />
-  <meta property="og:image" content="https://certquests.com/src/assets/icons/icon-512.png" />
+  <meta property="og:image" content="https://certquests.com/src/assets/og/og-default.png?v=1" />
+  <meta property="og:image:width" content="1200" />
+  <meta property="og:image:height" content="630" />
+  <meta property="og:image:type" content="image/png" />
   <meta name="twitter:card" content="summary_large_image" />
   <link rel="manifest" href="/manifest.json" />
   <link rel="icon" href="/favicon.ico?v=4" sizes="any" />
