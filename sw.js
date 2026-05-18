@@ -10,7 +10,7 @@
  * Bump CACHE_VERSION to invalidate clients on next visit.
  */
 
-const CACHE_VERSION = 'v102-2026-05-18-top-bar-reword-v88';
+const CACHE_VERSION = 'v103-2026-05-18-top-bar-curate-v89';
 const RUNTIME_CACHE = `cq-runtime-${CACHE_VERSION}`;
 const PRECACHE      = `cq-precache-${CACHE_VERSION}`;
 
@@ -20,21 +20,21 @@ const PRECACHE_URLS = [
   '/index.html',
   '/path.html',
   '/profile.html',
-  '/src/styles/main.css?v=88',
-  '/src/styles/desktop.css?v=88',
-  '/src/styles/home-mobile.css?v=88',
+  '/src/styles/main.css?v=89',
+  '/src/styles/desktop.css?v=89',
+  '/src/styles/home-mobile.css?v=89',
   '/certifications/',
-  '/src/styles/path.css?v=88',
-  '/src/styles/profile.css?v=88',
-  '/src/cq-core.js?v=88',
-  '/src/path.js?v=88',
-  '/src/profile.js?v=88',
-  '/src/mascot-loader.js?v=88',
-  '/src/pack-picker.js?v=88',
-  '/src/auth.js?v=88',
-  '/src/auth-ui.js?v=88',
-  '/src/sync.js?v=88',
-  '/src/reset-password.js?v=88',
+  '/src/styles/path.css?v=89',
+  '/src/styles/profile.css?v=89',
+  '/src/cq-core.js?v=89',
+  '/src/path.js?v=89',
+  '/src/profile.js?v=89',
+  '/src/mascot-loader.js?v=89',
+  '/src/pack-picker.js?v=89',
+  '/src/auth.js?v=89',
+  '/src/auth-ui.js?v=89',
+  '/src/sync.js?v=89',
+  '/src/reset-password.js?v=89',
   '/data/cosmetics.json',
   '/src/assets/icons/favicon-96.png?v=4',
   '/src/assets/icons/favicon-32.png?v=4',

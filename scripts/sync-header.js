@@ -18,14 +18,15 @@ const path = require('path');
 const ROOT = path.resolve(__dirname, '..');
 
 const NAV = [
+  // Top-bar real estate is precious — phone landscape + small tablet
+  // (768-1024px) won't fit more than 4 nav items + logo without wrapping.
+  // We curate down to the four highest-value product surfaces and push
+  // everything else (News, Cheatsheets, Get the app, Contact) into the
+  // mobile hamburger drawer (src/menu.js) + the page footer.
   { href: '/path.html',         label: 'Cert Quest', cls: 'web-header-link-new', pill: 'NEW', match: /^\/path\.html$/ },
   { href: '/certifications/',   label: 'Certifications',                                       match: /^\/certifications\// },
   { href: '/courses/',          label: 'Courses',                                              match: /^\/courses\// },
   { href: '/careers/',          label: 'Careers',                                              match: /^\/careers\// },
-  { href: '/news/',             label: 'News',                                                 match: /^\/news\// },
-  // Cheatsheets removed from the top bar — too long, pushed the row past
-  // the viewport at 768-1024px. Still reachable from the mobile hamburger
-  // drawer (src/menu.js) and from the homepage / courses footer.
 ];
 
 function buildHeader(currentUrlPath) {
@@ -45,7 +46,9 @@ function buildHeader(currentUrlPath) {
     '    </a>',
     '    <nav class="web-header-links" aria-label="Main navigation">',
     links,
-    '      <a href="https://play.google.com/store/apps/details?id=com.certquest.app" class="web-header-badge" target="_blank" rel="noopener">Google Play</a>',
+    // Google Play badge removed from the top bar (2026-05-18) — promotional,
+    // not navigation. Still surfaced via the hamburger drawer ("Get the app"
+    // in src/menu.js) and via the homepage app-promo section.
     '    </nav>',
     '  </header>'
   ].join('\n');
