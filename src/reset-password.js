@@ -76,9 +76,11 @@
     }, 4000);
 
     window.addEventListener('cq:auth-changed', function (e) {
-      const session = e && e.detail && e.detail.session;
       const event = e && e.detail && e.detail.event;
-      if (event === 'PASSWORD_RECOVERY' || (session && !recoveryActive)) {
+      // Only reveal the password-reset form when Supabase explicitly fires
+      // PASSWORD_RECOVERY. Falling back to "session exists" would let any
+      // signed-in user change their password by simply visiting this URL.
+      if (event === 'PASSWORD_RECOVERY' && !recoveryActive) {
         recoveryActive = true;
         clearTimeout(timeoutId);
         showForm();
