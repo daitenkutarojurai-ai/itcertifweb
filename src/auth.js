@@ -25,7 +25,7 @@
  * table enforces per-user access. The service_role key NEVER appears in
  * any browser-shipped code.
  */
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.0';
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.50.0';
 
 const SUPABASE_URL = 'https://zhxnteqtiyqnyidfkivj.supabase.co';
 const SUPABASE_ANON_KEY =

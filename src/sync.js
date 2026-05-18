@@ -45,7 +45,8 @@
     catch (_) { return fallback; }
   }
   function writeKey(k, v) {
-    try { localStorage.setItem(k, JSON.stringify(v)); } catch (_) {}
+    try { localStorage.setItem(k, JSON.stringify(v)); }
+    catch (e) { dbg('[cq-sync] writeKey failed', k, e && e.message); }
   }
   function todayIsoDay() {
     var d = new Date();
@@ -56,6 +57,9 @@
 
   var bootstrapped = false;
   var pendingStatsPush = null;
+  // Bumped on sign-out so an in-flight pullAll can detect it's stale and
+  // stop overwriting localStorage with the previous user's cloud state.
+  var pullToken = 0;
 
   /* ═══════ PUSH (local → cloud) ════════════════════════════════════════ */
 
@@ -172,13 +176,17 @@
   async function pullAll() {
     var c = client(); var uid = userId();
     if (!c || !uid) return;
+    var myToken = pullToken;
+    function stale() { return myToken !== pullToken; }
 
     // 1) stats — single jsonb blob
     var stats = await c.from('stats').select('payload').eq('user_id', uid).maybeSingle();
+    if (stale()) return;
     if (stats.data && stats.data.payload) writeKey('cq-stats-v1', stats.data.payload);
 
     // 2) path_progress — many rows → rebuild { packId: { nodeId: {...} } }
     var pp = await c.from('path_progress').select('pack_id,node_id,completed_at,score').eq('user_id', uid);
+    if (stale()) return;
     var progMap = {};
     (pp.data || []).forEach(function (row) {
       if (!progMap[row.pack_id]) progMap[row.pack_id] = {};
@@ -192,6 +200,7 @@
 
     // 3) laurels — many rows → array
     var lr = await c.from('laurels').select('pack_id,earned_at,score').eq('user_id', uid);
+    if (stale()) return;
     var laurels = (lr.data || []).map(function (r) {
       return {
         packId: r.pack_id,
@@ -203,6 +212,7 @@
 
     // 4) cosmetics — single row
     var cos = await c.from('cosmetics').select('unlocked,wearing').eq('user_id', uid).maybeSingle();
+    if (stale()) return;
     if (cos.data) {
       writeKey('cq-cosmetics-v1', {
         unlocked: Array.isArray(cos.data.unlocked) ? cos.data.unlocked : [],
@@ -212,6 +222,7 @@
 
     // 5) hearts — single row
     var h = await c.from('hearts').select('hearts,last_lost_at').eq('user_id', uid).maybeSingle();
+    if (stale()) return;
     if (h.data) {
       writeKey('cq-hearts-v1', {
         hearts: h.data.hearts,
@@ -222,6 +233,7 @@
     // 6) daily — only today's row (older days are off-screen)
     var today = todayIsoDay();
     var d = await c.from('daily').select('day,progress,claimed').eq('user_id', uid).eq('day', today).maybeSingle();
+    if (stale()) return;
     if (d.data) {
       writeKey('cq-daily-v1', {
         date: d.data.day,
@@ -235,8 +247,10 @@
     //    if a future round lets users rename via the profile page, the cloud
     //    profile row is authoritative).
     var pr = await c.from('profiles').select('username').eq('user_id', uid).maybeSingle();
+    if (stale()) return;
     if (pr.data && pr.data.username) {
-      try { localStorage.setItem('cq-profile-username', pr.data.username); } catch (_) {}
+      try { localStorage.setItem('cq-profile-username', pr.data.username); }
+      catch (e) { dbg('[cq-sync] cache username failed', e && e.message); }
     }
 
     // Fire change events so subscribers re-render off the freshly-hydrated
@@ -302,6 +316,9 @@
       setTimeout(bootstrap, 0);
     } else {
       bootstrapped = false;
+      // Invalidate any in-flight pullAll so it stops writing the previous
+      // user's cloud snapshot over the now-anonymous localStorage state.
+      pullToken++;
       // Don't wipe localStorage on sign-out — let the user keep playing as
       // anonymous. Their cloud data stays put; next sign-in pulls again.
     }

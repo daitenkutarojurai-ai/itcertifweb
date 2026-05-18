@@ -459,6 +459,13 @@
     if (next == null) return;
     next = next.trim();
     if (!next || next === current) return;
+    // Client-side guard mirroring the server constraint — saves a round-trip
+    // and gives immediate feedback. Allowed: 3–40 chars, letters / digits /
+    // underscore / hyphen.
+    if (!/^[A-Za-z0-9_-]{3,40}$/.test(next)) {
+      alert('Username must be 3–40 characters: letters, digits, underscore, or hyphen.');
+      return;
+    }
     var c = window.cqAuth._client;
     var r = await c.rpc('update_my_username', { new_username: next });
     if (r.error) {
