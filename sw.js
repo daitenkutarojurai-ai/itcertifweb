@@ -22,6 +22,7 @@ const PRECACHE_URLS = [
   '/profile.html',
   '/src/styles/main.css?v=87',
   '/src/styles/desktop.css?v=87',
+  '/src/styles/home-mobile.css?v=87',
   '/certifications/',
   '/src/styles/path.css?v=87',
   '/src/styles/profile.css?v=87',
