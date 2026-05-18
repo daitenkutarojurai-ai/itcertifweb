@@ -59,8 +59,21 @@ at sync time so the consuming app gets a self-contained node.
 - [x] Scaffold vanilla-JS stubs under `learning/games/<mode>.js`.
 - [x] Scaffold `_runner.js` (JSON loader + dispatcher) and
       `_spaced-repetition.js` (layer).
-- [ ] Hook the runner into a `<canvas>`-style host element on
-      `path.html` for each minigame node.
+- [x] **Mode 1 — Match the Pair: real implementation** (2026-05-18).
+      `learning/games/match-pair.js` is no longer a stub — tap-to-pair,
+      shuffled right column, lock/wrong-shake, combo bonus, fires
+      `cq:session-complete` via the opts.onComplete callback. CSS in
+      `src/styles/path.css` under the `.game-match-pair` block.
+- [x] **Hook the runner into `path.html` for each minigame node**
+      (2026-05-18). `src/path.js` adds `renderModeInline()` — when a
+      minigame node carries `{ mode, data }`, dynamically imports
+      `_runner.js`, mounts the right mode into the bottom-sheet, and
+      wraps completion in the same Continue summary the Yes/No drill
+      uses. Falls back to `renderYesNoInline` for legacy paths.
+- [ ] **Modes 2-7: real implementations.** Replace the remaining stubs
+      under `learning/games/`. Easiest to hardest: true-false-blitz,
+      lightning-round, acronym-decoder, scenario-builder,
+      break-architecture, boss-fight.
 - [ ] Author real content per cert (start with AWS Cloud Practitioner
       since it's the most popular pack).
 - [ ] Wire `certquestapp/scripts/sync-from-web.sh` to mirror `data/games/`.

@@ -426,10 +426,14 @@
       return;
     }
     if (node.type === 'minigame') {
-      // New canonical format: "Is this the right answer?" Yes/No drill.
-      // Legacy gametypes ('truefalse' and 'match') are migrated on the fly
-      // for any stale-cached path JSON in the service worker — the next
-      // gen-paths run overwrites them with the new schema.
+      // New canonical format (2026-05-18, ROADMAP.md): nodes carry
+      //   { mode: 'match-pair'|'lightning-round'|…, data: { … } }
+      // and we delegate to /learning/games/_runner.js. The Yes/No drill is
+      // kept as a fallback for paths whose JSON hasn't been regenerated.
+      if (node.mode && (node.data || node.dataRef)) {
+        renderModeInline(node);
+        return;
+      }
       if (node.gameType === 'yesno') renderYesNoInline(node);
       else if (node.gameType === 'truefalse') renderYesNoInline(migrateTFNode(node));
       else if (node.gameType === 'match')     renderYesNoInline(migrateMatchNode(node));
@@ -863,6 +867,100 @@
     bind(btnYes, true);
     bind(btnNo,  false);
     setTimeout(step, 100);
+  }
+
+  /* ───── New game-modes runner (2026-05-18) ─────
+     For minigame nodes that opt into the new system via { mode, data },
+     dynamically import learning/games/_runner.js, mount the right mode
+     into the sheet, and wrap completion in the same Continue summary +
+     cq:session-complete event the Yes/No drill already uses. */
+  function renderModeInline(node) {
+    var panel = $('.node-sheet-panel');
+    panel.querySelectorAll('.node-sheet-inline').forEach(function (n) { n.remove(); });
+    $('#node-sheet-start').hidden = true;
+
+    var host = el('div', { class: 'node-sheet-inline minigame-mode' });
+    var loading = el('div', { class: 'minigame-mode-loading', text: 'Loading mini-game…' });
+    host.appendChild(loading);
+    panel.appendChild(host);
+
+    var packId = sheetState.path.packId;
+    var nodeRef = sheetState.node;
+    var prev = snapshotProgress(sheetState.path);
+
+    function fail(err) {
+      console.error('[games] mode load failed', err);
+      host.remove();
+      /* Hard fallback so the player isn't stuck on a broken node. */
+      renderYesNoInline(node);
+    }
+
+    function buildPayload() {
+      if (node.data) {
+        return Promise.resolve({
+          mode: node.mode,
+          title: node.title || 'Mini-game',
+          explanation: node.explanation || '',
+          data: node.data,
+        });
+      }
+      if (node.dataRef) {
+        return fetch(node.dataRef, { cache: 'force-cache' })
+          .then(function (r) { return r.ok ? r.json() : Promise.reject(new Error('HTTP ' + r.status)); });
+      }
+      return Promise.reject(new Error('mode node has no `data` and no `dataRef`'));
+    }
+
+    var opts = {
+      packId: packId,
+      nodeId: nodeRef.id,
+      onComplete: function (result) {
+        loading.remove();
+        var total = Number(result.total) || 0;
+        var correct = Math.min(Number(result.correct) || 0, total);
+        var bonus = Number(result.bonus) || 0;
+        var seconds = Number(result.seconds) || 0;
+        var score = total ? Math.round((correct / total) * 100) : 0;
+
+        markComplete(packId, nodeRef.id, score);
+        try {
+          window.dispatchEvent(new CustomEvent('cq:session-complete', { detail: {
+            packId: packId,
+            secondsSpent: seconds,
+            questionsAnswered: total,
+            correct: correct,
+            mode: 'path-minigame',
+            bonusXp: bonus,
+          }}));
+        } catch (_) {}
+
+        var summary = el('div', { class: 'node-sheet-inline yn-summary' }, [
+          el('div', { class: 'yn-summary-score', text: correct + ' / ' + total }),
+          el('div', { class: 'yn-summary-label', text:
+            (total > 0 && correct === total && (result.mistakes | 0) === 0) ? 'Flawless!' :
+            (total > 0 && correct >= total * 0.7) ? 'Nice run!' : 'Keep practicing.' }),
+          bonus > 0 ? el('div', { class: 'yn-summary-bonus', text: '+' + bonus + ' combo bonus XP' }) : null,
+          el('button', { class: 'cta-primary yn-continue', type: 'button', text: 'Continue →' })
+        ]);
+        host.replaceWith(summary);
+        summary.querySelector('.yn-continue').addEventListener('click', function () {
+          closeNodeSheet();
+          renderMap(sheetState.path);
+          setTimeout(function () { maybeBurstChapterEnd(prev, snapshotProgress(sheetState.path), sheetState.path); }, 150);
+          setTimeout(function () {
+            var cur = $('#path-map').querySelector('.path-node.is-current');
+            if (cur) walkTo(cur);
+          }, 250);
+        });
+      },
+    };
+
+    buildPayload().then(function (payload) {
+      return import('/learning/games/_runner.js').then(function (m) {
+        loading.remove();
+        return m.run(host, payload, opts);
+      });
+    }).catch(fail);
   }
 
   /* ───── On load: figure out which pack + handshake any pending node ───── */
