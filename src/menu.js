@@ -68,6 +68,9 @@
         '<a href="/courses/">' +
           '<span class="mobile-menu-emoji">📚</span>Free courses' +
         '</a>' +
+        '<a href="/cheatsheets/">' +
+          '<span class="mobile-menu-emoji">📋</span>Cheatsheets' +
+        '</a>' +
         '<a href="/news/">' +
           '<span class="mobile-menu-emoji">💡</span>Pro tips' +
         '</a>' +

@@ -21,9 +21,11 @@ const NAV = [
   { href: '/path.html',         label: 'Cert Quest', cls: 'web-header-link-new', pill: 'NEW', match: /^\/path\.html$/ },
   { href: '/certifications/',   label: 'Certifications',                                       match: /^\/certifications\// },
   { href: '/courses/',          label: 'Courses',                                              match: /^\/courses\// },
-  { href: '/cheatsheets/',      label: 'Cheatsheets',                                          match: /^\/cheatsheets\// },
   { href: '/careers/',          label: 'Careers',                                              match: /^\/careers\// },
   { href: '/news/',             label: 'News',                                                 match: /^\/news\// },
+  // Cheatsheets removed from the top bar — too long, pushed the row past
+  // the viewport at 768-1024px. Still reachable from the mobile hamburger
+  // drawer (src/menu.js) and from the homepage / courses footer.
 ];
 
 function buildHeader(currentUrlPath) {
