@@ -3,23 +3,25 @@
 Living TODO. Items here are not dropped on the floor; they're things to pick
 up when there's time.
 
-> ## 🚨 Two roadmaps in here — check which surface before picking up a ticket
+> ## Scope: web + responsive mobile web only
 >
-> This file mixes **website work** (🌐) and **app work** (📱). They share a
-> data layer but are otherwise distinct products — see `CLAUDE.md` "Two
-> products, one data layer" for the full split. Quick guide:
+> Every ticket below is web work — static HTML/CSS/JS, Supabase, content
+> generators. The Android wrapper lives in a separate repo and is out of
+> scope for this file. See `CLAUDE.md` for the compat-shim notes
+> (`app-mode.js`, `is-app` body class, Capacitor branches in `auth.js`).
 >
-> | If the user said… | Pick from… | Skip… |
-> | --- | --- | --- |
-> | "work on the app" / "polish the app" / "UI / GUI" | Phase 5 tickets (5.x), 📱 items, anything in `path.html` / `train.html` runtime / `profile.html` / HUD / hearts / auth / sync | P0 course content, Phase 6.x, any "salary / comparator / reality-check / devstack / failbase / tool-radar / prompt-dungeon / career-path / fail-analysis" item |
-> | "work on the website" / "SEO" / "content" | P0 course content, Phase 6.x content templates, careers articles, news, learning hubs | Phase 5 (already shipped), HUD, hearts, in-session quiz UX |
-> | "go on with roadmap" / something ambiguous | **ASK FIRST.** Two roadmaps means two answers. | Do not guess — last time I guessed I picked website content when the user wanted app work. |
-> | "fix a bug" | Whichever surface the bug lives on. Read the file path. | The other surface. |
-> | Pure shared-layer task (cache bump, sw.js, sync-header, test fix) | Just do it — the shared shell belongs to both products. | n/a |
+> Quick triage:
+>
+> | If the user said… | Pick from… |
+> | --- | --- |
+> | "work on the roadmap" / "go on" | P0 course content first, then Phase 6 follow-ups, then question rewrite |
+> | "SEO" / "content" / "more pages" | P0 course content, remaining Phase 6 items, careers articles, news, learning hubs |
+> | "polish the UI" / "fix a UI bug" | Read the file path, walk the 360 / 768 / 1440 cascade before reporting done |
+> | Shared-layer task (cache bump, sw.js, sync-header, test fix) | Just do it |
 
 ---
 
-## P0 — Course content rework (2026-05-16, HIGH priority) 🌐 WEBSITE
+## P0 — Course content rework (2026-05-16, HIGH priority)
 
 > Current `data/courses.json` chapters are too short to deliver real
 > learning value. Users will read one screen of bullets and bounce back
@@ -52,7 +54,7 @@ up when there's time.
 
 ---
 
-## P1 — Phase 6: Authority + tools layer (2026-05-15, planned) 🌐 WEBSITE
+## P1 — Phase 6: Authority + tools layer (2026-05-15, planned)
 
 > Net-new feature batch (13 items) targeting SEO authority, lead-gen and
 > retention. Three are calculators (client-side JS), eight are content
@@ -780,347 +782,20 @@ lead-gen flows that drive everything else.
 
 ---
 
-## P0 — Phase 5: Desktop + game-feel rebuild + IA cleanup (2026-05-13, expanded 2026-05-15) 📱 APP
+## Phase 5 — Web polish + game-feel + IA cleanup — SHIPPED 2026-05-15 (archived)
 
-> Live audit on phone + desktop + a second user pass on 2026-05-15 surfaced
-> a wider batch: chrome inconsistency, IA duplication (cert pages → train
-> pack list = double picker), path bottom-sheet phone-locked on desktop,
-> Yes/No drill phrasing reads as a riddle, treasure-chest dead-end, hearts
-> still feel cloned, no shared health across sections, no in-session HUD.
-> Group them into one phase so they ship as a coherent UX pass.
+> Phase 5 closed on 2026-05-15. All 15 sub-tickets shipped: canonical
+> top-bar across all pages, stats→profile redirect, mascot centering,
+> health bar with damage flash + cooldown gate (path-mode writes,
+> train-mode read-only), in-session HUD on /path.html and the quiz
+> runtime, IA collapse (`/train.html` bare → `/certifications/` with
+> dual CTAs per pack), responsive path bottom-sheet at desktop sizes,
+> chest reward stack, Yes/No drill declarative rewriter, per-node audit
+> pass (incl. multi-correct quiz fix), training mode-picker desktop grid.
 >
-> **Test rule (locked):** every change in this phase MUST be verified on
-> BOTH desktop and a phone viewport (DevTools or a real device) before
-> being marked shipped. Header/HUD bugs that survived Phase 4 all had this
-> root cause — desktop-only verification.
->
-> **Structure:**
-> - Part A — Chrome & IA (5.1, 5.2 retired, 5.3, 5.4 ✅, 5.5, 5.10)
-> - Part B — Game systems rebuild (5.6, 5.7, 5.11, 5.12, 5.13, 5.14)
-> - Part C — Other surface polish (5.15, 5.3 courses)
-> - Part D — Verification (5.8)
-
-### 5.1 — Top-bar: consistency + remove Profile redundancy ✅ SHIPPED 2026-05-15
-
-- [x] ✅ **B2 — Consistency.** New `scripts/sync-header.js` enforces one
-      canonical `<header class="web-header">` across all pages; ran
-      `npm run sync-header` → 97 HTML files updated, 7 variants collapsed
-      to 1. Re-running is idempotent.
-- [x] ✅ **B1 — Profile link removed.** Stripped from desktop nav (script
-      doesn't include it) and from `src/menu.js` mobile drawer. Avatar
-      chip + drawer auth row are the only profile entry points now.
-- [x] ✅ **5.10 prep — Training link removed** from canonical nav and
-      mobile drawer (cert pages will gain Quick Quiz + Learning Path
-      CTAs in 5.10; no point keeping Training as a redundant entry).
-- [x] ✅ Canonical nav: Cert Quest (NEW pill) · Certifications · Courses
-      · Careers · News · Google Play. `aria-current="page"` injected
-      automatically per page URL (path/cert/course/career/news).
-- [x] ✅ **CSS cleanup.** Phone (≤767px): desktop nav hidden, header
-      becomes logo + absolute-positioned hamburger (top-right corner,
-      no more drift). Desktop (≥768px): nav `flex-wrap: nowrap`, links
-      `white-space: nowrap`, `.cq-auth-chip` + `.web-header-badge` are
-      `flex-shrink: 0` — chip never wraps below nav.
-- [x] ✅ Cache bumped 61 → 62, sw.js CACHE_VERSION → v76.
-- [x] ✅ 83/83 unit tests pass.
-
-### 5.2 — Training pack-tile sizing — RETIRED → see 5.10
-
-> Original brief was to align pack tiles on `/train.html`. Architectural
-> decision 5.10 collapses that landing page into `/certifications/`, so
-> there's no pack-tile grid to align. Polishing the new entry points
-> (cert pages + path index) is in scope of 5.10 itself.
-
-### 5.3 — Courses module rework ✅ SHIPPED 2026-05-15 (partial)
-
-- [x] ✅ Audit complete:
-      • `/courses/` index — already had hero + format cheat-sheet
-        (Training / Courses / Cert Quest paths), search, vendor-grouped
-        grid with dual CTAs (Start course → / 🗺️ Cert Quest). Solid
-        baseline; no rebuild needed.
-      • `/learning/<slug>/index.html` detail pages — only linked to
-        `/train.html?pack=…`. **Zero of 28** linked to the matching
-        Cert Quest path despite the index advertising it.
-- [x] ✅ Cross-link gap closed: new `scripts/sync-course-ctas.js`
-      (`npm run sync-course-ctas`, idempotent). Walks every detail
-      page, extracts the page's existing `train.html?pack=PACKID`
-      anchor, resolves PACKID → canonical path packId via the same
-      alias map cert-pack-ctas uses (e.g. `aws-clf-c02` →
-      `aws-cloud-practitioner`) plus slug-fallbacks (`-administrator`,
-      `-fundamentals`, `kubernetes-` prefix). Injects a `<a
-      href="/path.html?pack=…" class="detail-cta detail-cta-secondary"
-      data-marker="cq:cert-quest-cta">🗺️ Open Cert Quest path</a>`
-      next to the Practice CTA. Marker class makes the script
-      idempotent. **All 28 detail pages updated, zero misses.**
-- [x] ✅ Cache bumped 71 → 72, sw.js CACHE_VERSION → v86.
-- [ ] **Deferred:** per-module next-step CTAs and visible progress
-      tracking. ~28 pages × 5–8 `<details>` modules each = ~150 sites,
-      and each needs a per-module mapping to a quiz subset that
-      doesn't exist in `data/free/*.json` yet. Track-able once
-      per-module quiz grouping is added to the question banks.
-
-### 5.4 — Remove `/stats.html` (consolidate into `/profile.html`) ✅ SHIPPED 2026-05-15
-
-- [x] ✅ `/stats.html` is now a meta-refresh + canonical to `/profile.html`
-      (was already in place before this ticket).
-- [x] ✅ Added `_redirects` for a real Cloudflare 301 (`/stats.html →
-      /profile.html`) — transfers SEO equity, beats the meta-refresh.
-- [x] ✅ Replaced 71 `<a href="/stats.html">My Stats</a>` nav links across
-      certifications/, learning/, news/ with `href="/profile.html">My Profile`.
-- [x] ✅ `sitemap.xml` already excluded `/stats.html`; `robots.txt` keeps
-      `Disallow: /stats.html` since the page is a redirect with no value.
-- [x] ✅ Updated `src/avatar.js` doc comment + rebuilt `cq-core.js`.
-- [x] ✅ Cache bumped 60 → 61, sw.js CACHE_VERSION → v75.
-- [x] ✅ Acceptance verified: 0 remaining `<a>` to `/stats.html` in HTML.
-
-### 5.5 — Mascot 🦑: center in its circle ✅ SHIPPED 2026-05-15
-
-- [x] ✅ Root cause: a stray second `.cq-mascot-emoji` block downstream
-      of the original 5.5 fix set `transform-origin: 50% 70%` — the
-      bob/wave keyframes pivoted 20% below center, making the squid
-      drift sideways every cycle. Both blocks consolidated into one;
-      `transform-origin: 50% 50%`.
-- [x] ✅ Static perceptual nudge: SVG body is top-heavy (mantle + eyes
-      occupy y=4..46, thin tentacles y=38..62). `translateY(1.5px)` on
-      the SVG element shifts the visual mass-center onto the bubble
-      center.
-- [x] ✅ Cache bumped 64 → 65, sw.js CACHE_VERSION → v79.
-
-### 5.6 — Hearts → Health bar (cross-section, damage + cooldown) ✅ SHIPPED 2026-05-15
-
-- [x] ✅ **P4 — Visual.** Continuous 5-segment health bar with green/amber/
-      red colour bands. Bar visible everywhere via the header chip
-      (auto-injected by hearts.js); larger version in the modal.
-- [x] ✅ **P5 — Damage feedback.** Chip shakes + flares red on every
-      `lose()` via `is-damaging` class + cq-hearts-shake/flare keyframes.
-      Reduced-motion users get the flare only (no shake).
-- [x] ✅ **P5 — Hard gate at 0.** New `cqHearts.showCooldownGate()` renders
-      a full-screen overlay on /path.html: damaged-heart icon, live MM:SS
-      countdown to next regen, progress bar, "Hide" + "Read a tip" exits.
-      Auto-dismisses when ≥1 heart regenerates. Path-mode node taps when
-      `canPlay()` is false also surface the gate (concept + chest nodes
-      bypass — they're regen paths).
-- [x] ✅ **T2 — Cross-section sync.** One source of truth (`cq-hearts-v1`).
-      Bar visible on /path.html, /train.html, every page that has the
-      header. Writes are path-only (only `src/path.js` calls
-      `cqHearts.lose()`); training quizzes never decrement.
-- [x] ✅ **hearts.js refactor.** Pure helpers extracted — `normalize`,
-      `regenSync(state, now)`, `applyLossSync(state, now)`,
-      `nextRegenMsFor(state, now)`. Browser-only side effects guarded
-      with `IS_BROWSER`. Dual-export: `window.cqHearts` in browser,
-      CJS via `module.exports` in Node.
-- [x] ✅ Tooltip / a11y label: "Health: 3 of 5 — next regen in 12 min".
-- [x] ✅ 13 new pure-state tests (`test/hearts.test.js`) covering normalize,
-      regen ticks, loss math, cooldown enter/exit, regen cap. **109/109**
-      total tests pass (was 96).
-- [x] ✅ Cache bumped 66 → 67, sw.js CACHE_VERSION → v81.
-
-### 5.7 — Quest HUD box (Chess-Kombat-style video-game panel) ✅ SHIPPED 2026-05-15
-
-- [x] ✅ HUD module (`src/hud.js`) renders a top-right corner panel with:
-      avatar emoji + level badge, HP segmented bar (reuses cq-health-*
-      from 5.6), XP-to-next-level fill, combo row (`×N combo`).
-      Damage flash on `cq:heart-lost`; combo "is-hot" glow at ≥4.
-- [x] ✅ **P6 — Always-on companion on /path.html.** Visibility logic
-      updated: HUD shows whenever `/path.html?pack=…` is loaded
-      (`isPathPackPage()`), not just when a node sheet is open. Map
-      browsing now displays the avatar + health in the corner.
-- [x] ✅ Training mode: HUD appears whenever `.quiz-screen` is in the DOM
-      (existing MutationObserver-based detection, unchanged).
-- [x] ✅ Hidden on `/`, `/news/`, `/careers/`, `/certifications/`,
-      `/courses/` — only the two surfaces above show it.
-- [x] ✅ `cq:combo-tick` dispatched from `src/path.js` (inline quiz +
-      Yes/No drill) and `src/screens/quiz.js` (training quiz handleAnswer)
-      so the combo readout actually updates.
-- [x] ✅ Cache bumped 67 → 68, sw.js CACHE_VERSION → v82.
-
-### 5.8 — Verification pass (mandatory)
-
-- [ ] After each ticket above ships, run the full audit on phone + desktop.
-- [ ] Walk the CSS cascade at 360 × 800, 768 × 1024, 1440 × 900 for every
-      modified page (per memory rule: desktop-only passes ship bugs).
-- [ ] Take screenshots at 360 × 800 and 1440 × 900 for each modified page;
-      attach to the commit message if any layout is non-obvious.
-- [ ] `npm test` must remain green.
-- [ ] Bump cache once per shipped batch (not per ticket).
-
-### 5.9 — Estimated total
-
-~6-8 working days end-to-end (was 3-4 before the 2026-05-15 expansion).
-Suggested PR order:
-1. **5.4** ✅ SHIPPED 2026-05-15 — stats → profile.
-2. **5.1** — top-bar consistency + remove Profile link (B1+B2). Touches
-   every page; ship before everything else so subsequent edits inherit
-   the canonical header.
-3. **5.10** — IA collapse (`/train.html` landing → `/certifications/`)
-   (A1). Same blast radius as 5.1; bundle if convenient.
-4. **5.11** — Path bottom-sheet desktop sizing (P1). Self-contained CSS.
-5. **5.5** — Mascot centering. Tiny.
-6. **5.13** — Yes/No drill phrasing audit (P2). Content + generator pass.
-7. **5.6** — Health bar (P4 + P5 + T2). Foundation for 5.7.
-8. **5.7** — In-session HUD (P6). Depends on 5.6.
-9. **5.12** — Treasure-chest rework (P3). Depends on 5.6 (free heart drop).
-10. **5.14** — Per-node audit pass (P7). Final cleanup; depends on 5.5–5.13.
-11. **5.15** — Training mode-selector polish (T1). Independent.
-12. **5.3** — Courses rework (biggest, last).
-
-### 5.10 — IA collapse: `/train.html` landing → `/certifications/` (A1) ✅ SHIPPED 2026-05-15
-
-> **Decision (user-confirmed 2026-05-15):** `/train.html?pack=X` stays as
-> the quiz **runtime**. The bare `/train.html` (pack picker) is collapsed
-> into `/certifications/`. One pack picker, two play modes per pack.
-
-- [x] ✅ Bare `/train.html` redirect implemented in-page (top-of-head
-      script in `train.html`). Cloudflare `_redirects` can't match on
-      query string; an edge 301 there would also rewrite the live
-      `?pack=` runtime, so the redirect lives in the page itself —
-      fires only when `?pack`/`?brand`/`?qids` are absent.
-- [x] ✅ Each cert page (`/certifications/*.html`) now shows every
-      available pack with **two CTAs side-by-side**: 🎯 Quick quiz
-      (`/train.html?pack=X`) + 🗺️ Learning path (`/path.html?pack=X`).
-      Path CTA is omitted when no path JSON exists. New script
-      `scripts/cert-pack-ctas.js` (idempotent, `npm run cert-pack-ctas`).
-- [x] ✅ Pack-id alias map: `data/index.json` ID `aws-clf-c02` resolves
-      to canonical path packId `aws-cloud-practitioner` so the path CTA
-      points at the right /path.html target.
-- [x] ✅ Per-brand `--pack-brand` CSS variable injected into each cert
-      page's `.pack-tile { … }` block, so the primary CTA inherits the
-      brand colour automatically (AWS #FF9900, Microsoft #0078D4,
-      Cisco #1D63ED, etc.).
-- [x] ✅ "Training" already removed from top nav + drawer in 5.1.
-- [x] ✅ `train.html` meta updated: `noindex, follow` + canonical
-      → `/certifications/` (the bare page no longer ranks).
-- [x] ✅ `sitemap.xml`: bare `/train.html` entry removed.
-- [x] ✅ Smoke check: all 32 CTAs (16 train + 16 path) point at packs
-      that exist in `data/index.json` / `data/paths/_index.json`.
-- [x] ✅ Cache bumped 62 → 63, sw.js CACHE_VERSION → v77.
-
-### 5.11 — Path bottom-sheet desktop sizing (P1) ✅ SHIPPED 2026-05-15
-
-- [x] ✅ Sheet centered on desktop (was bottom-anchored). Three breakpoints:
-      - `< 768 px`: bottom drawer, untouched
-      - `768–1199 px`: centered modal, `min(640px, 90vw)`, 32px padding,
-        all corners rounded, scale-in transition
-      - `≥ 1200 px`: centered modal, `min(840px, 70vw)`, 36px padding
-- [x] ✅ Quiz-inline `.pquiz-opt` buttons now scale: `padding: 16-18px`,
-      `min-height: 56-60px`, `font-size: 15.5-16.5px`. Comfortable on a
-      27" screen, tap target preserved.
-- [x] ✅ Backdrop opacity bumped 0.6 → 0.72 on desktop; modal feels
-      anchored, not floating.
-- [x] ✅ Concept flashcards: `padding: 22-26px`, `font-size: 16.5-18px`,
-      `border-radius: 16px`. Long backs no longer feel cramped.
-- [x] ✅ `.node-sheet h2` 22px → 26-30px; `.node-sheet-icon` 56px → 64px.
-- [x] ✅ Cache bumped 63 → 64, sw.js CACHE_VERSION → v78.
-- [x] ✅ 83/83 unit tests pass.
-
-### 5.12 — Treasure-chest rework (P3) ✅ SHIPPED 2026-05-15
-
-> **Decision (user-confirmed 2026-05-15):** Fix, don't remove. Chest
-> nodes need to feel like a real chapter milestone.
-
-- [x] ✅ Existing chest handler audited: it fired `cq:session-complete`
-      with bonusXp + unlocked the per-chapter cosmeticKey, but offered
-      nothing else and gave a flat reward on replay (no scale-back).
-- [x] ✅ Reward stack on open:
-      1. **+30 XP** base via `cq:session-complete` bonusXp (verified)
-      2. **Free heart** (+1 up to MAX) via `cqHearts.gain(1)` — ties
-         straight into the 5.6 health bar; pill says "now N/5"
-      3. **Cosmetic** from `node.cosmeticKey` (chapter-N hat). Replay
-         with hat already owned → "+20 XP bonus" so the chest still
-         feels worthwhile.
-- [x] ✅ Already-at-max-health users see "Already at full health" pill
-      — chest doesn't silently swallow the heart.
-- [x] ✅ Pills stagger in 220 ms apart (XP → heart → cosmetic) using
-      `.cq-chest-pill.is-in` opacity/translate transition. Continue
-      button focuses ~760 ms after open.
-- [x] ✅ CSS legacy guard: `.cq-chest-wrap:has(.cq-chest-rewards)
-      .cq-chest-reward { display: none; }` hides the old single-line
-      reward block when the new pills are present.
-- [x] ✅ Cache bumped 68 → 69, sw.js CACHE_VERSION → v83.
-
-### 5.13 — Yes/No drill phrasing audit (P2) ✅ SHIPPED 2026-05-15
-
-> **Problem:** old drill read as a riddle ("Is X the answer to:
-> which protocol uses port 443?"). Users want a clean declarative
-> statement they can yes-or-no.
-
-- [x] ✅ New pure helper `src/yesno-prompt.js`: `buildYesNoPrompt(stem,
-      option)` synthesises a single declarative sentence (e.g.
-      "HTTPS uses port 443.") from supported stem patterns:
-      - `Which X verb Y?` → `[option] verb Y.`
-      - `What is X?` → `X is [option].`
-      - `What are X?` → `X are [option].`
-      - `What does X verb?` → `X verb-3rd [option].`
-      Returns null when no pattern fits. Pure JS, dual-export (CJS
-      for tests + window.cqYesNoPrompt for browser).
-- [x] ✅ `canYesNoify(stem)` predicate + `isComplexStem(stem)`
-      reject scenario stems (>160 chars, multi-sentence),
-      "what should you do" recommendation stems, negative-framed
-      stems (NOT/EXCEPT/never).
-- [x] ✅ `gen-paths.js` filters chapter pool by `canYesNoify`; if
-      fewer than 3 eligible questions remain, the chapter gets NO
-      mini-game node — honest > confusing. Wrong-option fallback
-      uses the correct prompt as a template.
-- [x] ✅ `renderYesNoInline` (src/path.js) renders `pair.prompt` as
-      single declarative + "True or false?" label. Legacy data
-      (no prompt, just stem+option) falls back to "Is the proposed
-      answer correct?" — clearer than the old "Is this the right
-      answer?" riddle.
-- [x] ✅ 14 new unit tests in `test/yesno-prompt.test.js` covering
-      the supported patterns, rejection cases, and edge cases.
-      96/96 total tests pass.
-- [x] ✅ Path JSONs regenerated. **Trade-off:** of 40 generated
-      paths, 3 retain a Yes/No drill (`aws-aif-c01`,
-      `comptia-cysa`, `pcnsa`); the other 37 lost their mini-game
-      because their question banks are scenario-heavy and don't
-      synthesise into clean declaratives. Per-chapter quiz +
-      concept + sub-boss still carry those paths.
-- [x] ✅ Cache bumped 65 → 66, sw.js CACHE_VERSION → v80.
-
-### 5.14 — Per-node-type audit pass (P7) ✅ SHIPPED 2026-05-15
-
-> **No more shallow patches.** Sweep every node type end-to-end with the
-> 360/768/1440 cascade walk, document each bug found, fix in one PR.
-
-- [x] ✅ Audit doc: `audits/path-nodes-2026-05-15.md` — one section per
-      node type with status, plus list of fixes applied and items
-      deferred.
-- [x] ✅ Concept — clean. Flip + dual-state Start verified.
-- [x] ✅ Quiz inline / sub-boss / final-boss — surfaced one real bug:
-      `picked === q.correct` always failed for multi-correct questions
-      (`q.correct` as `[0, 3]`), so the user lost a heart and got 0%
-      on every multi-select question. Affects ~27 questions
-      (aws-dva-c02, aws-scs-c02, az-305 …). **Fix:** filter
-      `Array.isArray(q.correct)` out of the question pool at
-      `renderQuizInline` load time. Train.html keeps its own
-      multi-select UI.
-- [x] ✅ Final-boss laurel chain (`runQuiz.finish → markComplete →
-      awardLaurelIfNeeded → cq:laurel-earned → showFinalBossCeremony`)
-      verified end-to-end.
-- [x] ✅ Yes/No drill (post-5.13): declarative renders + legacy fallback
-      both work; pointerdown+click double-bind preserved for iOS Safari.
-- [x] ✅ Walker: scroll/resize/ResizeObserver re-pin (4.3.5), level-up
-      emoji updates immediately via `event.detail.newStageEmoji` —
-      Phase 4.1 stale-emoji ticket closed in practice.
-- [x] ✅ 109/109 unit tests pass.
-- [x] ✅ Cache bumped 69 → 70, sw.js CACHE_VERSION → v84.
-
-### 5.15 — Training mode selector polish (T1) ✅ SHIPPED 2026-05-15
-
-> Was buried in original 5.2. Surface it as its own ticket.
-
-- [x] ✅ At ≥768 px, the picker becomes a centered modal (760 px wide,
-      820 px ≥1100 px) with a 2-col grid (2×2 cards). Phone stays a
-      bottom sheet, untouched.
-- [x] ✅ Mode cards reflow to vertical layout on desktop: icon top-left,
-      title, description, CTA chevron in a circular pill at the bottom-
-      right. Hover slides the chevron right and tints it accent.
-- [x] ✅ No new design tokens — reuses `--surface-2`, `--surface-3`,
-      `--accent`, `--text`, `--text-secondary`. Wrapped in
-      `@media (min-width: 768px)` and `(min-width: 1100px)` so the phone
-      layout is byte-identical to before.
-- [x] ✅ Modal handle (drag affordance) is hidden on desktop — only the
-      bottom-sheet form needs it.
-- [x] ✅ Cache bumped 70 → 71, sw.js CACHE_VERSION → v85.
+> Per-ticket checklists are in git history — see commits on/around
+> 2026-05-15. Kept here only as a marker so newer phases don't reuse
+> the same numbering.
 
 ---
 
