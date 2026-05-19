@@ -14,7 +14,34 @@ export type Database = {
   }
   public: {
     Tables: {
-      achievements_v2: {
+      profiles: {
+        Row: {
+          created_at: string
+          display_name: string | null
+          leaderboard_opt_in: boolean
+          updated_at: string
+          user_id: string
+          username: string | null
+        }
+        Insert: {
+          created_at?: string
+          display_name?: string | null
+          leaderboard_opt_in?: boolean
+          updated_at?: string
+          user_id: string
+          username?: string | null
+        }
+        Update: {
+          created_at?: string
+          display_name?: string | null
+          leaderboard_opt_in?: boolean
+          updated_at?: string
+          user_id?: string
+          username?: string | null
+        }
+        Relationships: []
+      }
+      user_achievements: {
         Row: {
           earned_at: string
           key: string
@@ -38,7 +65,7 @@ export type Database = {
         }
         Relationships: []
       }
-      active_session_v2: {
+      user_active_session: {
         Row: {
           answers: Json
           mode: string
@@ -71,7 +98,7 @@ export type Database = {
         }
         Relationships: []
       }
-      cosmetics: {
+      user_cosmetics: {
         Row: {
           unlocked: string[]
           updated_at: string
@@ -92,52 +119,7 @@ export type Database = {
         }
         Relationships: []
       }
-      cosmetics_v2: {
-        Row: {
-          unlocked: string[]
-          updated_at: string
-          user_id: string
-          wearing: string | null
-        }
-        Insert: {
-          unlocked?: string[]
-          updated_at?: string
-          user_id: string
-          wearing?: string | null
-        }
-        Update: {
-          unlocked?: string[]
-          updated_at?: string
-          user_id?: string
-          wearing?: string | null
-        }
-        Relationships: []
-      }
-      daily: {
-        Row: {
-          claimed: boolean
-          day: string
-          progress: number
-          updated_at: string
-          user_id: string
-        }
-        Insert: {
-          claimed?: boolean
-          day: string
-          progress?: number
-          updated_at?: string
-          user_id: string
-        }
-        Update: {
-          claimed?: boolean
-          day?: string
-          progress?: number
-          updated_at?: string
-          user_id?: string
-        }
-        Relationships: []
-      }
-      daily_v2: {
+      user_daily: {
         Row: {
           claimed: boolean
           claimed_at: string | null
@@ -167,28 +149,7 @@ export type Database = {
         }
         Relationships: []
       }
-      hearts: {
-        Row: {
-          hearts: number
-          last_lost_at: string | null
-          updated_at: string
-          user_id: string
-        }
-        Insert: {
-          hearts?: number
-          last_lost_at?: string | null
-          updated_at?: string
-          user_id: string
-        }
-        Update: {
-          hearts?: number
-          last_lost_at?: string | null
-          updated_at?: string
-          user_id?: string
-        }
-        Relationships: []
-      }
-      hearts_v2: {
+      user_hearts: {
         Row: {
           count: number
           last_regen_at: string
@@ -209,28 +170,7 @@ export type Database = {
         }
         Relationships: []
       }
-      laurels: {
-        Row: {
-          earned_at: string
-          pack_id: string
-          score: number | null
-          user_id: string
-        }
-        Insert: {
-          earned_at?: string
-          pack_id: string
-          score?: number | null
-          user_id: string
-        }
-        Update: {
-          earned_at?: string
-          pack_id?: string
-          score?: number | null
-          user_id?: string
-        }
-        Relationships: []
-      }
-      mastery_v2: {
+      user_mastery: {
         Row: {
           best_score: number
           correct: number
@@ -260,31 +200,7 @@ export type Database = {
         }
         Relationships: []
       }
-      path_progress: {
-        Row: {
-          completed_at: string
-          node_id: string
-          pack_id: string
-          score: number | null
-          user_id: string
-        }
-        Insert: {
-          completed_at?: string
-          node_id: string
-          pack_id: string
-          score?: number | null
-          user_id: string
-        }
-        Update: {
-          completed_at?: string
-          node_id?: string
-          pack_id?: string
-          score?: number | null
-          user_id?: string
-        }
-        Relationships: []
-      }
-      path_progress_v2: {
+      user_path_progress: {
         Row: {
           completed_at: string
           node_id: string
@@ -311,34 +227,7 @@ export type Database = {
         }
         Relationships: []
       }
-      profiles: {
-        Row: {
-          created_at: string
-          display_name: string | null
-          leaderboard_opt_in: boolean
-          updated_at: string
-          user_id: string
-          username: string | null
-        }
-        Insert: {
-          created_at?: string
-          display_name?: string | null
-          leaderboard_opt_in?: boolean
-          updated_at?: string
-          user_id: string
-          username?: string | null
-        }
-        Update: {
-          created_at?: string
-          display_name?: string | null
-          leaderboard_opt_in?: boolean
-          updated_at?: string
-          user_id?: string
-          username?: string | null
-        }
-        Relationships: []
-      }
-      profiles_v2: {
+      user_profile: {
         Row: {
           level: number
           updated_at: string
@@ -362,7 +251,7 @@ export type Database = {
         }
         Relationships: []
       }
-      settings_v2: {
+      user_settings: {
         Row: {
           daily_reminder_enabled: boolean
           daily_reminder_hour: number
@@ -386,7 +275,7 @@ export type Database = {
         }
         Relationships: []
       }
-      spaced_repetition_v2: {
+      user_spaced_repetition: {
         Row: {
           difficulty: number
           item_id: string
@@ -416,38 +305,9 @@ export type Database = {
         }
         Relationships: []
       }
-      stats: {
-        Row: {
-          payload: Json
-          updated_at: string
-          user_id: string
-        }
-        Insert: {
-          payload?: Json
-          updated_at?: string
-          user_id: string
-        }
-        Update: {
-          payload?: Json
-          updated_at?: string
-          user_id?: string
-        }
-        Relationships: []
-      }
     }
     Views: {
-      leaderboard_all_time: {
-        Row: {
-          display_name: string | null
-          level: number | null
-          questions_answered: number | null
-          sessions_count: number | null
-          streak_days: number | null
-          updated_at: string | null
-          xp: number | null
-        }
-        Relationships: []
-      }
+      [_ in never]: never
     }
     Functions: {
       delete_my_account: { Args: never; Returns: undefined }
