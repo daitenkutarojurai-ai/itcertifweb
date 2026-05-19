@@ -432,10 +432,21 @@
     if (!c || !uid) return;
     bootstrapped = true;
 
-    // Probe cloud: does this user already have a profiles_v2 row? (The legacy
-    // `stats` table is still being written by the dual-write helper, but v2 is
-    // now the source of truth for "does this account exist in the cloud yet?".)
-    var probe = await c.from('profiles_v2').select('user_id').eq('user_id', uid).maybeSingle();
+    // Probe cloud: does this user already have a `stats` row?
+    //
+    // Phase 1's backfill seeded `profiles_v2` for EVERY registered user
+    // (legacy `profiles` had 1 row per signup, with no xp/level). So
+    // probing `profiles_v2` here would mis-classify a register-but-never-
+    // played user as "subsequent sign-in" and CLOBBER their anonymous
+    // local progress with xp=0. The legacy `stats` table only has a row
+    // after the user actually pushed, so it remains the correct probe
+    // for "has this account ever played and pushed?".
+    //
+    // Legacy `stats` is still being dual-written during the 7-day soak
+    // (see CUTOVER MAP). When Task 8 retires the legacy writes, switch
+    // this probe to a v2-only signal — e.g. profiles_v2 with xp > 0
+    // OR an existing path_progress_v2 row.
+    var probe = await c.from('stats').select('user_id').eq('user_id', uid).maybeSingle();
     if (probe.error) {
       dbg('[cq-sync] bootstrap probe failed', probe.error);
       bootstrapped = false;
