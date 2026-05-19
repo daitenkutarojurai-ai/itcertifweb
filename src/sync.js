@@ -27,6 +27,23 @@
  * present we no-op silently. Sign-out clears the bootstrapped flag so
  * the next sign-in re-bootstraps cleanly.
  */
+// CUTOVER MAP — legacy → v2
+// Phase 2 of the cross-device progress sync plan. Each legacy upsert below
+// is mirrored to a v2 table immediately after the legacy call. Reads have
+// already been switched to v2. Legacy writes remain for the 7-day soak;
+// Task 8 will remove them.
+//
+//   src/sync.js:pushStats                      legacy stats               → profiles_v2
+//   src/sync.js:pushAllPathProgressFromLocal   legacy path_progress       → path_progress_v2
+//   src/sync.js:pushPathProgress               legacy path_progress       → path_progress_v2
+//   src/sync.js:pushAllLaurelsFromLocal        legacy laurels             → achievements_v2 (key='laurel')
+//   src/sync.js:pushLaurel                     legacy laurels             → achievements_v2 (key='laurel')
+//   src/sync.js:pushCosmetics                  legacy cosmetics           → cosmetics_v2
+//   src/sync.js:pushHearts                     legacy hearts              → hearts_v2     (hearts→count, last_lost_at→last_regen_at)
+//   src/sync.js:pushDailyToday                 legacy daily               → daily_v2      (day→date, pack_id='')
+//
+// Reads (pullAll + bootstrap probe) target v2 exclusively. The legacy
+// `profiles.username` read has been replaced by `profiles_v2.username`.
 (function () {
   if (window.__cqSyncInit) return;
   window.__cqSyncInit = true;
@@ -40,6 +57,30 @@
   function dbg() {
     if (window.cqDbg) window.cqDbg.apply(null, arguments);
   }
+
+  // Dual-write helper: mirrors a legacy upsert into the corresponding v2
+  // table. Never throws — failures are logged via dbg() and console.warn so
+  // the legacy write (which runs immediately before this) keeps the user's
+  // progress safe even if the v2 table is unreachable.
+  async function pushV2(table, payload, conflictKeys) {
+    try {
+      var sb = client();
+      if (!sb) return;
+      var res = await sb.from(table).upsert(payload, { onConflict: conflictKeys });
+      if (res && res.error) {
+        dbg('[cq-sync v2] upsert failed', table, res.error.message);
+        if (typeof console !== 'undefined' && console.warn) {
+          console.warn('[sync v2] upsert failed', table, res.error.message);
+        }
+      }
+    } catch (e) {
+      dbg('[cq-sync v2] threw', table, e && e.message);
+      if (typeof console !== 'undefined' && console.warn) {
+        console.warn('[sync v2] threw', table, e && e.message);
+      }
+    }
+  }
+
   function readKey(k, fallback) {
     try { return JSON.parse(localStorage.getItem(k) || JSON.stringify(fallback)); }
     catch (_) { return fallback; }
@@ -69,6 +110,24 @@
     var payload = readKey('cq-stats-v1', {});
     var { error } = await c.from('stats').upsert({ user_id: uid, payload: payload });
     if (error) dbg('[cq-sync] pushStats failed', error);
+
+    // v2 mirror — profiles_v2 has flat xp / level / username columns. xp & level
+    // live inside the legacy jsonb payload; username is cached separately by the
+    // pull path (`cq-profile-username`) and may also live inside payload.
+    var xp = typeof payload.xp === 'number' ? payload.xp | 0 : 0;
+    var level = typeof payload.level === 'number' ? payload.level | 0 : 0;
+    var username = null;
+    try {
+      username = (typeof payload.username === 'string' && payload.username)
+        ? payload.username
+        : (localStorage.getItem('cq-profile-username') || null);
+    } catch (_) { /* localStorage may throw in private mode */ }
+    await pushV2('profiles_v2', {
+      user_id: uid,
+      username: username,
+      xp: xp,
+      level: level,
+    }, 'user_id');
   }
 
   async function pushAllPathProgressFromLocal() {
@@ -92,17 +151,42 @@
     if (!rows.length) return;
     var { error } = await c.from('path_progress').upsert(rows);
     if (error) dbg('[cq-sync] pushAllPathProgressFromLocal failed', error);
+
+    // v2 mirror — same shape with explicit updated_at.
+    var nowIso = new Date().toISOString();
+    var rowsV2 = rows.map(function (r) {
+      return {
+        user_id: r.user_id,
+        pack_id: r.pack_id,
+        node_id: r.node_id,
+        completed_at: r.completed_at,
+        score: r.score,
+        updated_at: nowIso,
+      };
+    });
+    await pushV2('path_progress_v2', rowsV2, 'user_id,pack_id,node_id');
   }
 
   async function pushPathProgress(packId, nodeId, score) {
     var c = client(); var uid = userId();
     if (!c || !uid || !packId || !nodeId) return;
+    var nowIso = new Date().toISOString();
     var { error } = await c.from('path_progress').upsert({
       user_id: uid, pack_id: packId, node_id: nodeId,
-      completed_at: new Date().toISOString(),
+      completed_at: nowIso,
       score: typeof score === 'number' ? score : null,
     });
     if (error) dbg('[cq-sync] pushPathProgress failed', error);
+
+    // v2 mirror — same shape + explicit updated_at.
+    await pushV2('path_progress_v2', {
+      user_id: uid,
+      pack_id: packId,
+      node_id: nodeId,
+      completed_at: nowIso,
+      score: typeof score === 'number' ? score : null,
+      updated_at: nowIso,
+    }, 'user_id,pack_id,node_id');
   }
 
   async function pushAllLaurelsFromLocal() {
@@ -119,41 +203,79 @@
     });
     var { error } = await c.from('laurels').upsert(rows);
     if (error) dbg('[cq-sync] pushAllLaurelsFromLocal failed', error);
+
+    // v2 mirror — achievements_v2 is keyed by (user_id, key, pack_id); we tag
+    // laurels with key='laurel' so future achievement types can coexist.
+    var rowsV2 = rows.map(function (r) {
+      return {
+        user_id: r.user_id,
+        key: 'laurel',
+        pack_id: r.pack_id,
+        earned_at: r.earned_at,
+        score: r.score,
+      };
+    });
+    await pushV2('achievements_v2', rowsV2, 'user_id,key,pack_id');
   }
 
   async function pushLaurel(packId, score) {
     var c = client(); var uid = userId();
     if (!c || !uid || !packId) return;
+    var nowIso = new Date().toISOString();
     var { error } = await c.from('laurels').upsert({
       user_id: uid, pack_id: packId,
-      earned_at: new Date().toISOString(),
+      earned_at: nowIso,
       score: typeof score === 'number' ? score : null,
     });
     if (error) dbg('[cq-sync] pushLaurel failed', error);
+
+    // v2 mirror — tag with key='laurel' for achievements_v2.
+    await pushV2('achievements_v2', {
+      user_id: uid,
+      key: 'laurel',
+      pack_id: packId,
+      earned_at: nowIso,
+      score: typeof score === 'number' ? score : null,
+    }, 'user_id,key,pack_id');
   }
 
   async function pushCosmetics() {
     var c = client(); var uid = userId();
     if (!c || !uid) return;
     var cos = readKey('cq-cosmetics-v1', { unlocked: [], wearing: null });
-    var { error } = await c.from('cosmetics').upsert({
+    var payloadV2 = {
       user_id: uid,
       unlocked: Array.isArray(cos.unlocked) ? cos.unlocked : [],
       wearing: cos.wearing || null,
-    });
+    };
+    var { error } = await c.from('cosmetics').upsert(payloadV2);
     if (error) dbg('[cq-sync] pushCosmetics failed', error);
+
+    // v2 mirror — same shape.
+    await pushV2('cosmetics_v2', payloadV2, 'user_id');
   }
 
   async function pushHearts() {
     var c = client(); var uid = userId();
     if (!c || !uid) return;
     var h = readKey('cq-hearts-v1', { hearts: 5, lastLostAt: 0 });
+    var clamped = Math.max(0, Math.min(5, h.hearts | 0));
+    var lastIso = h.lastLostAt ? new Date(h.lastLostAt).toISOString() : null;
     var { error } = await c.from('hearts').upsert({
       user_id: uid,
-      hearts: Math.max(0, Math.min(5, h.hearts | 0)),
-      last_lost_at: h.lastLostAt ? new Date(h.lastLostAt).toISOString() : null,
+      hearts: clamped,
+      last_lost_at: lastIso,
     });
     if (error) dbg('[cq-sync] pushHearts failed', error);
+
+    // v2 mirror — hearts_v2 columns are count / last_regen_at (not nullable).
+    // We pass the same moment we just persisted to legacy; if there's no prior
+    // "lost-at" yet we synthesise `now` so the not-null constraint passes.
+    await pushV2('hearts_v2', {
+      user_id: uid,
+      count: clamped,
+      last_regen_at: lastIso || new Date().toISOString(),
+    }, 'user_id');
   }
 
   async function pushDailyToday() {
@@ -163,12 +285,26 @@
     // The local key only stores TODAY's progress (it resets at midnight),
     // so we just upsert the row for the current local date.
     var day = d.date || todayIsoDay();
+    var progressInt = d.progress | 0;
+    var claimedBool = !!d.claimed;
     var { error } = await c.from('daily').upsert({
       user_id: uid, day: day,
-      progress: d.progress | 0,
-      claimed: !!d.claimed,
+      progress: progressInt,
+      claimed: claimedBool,
     });
     if (error) dbg('[cq-sync] pushDailyToday failed', error);
+
+    // v2 mirror — daily_v2 uses `date` instead of `day` and carries pack_id
+    // (the daily challenge's pack) + claimed_at. The website doesn't track
+    // the daily challenge's pack here yet, so we stamp '' for compatibility.
+    await pushV2('daily_v2', {
+      user_id: uid,
+      date: day,
+      pack_id: '',
+      progress: progressInt,
+      claimed: claimedBool,
+      claimed_at: claimedBool ? new Date().toISOString() : null,
+    }, 'user_id,date');
   }
 
   /* ═══════ PULL (cloud → local) ════════════════════════════════════════ */
