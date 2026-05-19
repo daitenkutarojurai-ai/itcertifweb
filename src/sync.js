@@ -315,13 +315,24 @@
     var myToken = pullToken;
     function stale() { return myToken !== pullToken; }
 
-    // 1) stats — single jsonb blob
-    var stats = await c.from('stats').select('payload').eq('user_id', uid).maybeSingle();
+    // 1) stats — v2 has flat xp / level / username columns; rebuild the legacy
+    //    jsonb payload shape by MERGING the cloud values into whatever the
+    //    local payload had (so non-canonical extras the website may stash in
+    //    cq-stats-v1, e.g. streak counters, are preserved across hydration).
+    var prof = await c.from('profiles_v2').select('xp,level,username').eq('user_id', uid).maybeSingle();
     if (stale()) return;
-    if (stats.data && stats.data.payload) writeKey('cq-stats-v1', stats.data.payload);
+    if (prof.data) {
+      var localPayload = readKey('cq-stats-v1', {});
+      var merged = Object.assign({}, localPayload, {
+        xp: typeof prof.data.xp === 'number' ? prof.data.xp : (localPayload.xp || 0),
+        level: typeof prof.data.level === 'number' ? prof.data.level : (localPayload.level || 0),
+      });
+      if (prof.data.username) merged.username = prof.data.username;
+      writeKey('cq-stats-v1', merged);
+    }
 
     // 2) path_progress — many rows → rebuild { packId: { nodeId: {...} } }
-    var pp = await c.from('path_progress').select('pack_id,node_id,completed_at,score').eq('user_id', uid);
+    var pp = await c.from('path_progress_v2').select('pack_id,node_id,completed_at,score').eq('user_id', uid);
     if (stale()) return;
     var progMap = {};
     (pp.data || []).forEach(function (row) {
@@ -334,8 +345,10 @@
     });
     writeKey('cq-path-progress-v1', progMap);
 
-    // 3) laurels — many rows → array
-    var lr = await c.from('laurels').select('pack_id,earned_at,score').eq('user_id', uid);
+    // 3) laurels — many rows → array. achievements_v2 holds any achievement
+    //    kind; filter to key='laurel' so the legacy local cache shape stays
+    //    pure-laurels and the rest of the website doesn't need to change.
+    var lr = await c.from('achievements_v2').select('pack_id,earned_at,score').eq('user_id', uid).eq('key', 'laurel');
     if (stale()) return;
     var laurels = (lr.data || []).map(function (r) {
       return {
@@ -347,7 +360,7 @@
     writeKey('cq-laurels-v1', laurels);
 
     // 4) cosmetics — single row
-    var cos = await c.from('cosmetics').select('unlocked,wearing').eq('user_id', uid).maybeSingle();
+    var cos = await c.from('cosmetics_v2').select('unlocked,wearing').eq('user_id', uid).maybeSingle();
     if (stale()) return;
     if (cos.data) {
       writeKey('cq-cosmetics-v1', {
@@ -356,33 +369,38 @@
       });
     }
 
-    // 5) hearts — single row
-    var h = await c.from('hearts').select('hearts,last_lost_at').eq('user_id', uid).maybeSingle();
+    // 5) hearts — single row. v2 columns are count / last_regen_at; project
+    //    back to the legacy {hearts, lastLostAt} local shape.
+    var h = await c.from('hearts_v2').select('count,last_regen_at').eq('user_id', uid).maybeSingle();
     if (stale()) return;
     if (h.data) {
       writeKey('cq-hearts-v1', {
-        hearts: h.data.hearts,
-        lastLostAt: h.data.last_lost_at ? new Date(h.data.last_lost_at).getTime() : 0,
+        hearts: h.data.count,
+        lastLostAt: h.data.last_regen_at ? new Date(h.data.last_regen_at).getTime() : 0,
       });
     }
 
-    // 6) daily — only today's row (older days are off-screen)
+    // 6) daily — only today's row (older days are off-screen). v2 uses `date`
+    //    instead of `day`; project back to legacy `{date, progress, claimed}`
+    //    so the website keeps reading the same local shape.
     var today = todayIsoDay();
-    var d = await c.from('daily').select('day,progress,claimed').eq('user_id', uid).eq('day', today).maybeSingle();
+    var d = await c.from('daily_v2').select('date,progress,claimed').eq('user_id', uid).eq('date', today).maybeSingle();
     if (stale()) return;
     if (d.data) {
       writeKey('cq-daily-v1', {
-        date: d.data.day,
+        date: d.data.date,
         progress: d.data.progress,
         claimed: !!d.data.claimed,
       });
     }
 
-    // 7) profile — read username so UI can show it (auth-ui prefers user_metadata
-    //    which is already populated by the trigger from the signup `data`, but
-    //    if a future round lets users rename via the profile page, the cloud
-    //    profile row is authoritative).
-    var pr = await c.from('profiles').select('username').eq('user_id', uid).maybeSingle();
+    // 7) profile — read username so UI can show it. profiles_v2 carries the
+    //    canonical username (the legacy `profiles.username` is now redundant
+    //    and will be retired with Task 8). Step (1) above already hydrated
+    //    cq-stats-v1.username from the same row, but the standalone cache
+    //    key `cq-profile-username` is read by auth-ui chips, so refresh it
+    //    here too.
+    var pr = await c.from('profiles_v2').select('username').eq('user_id', uid).maybeSingle();
     if (stale()) return;
     if (pr.data && pr.data.username) {
       try { localStorage.setItem('cq-profile-username', pr.data.username); }
@@ -414,8 +432,10 @@
     if (!c || !uid) return;
     bootstrapped = true;
 
-    // Probe cloud: does this user already have a stats row?
-    var probe = await c.from('stats').select('user_id').eq('user_id', uid).maybeSingle();
+    // Probe cloud: does this user already have a profiles_v2 row? (The legacy
+    // `stats` table is still being written by the dual-write helper, but v2 is
+    // now the source of truth for "does this account exist in the cloud yet?".)
+    var probe = await c.from('profiles_v2').select('user_id').eq('user_id', uid).maybeSingle();
     if (probe.error) {
       dbg('[cq-sync] bootstrap probe failed', probe.error);
       bootstrapped = false;
