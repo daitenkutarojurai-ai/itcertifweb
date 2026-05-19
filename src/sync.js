@@ -27,23 +27,21 @@
  * present we no-op silently. Sign-out clears the bootstrapped flag so
  * the next sign-in re-bootstraps cleanly.
  */
-// CUTOVER MAP — legacy → v2
-// Phase 2 of the cross-device progress sync plan. Each legacy upsert below
-// is mirrored to a v2 table immediately after the legacy call. Reads have
-// already been switched to v2. Legacy writes remain for the 7-day soak;
-// Task 8 will remove them.
+// CUTOVER MAP — v2 only
+// Phases 2 + 8 of the cross-device progress sync plan are complete. Every
+// push goes to a `_v2` table; reads target `_v2` exclusively; the bootstrap
+// probe uses `profiles_v2.xp > 0`. Legacy tables (stats, path_progress,
+// laurels, cosmetics, hearts, daily) are untouched and will be dropped in
+// plan Task 40 after the post-Task-8 soak.
 //
-//   src/sync.js:pushStats                      legacy stats               → profiles_v2
-//   src/sync.js:pushAllPathProgressFromLocal   legacy path_progress       → path_progress_v2
-//   src/sync.js:pushPathProgress               legacy path_progress       → path_progress_v2
-//   src/sync.js:pushAllLaurelsFromLocal        legacy laurels             → achievements_v2 (key='laurel')
-//   src/sync.js:pushLaurel                     legacy laurels             → achievements_v2 (key='laurel')
-//   src/sync.js:pushCosmetics                  legacy cosmetics           → cosmetics_v2
-//   src/sync.js:pushHearts                     legacy hearts              → hearts_v2     (hearts→count, last_lost_at→last_regen_at)
-//   src/sync.js:pushDailyToday                 legacy daily               → daily_v2      (day→date, pack_id='')
-//
-// Reads (pullAll + bootstrap probe) target v2 exclusively. The legacy
-// `profiles.username` read has been replaced by `profiles_v2.username`.
+//   src/sync.js:pushStats                    → profiles_v2
+//   src/sync.js:pushAllPathProgressFromLocal → path_progress_v2
+//   src/sync.js:pushPathProgress             → path_progress_v2
+//   src/sync.js:pushAllLaurelsFromLocal      → achievements_v2 (key='laurel')
+//   src/sync.js:pushLaurel                   → achievements_v2 (key='laurel')
+//   src/sync.js:pushCosmetics                → cosmetics_v2
+//   src/sync.js:pushHearts                   → hearts_v2 (count, last_regen_at)
+//   src/sync.js:pushDailyToday               → daily_v2 (date, pack_id, claimed_at)
 (function () {
   if (window.__cqSyncInit) return;
   window.__cqSyncInit = true;
@@ -108,12 +106,10 @@
     var c = client(); var uid = userId();
     if (!c || !uid) return;
     var payload = readKey('cq-stats-v1', {});
-    var { error } = await c.from('stats').upsert({ user_id: uid, payload: payload });
-    if (error) dbg('[cq-sync] pushStats failed', error);
-
-    // v2 mirror — profiles_v2 has flat xp / level / username columns. xp & level
-    // live inside the legacy jsonb payload; username is cached separately by the
-    // pull path (`cq-profile-username`) and may also live inside payload.
+    // profiles_v2 has flat xp / level / username columns. xp & level live
+    // inside the legacy jsonb payload (still read for compatibility);
+    // username is cached separately at `cq-profile-username` by the pull
+    // path and may also live inside payload.
     var xp = typeof payload.xp === 'number' ? payload.xp | 0 : 0;
     var level = typeof payload.level === 'number' ? payload.level | 0 : 0;
     var username = null;
@@ -149,10 +145,6 @@
       });
     });
     if (!rows.length) return;
-    var { error } = await c.from('path_progress').upsert(rows);
-    if (error) dbg('[cq-sync] pushAllPathProgressFromLocal failed', error);
-
-    // v2 mirror — same shape with explicit updated_at.
     var nowIso = new Date().toISOString();
     var rowsV2 = rows.map(function (r) {
       return {
@@ -171,14 +163,6 @@
     var c = client(); var uid = userId();
     if (!c || !uid || !packId || !nodeId) return;
     var nowIso = new Date().toISOString();
-    var { error } = await c.from('path_progress').upsert({
-      user_id: uid, pack_id: packId, node_id: nodeId,
-      completed_at: nowIso,
-      score: typeof score === 'number' ? score : null,
-    });
-    if (error) dbg('[cq-sync] pushPathProgress failed', error);
-
-    // v2 mirror — same shape + explicit updated_at.
     await pushV2('path_progress_v2', {
       user_id: uid,
       pack_id: packId,
@@ -201,11 +185,8 @@
         score: typeof l.score === 'number' ? l.score : null,
       };
     });
-    var { error } = await c.from('laurels').upsert(rows);
-    if (error) dbg('[cq-sync] pushAllLaurelsFromLocal failed', error);
-
-    // v2 mirror — achievements_v2 is keyed by (user_id, key, pack_id); we tag
-    // laurels with key='laurel' so future achievement types can coexist.
+    // achievements_v2 is keyed by (user_id, key, pack_id); we tag laurels
+    // with key='laurel' so future achievement types can coexist.
     var rowsV2 = rows.map(function (r) {
       return {
         user_id: r.user_id,
@@ -222,14 +203,6 @@
     var c = client(); var uid = userId();
     if (!c || !uid || !packId) return;
     var nowIso = new Date().toISOString();
-    var { error } = await c.from('laurels').upsert({
-      user_id: uid, pack_id: packId,
-      earned_at: nowIso,
-      score: typeof score === 'number' ? score : null,
-    });
-    if (error) dbg('[cq-sync] pushLaurel failed', error);
-
-    // v2 mirror — tag with key='laurel' for achievements_v2.
     await pushV2('achievements_v2', {
       user_id: uid,
       key: 'laurel',
@@ -243,16 +216,11 @@
     var c = client(); var uid = userId();
     if (!c || !uid) return;
     var cos = readKey('cq-cosmetics-v1', { unlocked: [], wearing: null });
-    var payloadV2 = {
+    await pushV2('cosmetics_v2', {
       user_id: uid,
       unlocked: Array.isArray(cos.unlocked) ? cos.unlocked : [],
       wearing: cos.wearing || null,
-    };
-    var { error } = await c.from('cosmetics').upsert(payloadV2);
-    if (error) dbg('[cq-sync] pushCosmetics failed', error);
-
-    // v2 mirror — same shape.
-    await pushV2('cosmetics_v2', payloadV2, 'user_id');
+    }, 'user_id');
   }
 
   async function pushHearts() {
@@ -261,16 +229,9 @@
     var h = readKey('cq-hearts-v1', { hearts: 5, lastLostAt: 0 });
     var clamped = Math.max(0, Math.min(5, h.hearts | 0));
     var lastIso = h.lastLostAt ? new Date(h.lastLostAt).toISOString() : null;
-    var { error } = await c.from('hearts').upsert({
-      user_id: uid,
-      hearts: clamped,
-      last_lost_at: lastIso,
-    });
-    if (error) dbg('[cq-sync] pushHearts failed', error);
-
-    // v2 mirror — hearts_v2 columns are count / last_regen_at (not nullable).
-    // We pass the same moment we just persisted to legacy; if there's no prior
-    // "lost-at" yet we synthesise `now` so the not-null constraint passes.
+    // hearts_v2 columns are count / last_regen_at (not nullable). If there's
+    // no prior "lost-at" yet we synthesise `now` so the not-null constraint
+    // passes.
     await pushV2('hearts_v2', {
       user_id: uid,
       count: clamped,
@@ -287,16 +248,9 @@
     var day = d.date || todayIsoDay();
     var progressInt = d.progress | 0;
     var claimedBool = !!d.claimed;
-    var { error } = await c.from('daily').upsert({
-      user_id: uid, day: day,
-      progress: progressInt,
-      claimed: claimedBool,
-    });
-    if (error) dbg('[cq-sync] pushDailyToday failed', error);
-
-    // v2 mirror — daily_v2 uses `date` instead of `day` and carries pack_id
-    // (the daily challenge's pack) + claimed_at. The website doesn't track
-    // the daily challenge's pack here yet, so we stamp '' for compatibility.
+    // daily_v2 uses `date` (not `day`) and carries pack_id + claimed_at.
+    // The website doesn't track the daily challenge's pack here yet,
+    // so we stamp '' for compatibility.
     await pushV2('daily_v2', {
       user_id: uid,
       date: day,
@@ -432,28 +386,28 @@
     if (!c || !uid) return;
     bootstrapped = true;
 
-    // Probe cloud: does this user already have a `stats` row?
+    // Probe cloud: has this user ever pushed real data?
     //
-    // Phase 1's backfill seeded `profiles_v2` for EVERY registered user
-    // (legacy `profiles` had 1 row per signup, with no xp/level). So
-    // probing `profiles_v2` here would mis-classify a register-but-never-
-    // played user as "subsequent sign-in" and CLOBBER their anonymous
-    // local progress with xp=0. The legacy `stats` table only has a row
-    // after the user actually pushed, so it remains the correct probe
-    // for "has this account ever played and pushed?".
+    // Phase 1's backfill seeded `profiles_v2` for every registered user
+    // with xp=0, so row-existence alone is not a "has played" signal.
+    // We check `xp > 0` (any quiz earns XP) — that's only true once the
+    // user has actually played and pushed. Falls back to "first sign-in"
+    // (push local) for xp=0 / no-row, which is safe: pushing zeros is a
+    // no-op against the backfilled cloud row, and pushing real local
+    // progress replaces the backfilled zeros.
     //
-    // Legacy `stats` is still being dual-written during the 7-day soak
-    // (see CUTOVER MAP). When Task 8 retires the legacy writes, switch
-    // this probe to a v2-only signal — e.g. profiles_v2 with xp > 0
-    // OR an existing path_progress_v2 row.
-    var probe = await c.from('stats').select('user_id').eq('user_id', uid).maybeSingle();
+    // Edge case left as TODO: a user with only-achievements-no-XP would
+    // be classified as first sign-in and re-push local. Tolerable —
+    // achievements_v2 has set-union semantics on the next merge cycle.
+    var probe = await c.from('profiles_v2').select('xp').eq('user_id', uid).maybeSingle();
     if (probe.error) {
       dbg('[cq-sync] bootstrap probe failed', probe.error);
       bootstrapped = false;
       return;
     }
 
-    if (!probe.data) {
+    var cloudXp = probe.data ? (probe.data.xp | 0) : 0;
+    if (cloudXp === 0) {
       // First sign-in for this account → push every local key to cloud.
       dbg('[cq-sync] first sign-in — claiming local progress');
       await Promise.all([
