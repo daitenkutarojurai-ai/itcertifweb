@@ -27,21 +27,20 @@
  * present we no-op silently. Sign-out clears the bootstrapped flag so
  * the next sign-in re-bootstraps cleanly.
  */
-// CUTOVER MAP — v2 only
-// Phases 2 + 8 of the cross-device progress sync plan are complete. Every
-// push goes to a `_v2` table; reads target `_v2` exclusively; the bootstrap
-// probe uses `profiles_v2.xp > 0`. Legacy tables (stats, path_progress,
-// laurels, cosmetics, hearts, daily) are untouched and will be dropped in
-// plan Task 40 after the post-Task-8 soak.
+// CUTOVER MAP — canonical schema
+// All phases of the cross-device progress sync plan are complete (Task 40
+// dropped legacy tables and renamed _v2 → canonical names). Every push goes
+// to a `user_*` table; reads target `user_*` exclusively; the bootstrap
+// probe uses `user_profile.xp > 0`.
 //
-//   src/sync.js:pushStats                    → profiles_v2
-//   src/sync.js:pushAllPathProgressFromLocal → path_progress_v2
-//   src/sync.js:pushPathProgress             → path_progress_v2
-//   src/sync.js:pushAllLaurelsFromLocal      → achievements_v2 (key='laurel')
-//   src/sync.js:pushLaurel                   → achievements_v2 (key='laurel')
-//   src/sync.js:pushCosmetics                → cosmetics_v2
-//   src/sync.js:pushHearts                   → hearts_v2 (count, last_regen_at)
-//   src/sync.js:pushDailyToday               → daily_v2 (date, pack_id, claimed_at)
+//   src/sync.js:pushStats                    → user_profile
+//   src/sync.js:pushAllPathProgressFromLocal → user_path_progress
+//   src/sync.js:pushPathProgress             → user_path_progress
+//   src/sync.js:pushAllLaurelsFromLocal      → user_achievements (key='laurel')
+//   src/sync.js:pushLaurel                   → user_achievements (key='laurel')
+//   src/sync.js:pushCosmetics                → user_cosmetics
+//   src/sync.js:pushHearts                   → user_hearts (count, last_regen_at)
+//   src/sync.js:pushDailyToday               → user_daily (date, pack_id, claimed_at)
 (function () {
   if (window.__cqSyncInit) return;
   window.__cqSyncInit = true;
@@ -106,7 +105,7 @@
     var c = client(); var uid = userId();
     if (!c || !uid) return;
     var payload = readKey('cq-stats-v1', {});
-    // profiles_v2 has flat xp / level / username columns. xp & level live
+    // user_profile has flat xp / level / username columns. xp & level live
     // inside the legacy jsonb payload (still read for compatibility);
     // username is cached separately at `cq-profile-username` by the pull
     // path and may also live inside payload.
@@ -118,7 +117,7 @@
         ? payload.username
         : (localStorage.getItem('cq-profile-username') || null);
     } catch (_) { /* localStorage may throw in private mode */ }
-    await pushV2('profiles_v2', {
+    await pushV2('user_profile', {
       user_id: uid,
       username: username,
       xp: xp,
@@ -156,14 +155,14 @@
         updated_at: nowIso,
       };
     });
-    await pushV2('path_progress_v2', rowsV2, 'user_id,pack_id,node_id');
+    await pushV2('user_path_progress', rowsV2, 'user_id,pack_id,node_id');
   }
 
   async function pushPathProgress(packId, nodeId, score) {
     var c = client(); var uid = userId();
     if (!c || !uid || !packId || !nodeId) return;
     var nowIso = new Date().toISOString();
-    await pushV2('path_progress_v2', {
+    await pushV2('user_path_progress', {
       user_id: uid,
       pack_id: packId,
       node_id: nodeId,
@@ -185,7 +184,7 @@
         score: typeof l.score === 'number' ? l.score : null,
       };
     });
-    // achievements_v2 is keyed by (user_id, key, pack_id); we tag laurels
+    // user_achievements is keyed by (user_id, key, pack_id); we tag laurels
     // with key='laurel' so future achievement types can coexist.
     var rowsV2 = rows.map(function (r) {
       return {
@@ -196,14 +195,14 @@
         score: r.score,
       };
     });
-    await pushV2('achievements_v2', rowsV2, 'user_id,key,pack_id');
+    await pushV2('user_achievements', rowsV2, 'user_id,key,pack_id');
   }
 
   async function pushLaurel(packId, score) {
     var c = client(); var uid = userId();
     if (!c || !uid || !packId) return;
     var nowIso = new Date().toISOString();
-    await pushV2('achievements_v2', {
+    await pushV2('user_achievements', {
       user_id: uid,
       key: 'laurel',
       pack_id: packId,
@@ -216,7 +215,7 @@
     var c = client(); var uid = userId();
     if (!c || !uid) return;
     var cos = readKey('cq-cosmetics-v1', { unlocked: [], wearing: null });
-    await pushV2('cosmetics_v2', {
+    await pushV2('user_cosmetics', {
       user_id: uid,
       unlocked: Array.isArray(cos.unlocked) ? cos.unlocked : [],
       wearing: cos.wearing || null,
@@ -229,10 +228,10 @@
     var h = readKey('cq-hearts-v1', { hearts: 5, lastLostAt: 0 });
     var clamped = Math.max(0, Math.min(5, h.hearts | 0));
     var lastIso = h.lastLostAt ? new Date(h.lastLostAt).toISOString() : null;
-    // hearts_v2 columns are count / last_regen_at (not nullable). If there's
+    // user_hearts columns are count / last_regen_at (not nullable). If there's
     // no prior "lost-at" yet we synthesise `now` so the not-null constraint
     // passes.
-    await pushV2('hearts_v2', {
+    await pushV2('user_hearts', {
       user_id: uid,
       count: clamped,
       last_regen_at: lastIso || new Date().toISOString(),
@@ -248,10 +247,10 @@
     var day = d.date || todayIsoDay();
     var progressInt = d.progress | 0;
     var claimedBool = !!d.claimed;
-    // daily_v2 uses `date` (not `day`) and carries pack_id + claimed_at.
+    // user_daily uses `date` (not `day`) and carries pack_id + claimed_at.
     // The website doesn't track the daily challenge's pack here yet,
     // so we stamp '' for compatibility.
-    await pushV2('daily_v2', {
+    await pushV2('user_daily', {
       user_id: uid,
       date: day,
       pack_id: '',
@@ -273,7 +272,7 @@
     //    jsonb payload shape by MERGING the cloud values into whatever the
     //    local payload had (so non-canonical extras the website may stash in
     //    cq-stats-v1, e.g. streak counters, are preserved across hydration).
-    var prof = await c.from('profiles_v2').select('xp,level,username').eq('user_id', uid).maybeSingle();
+    var prof = await c.from('user_profile').select('xp,level,username').eq('user_id', uid).maybeSingle();
     if (stale()) return;
     if (prof.data) {
       var localPayload = readKey('cq-stats-v1', {});
@@ -286,7 +285,7 @@
     }
 
     // 2) path_progress — many rows → rebuild { packId: { nodeId: {...} } }
-    var pp = await c.from('path_progress_v2').select('pack_id,node_id,completed_at,score').eq('user_id', uid);
+    var pp = await c.from('user_path_progress').select('pack_id,node_id,completed_at,score').eq('user_id', uid);
     if (stale()) return;
     var progMap = {};
     (pp.data || []).forEach(function (row) {
@@ -299,10 +298,10 @@
     });
     writeKey('cq-path-progress-v1', progMap);
 
-    // 3) laurels — many rows → array. achievements_v2 holds any achievement
+    // 3) laurels — many rows → array. user_achievements holds any achievement
     //    kind; filter to key='laurel' so the legacy local cache shape stays
     //    pure-laurels and the rest of the website doesn't need to change.
-    var lr = await c.from('achievements_v2').select('pack_id,earned_at,score').eq('user_id', uid).eq('key', 'laurel');
+    var lr = await c.from('user_achievements').select('pack_id,earned_at,score').eq('user_id', uid).eq('key', 'laurel');
     if (stale()) return;
     var laurels = (lr.data || []).map(function (r) {
       return {
@@ -314,7 +313,7 @@
     writeKey('cq-laurels-v1', laurels);
 
     // 4) cosmetics — single row
-    var cos = await c.from('cosmetics_v2').select('unlocked,wearing').eq('user_id', uid).maybeSingle();
+    var cos = await c.from('user_cosmetics').select('unlocked,wearing').eq('user_id', uid).maybeSingle();
     if (stale()) return;
     if (cos.data) {
       writeKey('cq-cosmetics-v1', {
@@ -325,7 +324,7 @@
 
     // 5) hearts — single row. v2 columns are count / last_regen_at; project
     //    back to the legacy {hearts, lastLostAt} local shape.
-    var h = await c.from('hearts_v2').select('count,last_regen_at').eq('user_id', uid).maybeSingle();
+    var h = await c.from('user_hearts').select('count,last_regen_at').eq('user_id', uid).maybeSingle();
     if (stale()) return;
     if (h.data) {
       writeKey('cq-hearts-v1', {
@@ -338,7 +337,7 @@
     //    instead of `day`; project back to legacy `{date, progress, claimed}`
     //    so the website keeps reading the same local shape.
     var today = todayIsoDay();
-    var d = await c.from('daily_v2').select('date,progress,claimed').eq('user_id', uid).eq('date', today).maybeSingle();
+    var d = await c.from('user_daily').select('date,progress,claimed').eq('user_id', uid).eq('date', today).maybeSingle();
     if (stale()) return;
     if (d.data) {
       writeKey('cq-daily-v1', {
@@ -348,13 +347,13 @@
       });
     }
 
-    // 7) profile — read username so UI can show it. profiles_v2 carries the
+    // 7) profile — read username so UI can show it. user_profile carries the
     //    canonical username (the legacy `profiles.username` is now redundant
     //    and will be retired with Task 8). Step (1) above already hydrated
     //    cq-stats-v1.username from the same row, but the standalone cache
     //    key `cq-profile-username` is read by auth-ui chips, so refresh it
     //    here too.
-    var pr = await c.from('profiles_v2').select('username').eq('user_id', uid).maybeSingle();
+    var pr = await c.from('user_profile').select('username').eq('user_id', uid).maybeSingle();
     if (stale()) return;
     if (pr.data && pr.data.username) {
       try { localStorage.setItem('cq-profile-username', pr.data.username); }
@@ -388,7 +387,7 @@
 
     // Probe cloud: has this user ever pushed real data?
     //
-    // Phase 1's backfill seeded `profiles_v2` for every registered user
+    // Phase 1's backfill seeded `user_profile` for every registered user
     // with xp=0, so row-existence alone is not a "has played" signal.
     // We check `xp > 0` (any quiz earns XP) — that's only true once the
     // user has actually played and pushed. Falls back to "first sign-in"
@@ -398,8 +397,8 @@
     //
     // Edge case left as TODO: a user with only-achievements-no-XP would
     // be classified as first sign-in and re-push local. Tolerable —
-    // achievements_v2 has set-union semantics on the next merge cycle.
-    var probe = await c.from('profiles_v2').select('xp').eq('user_id', uid).maybeSingle();
+    // user_achievements has set-union semantics on the next merge cycle.
+    var probe = await c.from('user_profile').select('xp').eq('user_id', uid).maybeSingle();
     if (probe.error) {
       dbg('[cq-sync] bootstrap probe failed', probe.error);
       bootstrapped = false;
