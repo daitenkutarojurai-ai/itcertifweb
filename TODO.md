@@ -106,6 +106,15 @@ up when there's time.
 - [x] ✅ `sitemap.xml` updated: index + 4 leaf pages added (priority
       0.9 / 0.85, monthly changefreq).
 - [x] ✅ Cache bumped 72 → 73, sw.js CACHE_VERSION → v87.
+- **2026-05-20:** +2 salary datasets (cluster 14 → 16) —
+  `comptia-security-plus.france` and `gcp-ace.france`. Bands are
+  reasoned estimates triangulated from APEC / Hays / Glassdoor /
+  LinkedIn / EstimSalaire web research, kept conservative vs the
+  high-skewing aggregators; the page's baked-in "Données indicatives"
+  disclaimer covers the indicative nature. Wired `salaryAlias` so the
+  Security+ comparators (`comptia-security-plus-vs-comptia-cysa`,
+  `cissp-vs-comptia-security-plus`) now pull the median into the
+  table — also back-filled the long-missing `cissp` alias. sitemap.xml +2.
 - [ ] **Open follow-ups:** Wayback snapshots for sources, FR/EN locale
       toggle, lead-capture for "Get the salary report PDF" flow.
 
