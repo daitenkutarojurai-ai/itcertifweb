@@ -503,8 +503,12 @@ up when there's time.
       Plus, Anthropic API referral), shareable prompt URLs (anchor +
       auto-scroll already in place — add native share button), prompt
       voting (👍/👎 via Supabase) to surface which prompts the
-      community actually uses, +3 workflow datasets (Cloud-cost
-      auditor, Linux ops, On-call post-mortem).
+      community actually uses.
+- **2026-05-20:** +2 workflow datasets (PromptDungeon 7 → 9) —
+  `tech-interview-prep` (mock interview, STAR, concept-out-loud,
+  salary negotiation, post-interview debrief) and `homelab-architect`
+  (lab design, graded exercises, debug-as-learning, portfolio project,
+  tooling decision). Both target the cert → job pipeline. sitemap.xml +2.
 
 ### 6.11 — ToolRadar ✅ SHIPPED 2026-05-15
 
