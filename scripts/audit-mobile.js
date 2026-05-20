@@ -16,7 +16,7 @@ const fs = require('fs');
 const path = require('path');
 
 const ROOT = path.join(__dirname, '..');
-const SKIP_DIRS = new Set(['node_modules', '.git', 'scripts']);
+const SKIP_DIRS = new Set(['node_modules', '.git', 'scripts', '.agents', 'test']);
 // Skip email templates — they're not delivered to browsers.
 const SKIP_PATHS = ['docs/email-templates'];
 
