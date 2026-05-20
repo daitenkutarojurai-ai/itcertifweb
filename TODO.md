@@ -21,7 +21,7 @@ up when there's time.
 
 ---
 
-## P0 — Course content rework (2026-05-16, HIGH priority)
+## P0 — Course content rework (2026-05-16, HIGH priority) ✅ COMPLETE 2026-05-20
 
 > Current `data/courses.json` chapters are too short to deliver real
 > learning value. Users will read one screen of bullets and bounce back
@@ -51,6 +51,15 @@ up when there's time.
 > **Shipped 2026-05-16:** "📘 More chapters & deeper content rolling in"
 > placeholder banner on `/courses/` index with a visible progress bar.
 > Sets expectations without faking it.
+>
+> **Completed 2026-05-20:** all 28 courses are now fully expanded to the
+> deep-chapter shape — collapsible `module-block` sections, 18+ lessons
+> each (intro · key concepts · study-note · 3-bullet takeaways · linked
+> mini-quiz CTA into the question bank). SC-900 and MS-900 were the last
+> two packs flipped to `expansion_status: "complete"` in
+> `data/courses.json`; the `/courses/` banner reads 100%. Open follow-up:
+> the acceptance list above still wants a Markdown co-authoring source
+> (content currently lives directly in each `learning/<id>/index.html`).
 
 ---
 
