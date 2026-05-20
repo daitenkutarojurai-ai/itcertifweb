@@ -798,6 +798,15 @@ Wave 4 — Data-dependent (defer until pipeline exists):
 - [ ] **Shareable-result URLs** — 6.5 + 6.6 use deterministic input
       hashes as URL tokens (no backend persistence). Document the
       pattern once so subsequent calculators reuse it.
+- [x] ✅ **Generator drift swept (2026-05-20)** — all 8 page generators
+      (`gen-{salary,failanalysis,reality-check,prompt,toolradar,failbase,
+      devstack,compare}-pages.js`) had hard-coded `CACHE_BUST='v=87'`
+      and a stale 6-item header (News + Google Play). The global `?v=`
+      bump + `sync-header.js` curation only ever touched the *output*
+      HTML, so every regeneration silently regressed pages. All 8 now
+      emit `v=91` + the canonical 4-item nav; verified idempotent
+      (regeneration produces zero HTML diff). **Future cache bumps must
+      also bump `CACHE_BUST` in these generators**, not just the HTML.
 
 ### 6.x — Estimated total
 

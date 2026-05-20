@@ -17,7 +17,7 @@ const ROOT = path.resolve(__dirname, '..');
 const DATA_DIR = path.join(ROOT, 'data', 'reality-check');
 const OUT_DIR  = path.join(ROOT, 'reality-check');
 
-const CACHE_BUST = 'v=87';
+const CACHE_BUST = 'v=91';
 
 function esc(s) {
   return String(s == null ? '' : s)
@@ -35,8 +35,6 @@ const HEADER = `  <header class="web-header">
       <a href="/certifications/">Certifications</a>
       <a href="/courses/">Courses</a>
       <a href="/careers/">Careers</a>
-      <a href="/news/">News</a>
-      <a href="https://play.google.com/store/apps/details?id=com.certquest.app" class="web-header-badge" target="_blank" rel="noopener">Google Play</a>
     </nav>
   </header>`;
 
@@ -59,7 +57,7 @@ const SHARED_STYLE = `<style>
 .breadcrumb { font-family:'JetBrains Mono',monospace; font-size:11px; letter-spacing:.1em; text-transform:uppercase; color:#506885; padding:14px 0 0; }
 .breadcrumb a { color:#7c90ae; text-decoration:none; }
 .breadcrumb a:hover { color:#e8edf8; }
-.breadcrumb span { color:#7c90ae; margin:0 8px; }
+.breadcrumb span { color:#3d4f6a; margin:0 8px; }
 
 .rc-hero { padding: 32px 8px 8px; }
 .rc-hero .eyebrow { display:inline-flex; align-items:center; gap:6px; font-family:'JetBrains Mono',monospace; font-size:11px; font-weight:600; letter-spacing:.12em; text-transform:uppercase; color:#c084fc; background:rgba(192,132,252,.10); border:1px solid rgba(192,132,252,.32); padding:5px 14px; border-radius:999px; margin-bottom:14px; }
