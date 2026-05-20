@@ -456,7 +456,8 @@ up when there's time.
 - [ ] **Open follow-ups:**
       - ✅ **+4 datasets DONE** — Algolia, Stripe, Spotify (R1) +
         ManoMano (2026-05-20). Same batch also added BlaBlaCar and
-        Datadog → DevStack now has **10 dossiers**. Generator template
+        Datadog, then GitLab + Cloudflare → DevStack now has
+        **12 dossiers**. Generator template
         (`scripts/gen-devstack-pages.js`) was stale — bumped its
         `CACHE_BUST` v87 → v91 and trimmed the hard-coded header to
         the canonical 4-item nav so regenerated pages stop regressing.
