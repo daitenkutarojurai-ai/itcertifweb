@@ -220,8 +220,12 @@ up when there's time.
 - [x] ✅ JSON-LD WebApplication schema; canonical + OG meta.
 - [x] ✅ `sitemap.xml` updated (priority 0.9).
 - [ ] **Open follow-ups:** more archetypes (15 max = 5 domains × 3
-      situations), email-the-roadmap flow (Brevo/Supabase), per-step
-      Cert Quest path links when a path exists for `step.cert`.
+      situations) — **8/15 done** (2026-05-20: +3 `en-poste` archetypes
+      for network / linux / security, so cloud·network·linux·security
+      each now carry both `reconversion` + `en-poste`; remaining gaps:
+      a `debutant` situation for all 5 domains + a `devops` domain),
+      email-the-roadmap flow (Brevo/Supabase), per-step Cert Quest path
+      links when a path exists for `step.cert`.
 
 ### 6.6 — InfraCost Calculator ✅ SHIPPED 2026-05-15
 
