@@ -1128,8 +1128,20 @@
     });
 
     var packId = getPackId();
+    var forcePicker = false;
+    try { forcePicker = new URL(location.href).searchParams.get('pick') === '1'; } catch (_) {}
+    var resumed = false;
+    if (!packId && !forcePicker) {
+      /* No ?pack= — resume the last-opened pack so the user lands back on
+         their map (renderMap auto-scrolls to the current node). */
+      try { packId = localStorage.getItem('cq-path-last-pack') || null; } catch (_) { packId = null; }
+      if (packId) {
+        resumed = true;
+        try { history.replaceState(null, '', '/path.html?pack=' + encodeURIComponent(packId)); } catch (_) {}
+      }
+    }
     if (!packId) {
-      /* No pack → show the index of all paths */
+      /* First-timer, or "Change path" (?pick=1) → show the index of all paths */
       hide('path-loading');
       renderPathIndex();
       /* Still check for a freshly-earned laurel — user might land here
@@ -1143,6 +1155,8 @@
 
     fetchPath(packId)
       .then(function (pathDoc) {
+        /* Remember this pack so a bare /path.html visit resumes here. */
+        try { localStorage.setItem('cq-path-last-pack', packId); } catch (_) {}
         $('#path-title').textContent = pathDoc.title || packId;
         $('#path-eyebrow').textContent = (pathDoc.brandName || 'Certification') + ' · 🗺️ Cert Quest';
         $('#path-chapters').textContent = pathDoc.chapters.length + ' chapters';
@@ -1152,6 +1166,13 @@
         renderMap(pathDoc);
       })
       .catch(function (err) {
+        if (resumed) {
+          /* Stale last-pack — fall back to the picker, not an error screen. */
+          try { localStorage.removeItem('cq-path-last-pack'); } catch (_) {}
+          try { history.replaceState(null, '', '/path.html'); } catch (_) {}
+          hide('path-loading'); renderPathIndex();
+          return;
+        }
         $('#path-error-msg').textContent = `Couldn't load /data/paths/${packId}.json (${err.message}).`;
         hide('path-loading'); show('path-error');
       });

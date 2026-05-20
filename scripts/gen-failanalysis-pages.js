@@ -17,7 +17,7 @@ const ROOT = path.resolve(__dirname, '..');
 const DATA_DIR = path.join(ROOT, 'data', 'fail-analysis');
 const OUT_DIR  = path.join(ROOT, 'fail-analysis');
 
-const CACHE_BUST = 'v=97';
+const CACHE_BUST = 'v=98';
 
 function esc(s) {
   return String(s == null ? '' : s)

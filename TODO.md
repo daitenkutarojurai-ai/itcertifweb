@@ -65,13 +65,19 @@ up when there's time.
   (cloud sync of progress/streak/cosmetics). Keep Google OAuth as the
   fast path. Walk all 3 breakpoints.
 
-### UX-4 — `/path.html` on desktop: resume + switch path
+### UX-4 — `/path.html`: resume + switch path ✅ DONE 2026-05-20
 
-- Desktop should open the Cert Quest map **directly at the user's
-  last-played pack and last position** instead of the pack-picker.
-- Add a visible "change certification path" control so the user can
-  switch packs without losing that resume behaviour.
-- Files: `src/path.js`, `src/pack-picker.js`, `path.html`.
+- **Fix shipped:** `path.js` writes `cq-path-last-pack` whenever a
+  pack's path loads. A bare `/path.html` visit now resumes that pack
+  (`history.replaceState` reflects it in the URL) instead of showing
+  the picker; `renderMap` already auto-scrolls to the current node,
+  so the user lands "where they left". First-timers (no stored pack)
+  still get the picker. A stale stored pack falls back to the picker
+  gracefully instead of an error screen.
+- Added a "↔ Change path" pill in the `.path-header` → `/path.html?pick=1`,
+  which forces the picker even when a last-pack exists.
+- Applies on all devices (resume is good UX everywhere; the Change
+  path control is the escape hatch) — not gated to desktop.
 
 ### UX-5 — `/path.html` pack-picker tiles are ugly ✅ DONE 2026-05-20
 
