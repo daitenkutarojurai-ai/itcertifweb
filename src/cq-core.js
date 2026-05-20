@@ -1,4 +1,4 @@
-/* CertQuests core bundle — generated 2026-05-18T19:03:47.302Z
+/* CertQuests core bundle — generated 2026-05-20T11:38:49.334Z
  *
  * This file is concatenated by scripts/build-core.js. Do not edit by hand;
  * edit the source modules in src/*.js and re-run `npm run build-core`.
@@ -1253,9 +1253,14 @@ if (typeof module !== 'undefined' && module.exports) {
 
   function inject(host) {
     if (!host || document.getElementById('cq-daily-banner')) return;
-    var banner = document.createElement('div');
+    /* The whole banner is a link to the Cert Quest map — that's where a
+       "path node" gets cleared, so it's the one action that advances the
+       quest. */
+    var banner = document.createElement('a');
     banner.id = 'cq-daily-banner';
     banner.className = 'cq-daily-banner';
+    banner.href = '/path.html';
+    banner.setAttribute('aria-label', 'Daily quest — open the Cert Quest path to clear a node');
     banner.innerHTML =
       '<div class="cq-daily-icon" aria-hidden="true">⚡</div>' +
       '<div class="cq-daily-body">' +

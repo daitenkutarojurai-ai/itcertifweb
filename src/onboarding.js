@@ -126,8 +126,12 @@ function renderResumeBanner(packs) {
     }
   } catch { /* ignore */ }
 
-  const banner = document.createElement('div');
+  // The whole banner is one clickable link — straight into a quick 5-Q
+  // session for the last-played pack (the natural "continue" action).
+  const banner = document.createElement('a');
   banner.className = 'resume-banner';
+  banner.href = `/train.html?pack=${encodeURIComponent(pack.id)}&autostart=quick`;
+  banner.setAttribute('aria-label', `Continue ${pack.short} practice — start a quick quiz`);
   banner.innerHTML = `
     <div class="resume-banner-icon">↩</div>
     <div class="resume-banner-text">
@@ -137,8 +141,7 @@ function renderResumeBanner(packs) {
         ${attempts} session${attempts === 1 ? '' : 's'}${bestScore != null ? ` · best ${bestScore}%` : ''} · ${escapeHTML(pack.brandName)}
       </div>
     </div>
-    <a class="resume-banner-cta" href="/train.html?pack=${encodeURIComponent(pack.id)}&autostart=quick">5-Q quiz</a>
-    <a class="resume-banner-secondary" href="/train.html?pack=${encodeURIComponent(pack.id)}">all modes</a>
+    <span class="resume-banner-cta">5-Q quiz</span>
   `;
   return banner;
 }
