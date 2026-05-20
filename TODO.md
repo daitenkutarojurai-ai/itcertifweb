@@ -37,22 +37,25 @@ up when there's time.
   Returning visitors get "Welcome back · continue X" above the full
   "What brings you here today?" hub.
 
-### UX-2 — Mobile top-bar wraps to two lines / objects jump
+### UX-2 — Mobile top-bar wraps to two lines / objects jump ✅ DONE 2026-05-20
 
-- On phones the header breaks onto 2 rows and shifts as JS-injected
-  bits (hamburger via `src/menu.js`, auth chip via `src/auth-ui.js`,
-  streak pill via `src/onboarding.js`) land after first paint.
-- **Root-cause surface:** the header is styled by ~15 overlapping
-  `@media` blocks across `src/styles/desktop.css`, `main.css` and
-  `home-mobile.css`. Homepage ≤767px uses a `grid 44px 1fr 44px`
-  (home-mobile.css); other pages ≤1023px use a `flex nowrap` block
-  (desktop.css). Both are single-row designs — the bug is a cascade /
-  late-injection interaction, needs a real device/emulator to pin.
-- **Plan:** reproduce at 360 / 412 / 768, identify the offending
-  rule, consolidate the header into ONE authoritative mobile block,
-  reserve the hamburger's 44px slot in initial HTML so nothing
-  reflows when `menu.js` injects. Best-UI target: fixed 56px bar,
-  logo left, hamburger right, zero layout shift.
+- **Root cause:** the homepage had its OWN mobile header in
+  `home-mobile.css` (`@media max-width:767px`) — a `display:grid
+  44px 1fr 44px` definition — while every other page used
+  `desktop.css`'s `@media max-width:1023px` `flex nowrap` block. Both
+  carried `!important`; home-mobile.css loads last, so the homepage
+  header became a grid container also carrying leftover flex
+  properties from the desktop.css block. A CSS grid spills extra /
+  unplaced children into an implicit second row — that was the "two
+  lines"; the grid/flex hybrid was the "jumping".
+- **Fix shipped:** removed ALL `.web-header*` overrides from
+  `home-mobile.css` (the grid block + an earlier padding/gap block).
+  `desktop.css`'s `@media max-width:1023px` block is now the SOLE
+  authority for the mobile header on every page — `flex-wrap:nowrap`,
+  logo left (ellipsis, `max-width:calc(100% - 60px)`), hamburger
+  right, nav hidden. A `nowrap` flex row cannot wrap to two lines;
+  the logo is pinned left so the hamburger fading in no longer shifts
+  it. index.html's inline `.web-header` rule only sets sticky/blur.
 
 ### UX-3 — Account-creation modal is confusing
 
