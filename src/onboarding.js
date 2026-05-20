@@ -401,13 +401,13 @@ async function boot() {
     return;
   }
 
-  // Choose: resume banner for returning visitors, goal picker for first-timers.
+  // Returning visitors get the resume banner AND the goal-picker hub;
+  // first-timers just get the goal-picker. The goal-picker ("What brings
+  // you here today?") is the homepage's primary navigation hub — it must
+  // not disappear once a visitor has accumulated history.
   const resume = renderResumeBanner(packs);
-  if (resume) {
-    mount.appendChild(resume);
-  } else {
-    mount.appendChild(renderGoalPicker(packs));
-  }
+  if (resume) mount.appendChild(resume);
+  mount.appendChild(renderGoalPicker(packs));
 
   // Question of the Day always appears (unless on a tiny page).
   // Prefer the dedicated post-hero slot (#qotd-mount, hidden by default) so a

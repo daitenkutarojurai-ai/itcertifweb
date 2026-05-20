@@ -14,10 +14,81 @@ up when there's time.
 >
 > | If the user said… | Pick from… |
 > | --- | --- |
-> | "work on the roadmap" / "go on" | P0 course content first, then Phase 6 follow-ups, then question rewrite |
-> | "SEO" / "content" / "more pages" | P0 course content, remaining Phase 6 items, careers articles, news, learning hubs |
+> | "work on the roadmap" / "go on" | **P0 UX overhaul (below)** first, then Phase 6 follow-ups, then question rewrite |
+> | "SEO" / "content" / "more pages" | Remaining Phase 6 items, careers articles, news, learning hubs |
 > | "polish the UI" / "fix a UI bug" | Read the file path, walk the 360 / 768 / 1440 cascade before reporting done |
 > | Shared-layer task (cache bump, sw.js, sync-header, test fix) | Just do it |
+
+---
+
+## P0 — UX overhaul (2026-05-20, HIGH priority)
+
+> Batch of UX defects + reworks reported by the owner on 2026-05-20.
+> Order below is rough priority. Every item must be walked through the
+> 360 / 768 / 1440 cascade before being marked done (see CLAUDE.md).
+
+### UX-1 — Homepage goal-picker missing on desktop ✅ DONE 2026-05-20
+
+- The "What brings you here today?" goal-picker (`renderGoalPicker` in
+  `src/onboarding.js`) only rendered for first-time visitors; returning
+  visitors saw *only* the thin resume banner, so the box "disappeared".
+- **Fix shipped:** `boot()` now appends the resume banner (when there
+  is history) **and** the goal-picker, instead of one-or-the-other.
+  Returning visitors get "Welcome back · continue X" above the full
+  "What brings you here today?" hub.
+
+### UX-2 — Mobile top-bar wraps to two lines / objects jump
+
+- On phones the header breaks onto 2 rows and shifts as JS-injected
+  bits (hamburger via `src/menu.js`, auth chip via `src/auth-ui.js`,
+  streak pill via `src/onboarding.js`) land after first paint.
+- **Root-cause surface:** the header is styled by ~15 overlapping
+  `@media` blocks across `src/styles/desktop.css`, `main.css` and
+  `home-mobile.css`. Homepage ≤767px uses a `grid 44px 1fr 44px`
+  (home-mobile.css); other pages ≤1023px use a `flex nowrap` block
+  (desktop.css). Both are single-row designs — the bug is a cascade /
+  late-injection interaction, needs a real device/emulator to pin.
+- **Plan:** reproduce at 360 / 412 / 768, identify the offending
+  rule, consolidate the header into ONE authoritative mobile block,
+  reserve the hamburger's 44px slot in initial HTML so nothing
+  reflows when `menu.js` injects. Best-UI target: fixed 56px bar,
+  logo left, hamburger right, zero layout shift.
+
+### UX-3 — Account-creation modal is confusing
+
+- The tabbed sign-in/up modal (`src/auth-ui.js` + styles in
+  `main.css`) needs a clearer first-run: obvious value proposition,
+  one primary path, less jargon, visible "why create an account"
+  (cloud sync of progress/streak/cosmetics). Keep Google OAuth as the
+  fast path. Walk all 3 breakpoints.
+
+### UX-4 — `/path.html` on desktop: resume + switch path
+
+- Desktop should open the Cert Quest map **directly at the user's
+  last-played pack and last position** instead of the pack-picker.
+- Add a visible "change certification path" control so the user can
+  switch packs without losing that resume behaviour.
+- Files: `src/path.js`, `src/pack-picker.js`, `path.html`.
+
+### UX-5 — `/path.html` pack-picker tiles are ugly
+
+- Restyle the pack-selection tiles to match the polished
+  `/certifications/` pack tiles (`src/pack-picker.js` renders them;
+  certifications uses its own tile CSS — reuse that visual language).
+
+### UX-6 — Courses section: content/writing rework
+
+- Owner reports the course **writing** is weak / low-information
+  ("architecture & design are good" — keep the layout). Scope to
+  confirm: the `/courses/` index copy, the `data/learning/*` course
+  bodies, or specific packs. **Needs a clarifying pass before work.**
+
+### UX-7 — Career-finder quiz
+
+- Add a short quiz that recommends a certification / career track
+  from a few answers (domain interest, current situation, goal). Can
+  build on the `/career-path/` archetype data (domain × situation
+  matrix, 15 archetypes) as the recommendation target.
 
 ---
 
