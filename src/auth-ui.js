@@ -82,8 +82,9 @@
       '<div class="cq-auth-backdrop"></div>' +
       '<div class="cq-auth-panel">' +
         '<button type="button" class="cq-auth-close" aria-label="Close">✕</button>' +
-        '<div class="cq-auth-eyebrow">Save your progress</div>' +
+        '<div class="cq-auth-eyebrow">Free account</div>' +
         '<h2 id="cq-auth-title">Welcome back</h2>' +
+        '<p class="cq-auth-sub" id="cq-auth-sub"></p>' +
 
         // Tabs
         '<div class="cq-auth-tabs" role="tablist">' +
@@ -164,6 +165,7 @@
     const formSignin = modal.querySelector('#cq-form-signin');
     const formSignup = modal.querySelector('#cq-form-signup');
     const title = modal.querySelector('#cq-auth-title');
+    const sub = modal.querySelector('#cq-auth-sub');
 
     function switchTab(name) {
       const isSignin = name === 'signin';
@@ -172,6 +174,9 @@
       formSignin.hidden = !isSignin;
       formSignup.hidden = isSignin;
       title.textContent = isSignin ? 'Welcome back' : 'Create your account';
+      sub.textContent = isSignin
+        ? 'Sign in to pick up your XP, streak and laurels — synced across every device.'
+        : 'Free, 30 seconds. Your XP, streak, hats and laurels sync across every device. No marketing email.';
       // Focus the first input on the visible form
       setTimeout(() => {
         (isSignin ? formSignin : formSignup).querySelector('input').focus();

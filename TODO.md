@@ -57,13 +57,19 @@ up when there's time.
   the logo is pinned left so the hamburger fading in no longer shifts
   it. index.html's inline `.web-header` rule only sets sticky/blur.
 
-### UX-3 — Account-creation modal is confusing
+### UX-3 — Account-creation modal is confusing ✅ DONE 2026-05-20
 
-- The tabbed sign-in/up modal (`src/auth-ui.js` + styles in
-  `main.css`) needs a clearer first-run: obvious value proposition,
-  one primary path, less jargon, visible "why create an account"
-  (cloud sync of progress/streak/cosmetics). Keep Google OAuth as the
-  fast path. Walk all 3 breakpoints.
+- The modal jumped from a 2-word eyebrow straight to tabs — no
+  explanation of *why* you'd make an account.
+- **Fix shipped:** added a value-proposition subtitle (`.cq-auth-sub`,
+  a class that was already styled but unused) that `switchTab` keeps
+  tab-aware — Create: "Free, 30 seconds. Your XP, streak, hats and
+  laurels sync across every device. No marketing email." / Sign in:
+  "pick up your XP, streak and laurels — synced across every device."
+  Eyebrow changed to "Free account". Google OAuth stays the fast path.
+- The profile-page guest CTA now opens the **Create-account** tab
+  (`openSignUp`) — an anon user on `/profile.html` is almost always
+  new; landing them on the Sign-in form was the confusing part.
 
 ### UX-4 — `/path.html`: resume + switch path ✅ DONE 2026-05-20
 

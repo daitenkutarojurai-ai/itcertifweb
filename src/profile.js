@@ -558,7 +558,10 @@
     var signinBtn = $('profile-account-signin');
     if (signinBtn) {
       signinBtn.addEventListener('click', function () {
-        if (window.cqAuthUi && window.cqAuthUi.openSignIn) window.cqAuthUi.openSignIn();
+        /* Anon user on the profile page is almost always new — open the
+           Create-account tab. The Sign-in tab is one click away. */
+        if (window.cqAuthUi && window.cqAuthUi.openSignUp) window.cqAuthUi.openSignUp();
+        else if (window.cqAuthUi && window.cqAuthUi.openSignIn) window.cqAuthUi.openSignIn();
       });
     }
     var signoutBtn = $('profile-account-signout');
