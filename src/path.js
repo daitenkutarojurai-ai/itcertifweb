@@ -1021,6 +1021,27 @@
   function show(elId) { var n = document.getElementById(elId); if (n) n.hidden = false; }
   function hide(elId) { var n = document.getElementById(elId); if (n) n.hidden = true; }
 
+  /* Vendor emoji for a path-index card — mirrors the /certifications/
+     vendor icons so the two pack grids share a visual language. */
+  function brandEmoji(brand) {
+    var b = (brand || '').toLowerCase();
+    if (b.indexOf('amazon') >= 0 || b.indexOf('aws') >= 0) return '☁️';
+    if (b.indexOf('microsoft') >= 0 || b.indexOf('azure') >= 0) return '🪟';
+    if (b.indexOf('cisco') >= 0) return '🛜';
+    if (b.indexOf('comptia') >= 0) return '🛡️';
+    if (b.indexOf('cncf') >= 0 || b.indexOf('kubernetes') >= 0) return '☸️';
+    if (b.indexOf('docker') >= 0) return '🐳';
+    if (b.indexOf('google') >= 0) return '🌐';
+    if (b.indexOf('fortinet') >= 0) return '🔥';
+    if (b.indexOf('palo alto') >= 0) return '🧱';
+    if (b.indexOf('red hat') >= 0) return '🎩';
+    if (b.indexOf('servicenow') >= 0) return '🔔';
+    if (b.indexOf('splunk') >= 0) return '🔍';
+    if (b.indexOf('hashicorp') >= 0) return '🏗️';
+    if (b.indexOf('isc2') >= 0 || b.indexOf('isc²') >= 0) return '🔐';
+    return '🎓';
+  }
+
   /* ───── Path index: list all generated paths with per-pack progress ───── */
   function renderPathIndex() {
     var main = document.querySelector('main.path-page');
@@ -1057,6 +1078,7 @@
             href: '/path.html?pack=' + encodeURIComponent(p.packId),
             style: '--brand-color:' + (p.brandColor || '#60a5fa')
           }, [
+            el('div', { class: 'path-index-icon', text: brandEmoji(p.brandName) }),
             (function () {
               /* Suppress brand label when it's already inside the title (e.g.
                  title="AWS Solutions Architect Associate" + brand="Amazon AWS"

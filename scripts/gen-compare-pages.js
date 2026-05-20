@@ -21,7 +21,7 @@ const SALARY_DIR = path.join(ROOT, 'data', 'salary');
 const INDEX_JSON = path.join(ROOT, 'data', 'index.json');
 const OUT_DIR  = path.join(ROOT, 'compare');
 
-const CACHE_BUST = 'v=96';
+const CACHE_BUST = 'v=97';
 
 /* ── data lookups ─────────────────────────────────────────────── */
 const certPacks = (function () {

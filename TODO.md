@@ -73,11 +73,18 @@ up when there's time.
   switch packs without losing that resume behaviour.
 - Files: `src/path.js`, `src/pack-picker.js`, `path.html`.
 
-### UX-5 — `/path.html` pack-picker tiles are ugly
+### UX-5 — `/path.html` pack-picker tiles are ugly ✅ DONE 2026-05-20
 
-- Restyle the pack-selection tiles to match the polished
-  `/certifications/` pack tiles (`src/pack-picker.js` renders them;
-  certifications uses its own tile CSS — reuse that visual language).
+- The Cert Quest index grid (`.path-index-card`, rendered by
+  `renderPathIndex` in `src/path.js`) lacked the vendor icon box that
+  makes the `/certifications/` `.cert-index-card` tiles look polished.
+- **Fix shipped:** added a `brandEmoji()` map in `path.js` (mirrors
+  the `/certifications/` vendor emojis — ☁️ AWS, 🪟 Microsoft,
+  🛜 Cisco, ☸️ CNCF, 🐳 Docker, 🏗️ HashiCorp, 🎩 Red Hat, …) and a
+  `.path-index-icon` box in `path.css` copied from `.cert-index-icon`
+  (40×40 rounded, brand-tinted gradient). Card padding bumped
+  16→18px to match. The progress bar / % stays — it's the path
+  grid's value-add the cert grid doesn't have.
 
 ### UX-6 — Courses: rework ALL course detail content
 
