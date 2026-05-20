@@ -442,8 +442,12 @@ up when there's time.
 - [x] ✅ sitemap.xml +5 entries (index 0.85, leaves 0.8).
 - [x] ✅ 109/109 tests pass.
 - [ ] **Open follow-ups:**
-      - **+4 datasets:** Algolia (search infra), Stripe (payments),
-        ManoMano (FR marketplace), Spotify (music streaming).
+      - ✅ **+4 datasets DONE** — Algolia, Stripe, Spotify (R1) +
+        ManoMano (2026-05-20). Same batch also added BlaBlaCar and
+        Datadog → DevStack now has **10 dossiers**. Generator template
+        (`scripts/gen-devstack-pages.js`) was stale — bumped its
+        `CACHE_BUST` v87 → v91 and trimmed the hard-coded header to
+        the canonical 4-item nav so regenerated pages stop regressing.
       - **Per-item Wayback snapshot** in each source for link-rot
         survival.
       - **Affiliate slots:** cloud providers (AWS partner, GCP

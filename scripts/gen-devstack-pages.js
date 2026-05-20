@@ -17,7 +17,7 @@ const ROOT = path.resolve(__dirname, '..');
 const DATA_DIR = path.join(ROOT, 'data', 'devstack');
 const OUT_DIR  = path.join(ROOT, 'devstack');
 
-const CACHE_BUST = 'v=87';
+const CACHE_BUST = 'v=91';
 
 function esc(s) {
   return String(s == null ? '' : s)
@@ -35,8 +35,6 @@ const HEADER = `  <header class="web-header">
       <a href="/certifications/">Certifications</a>
       <a href="/courses/">Courses</a>
       <a href="/careers/">Careers</a>
-      <a href="/news/">News</a>
-      <a href="https://play.google.com/store/apps/details?id=com.certquest.app" class="web-header-badge" target="_blank" rel="noopener">Google Play</a>
     </nav>
   </header>`;
 
