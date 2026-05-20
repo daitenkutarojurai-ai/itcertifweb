@@ -115,12 +115,17 @@ up when there's time.
 - Each reworked pack: bump nothing structural, just rewrite prose;
   re-verify the page at 360 / 768 / 1440.
 
-### UX-7 — Career-finder quiz
+### UX-7 — Career-finder quiz ✅ DONE 2026-05-20
 
-- Add a short quiz that recommends a certification / career track
-  from a few answers (domain interest, current situation, goal). Can
-  build on the `/career-path/` archetype data (domain × situation
-  matrix, 15 archetypes) as the recommendation target.
+- **Shipped:** new self-contained page at `/career-quiz/` — a
+  5-question quiz (domain interest, situation, weekly hours,
+  priority, hands-on appetite) that recommends an IT domain + a
+  starter certification, then deep-links into `/career-path/`
+  (via its `location.hash` form-state contract) for the full
+  roadmap and into `/train.html?pack=` to start practising.
+- Cross-linked from the `/career-path/` hero ("Pas sûr de ton
+  domaine ? Fais le quiz"). sitemap.xml +1. No cache bump — new
+  HTML page only, references current `?v=` assets.
 
 ### UX-8 — Profile page not optimised on phone ✅ PARTIAL 2026-05-20
 
