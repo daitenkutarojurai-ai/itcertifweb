@@ -136,6 +136,12 @@ up when there's time.
 - [ ] **Open follow-ups:** dynamic 3-way picker (cert-A × cert-B form),
       auto-generate "alternative" comparisons when adjacent certs ship
       a salary page.
+- **2026-05-20:** +3 comparison datasets (comparator 6 → 9) —
+  `aws-clf-c02-vs-az-900-vs-gcp-cdl` (cloud-fundamentals 3-way),
+  `comptia-security-plus-vs-comptia-cysa`, `rhcsa-vs-comptia-linux`.
+  Also de-staled `scripts/gen-compare-pages.js` (CACHE_BUST v87 → v91,
+  header trimmed to the canonical 4-item nav) so regeneration stops
+  regressing existing pages. sitemap.xml +3.
 
 ### 6.3 — Fail Analysis (per certification) ✅ SHIPPED 2026-05-15
 

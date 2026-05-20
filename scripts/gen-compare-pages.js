@@ -21,7 +21,7 @@ const SALARY_DIR = path.join(ROOT, 'data', 'salary');
 const INDEX_JSON = path.join(ROOT, 'data', 'index.json');
 const OUT_DIR  = path.join(ROOT, 'compare');
 
-const CACHE_BUST = 'v=87';
+const CACHE_BUST = 'v=91';
 
 /* ── data lookups ─────────────────────────────────────────────── */
 const certPacks = (function () {
@@ -59,8 +59,6 @@ const HEADER = `  <header class="web-header">
       <a href="/certifications/">Certifications</a>
       <a href="/courses/">Courses</a>
       <a href="/careers/">Careers</a>
-      <a href="/news/">News</a>
-      <a href="https://play.google.com/store/apps/details?id=com.certquest.app" class="web-header-badge" target="_blank" rel="noopener">Google Play</a>
     </nav>
   </header>`;
 
