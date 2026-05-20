@@ -181,8 +181,8 @@ function renderPage(d) {
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
   <meta name="theme-color" content="#06080f" />
-  <title>${esc(d.title)} — FailBase · CertQuests</title>
-  <meta name="description" content="${esc(d.tldr)}" />
+  <title>${esc(d.metaTitle || (d.title + ' — FailBase · CertQuests'))}</title>
+  <meta name="description" content="${esc(d.metaDescription || d.tldr)}" />
   <meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large" />
   <link rel="canonical" href="https://certquests.com/failbase/${esc(d.slug)}/" />
   <meta property="og:type" content="article" />
