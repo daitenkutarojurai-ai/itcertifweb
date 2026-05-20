@@ -76,12 +76,22 @@ up when there's time.
   `/certifications/` pack tiles (`src/pack-picker.js` renders them;
   certifications uses its own tile CSS — reuse that visual language).
 
-### UX-6 — Courses section: content/writing rework
+### UX-6 — Courses: rework ALL course detail content
 
-- Owner reports the course **writing** is weak / low-information
-  ("architecture & design are good" — keep the layout). Scope to
-  confirm: the `/courses/` index copy, the `data/learning/*` course
-  bodies, or specific packs. **Needs a clarifying pass before work.**
+- **Scope confirmed 2026-05-20:** owner wants the written content of
+  **all 28 course detail pages** reworked for quality — the layout /
+  architecture / design stay, the prose is the problem. Rolling batch,
+  sized like the question rewrite (a few packs per session).
+- Pages live at `learning/<id>/index.html`; the deep-module shape
+  (intro · key concepts · study-note · takeaways · mini-quiz) was the
+  *structure* added in the P0 course rework — that stays. The writing
+  inside each lesson is what gets the pass: tighter, higher-signal,
+  fewer filler sentences, concrete worked examples over generic bullets.
+- Suggested order (by traffic, from the old P0 note): Linux (rhcsa,
+  comptia-linux) → AWS (clf-c02, saa-c03) → Kubernetes (cka/ckad/cks)
+  → Networking (ccna) → Security (security+, cissp-adjacent) → rest.
+- Each reworked pack: bump nothing structural, just rewrite prose;
+  re-verify the page at 360 / 768 / 1440.
 
 ### UX-7 — Career-finder quiz
 
