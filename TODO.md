@@ -219,14 +219,14 @@ up when there's time.
       as JSON. "🔗 Partager" copies the URL to clipboard.
 - [x] ✅ JSON-LD WebApplication schema; canonical + OG meta.
 - [x] ✅ `sitemap.xml` updated (priority 0.9).
-- [ ] **Open follow-ups:** more archetypes (15 max = 5 domains × 3
-      situations) — **10/15 done** (2026-05-20: +3 `en-poste`
-      archetypes for network / linux / security, then +2 `devops`
-      archetypes — `reconversion-devops` + `en-poste-devops` — and a
-      distinct `devops` option added to the `/career-path/` form
-      domain dropdown. All 5 domains now carry both `reconversion` +
-      `en-poste`; remaining gap: the `debutant` situation for all 5
-      domains, 5 archetypes), email-the-roadmap flow (Brevo/Supabase),
+- [x] ✅ **More archetypes — DONE 2026-05-20, 15/15** (full 5 domains ×
+      3 situations matrix). Shipped in three batches: +3 `en-poste`
+      (network / linux / security), +2 `devops` (`reconversion` +
+      `en-poste`) with a distinct `devops` option added to the
+      `/career-path/` form, then +5 `debutant` archetypes (one per
+      domain). Every (domain × situation) cell now has an archetype,
+      so the matcher returns an exact hit for every profile.
+- [ ] **Open follow-ups:** email-the-roadmap flow (Brevo/Supabase),
       per-step Cert Quest path links when a path exists for `step.cert`.
 
 ### 6.6 — InfraCost Calculator ✅ SHIPPED 2026-05-15
