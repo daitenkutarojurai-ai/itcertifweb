@@ -150,6 +150,36 @@ up when there's time.
   scroll position + viewport width before a safe fix — blind-editing
   the global sticky header risks all 200 pages.
 
+### Full audit — 2026-05-20
+
+Ran a site-wide audit (tests, JS syntax, JSON validity, internal
+links, `?pack=` resolution, generator/bundle idempotency, cache
+versions, sitemap/courses URL resolution, duplicate IDs).
+
+**Bugs found + fixed:**
+- 5 broken `/learning/<id>/` cross-links in the rhcsa + aws-saa-c03
+  "related courses" grids (pointed at slugs that don't exist —
+  `aws-clf-c02`, `aws-sap-c02`, `linux-plus`, `lpic-1`, `cka`).
+- **22 pages** with a `?pack=` query pointing at a non-existent
+  pack id — course/learning slugs (`terraform-associate`,
+  `az-104-administrator`, …) or legacy ids in `news/` pages
+  (`cysa`, `network-plus`, `aws-developer`, …). Every one made
+  `train.html` fail to load the quiz. All remapped to real
+  `data/index.json` ids; the AIF-C01 news page also corrected from
+  the CLF pack to its own `aws-aif-c01`.
+- `path.html?pack=aws-clf-c02` (×3) → `aws-cloud-practitioner` (the
+  path file is under that slug).
+
+**Known wart (not fixed — migration risk):** the AWS Cloud
+Practitioner cert has pack id `aws-clf-c02` (train) but path id
+`aws-cloud-practitioner` (`data/paths/`). Links are correct per
+context now; aligning the ids would mean renaming the path file +
+migrating `cq-path-progress-v1` / Supabase `path_progress` keys.
+
+**Clean:** 120/120 tests, all `src/*.js` parse, 247 data JSON valid,
+generators idempotent, cache versions uniform (v100), sitemap +
+courses URLs all resolve, no duplicate IDs on key pages.
+
 ---
 
 ## P0 — Course content rework (2026-05-16, HIGH priority) ✅ COMPLETE 2026-05-20
