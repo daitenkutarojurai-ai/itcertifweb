@@ -149,12 +149,6 @@ function renderGoalPicker(packs) {
   const wrap = document.createElement('div');
   wrap.className = 'goal-picker';
   wrap.innerHTML = `
-    <div class="goal-picker-header">
-      <span class="goal-picker-eyebrow">Start here · 30 seconds to your first question</span>
-      <h2>What brings you here today?</h2>
-      <p class="goal-picker-sub">Pick a goal, get a personalized starting point. No signup, no tracking — your progress stays in your browser.</p>
-    </div>
-
     <!-- Always-visible cert search — fast path for users who know what they want -->
     <div class="cert-search-wrap open" id="cert-search-wrap">
       <div class="cert-search-input-wrap">
