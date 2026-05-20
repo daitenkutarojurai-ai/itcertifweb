@@ -17,7 +17,7 @@ const ROOT = path.resolve(__dirname, '..');
 const DATA_DIR = path.join(ROOT, 'data', 'reality-check');
 const OUT_DIR  = path.join(ROOT, 'reality-check');
 
-const CACHE_BUST = 'v=98';
+const CACHE_BUST = 'v=99';
 
 function esc(s) {
   return String(s == null ? '' : s)

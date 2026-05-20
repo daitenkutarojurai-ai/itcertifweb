@@ -116,6 +116,29 @@ up when there's time.
   build on the `/career-path/` archetype data (domain × situation
   matrix, 15 archetypes) as the recommendation target.
 
+### UX-8 — Profile page not optimised on phone ✅ PARTIAL 2026-05-20
+
+- `profile.css` had almost no mobile tuning (one 480px rule). The
+  worst offender — the `.profile-hero` — was a 3-item flex row
+  (avatar + level block + share button) that squeezed the level
+  block on a phone.
+- **Fix shipped:** `@media (max-width:560px)` stacks the hero —
+  avatar on top, level block full-width, share button full-width.
+- **Still to check on a real device:** heatmap (14-col), account
+  rows, milestones/hats grids — reported "boxes don't fit" may have
+  more than the hero. Needs a screenshot pass.
+
+### UX-9 — Profile top-bar bug on scroll-to-top — NEEDS REPRO
+
+- Owner: on `/profile.html`, scrolling back to the top leaves header
+  items "outside the top bar".
+- Traced the header CSS (V17 sticky glass block in `desktop.css` +
+  the `≤1023px` flex-nowrap block) — could not reproduce the glitch
+  from static analysis; profile.html uses the standard header with
+  no page-specific override. **Needs a screenshot** at the exact
+  scroll position + viewport width before a safe fix — blind-editing
+  the global sticky header risks all 200 pages.
+
 ---
 
 ## P0 — Course content rework (2026-05-16, HIGH priority) ✅ COMPLETE 2026-05-20
