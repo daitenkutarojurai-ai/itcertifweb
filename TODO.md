@@ -232,8 +232,14 @@ up when there's time.
       `/career-path/` form, then +5 `debutant` archetypes (one per
       domain). Every (domain × situation) cell now has an archetype,
       so the matcher returns an exact hit for every profile.
-- [ ] **Open follow-ups:** email-the-roadmap flow (Brevo/Supabase),
-      per-step Cert Quest path links when a path exists for `step.cert`.
+- [x] ✅ **Per-step Cert Quest path links — DONE 2026-05-20.** The
+      `/career-path/` SPA now also fetches `data/paths/_index.json`
+      (best-effort — failure is tolerated, page still works) and renders
+      a 🗺️ Cert Quest path pill next to the train pill on any step whose
+      `step.cert` has a learning path. 35/44 cert-bearing steps get the
+      link; the 4 path-less certs (aws-clf-c02, github-actions, isc2-cc,
+      sc-200) correctly get none — exact-id match only, no broken links.
+- [ ] **Open follow-ups:** email-the-roadmap flow (Brevo/Supabase).
 
 ### 6.6 — InfraCost Calculator ✅ SHIPPED 2026-05-15
 

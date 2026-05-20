@@ -88,6 +88,7 @@
     .step-meta .pill.salary { color: #34d399; border-color: rgba(52,211,153,.3); background: rgba(52,211,153,.08); }
     .step-meta .pill.cert  { color: #93c5fd; border-color: rgba(96,165,250,.3); background: rgba(96,165,250,.08); }
     .step-meta .pill.job   { color: #d1c4ff; border-color: rgba(168,139,250,.3); background: rgba(168,139,250,.08); }
+    .step-meta .pill.path  { color: #5eead4; border-color: rgba(94,234,212,.3); background: rgba(94,234,212,.08); }
     .step ul { margin: 6px 0 10px; padding-left: 20px; color: #cbd5e1; font-size: 13.5px; line-height: 1.6; }
     .step ul li { margin-bottom: 3px; }
     .step .resources { margin-top: 8px; padding: 10px 12px; background: rgba(0,0,0,.25); border-radius: 8px; font-size: 12.5px; }
@@ -250,6 +251,7 @@
 
     let MANIFEST = [];
     const ARCHETYPE_CACHE = new Map();
+    const PATH_PACKS = new Set();
 
     function esc(s) {
       return String(s == null ? '' : s).replace(/[&<>"']/g, c =>
@@ -291,8 +293,14 @@
     }
 
     /* ── Bootstrap ─────────────────────────────────────────── */
-    fetch('/data/career-paths/_index.json').then(r => r.json()).then(function (m) {
-      MANIFEST = m;
+    /* Cert Quest path index is best-effort — its failure must not
+       break the page, it only gates the optional per-step path link. */
+    Promise.all([
+      fetch('/data/career-paths/_index.json').then(r => r.json()),
+      fetch('/data/paths/_index.json').then(r => r.ok ? r.json() : []).catch(function () { return []; })
+    ]).then(function (results) {
+      MANIFEST = results[0];
+      (results[1] || []).forEach(function (p) { if (p && p.packId) PATH_PACKS.add(p.packId); });
       const initial = readHash();
       if (initial) applyState(initial);
       generate();
@@ -358,6 +366,9 @@
         const certCta = s.cert
           ? '<a class="pill cert" href="/train.html?pack=' + esc(s.cert) + '" style="text-decoration:none">→ s\'entraîner ' + esc(s.cert) + '</a>'
           : '';
+        const pathCta = (s.cert && PATH_PACKS.has(s.cert))
+          ? '<a class="pill path" href="/path.html?pack=' + esc(s.cert) + '" style="text-decoration:none">🗺️ Cert Quest ' + esc(s.cert) + '</a>'
+          : '';
         const milestonesHtml = (s.milestones || []).length
           ? '<ul>' + s.milestones.map(function (m) { return '<li>' + esc(m) + '</li>'; }).join('') + '</ul>'
           : '';
@@ -374,7 +385,7 @@
             '<span class="step-month">M+' + (s.month || 0) + '</span>' +
             '<div class="step-title">' + esc(s.title) + '</div>' +
           '</div>' +
-          '<div class="step-meta">' + pillsForStep(s) + ' ' + certCta + '</div>' +
+          '<div class="step-meta">' + pillsForStep(s) + ' ' + certCta + ' ' + pathCta + '</div>' +
           milestonesHtml +
           resourcesHtml +
         '</div>';
