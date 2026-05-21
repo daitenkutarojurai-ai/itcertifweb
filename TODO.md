@@ -534,6 +534,155 @@ competition-driven, community-driven** layer. Highest-priority builds:
 
 ---
 
+## P2 — Phase 8: Visual & viral moats (brainstorm 2026-05-21)
+
+> Owner brainstorm 2026-05-21: ten "wow-factor" concepts. Each is
+> assessed below for **feasibility on this stack** (static HTML/CSS/
+> vanilla-JS on Cloudflare Pages + Supabase + Pages Functions; Claude
+> Code writes the code). Verdict legend: **✅ doable**, **🟡 doable
+> scoped-down** (ambitious part deferred), **🌟 north-star** (vision,
+> not a discrete ticket). Nothing here needs a native app or an
+> impossible API — the constraints are LLM-at-runtime cost and
+> real-time multiplayer complexity, both flagged where they bite.
+> Priority is P2: ship Phase 7's career/community spine first; these
+> are the differentiators layered on top.
+
+### 8.1 — 3D Interactive Cloud Infrastructure ✅ doable
+
+- Interactive, animated cloud-architecture explorer (AWS first):
+  animated network/packet flows, an attack scenario, live
+  autoscaling, visible error states — learn visually.
+- **Feasibility:** fully client-side. v1 = a 2.5-D animated SVG/canvas
+  diagram (VPC → subnets → instances → ALB), packet-flow animation, a
+  toggleable "attack" and "scale-up" state. v2 = true 3D with
+  Three.js/WebGL (bundle is heavier but static-hostable). Claude Code
+  can build both; start at v1 SVG — high impact, no 3D toolchain.
+- **Steps:** data model for a topology JSON → SVG renderer + flow
+  animation → scenario toggles (normal / attack / scaling / failure)
+  → annotations → per-service deep-link into the question bank.
+- Strong SEO + shareable page; hard for competitors to copy fast.
+
+### 8.2 — Career RPG ✅ doable (merge into Phase 7)
+
+- Pick a class (Cloud Engineer / DevOps / Security Analyst), then
+  quests, boss fights, certifications, XP, equipment, guilds.
+- **Feasibility:** this is largely the **existing** gamification
+  layer reframed — avatar + XP + path maps + sub/final-boss nodes +
+  laurels + cosmetics + (Phase 7) guilds already exist. Net-new = a
+  class-selection system and an "equipment" expansion of cosmetics.
+- **Action:** fold into **Phase 7** as an RPG framing/theming pass —
+  add a class picker, equipment slots, and RPG copy across the path/
+  profile. Not a separate build; mostly client-side + Supabase.
+
+### 8.3 — AI-generated Labs 🟡 doable scoped-down
+
+- Unique hands-on labs, incidents, infra puzzles, debugging
+  scenarios, difficulty-adapted exercises — a different experience
+  per user; big content moat.
+- **Feasibility split:**
+  - ✅ **Build-time generation** — Claude Code generates a large,
+    high-quality bank of labs/incidents/debug scenarios offline,
+    shipped as static JSON + a lab-runner UI. Adaptive selection by
+    user level is client-side. This is fully doable now.
+  - 🟡 **Runtime AI generation** (a truly unique lab per request)
+    needs an LLM endpoint (Cloudflare Pages Function proxying an
+    API, server-side key, per-call cost). Defer to v2.
+- **Steps (v1):** lab schema → generate bank with Claude Code →
+  lab-runner page (scenario, tasks, validate-answer, hints) →
+  adaptive picker keyed to `cq-stats-v1` weak tags.
+
+### 8.4 — Real-time Interview Arena 🟡 doable scoped-down
+
+- Live technical-interview simulation: dynamic questions, time
+  pressure, voice, feedback, scoring. "LeetCode + Twitch + AI".
+- **Feasibility split:**
+  - ✅ **Solo voice interview drill** — the Web Speech API
+    (`SpeechRecognition` + `speechSynthesis`) is free, browser-native,
+    no key. Build a timed interview simulator: spoken/typed questions
+    from a role bank, countdown stress, a rubric-based score, squid
+    coach debrief. Fully doable.
+  - 🟡 **Dynamic AI questioning / spoken AI feedback** — needs an LLM
+    endpoint (as 8.3 v2). Optional upgrade.
+  - 🔴 **Twitch-style live spectating** — real-time many-viewer
+    streaming is out of scope for this stack; drop or replace with
+    async shareable replays.
+- **Action:** build the solo voice drill as **Phase 7.6** (interview
+  prep) v1; treat AI-questioning as the v2 upgrade.
+
+### 8.5 — Tech War Map ✅ doable
+
+- World map of the tech landscape: cloud-provider dominance by
+  region, jobs, salaries, AI-growth, most-demanded certs. Built to
+  be shared on LinkedIn.
+- **Feasibility:** a pure static data-viz page — SVG world map +
+  curated dataset, exactly the shape of the existing `/salaire/` and
+  `/compare/` content surfaces. Fully doable; great viral/SEO asset.
+- **Steps:** dataset schema (`data/techmap/*`) → SVG map + choropleth
+  + region tooltips → cert-demand layer → OG image for sharing →
+  generator script per existing `gen-*` convention.
+
+### 8.6 — AI Mentor Personality System ✅ doable (merge into Phase 7.5)
+
+- Choose a mentor persona: brutal senior engineer / chill coach /
+  FAANG interviewer / military-discipline mode — learning gets an
+  emotional tone.
+- **Feasibility:** a persona/voice layer over the squid coach
+  (Phase 7.5). Works **even without an LLM** — each persona is a copy
+  pack (different tip phrasing, tone, cadence) plus an avatar/colour.
+  With an LLM coach later, the persona becomes a system-prompt preset.
+- **Action:** fold into **Phase 7.5** as a mentor-persona selector.
+
+### 8.7 — Multiplayer Incident Response 🟡 doable scoped-down
+
+- Teams resolve a cloud outage / cyberattack / incident together, in
+  real time. Strongly differentiating.
+- **Feasibility:** **Supabase Realtime** (presence + broadcast
+  channels) can power a co-op incident room — already in the stack,
+  no new infra. Real-time multiplayer is still the most complex item
+  here (shared state, sync, conflict). Scope:
+  - v1 🟡 — a **co-op incident room**: 2–4 players, shared scenario
+    state over Supabase Realtime, turn/role-based actions to keep
+    sync simple.
+  - v2 — fully real-time simultaneous actions.
+- Depends on Phase 7.3 guilds (teams) for the lobby. Later ticket.
+
+### 8.8 — Future Salary Predictor ✅ doable
+
+- Input stack + experience + certs + country → projection: salary
+  bands, hiring probability, automation-risk estimate.
+- **Feasibility:** a client-side calculator over a curated dataset/
+  model — identical in shape to the shipped InfraCost and Study
+  Planner calculators. Fully doable; highly viral.
+- **Steps:** extend `data/salary/*` with the model inputs → calculator
+  UI → projection chart → shareable result card (OG image). Keep an
+  honest "indicative estimate" disclaimer — never fake precision.
+
+### 8.9 — AI-generated Tech Universe 🌟 north-star
+
+- The whole career world gamified — companies, certs, skills, tech
+  "bosses", a global progression map. Career as an MMORPG.
+- **Assessment:** not a discrete buildable ticket — it is the
+  **north-star vision** that 8.2 (Career RPG), 8.1 (3D infra),
+  Phase 3 path maps, and Phase 7 guilds/challenges all ladder up to.
+  A fully AI-generated living universe would need runtime LLM + heavy
+  state. **Action:** keep as the framing vision; build it
+  incrementally via the concrete tickets above rather than as one
+  project.
+
+### Suggested build order (P2)
+
+1. **8.5 Tech War Map** + **8.8 Salary Predictor** — fastest, viral,
+   pure static, immediate LinkedIn/SEO payoff.
+2. **8.1 3D Infra (v1 SVG)** — high-impact visual moat, no toolchain.
+3. **8.6 Mentor personas** + **8.2 Career RPG framing** — cheap, fold
+   into Phase 7.
+4. **8.3 AI Labs (build-time bank)** + **8.4 Interview Arena (solo
+   voice)** — bigger content/feature builds.
+5. **8.7 Multiplayer Incident Response** — last; most complex, depends
+   on guilds.
+
+---
+
 ## P1 — Phase 6: Authority + tools layer (2026-05-15, planned)
 
 > Net-new feature batch (13 items) targeting SEO authority, lead-gen and
