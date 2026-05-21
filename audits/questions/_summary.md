@@ -1,7 +1,7 @@
 # Question-bank audit
 
-Generated: 2026-05-21T08:16:13.158Z
-Packs scanned: **61** · questions scanned: **2812** · flagged: **1490** (53.0%)
+Generated: 2026-05-21T08:17:15.138Z
+Packs scanned: **61** · questions scanned: **2812** · flagged: **1489** (53.0%)
 
 ## Methodology
 
@@ -31,13 +31,13 @@ Packs scanned: **61** · questions scanned: **2812** · flagged: **1490** (53.0%
 | `snowpro-core` | 10 | 8 | 80% | 0 | 8 | 0 | 0 |
 | `az-500` | 61 | 45 | 74% | 0 | 45 | 0 | 0 |
 | `cissp` | 25 | 18 | 72% | 0 | 18 | 0 | 0 |
-| `gcp-pde` | 60 | 43 | 72% | 1 | 42 | 0 | 0 |
 | `aws-dea-c01` | 10 | 7 | 70% | 0 | 7 | 0 | 0 |
 | `aws-mla-c01` | 10 | 7 | 70% | 0 | 7 | 0 | 0 |
 | `ccnp-encor` | 40 | 28 | 70% | 0 | 28 | 0 | 0 |
 | `ccsp` | 10 | 7 | 70% | 0 | 7 | 0 | 0 |
 | `gcp-cdl` | 10 | 7 | 70% | 0 | 7 | 0 | 0 |
 | `gcp-pcne` | 10 | 7 | 70% | 0 | 7 | 0 | 0 |
+| `gcp-pde` | 60 | 42 | 70% | 0 | 42 | 0 | 0 |
 | `github-foundations` | 10 | 7 | 70% | 0 | 7 | 0 | 0 |
 | `sc-200` | 10 | 7 | 70% | 0 | 7 | 0 | 0 |
 | `az-305` | 61 | 42 | 69% | 0 | 42 | 0 | 0 |
