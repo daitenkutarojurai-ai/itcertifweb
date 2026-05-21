@@ -199,6 +199,159 @@ courses URLs all resolve, no duplicate IDs on key pages.
 
 ---
 
+## P0 — UX overhaul round 2 (2026-05-21, HIGH priority)
+
+> Batch of defects + a strategic direction reported by the owner on
+> 2026-05-21. Every item must be walked through the 360 / 768 / 1440
+> cascade before being marked done (see CLAUDE.md), and verified with
+> a real screenshot — round 1 proved static cascade reading misses
+> sticky/scroll bugs.
+>
+> **Product thesis (drives UX-12 → UX-14).** CertQuests' reason to
+> exist over "just ask an AI" is **competition + community + visible
+> progression**. An AI can already explain any cert topic; what it
+> cannot give a learner is a streak to defend, a rank to climb, a peer
+> cohort to measure against, and a public profile to show off. Every
+> item below should push the product toward a gamified,
+> competition-driven, community-driven experience — that is the moat.
+
+### UX-10 — Sticky top-bar escapes its box on scroll-up (phone, non-home pages)
+
+- **Symptom (owner, 2026-05-21):** the top bar is correct on the
+  homepage but on other pages, on a phone, header items "go outside
+  the box" when scrolling back up. This is UX-9 generalised — it is
+  not profile-only.
+- **Likely cause:** the homepage has its own inline `.web-header`
+  rule (sticky/blur only) and round-1 UX-2 made `desktop.css`'s
+  `≤1023px` flex-nowrap block the sole authority elsewhere. The
+  scroll-up glitch points at the sticky-glass header block (V17 in
+  `desktop.css`) interacting with `menu.js`'s scroll-direction class
+  toggling (`sync-header.js` / sticky-on-scroll). A header that
+  re-pads or re-positions on scroll-direction change, combined with
+  iOS URL-bar resize, lets children paint outside the rounded
+  container for a frame.
+- **Steps:**
+  1. Repro on a real phone (or device-emulated Chrome with touch +
+     momentum scroll): scroll down a long non-home page (e.g.
+     `/certifications/`, `/path.html`, a `careers/` article), then
+     flick back to top. Screenshot the exact broken frame.
+  2. Diff the homepage header against a broken page — identify which
+     property (padding, height, transform, `overflow`, border-radius
+     clip) differs at scroll-top.
+  3. Fix in the shared `desktop.css` header block so ALL non-home
+     pages are corrected at once; do NOT page-patch. Ensure the
+     header container clips its children (`overflow: clip`, not
+     `hidden` — see CLAUDE.md WebKit sticky note).
+  4. Re-verify scroll-down → scroll-up on 3+ page types at 360 width.
+- **Supersedes UX-9** (profile-only NEEDS-REPRO note) — close UX-9
+  when this lands.
+
+### UX-11 — Learning-path XP popup overlaps the header hamburger
+
+- **Symptom (owner, 2026-05-21):** on `/path.html` a popup showing an
+  icon + XP overlaps the top-bar hamburger menu, blocking it.
+- **Suspect:** a floating reward / cheer toast — `mascot-cheer.js`
+  (level-up / unlock toast), the in-session HUD box (`hud.js`), or
+  the daily-quest banner (`daily.js`). One of these renders with a
+  `z-index` / `top` that lands under the sticky header's tap zone.
+- **Steps:**
+  1. Identify which component it is (trigger a node completion on
+     `/path.html` and watch which toast appears top-right).
+  2. Decide fix vs. remove with the owner's intent: the popup IS a
+     gamification signal (XP gained) — **keep it but reposition** so
+     it never overlaps the header. Either (a) anchor it below the
+     sticky header (`top: calc(header-height + 8px)`), or (b) move it
+     bottom-centre / bottom-right away from all chrome.
+  3. Ensure its `z-index` sits below the header (header must always
+     be tappable) and it is dismissible / auto-dismisses.
+  4. Verify at 360 / 768 / 1440 — the hamburger must be fully
+     clickable while the popup is visible.
+
+### UX-12 — Leaderboard: web/app parity, live sync, gamification promotion
+
+- **Goal:** the web leaderboard (`/leaderboard/`, Phase 6.7) should
+  reach feature parity with the Android app's leaderboard, share the
+  same Supabase data so a user sees one consistent rank everywhere,
+  and be promoted as a first-class part of the gamified experience —
+  not a buried tool page.
+- **Steps:**
+  1. Audit the current `/leaderboard/` surface vs. the app's
+     leaderboard — list the parity gaps (columns shown, ranking
+     metric, time windows, cohort filters, opt-in flow).
+  2. **Data layer:** define the canonical leaderboard view in
+     Supabase (e.g. a `leaderboard` view or RPC ranking opted-in
+     users by XP / streak / accuracy). Both web and app read the
+     same source. Respect the existing `profile-leaderboard-row`
+     opt-in toggle (`profile.css`) — only opted-in users appear.
+  3. **Sync:** leaderboard reads must reflect `cq-stats-v1` after
+     `sync.js` write-through, so a session completed on web updates
+     the rank the app shows (and vice-versa). No stale snapshots.
+  4. **Promotion:** surface rank in high-traffic chrome — a rank
+     chip in the header avatar area and/or on `/profile.html`
+     ("#42 this week"), a CTA from `/path.html` and the quiz
+     results screen ("you're #N — climb the board"). Add it to the
+     homepage gamification pitch.
+  5. Time windows + cohorts: weekly board (resets Monday, matches
+     streak logic) + all-time; optionally per-cert boards so a user
+     competes within "AWS SAA learners", not the whole site.
+  6. Verify opt-out hides the user everywhere; verify
+     responsive at 360 / 768 / 1440.
+
+### UX-13 — Competitive comparison metrics on cert + path surfaces
+
+- **Goal:** on every certification page and on the learning-path map,
+  show the user how they compare — to other users, to the cohort
+  average, or to any more relevant benchmark. This is the core
+  "competition" pillar of the product thesis.
+- **Candidate metrics (pick the highest-signal, lowest-cost first):**
+  - "Your accuracy on this cert: 78% · cohort average: 64%"
+  - "You're faster than 71% of learners on this pack"
+  - Percentile / rank badge per cert ("Top 15% on AWS SAA")
+  - Path progress vs. average ("You've cleared 12 nodes — most
+    learners are at 7")
+  - Streak vs. cohort, XP vs. cohort
+- **Steps:**
+  1. Decide the data source: aggregate stats need a server-side
+     rollup. Add a Supabase view / scheduled aggregate (or a
+     Cloudflare Pages Function) that exposes per-pack cohort
+     aggregates (avg accuracy, avg time, node-completion
+     distribution) — anonymous, no PII.
+  2. Design a compact, reusable "vs. cohort" component (a stat row
+     or badge) usable on cert pages, `/path.html`, and quiz results.
+  3. Wire it: cert page header, path map header, post-session
+     results screen. Graceful empty state for new users / new packs
+     with too little data ("not enough data yet").
+  4. Keep it honest — "Données indicatives" style disclaimer where
+     samples are small; never fabricate a benchmark.
+  5. Responsive verification at 360 / 768 / 1440.
+- **Depends on** the UX-12 Supabase aggregate work — do the data
+  layer once, feed both features.
+
+### UX-14 — Site-wide text readability audit (contrast + size)
+
+- **Symptom (owner, 2026-05-21):** body text across sections is hard
+  to read — either too small, or the white is too bright against the
+  dark background and strains the eyes.
+- **Steps:**
+  1. Audit text tokens in `desktop.css` / `main.css` / page CSS:
+     pure `#fff` / very-bright body text on the dark theme, font
+     sizes below ~15px for body copy, and low-contrast muted greys
+     (e.g. `#7c90ae` on dark) used for content rather than captions.
+  2. Establish a small type/contrast scale: a softened off-white for
+     body (e.g. `#e6edf6`-ish instead of pure white) to cut glare,
+     a minimum body size (15–16px), and a muted colour that still
+     clears WCAG AA (4.5:1) for any text, AA-large for captions.
+  3. Apply globally via shared CSS variables / tokens so the fix is
+     one source of truth, not per-page patches.
+  4. Spot-check contrast ratios on the worst offenders (homepage
+     sections, cert pages, courses, careers articles).
+  5. Verify at 360 / 768 / 1440 and in bright-sun-readability terms
+     (this ties into the long-standing "light theme for the quai"
+     style polish note — but here the ask is just legible dark-theme
+     text, not a new theme).
+
+---
+
 ## P0 — Course content rework (2026-05-16, HIGH priority) ✅ COMPLETE 2026-05-20
 
 > Current `data/courses.json` chapters are too short to deliver real
