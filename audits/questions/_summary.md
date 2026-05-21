@@ -1,7 +1,7 @@
 # Question-bank audit
 
-Generated: 2026-05-21T08:06:46.323Z
-Packs scanned: **61** · questions scanned: **2812** · flagged: **2003** (71.2%)
+Generated: 2026-05-21T08:13:21.499Z
+Packs scanned: **61** · questions scanned: **2812** · flagged: **1954** (69.5%)
 
 ## Methodology
 
@@ -23,7 +23,6 @@ Packs scanned: **61** · questions scanned: **2812** · flagged: **2003** (71.2%
 | `docker-dca` | 61 | 60 | 98% | 55 | 58 | 0 | 0 |
 | `comptia-a-plus` | 101 | 98 | 97% | 94 | 92 | 0 | 0 |
 | `splunk-core` | 66 | 64 | 97% | 60 | 64 | 0 | 0 |
-| `az-900` | 91 | 87 | 96% | 84 | 82 | 0 | 3 |
 | `terraform-003` | 161 | 153 | 95% | 142 | 153 | 0 | 0 |
 | `rhcsa` | 61 | 57 | 93% | 50 | 57 | 0 | 0 |
 | `comptia-network-plus` | 91 | 85 | 93% | 67 | 81 | 0 | 0 |
@@ -71,6 +70,7 @@ Packs scanned: **61** · questions scanned: **2812** · flagged: **2003** (71.2%
 | `gcp-ace` | 56 | 28 | 50% | 9 | 26 | 0 | 0 |
 | `ms-900` | 60 | 27 | 45% | 19 | 21 | 0 | 0 |
 | `comptia-security-plus` | 92 | 40 | 43% | 10 | 33 | 0 | 0 |
+| `az-900` | 91 | 38 | 42% | 0 | 38 | 0 | 0 |
 | `ai-900` | 20 | 8 | 40% | 0 | 8 | 0 | 0 |
 | `aws-dop-c02` | 10 | 4 | 40% | 0 | 4 | 0 | 0 |
 | `github-actions` | 10 | 4 | 40% | 0 | 4 | 0 | 0 |
