@@ -1,7 +1,7 @@
 # Question-bank audit
 
-Generated: 2026-05-21T08:13:21.499Z
-Packs scanned: **61** · questions scanned: **2812** · flagged: **1954** (69.5%)
+Generated: 2026-05-21T08:15:42.283Z
+Packs scanned: **61** · questions scanned: **2812** · flagged: **1935** (68.8%)
 
 ## Methodology
 
@@ -23,13 +23,13 @@ Packs scanned: **61** · questions scanned: **2812** · flagged: **1954** (69.5%
 | `docker-dca` | 61 | 60 | 98% | 55 | 58 | 0 | 0 |
 | `comptia-a-plus` | 101 | 98 | 97% | 94 | 92 | 0 | 0 |
 | `splunk-core` | 66 | 64 | 97% | 60 | 64 | 0 | 0 |
-| `terraform-003` | 161 | 153 | 95% | 142 | 153 | 0 | 0 |
 | `rhcsa` | 61 | 57 | 93% | 50 | 57 | 0 | 0 |
 | `comptia-network-plus` | 91 | 85 | 93% | 67 | 81 | 0 | 0 |
 | `ai-102` | 10 | 9 | 90% | 0 | 9 | 0 | 0 |
 | `cloudflare-cass` | 10 | 9 | 90% | 0 | 9 | 0 | 0 |
 | `aws-ans-c01` | 60 | 52 | 87% | 43 | 39 | 0 | 0 |
 | `aws-clf-c02` | 98 | 84 | 86% | 0 | 84 | 0 | 0 |
+| `terraform-003` | 161 | 134 | 83% | 0 | 134 | 0 | 0 |
 | `aws-sap-c02` | 10 | 8 | 80% | 0 | 8 | 0 | 0 |
 | `ccnp-security` | 60 | 48 | 80% | 44 | 31 | 0 | 0 |
 | `dp-700` | 10 | 8 | 80% | 0 | 8 | 0 | 0 |
