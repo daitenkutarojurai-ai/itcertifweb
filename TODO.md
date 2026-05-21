@@ -394,6 +394,146 @@ courses URLs all resolve, no duplicate IDs on key pages.
 
 ---
 
+## P1 — Phase 7: Career OS — gamified career platform (2026-05-21, vision)
+
+> Strategic direction set by the owner on 2026-05-21. Phase 7 is newer
+> than Phase 6 below; it is listed first because it is the product's
+> next big bet. Most tickets depend on the Supabase account + sync
+> layer (Phase 3D) already shipped, and on the leaderboard/comparison
+> work specced in **P0 round 2 UX-12 / UX-13** — build the shared data
+> layer once and feed every Phase 7 feature from it.
+
+### Positioning — "Career OS"
+
+CertQuests stops being "a practice-test site" and becomes a **Career
+OS**: the place an IT learner runs their whole certification-to-career
+journey. It must help a user:
+
+1. **Choose** the right certification (have: `/career-quiz/`,
+   `/certifications/`, `/compare/`).
+2. **Build a roadmap** — a personal cert + skill plan (have:
+   `/career-path/`, `/study-planner/`; needs unifying into one
+   owned, persistent plan — see 7.1).
+3. **Track progression** against that roadmap (partial: stats /
+   profile / path maps — needs a roadmap-level tracker, 7.1).
+4. **Prepare interviews** (NEW — 7.6).
+5. **Find a job** — job matching (NEW — 7.7).
+6. **Improve salary** (have: `/salaire/`; wire it into the roadmap
+   and the coach, 7.1 / 7.5).
+7. **Document skills** — a verifiable skills portfolio (NEW — 7.8).
+
+### The core bet — competition + community
+
+The differentiation over "just ask an AI" is a **gamified,
+competition-driven, community-driven** layer. Highest-priority builds:
+
+#### 7.1 — Personal roadmap (the spine of Career OS)
+
+- One owned, persistent plan per user: chosen target role + the cert
+  sequence + skills to acquire, with progress rolled up from stats /
+  path / laurels. Persisted to Supabase, synced via `sync.js`.
+- Unifies the today-scattered `/career-path/` + `/study-planner/` +
+  `/career-quiz/` outputs into a single editable artifact the user
+  returns to. Surfaced on `/profile.html` and as a dashboard.
+- Steps: design `roadmap` table (Supabase) → builder UI (pick role,
+  auto-suggest cert order from `/career-path/` data) → progress
+  rollup → entry points from career-quiz and cert pages.
+
+#### 7.2 — Leaderboards / classements
+
+- **Already specced** — see P0 round 2 **UX-12** (web/app parity,
+  Supabase sync, promotion) and **UX-13** (vs-cohort metrics on cert
+  + path surfaces). Phase 7 treats those as its ranking foundation;
+  do not re-spec here.
+
+#### 7.3 — Guilds (guildes)
+
+- Opt-in teams a user joins (by cert track, region, or invite).
+  Guild-level aggregate XP / streak / accuracy; a guild leaderboard;
+  a guild page with members and a shared goal.
+- Steps: `guilds` + `guild_members` tables (RLS) → create/join/leave
+  flow → guild page → guild ranking → guild chip on profile.
+
+#### 7.4 — Challenges (défis)
+
+- Time-boxed competitive events: weekly "answer 100 Qs", "7-day
+  streak sprint", head-to-head duels, guild-vs-guild. Distinct from
+  the existing `daily.js` quest (solo, daily) — challenges are
+  competitive and ranked.
+- Steps: `challenges` + `challenge_entries` tables → challenge feed
+  UI → join + progress → reward (XP, cosmetics, laurels) → results
+  board. Reuse the `cq:session-complete` event bus for progress.
+
+#### 7.5 — IA coach (squid mascot 🦑)
+
+- Turn the existing floating squid (`src/mascot.js`,
+  `mascot-loader.js`) from static tips into a **conversational AI
+  coach**: reads the user's roadmap + stats + weak tags and gives
+  targeted next-step advice ("your AWS networking accuracy is 52% —
+  do this 10-Q drill", "you're 2 days from a streak record").
+- Keep the squid character as the persona/voice site-wide. Coach
+  surfaces: a panel on `/profile.html`, inline nudges on
+  `/path.html`, post-session debrief on the results screen.
+- **Stack note:** an LLM-backed coach needs a server endpoint
+  (Cloudflare Pages Function proxying an API; never ship a key
+  client-side). A v1 can be rules-based (no LLM) using stats +
+  concept-library before adding a model.
+
+#### 7.6 — Interview preparation (NEW)
+
+- Per-cert / per-role interview question banks, behavioural + STAR
+  prompts, mock-interview drills, and an answer self-review. Could
+  reuse the quiz runtime for technical Q&A and the squid coach for
+  feedback. Today only a single `prompt-dungeon/tech-interview-prep/`
+  scenario exists — this is a real surface.
+
+#### 7.7 — Job matching (NEW)
+
+- Match a user's roadmap progress + skills portfolio to relevant IT
+  roles; surface openings or role profiles ranked by fit ("you meet
+  8/10 requirements for Cloud Engineer"). Ties into `/salaire/` and
+  `/career-path/`. Data source TBD (job feed / partner API / curated)
+  — first ticket scopes the feed.
+
+#### 7.8 — Skills portfolio + public profile (NEW)
+
+- A verifiable, **publicly shareable** profile URL (today's
+  `/profile.html` is private/local; the share PNG is a snapshot).
+  Shows certs in progress/earned, laurels, level, streak, guild,
+  rank, and a skills list documented from completed packs/nodes.
+- Steps: public-profile route reading Supabase by username/handle
+  (privacy opt-in, like the leaderboard toggle) → skills derived
+  from path completion + concept tags → share/embed.
+
+#### 7.9 — Study groups + accountability (NEW)
+
+- Smaller than guilds: study groups are cohorts working the same
+  cert with shared deadlines; accountability pairs/check-ins ("your
+  partner studied today — your turn"). Lightweight — can build on
+  the guild tables with a `type` discriminator.
+
+#### 7.10 — Social layer + community feed (NEW)
+
+- The connective tissue: an activity feed (friend/guild events —
+  level-ups, laurels, challenge wins), follow/friend, reactions.
+  Makes streaks, challenges, and ranks visible to peers — that
+  visibility is what drives the competition flywheel.
+
+### Cross-cutting
+
+- **Analytics:** every Phase 7 feature feeds a per-user analytics
+  view (progress over time, weak areas, cohort comparison) — extends
+  the `/profile.html` stats and the UX-13 cohort aggregates.
+- **Expert content:** challenges, coaching, and interview prep all
+  draw on the existing question banks, `concept-library.json`,
+  courses and cheatsheets — keep content quality (the ongoing
+  question + course rework) as the substrate Phase 7 sits on.
+- **Acceptance:** static-HTML-where-possible, canonical header,
+  `?v=N` cache bump, RLS on every new Supabase table, opt-in for
+  anything public, and 360/768/1440 responsive verification.
+
+---
+
 ## P1 — Phase 6: Authority + tools layer (2026-05-15, planned)
 
 > Net-new feature batch (13 items) targeting SEO authority, lead-gen and
