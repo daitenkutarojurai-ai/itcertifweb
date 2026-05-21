@@ -193,8 +193,7 @@
           "type": "quiz",
           "title": "CLI — Drill 3",
           "questionIds": [
-            "tf-131",
-            "tf-138"
+            "tf-131"
           ]
         },
         {
@@ -202,8 +201,8 @@
           "type": "subboss",
           "title": "Boss: CLI",
           "questionIds": [
+            "tf-138",
             "tf-014",
-            "tf-019",
             "tf-025",
             "tf-041",
             "tf-067",
@@ -233,27 +232,28 @@
         {
           "id": "c3-concept",
           "type": "concept",
-          "title": "State: Key Ideas",
-          "content": "Quick primer on State. Tap to flip cards covering the most-asked exam ideas in this domain.",
+          "title": "Terraform state (TF-003 / HashiCorp Certified): Key Ideas",
+          "content": "Terraform state is the file that maps your configuration to real-world infrastructure — without it, Terraform can't know what already exists. The exam tests local vs remote backends, state locking to prevent concurrent corruption, detecting drift between state and reality, and the `terraform state` command family for surgical state manipulation.",
           "flashcards": [
             {
-              "front": "Terraform tracks the mapping between configuration resources and real-world infrastructure IDs in a STATE file (default `terraform.tfstate`). Without state, Terraform couldn't (a) know what's already created, (b) detect drift, (c) plan deletions. Best practice: store state REMOTELY (S3, Terraform Cloud) with locking + encryption. Which describes state?",
-              "back": "State: Terraform's source of truth. Contains: resource IDs (aws_instance.web → i-1234567890), dependencies, provider metadata, module structure. Remote state (S3+DynamoDB, Terraform Cloud) enables team collaboration and locking. Never manually edit state — use terraform state commands."
+              "front": "What does the tfstate file contain and why is it sensitive?",
+              "back": "The terraform.tfstate file is a JSON record of every resource Terraform manages — it includes resource IDs, attributes, and importantly, any sensitive values (database passwords, generated private keys) that Terraform fetched to record the resource's full state. It must be treated as a secret: store it in a remote backend with encryption at rest and access controls, never commit it to Git."
             },
             {
-              "front": "Terraform automatically writes the PREVIOUS state to a sibling file before each state-mutating operation. If a state save is corrupted or accidentally rolled back, the previous version can be restored. The file name uses a `.backup` suffix. Which file?",
-              "back": "tfstate.backup: created before terraform apply modifies state. Contains state from before this apply. One-level safety net. For teams: use remote state with versioning (S3 with versioning enabled, Terraform Cloud). terraform state commands modify state — always backup first with: terraform state pull > backup.tfstate."
+              "front": "Remote backends — S3 vs Terraform Cloud — key differences?",
+              "back": "S3 backend: stores state in an S3 bucket; combine with DynamoDB table for state locking (the table holds a lock record during `plan`/`apply`). You manage the bucket, IAM, and encryption yourself. Terraform Cloud backend: managed remote state + built-in locking + remote execution + audit logs + Sentinel policies — everything in one service. Use S3 for AWS-centric teams who want full control; Terraform Cloud for multi-cloud or teams that want governance features."
             },
             {
-              "front": "A platform team has 5 engineers all running `terraform apply` against the same configuration. With LOCAL state, two simultaneous applies corrupt the state file. The fix: store state in a SHARED REMOTE BACKEND (S3 + DynamoDB lock, or Terraform Cloud, etc.) with encryption + access control. Which describes remote state + its value?",
-              "back": "Remote state backends: S3+DynamoDB (AWS), Azure Blob + Table, GCS, Terraform Cloud, Consul. DynamoDB: state locking (prevents concurrent applies). S3 versioning: state history. terraform_remote_state: read outputs from another state. Configure: terraform { backend 'S3' { bucket, key, region, dynamodb_table } }. Azure Storage, GCS, Terraform Cloud) instead of locally — enables: team collaboration (all members access same state), state locking (prevent concurrent applies), state versioning, access control, and cross-workspace state sharing via remote state data source"
+              "front": "State drift — what is it and how do you detect it?",
+              "back": "Drift occurs when real infrastructure diverges from the Terraform state — someone manually changed a security group rule in the console, for example. `terraform plan` detects drift: it refreshes state by calling provider APIs, compares to the config, and shows a diff. `terraform refresh` updates state to match reality without changing infrastructure (use carefully — it can lose track of resources). The fix is usually to either import the manual change into config or let the next `apply` revert it."
             },
             {
-              "front": "Two engineers `terraform apply` simultaneously against the SAME remote state. Without protection their applies could race and corrupt state. The backend supports a LOCK — first apply acquires it (via DynamoDB lease, GCS atomic write, etc.), the second apply WAITS or fails. Lock released on apply completion. Which describes state locking?",
-              "back": "State locking: supported by most remote backends (S3+DynamoDB, Azure Blob, GCS, Terraform Cloud). Local backend: no locking. Lock timeout: -lock-timeout=10m. If lock not released (crash): force-unlock with ID from error message. Concurrent applies: second apply waits or fails depending on backend configuration. destroy, state operations), Terraform acquires a lock — prevents concurrent operations from corrupting state. With DynamoDB backend: creates lock entry. Lock released after operation completes. Force unlock: terraform force-unlock LOCK_ID (use with caution)"
+              "front": "terraform state commands — name four and their use cases.",
+              "back": "`terraform state list` — show all resources in state. `terraform state show <resource>` — print all attributes for a specific resource. `terraform state mv <src> <dst>` — rename a resource in state without destroying/recreating it (e.g., after a refactor). `terraform state rm <resource>` — remove a resource from state so Terraform no longer manages it (the real resource is NOT deleted). These are surgical tools — always take a state backup before running mv or rm."
             }
           ],
-          "source": "auto-derived"
+          "source": "concept-library",
+          "sourceTag": "state"
         },
         {
           "id": "c3-boss",
@@ -269,7 +269,6 @@
             "tf-056",
             "tf-097",
             "tf-multi-1",
-            "tf-054",
             "tf-079",
             "tf-094"
           ]
@@ -291,27 +290,28 @@
         {
           "id": "c4-concept",
           "type": "concept",
-          "title": "Providers: Key Ideas",
-          "content": "Quick primer on Providers. Tap to flip cards covering the most-asked exam ideas in this domain.",
+          "title": "Terraform providers (TF-003 / HashiCorp Certified): Key Ideas",
+          "content": "Providers are plugins that translate Terraform resource blocks into API calls for a specific platform (AWS, Azure, GCP, Kubernetes, etc.). The exam tests the `required_providers` block, version constraint syntax, the lock file that pins exact versions for reproducibility, and how provider aliases let you manage multiple accounts or regions.",
           "flashcards": [
             {
-              "front": "A `terraform` block declares `required_providers { aws = { source = \"hashicorp/aws\"; version = \"~> 5.0\" } }`. The version constraint uses operators: `=` exact, `!=` exclude, `>`, `>=`, `<`, `<=`, `~>` (pessimistic — major.minor pinned, patch free). Which describes Terraform provider version constraints?",
-              "back": "Version constraints: ~>3.0 (>=3.0, <4.0 — allow minor but not major). ~>3.2.0 (>=3.2.0, <3.3.0 — allow patch only). Best practice: pin major version (~>3.0), allow minor updates. Lock file: .terraform.lock.hcl records exact version used — commit to VCS for reproducibility. terraform init -upgrade: update to latest matching."
+              "front": "required_providers block — what does it declare?",
+              "back": "Inside a `terraform {}` block, `required_providers` maps provider local names to their source address and version constraint. Example: `aws = { source = \"hashicorp/aws\", version = \"~> 5.0\" }`. The source is `<namespace>/<type>` on the Terraform Registry. Without this block, Terraform can still infer providers, but pinning is required for reproducible builds and is best practice."
             },
             {
-              "front": "Terraform writes a LOCKFILE `.terraform.lock.hcl` after `init`. It pins the EXACT version + SHA-256 checksums of every provider downloaded. Subsequent `init`s on other machines / CI verify the same versions + checksums — preventing silent provider upgrades + supply-chain swaps. Should be COMMITTED to version control. Which describes it?",
-              "back": "Lock file: introduced in Terraform 0.14. Records: provider version, constraints, checksums (sha256 hashes for all platforms). Commit to version control — ensures all team members and CI use identical provider versions. terraform init -upgrade: updates to latest matching versions, regenerates lock file. Never manually edit."
+              "front": "Version constraint operators — what does ~> mean vs >= vs = ?",
+              "back": "`= 5.2.1` — exact version only. `>= 5.0` — any version 5.0 or higher (risky, allows major version jumps). `~> 5.0` (pessimistic constraint) — allows patch/minor updates within the same minor version: `~> 5.0` means `>= 5.0, < 6.0`; `~> 5.2` means `>= 5.2, < 5.3`. Use `~> X.Y` to allow bugfix updates while avoiding breaking changes from a new minor version."
             },
             {
-              "front": "A Terraform configuration needs to deploy AWS resources in TWO regions (us-east-1 + eu-west-1). Without intervention only ONE `aws` provider config can exist per module. Provider ALIASES let you declare multiple configurations of the same provider type. Resources select via `provider = aws.east`. Which describes aliases?",
-              "back": "Provider aliases: default provider (no alias), aliased providers (explicit alias). Resources use aliased provider: resource 'aws_instance' 'replica' { provider = aws.us-west }. Use cases: multi-region deployments, different accounts (dev/prod), different organizations. Modules inherit provider from root unless configured with providers argument."
+              "front": "What is .terraform.lock.hcl and why should it be committed?",
+              "back": "The dependency lock file records the exact provider versions and their checksums selected by the last `terraform init`. Committing it to version control ensures every team member and CI pipeline uses identical provider versions — without it, `terraform init` could silently upgrade a provider and introduce a breaking change. Run `terraform providers lock` to update it after intentionally changing a version constraint."
             },
             {
-              "front": "A team using Terraform across Linux + macOS + Windows wants the lockfile (`.terraform.lock.hcl`) to record checksums for ALL THREE OS platforms — so CI/CD on Linux + dev on Mac + ops on Windows verify against the same lock. `terraform providers lock -platform=linux_amd64 -platform=darwin_arm64 -platform=windows_amd64` adds those platforms' checksums. Which describes the command?",
-              "back": "terraform providers lock: update lock file with checksums for specified platforms. Use when: team uses Mac (arm64) + CI uses Linux (amd64) — run providers lock for both platforms so lock file works everywhere. Also: providers mirror (cache providers), providers schema (show schema), providers list (show configured providers)."
+              "front": "Provider aliases — when do you need them?",
+              "back": "When you need two instances of the same provider with different configurations in one root module — e.g., managing resources in two AWS regions or two AWS accounts. Define a second `provider \"aws\" { alias = \"west\", region = \"us-west-2\" }` block, then reference it in a resource with `provider = aws.west`. Without aliases, all resources in a module use the default (no-alias) provider configuration."
             }
           ],
-          "source": "auto-derived"
+          "source": "concept-library",
+          "sourceTag": "providers"
         },
         {
           "id": "c4-boss",
@@ -348,27 +348,28 @@
         {
           "id": "c5-concept",
           "type": "concept",
-          "title": "Modules: Key Ideas",
-          "content": "Quick primer on Modules. Tap to flip cards covering the most-asked exam ideas in this domain.",
+          "title": "Terraform modules (TF-003 / HashiCorp Certified): Key Ideas",
+          "content": "Modules are the unit of reuse in Terraform — a directory of .tf files that encapsulate a set of resources behind a clean interface of input variables and outputs. The exam tests root vs child modules, how to source a module (local path, Terraform Registry, Git), and how module versioning works.",
           "flashcards": [
             {
-              "front": "A team has 5 VPCs with identical 'web-tier + app-tier + DB-tier' patterns. Copying the resource blocks across 5 directories is unmaintainable. They package the pattern as a REUSABLE GROUP of resources with INPUT variables (VPC name, CIDR) and OUTPUTS (subnet IDs), versioned in a registry. Other configs call `module \"web_tier\" { source = … version = … }`. Which Terraform concept?",
-              "back": "Modules: package reusable configurations. Call module: module 'vpc' { source='terraform-aws-modules/vpc/aws', version='3.0' }. Inputs: module variables. Outputs: module outputs accessible in root as module.vpc.vpc_id. Local modules: relative paths. Benefits: DRY principle, tested patterns, team standardization."
+              "front": "Root module vs child module — what is each?",
+              "back": "Root module: the working directory where you run `terraform apply` — its .tf files are the entry point. Child module: any module called from the root (or another module) via a `module {}` block. The root module is always exactly one directory; child modules can be local (`./modules/vpc`), from the Terraform Registry (`hashicorp/vpc/aws`), or from a Git URL. Modules nest arbitrarily but deep nesting hurts readability."
             },
             {
-              "front": "Best practices for Terraform module inputs / outputs: (a) TYPE every variable, (b) ADD descriptions + validation, (c) Use sensitive for secrets, (d) Default to least-permissive, (e) Output ONLY values consumers need, (f) Document with README + examples, (g) Pin module versions via Registry. Which describes the practices?",
-              "back": "Best practices: (1) Type all variables (string, number, bool, list, map, object). (2) Provide descriptions (visible in terraform-docs). (3) Set defaults for optional variables. (4) Validate expected values. (5) Outputs: expose IDs and ARNs callers need. (6) README: usage examples. (7) versions.tf: required_providers and required_version. (8) CHANGELOG for updates. provide descriptions, validate inputs, use sensible defaults. Module outputs: expose only what callers need (not everything), use sensitive attribute for secrets. Module structure: variables.tf, main.tf, outputs.tf, versions.tf, README.md"
+              "front": "What are input variables and outputs in a module?",
+              "back": "Input variables (`variable \"name\" {}`) are the module's public API — callers pass values in the `module` block. Outputs (`output \"name\" { value = ... }`) expose internal resource attributes to the calling module. A well-designed module hides all resource details behind variables and outputs: callers don't need to know whether you used an `aws_vpc` or a `module.shared_vpc` internally."
             },
             {
-              "front": "The Terraform Registry hosts modules under a 3-part name + provider format: `module \"vpc\" { source = \"terraform-aws-modules/vpc/aws\" }`. The format is `<NAMESPACE>/<MODULE>/<PROVIDER>`. Which describes the registry source format?",
-              "back": "Module sources: (1) Registry: 'terraform-aws-modules/vpc/aws' with optional version. (2) GitHub: 'github.com/org/repo' or 'git::https://...'. (3) S3: 's3::https://bucket/module.zip'. (4) Local: './modules/vpc'. (5) Terraform Cloud private registry: 'app.terraform.io/ORG/vpc/aws'. Version pinning: always use version for registry modules in production. example: terraform-aws-modules/vpc/aws (namespace=terraform-aws-modules, module name=vpc, provider=aws). Version: version='~>3.0'. Download: terraform init downloads from registry automatically"
+              "front": "Module source types — local vs registry vs Git.",
+              "back": "Local: `source = \"./modules/network\"` — good for project-internal modules, no versioning. Terraform Registry: `source = \"terraform-aws-modules/vpc/aws\"` + `version = \"5.1.0\"` — versioned, public or private, downloadable by `terraform init`. Git: `source = \"git::https://github.com/org/repo.git//modules/vpc?ref=v2.0\"` — version-pinned via git tag/commit, useful for private modules without a registry. Always pin a version for registry and Git sources."
             },
             {
-              "front": "A reusable module declares it ACCEPTS multiple provider configurations of the same type (e.g., a multi-region module taking `aws.east` + `aws.west`). The module's `terraform { required_providers { aws = { source = \"hashicorp/aws\"; configuration_aliases = [aws.east, aws.west] } } }` declares this. The root module then PASSES the provider configurations via `providers = { aws.east = aws.east, aws.west = aws.west }`. Which describes configuration_aliases?",
-              "back": "configuration_aliases: module defines required_providers { aws = { source='hashicorp/aws', configuration_aliases=[aws.us-east, aws.eu-west] } }. Root module: module 'multi_region' { providers = { aws.us-east = aws.us-east, aws.eu-west = aws.eu-west } }. Module resources use provider = aws.us-east. Enables clean multi-region module design."
+              "front": "How do you version a module on the Terraform Registry?",
+              "back": "Registry module versions map directly to Git tags on the source repository. To publish version 1.2.3, create and push git tag `v1.2.3`. Callers pin with `version = \"1.2.3\"` or `version = \"~> 1.2\"`. The registry reads the git tag list and exposes them as selectable versions. Private registries (Terraform Cloud / Enterprise) follow the same convention. Pre-release tags (e.g., `v2.0.0-beta`) are installable but not returned by default version selection."
             }
           ],
-          "source": "auto-derived"
+          "source": "concept-library",
+          "sourceTag": "modules"
         },
         {
           "id": "c5-boss",
@@ -396,45 +397,46 @@
     },
     {
       "id": "ch6",
-      "title": "Terraform Cloud",
-      "tag": "terraform-cloud",
+      "title": "Variables",
+      "tag": "variables",
       "nodes": [
         {
           "id": "c6-concept",
           "type": "concept",
-          "title": "Terraform Cloud: Key Ideas",
-          "content": "Quick primer on Terraform Cloud. Tap to flip cards covering the most-asked exam ideas in this domain.",
+          "title": "Terraform variables and locals: Key Ideas",
+          "content": "Terraform input variables make configurations reusable; locals simplify repeated expressions. The TF-003 exam heavily tests type constraints, validation blocks, sensitive flags, and the precedence order for variable assignment.",
           "flashcards": [
             {
-              "front": "HashiCorp Terraform Cloud is a managed SaaS that provides BEYOND open-source Terraform: (1) shared remote state with locking, (2) remote plan + apply execution (so secrets stay in the platform), (3) policy as code (Sentinel / OPA), (4) cost estimation, (5) VCS integration (auto-plan on PR, apply on merge), (6) team-based RBAC + audit, (7) private module registry. Which describes Terraform Cloud?",
-              "back": "Terraform Cloud (free tier available): remote state, remote execution (runs in HashiCorp infrastructure), VCS integration (GitHub/GitLab), cost estimation, private module registry. Teams: per-workspace access control, review and approval workflows. Terraform Enterprise: self-hosted version for air-gapped environments or compliance requirements."
+              "front": "Five ways to assign a Terraform variable (highest to lowest precedence)?",
+              "back": "-var flag > -var-file flag > *.auto.tfvars (alphabetical) > terraform.tfvars > TF_VAR_name env var. Higher-precedence sources override lower ones."
             },
             {
-              "front": "A team uses Terraform Cloud's `remote` backend. They run `terraform apply` from their laptop. Instead of running plan + apply LOCALLY, the CLI uploads the configuration to Terraform Cloud, which executes plan + apply in its own SECURE EXECUTION ENVIRONMENT (with provider credentials stored centrally), streams output back. Which describes the run workflow?",
-              "back": "Terraform Cloud runs: (1) CLI-driven: local terraform apply → run in TC → output streamed back. (2) VCS-driven: push to connected repo → automatic plan → manual/auto apply. (3) API-driven: trigger via API. Run queue: sequential per workspace. Logs: stored in TC for 6 months. Notifications: Slack, PagerDuty, email on state changes."
+              "front": "What does sensitive = true do on a variable?",
+              "back": "Redacts the value from CLI output and plan display. It does NOT encrypt the value in state — state still stores it in plaintext, so the backend must be secured separately."
             },
             {
-              "front": "HashiCorp ships THREE tiers of Terraform. (OSS) Free CLI, local plan / apply, no shared state or governance. (Cloud) Managed SaaS — remote state, remote runs, free tier + paid teams + governance. (Enterprise) On-prem deployment — same features as Cloud + private installation. Which describes the distinction?",
-              "back": "OSS: no cost, local terraform CLI, state in remote backend, team workflow via VCS. Terraform Cloud Free: 500 resource hours/month, 1 user, remote execution, state storage. Plus/Business: Sentinel, SSO, audit logs, more resources. Enterprise: self-hosted (runs in your data center), FIPS compliance, air-gapped, dedicated support, clustering for HA. basic collaboration via git+remote state. Cloud: free tier + paid tiers, remote execution, VCS integration, team access, Sentinel policies (paid), cost estimation, private registry. Enterprise: self-hosted Terraform Cloud, air-gapped, SAML SSO, audit logging, clustering, additional compliance features"
+              "front": "When to use locals vs variable?",
+              "back": "Use locals for computed or repeated expressions internal to a module that callers should not override (e.g. a concatenated name). Use variables for values callers should supply. Locals cannot be set from outside the module."
             },
             {
-              "front": "Terraform Cloud (TFC) supports VCS-DRIVEN workflows. Connect a TFC workspace to a GitHub / GitLab / Bitbucket repo. Pull requests trigger SPECULATIVE PLANS — TFC runs plan, posts the diff as PR comment. Merges to `main` trigger an APPLY automatically (with optional manual gate). Drift detection runs periodically. Which describes it?",
-              "back": "VCS workflow: PR → Terraform Cloud runs speculative plan → plan output shown in PR checks → review changes → merge → Terraform Cloud runs apply automatically. Plan includes: additions, changes, destructions. Team can review infrastructure changes like code changes. Integrates with branch protection rules."
+              "front": "Type constraint any vs object({ ... }) — trade-offs?",
+              "back": "object({ key = type }) enforces a specific schema with required keys and types — prefer this for safety. any disables type checking entirely and should only be used for dynamic wrapper modules where the type is intentionally unknown."
             }
           ],
-          "source": "auto-derived"
+          "source": "concept-library",
+          "sourceTag": "variables"
         },
         {
           "id": "c6-boss",
           "type": "subboss",
-          "title": "Boss: Terraform Cloud",
+          "title": "Boss: Variables",
           "questionIds": [
-            "tf-020",
-            "tf-074",
-            "tf-078",
-            "tf-136",
-            "tf-150",
-            "tf-159"
+            "tf-006",
+            "tf-040",
+            "tf-062",
+            "tf-063",
+            "tf-099",
+            "tf-127"
           ]
         },
         {
@@ -454,28 +456,28 @@
         {
           "id": "c7-concept",
           "type": "concept",
-          "title": "Security fundamentals: Key Ideas",
-          "content": "Security is about layering defenses so no single failure compromises a system. Most exams test the same core ideas: least privilege, defense in depth, the CIA triad, and the shared-responsibility line between you and your cloud provider.",
+          "title": "Mixed exam topics: Key Ideas",
+          "content": "Some exam objectives don't fit neatly into a single domain — they span protocols, tools, or concepts covered briefly in multiple sections. These cards treat each item as a stand-alone fact, the way an exam question presents it: one concept, one answer.",
           "flashcards": [
             {
-              "front": "What is the CIA triad?",
-              "back": "Confidentiality (only the right people see the data), Integrity (data isn't tampered with), Availability (the system is reachable when needed). Every security control maps to at least one of these three pillars."
+              "front": "What is the difference between a hub, a switch, and a router?",
+              "back": "Hub: Layer 1, repeats every frame to all ports — all devices share bandwidth, collisions guaranteed. Switch: Layer 2, forwards frames using a MAC address table to only the destination port — full duplex, no collisions, each port gets full bandwidth. Router: Layer 3, makes forwarding decisions based on IP address, connects different networks. Hub is legacy; switches dominate LAN; routers are at network edges."
             },
             {
-              "front": "What does 'least privilege' mean?",
-              "back": "Grant each identity (user, role, service account) the minimum permissions needed to do its job — no more. The opposite is wildcard access, which makes a single credential leak catastrophic."
+              "front": "What is RAID 5 and how many drives can it tolerate losing?",
+              "back": "RAID 5 stripes data and parity across at least 3 drives. Any single drive failure can be recovered by reconstructing missing data from the remaining drives and parity. It cannot tolerate 2 simultaneous drive failures. Effective capacity = (N-1) × drive size. Read performance is excellent; write requires parity recalculation. RAID 6 tolerates 2 failures using double parity."
             },
             {
-              "front": "What is defense in depth?",
-              "back": "Stack multiple, independent controls so an attacker has to defeat all of them. Example: WAF in front of an app, network ACL on the subnet, IAM on the workload, encryption at rest in the database."
+              "front": "What does a proxy server do, and how does a forward proxy differ from a reverse proxy?",
+              "back": "Forward proxy: sits between clients and the internet on behalf of clients — used for content filtering, caching, and anonymizing outbound requests (the server sees the proxy's IP). Reverse proxy: sits in front of servers on behalf of the server — used for load balancing, SSL termination, caching, and hiding backend topology (the client sees the proxy's IP). Both intermediate HTTP, but they protect opposite sides."
             },
             {
-              "front": "Shared responsibility model — who does what?",
-              "back": "The cloud provider secures the cloud (physical hardware, hypervisor, region facilities). You secure what's IN the cloud (your data, IAM config, OS patching on EC2, application code). The exact line shifts by service: serverless is more on the provider, IaaS is more on you."
+              "front": "What is the purpose of a DMZ in network architecture?",
+              "back": "A demilitarized zone is a network segment between the untrusted internet and the trusted internal network, typically protected by two firewalls (or two interfaces on one firewall). Public-facing services (web, email, DNS) sit in the DMZ: internet can reach them but not the internal network; if the DMZ host is compromised, the inner firewall still blocks access to the internal LAN."
             }
           ],
           "source": "concept-library",
-          "sourceTag": "security"
+          "sourceTag": "mixed-topics"
         },
         {
           "id": "c7-quiz1",
@@ -496,9 +498,9 @@
           "questionIds": [
             "tf-011",
             "tf-017",
-            "tf-006",
-            "tf-040",
-            "tf-062"
+            "tf-020",
+            "tf-074",
+            "tf-078"
           ]
         },
         {
@@ -506,11 +508,11 @@
           "type": "quiz",
           "title": "Mixed Topics — Drill 3",
           "questionIds": [
-            "tf-063",
-            "tf-099",
-            "tf-012",
-            "tf-018",
-            "tf-023"
+            "tf-136",
+            "tf-150",
+            "tf-159",
+            "tf-021",
+            "tf-071"
           ]
         },
         {
@@ -518,11 +520,11 @@
           "type": "quiz",
           "title": "Mixed Topics — Drill 4",
           "questionIds": [
-            "tf-066",
-            "tf-135",
-            "tf-021",
-            "tf-071",
-            "tf-107"
+            "tf-107",
+            "tf-134",
+            "tf-008",
+            "tf-012",
+            "tf-018"
           ]
         },
         {
@@ -530,11 +532,11 @@
           "type": "quiz",
           "title": "Mixed Topics — Drill 5",
           "questionIds": [
-            "tf-134",
-            "tf-008",
-            "tf-038",
-            "tf-118",
-            "tf-144"
+            "tf-066",
+            "tf-135",
+            "tf-019",
+            "tf-144",
+            "tf-153"
           ]
         },
         {
@@ -542,11 +544,11 @@
           "type": "quiz",
           "title": "Mixed Topics — Drill 6",
           "questionIds": [
-            "tf-153",
-            "tf-026",
-            "tf-027",
-            "tf-095",
-            "tf-132"
+            "tf-038",
+            "tf-118",
+            "tf-023",
+            "tf-028",
+            "tf-026"
           ]
         },
         {
@@ -554,11 +556,11 @@
           "type": "quiz",
           "title": "Mixed Topics — Drill 7",
           "questionIds": [
+            "tf-027",
+            "tf-095",
+            "tf-132",
             "tf-043",
-            "tf-147",
-            "tf-148",
-            "tf-028",
-            "tf-046"
+            "tf-147"
           ]
         },
         {
@@ -566,11 +568,11 @@
           "type": "quiz",
           "title": "Mixed Topics — Drill 8",
           "questionIds": [
+            "tf-148",
+            "tf-046",
+            "tf-054",
             "tf-149",
-            "tf-151",
-            "tf-152",
-            "tf-157",
-            "tf-158"
+            "tf-151"
           ]
         },
         {
@@ -578,11 +580,11 @@
           "type": "quiz",
           "title": "Mixed Topics — Drill 9",
           "questionIds": [
+            "tf-152",
+            "tf-157",
+            "tf-158",
             "tf-160",
-            "tf-096",
-            "tf-060",
-            "tf-064",
-            "tf-106"
+            "tf-096"
           ]
         },
         {
@@ -590,9 +592,11 @@
           "type": "quiz",
           "title": "Mixed Topics — Drill 10",
           "questionIds": [
-            "tf-127",
-            "tf-129",
-            "tf-110"
+            "tf-110",
+            "tf-133",
+            "tf-069",
+            "tf-060",
+            "tf-064"
           ]
         },
         {
@@ -600,9 +604,9 @@
           "type": "subboss",
           "title": "Boss: Mixed Topics",
           "questionIds": [
-            "tf-133",
+            "tf-106",
+            "tf-129",
             "tf-139",
-            "tf-069",
             "tf-123",
             "tf-030",
             "tf-072",
@@ -632,7 +636,7 @@
     "timeMinutes": 45
   },
   "meta": {
-    "generatedAt": "2026-05-15T09:20:13.235Z",
+    "generatedAt": "2026-05-21T08:04:04.052Z",
     "totalNodes": 41,
     "totalQuestions": 161,
     "nodeTypes": [

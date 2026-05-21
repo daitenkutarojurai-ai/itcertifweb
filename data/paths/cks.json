@@ -82,27 +82,28 @@
         {
           "id": "c2-concept",
           "type": "concept",
-          "title": "Part 2: Key Ideas",
-          "content": "Quick primer on Part 2. Tap to flip cards covering the most-asked exam ideas in this domain.",
+          "title": "Kubernetes and OS security hardening (CKS): Key Ideas",
+          "content": "The CKS (Certified Kubernetes Security Specialist) exam is entirely about hardening. It tests pod-level security contexts that restrict container privileges, seccomp profiles that filter syscalls, AppArmor for mandatory access control, and CIS Kubernetes Benchmark controls for node-level hardening. Every card here maps to a direct exam task.",
           "flashcards": [
             {
-              "front": "You want a container to use the `RuntimeDefault` seccomp profile to restrict its allowed syscalls. Which Pod spec achieves this in Kubernetes 1.27+?",
-              "back": "The correct modern approach (Kubernetes 1.22+) is to set `securityContext.seccompProfile.type: RuntimeDefault` in the container or Pod spec. This applies whatever the container runtime defines as its default seccomp filter. The annotation-based method (`seccomp.security.alpha.kubernetes.io`) is the legacy approach (deprecated). `Unconfined` explicitly disables seccomp filtering — the opposite of what is needed. There is no SeccompProfile CRD in standard Kubernetes."
+              "front": "securityContext — what do runAsNonRoot, readOnlyRootFilesystem, and capabilities do?",
+              "back": "`runAsNonRoot: true` — Kubernetes refuses to start the container if the image's USER is 0 (root). `readOnlyRootFilesystem: true` — the container's root filesystem is mounted read-only; prevents an attacker from writing to OS directories. `capabilities.drop: [ALL]` — drops all Linux capabilities; add back only what the container needs (e.g., `NET_BIND_SERVICE` to bind < 1024 ports). These three together significantly shrink the attack surface of a compromised container."
             },
             {
-              "front": "A security engineer is hardening worker nodes against the CIS Kubernetes Benchmark. They want the set of actions that aligns with the benchmark's node-level recommendations covering kubelet flags, file permissions on kubeconfig and PKI, and disabling read-only ports. Which set of actions fits?",
-              "back": "CIS benchmarks recommend minimizing the OS footprint: uninstall packages not needed for Kubernetes, disable or unload unnecessary kernel modules (`dccp`, `sctp`, `rds`, etc.), ensure only required services are running, and keep the system patched. Installing all packages increases the attack surface. Enabling all kernel modules provides more exploitation vectors. Running services as root violates the principle of least privilege."
+              "front": "Seccomp profiles — what do they restrict and where are they configured?",
+              "back": "Seccomp (Secure Computing Mode) filters which Linux system calls a process can make. A seccomp profile specifies an allowlist or denylist of syscalls. In Kubernetes, apply it in the pod's `securityContext.seccompProfile`: `type: RuntimeDefault` applies the container runtime's default filter (good baseline); `type: Localhost` with a `localhostProfile` path applies a custom JSON profile from the node. The `Unconfined` type disables filtering entirely — avoid it in production."
             },
             {
-              "front": "You need to permanently prevent the `dccp` kernel module from loading on a Kubernetes node. Which configuration achieves persistent blacklisting?",
-              "back": "To persistently blacklist a kernel module, add `blacklist dccp` to a file in `/etc/modprobe.d/` such as `/etc/modprobe.d/kubernetes-blacklist.conf`. You can also add `install dccp /bin/false` to prevent loading even when explicitly requested. A reboot applies the change. `modprobe -r` only unloads for the current session. `/etc/modules` lists modules to LOAD at boot, not blacklist. `systemctl` manages services, not kernel modules."
+              "front": "AppArmor in Kubernetes — how do you apply a profile to a container?",
+              "back": "AppArmor profiles are loaded on the node (check with `aa-status`). In Kubernetes (pre-1.30) you annotate the pod: `container.apparmor.security.beta.kubernetes.io/<container-name>: localhost/<profile-name>`. From 1.30+ there is a first-class `appArmorProfile` field in the container securityContext. The profile constrains file access, network operations, and capabilities based on a whitelist. CKS expects you to apply an existing profile; writing profiles from scratch is not typically tested."
             },
             {
-              "front": "A container escapes and needs root on the host. Which kernel feature in Kubernetes 1.30+, when enabled, limits the blast radius by mapping container UID 0 to an unprivileged host UID?",
-              "back": "User namespaces (`hostUsers: false` in the Pod spec, Kubernetes 1.30 stable) remap the container's root UID (0) to a high non-root host UID (100000+). If a container escapes, the process has no special privileges on the host — it's an unprivileged user. Seccomp and AppArmor reduce the attack surface but don't prevent host-level privileges if root escapes. `runAsNonRoot` prevents root inside the container but doesn't change the host UID mapping."
+              "front": "CIS Kubernetes Benchmark — name three node hardening controls.",
+              "back": "(1) Disable anonymous access to the API server: `--anonymous-auth=false` on the kube-apiserver. (2) Enable audit logging: `--audit-log-path` + `--audit-policy-file` to record all API requests for forensics. (3) Restrict etcd access: etcd should only be reachable from the API server, protected by mutual TLS (`--cert-file`, `--key-file`, `--peer-cert-file`). Additional controls: rotate service account tokens, enable PodSecurity Admission, use network policies to segment namespaces."
             }
           ],
-          "source": "auto-derived"
+          "source": "concept-library",
+          "sourceTag": "system-hardening"
         },
         {
           "id": "c2-quiz1",
@@ -289,7 +290,7 @@
     "timeMinutes": 27
   },
   "meta": {
-    "generatedAt": "2026-05-15T09:20:13.193Z",
+    "generatedAt": "2026-05-21T08:04:04.036Z",
     "totalNodes": 17,
     "totalQuestions": 61,
     "nodeTypes": [

@@ -252,13 +252,31 @@ function buildChapter(chap, chapIndex) {
       [pairs[i], pairs[j]] = [pairs[j], pairs[i]];
     }
     if (pairs.length >= 3) {
+      // Build the v0.14 native-app payload (mode: true-false-blitz) alongside
+      // the web yesno format so both surfaces work from the same path file.
+      // qsByIdMap is built in buildPath() and passed as the third argument.
+      const statements = pairs.map(p => {
+        const q = (qsByIdMap || {})[p.qid] || {};
+        return {
+          id: p.qid,
+          statement: p.prompt,
+          answer: p.correct,
+          explanation: q.explanation || (p.correct
+            ? 'Correct — this statement is true.'
+            : 'Incorrect — this statement is false.')
+        };
+      });
       nodes.push({
         id: `c${chapIndex + 1}-game`,
         type: 'minigame',
+        // Web format (src/path.js)
         gameType: 'yesno',
-        title: `${title} — Quick Drill`,
         pairs,
-        timePerQ: 10
+        timePerQ: 10,
+        // Native-app v0.14 format (app/path/games dispatcher)
+        mode: 'true-false-blitz',
+        data: { statements },
+        title: `${title} — Quick Drill`,
       });
     }
   }

@@ -139,27 +139,28 @@
         {
           "id": "c3-concept",
           "type": "concept",
-          "title": "Swarm: Key Ideas",
-          "content": "Quick primer on Swarm. Tap to flip cards covering the most-asked exam ideas in this domain.",
+          "title": "Docker Swarm (DCA): Key Ideas",
+          "content": "Docker Swarm is Docker's built-in container orchestrator — simpler than Kubernetes, natively integrated with the Docker CLI. The DCA exam tests manager/worker topology, service definitions, overlay networks for cross-node communication, and Raft consensus for leader election.",
           "flashcards": [
             {
-              "front": "A Docker host is about to become the FIRST manager of a new Swarm cluster. The admin runs a single command on that host: it generates the join tokens for future manager + worker nodes, initialises the Raft cluster, and the current node becomes the leader. Which command?",
-              "back": "`docker swarm init` initializes a new Swarm and promotes the current node to manager. On machines with multiple network interfaces, add `--advertise-addr IP` to specify the manager's address for other nodes to join. After init, Docker outputs a `docker swarm join --token` command for adding worker nodes."
+              "front": "Manager node vs worker node — what does each do?",
+              "back": "Manager nodes maintain cluster state using Raft consensus, schedule tasks onto workers, and serve the Swarm API (docker service commands). Worker nodes receive task assignments from managers and run the containers. Managers can also run workloads unless `--availability=drain` excludes them. A Swarm should have an odd number of managers (1, 3, 5) — Raft needs (N/2)+1 quorum to elect a leader."
             },
             {
-              "front": "In Docker Swarm: a SERVICE is a DECLARATIVE deployment description — image, replica count, resources, networks, secrets, restart policy. The Swarm scheduler converts that into TASKS — each task is ONE container instance on a node. Tasks are the imperative scheduling unit; services are the desired state. Which describes the difference?",
-              "back": "A Swarm service declares desired state: which image to run, how many replicas, resource limits, placement constraints, update policies, etc. The Swarm manager decomposes the service into tasks — each task maps to exactly one container on one node. If a task fails, the manager creates a replacement task to maintain desired replica count. replicas, ports, constraints); a task is the atomic unit of scheduling — one container instance running the service on a specific node"
+              "front": "What is a Swarm service vs a task?",
+              "back": "A service is the desired-state declaration: image, replicas, ports, resources (e.g., `docker service create --replicas 3 nginx`). A task is one running instance of the service assigned to a specific node — it maps to a single container. If a task fails, Swarm schedules a replacement. Services are the unit you manage; tasks are what Swarm creates automatically."
             },
             {
-              "front": "A running Swarm service `webapp` currently has 3 replicas. The team wants to scale it to 5. The Swarm scheduler will start 2 more tasks on appropriate nodes. Which command syntax?",
-              "back": "`docker service scale webapp=5` sets the replica count for the 'webapp' service to 5. You can scale multiple services at once: `docker service scale webapp=5 api=3`. Alternatively: `docker service update --replicas=5 webapp`. The Swarm manager will schedule new tasks on available nodes or terminate tasks if scaling down."
+              "front": "Overlay network — what problem does it solve in Swarm?",
+              "back": "Containers on different nodes have different docker0 bridge IPs — they can't talk to each other natively. An overlay network creates a virtual L2 network spanning all nodes using VXLAN encapsulation. Containers attached to the same overlay network can reach each other by service name via Swarm's built-in DNS; traffic is encrypted with AES-256 when you add `--opt encrypted`."
             },
             {
-              "front": "A Swarm service update is in progress and some tasks have failed (image broken). Without intervention Swarm would keep replacing healthy old tasks with broken new tasks. Which `docker service update` flag PAUSES the update on failure so the operator can investigate?",
-              "back": "`--update-failure-action=pause` stops the rolling update when a task fails, allowing operators to investigate. Other values: `continue` (default: keep updating even if tasks fail), `rollback` (automatically revert to the previous service spec). Combine with `--update-monitor` (time to observe a task before considering it healthy) and `--update-max-failure-ratio`."
+              "front": "Raft consensus — how many managers can you lose before the cluster is unavailable?",
+              "back": "Raft requires a majority (quorum) of managers to be reachable. With 3 managers, quorum = 2; you can lose 1. With 5 managers, quorum = 3; you can lose 2. If quorum is lost, Swarm stops accepting cluster state changes (new service deploys fail) but existing containers keep running. Recover by restarting lost managers or force-promoting a worker."
             }
           ],
-          "source": "auto-derived"
+          "source": "concept-library",
+          "sourceTag": "swarm"
         },
         {
           "id": "c3-boss",
@@ -196,28 +197,28 @@
         {
           "id": "c4-concept",
           "type": "concept",
-          "title": "Networking fundamentals: Key Ideas",
-          "content": "Networking moves packets between machines using layered protocols (the OSI / TCP-IP stack). Most exam questions test routing decisions, subnetting math, the difference between L2 and L3, and how DNS / DHCP make the whole thing usable for humans.",
+          "title": "Mixed exam topics: Key Ideas",
+          "content": "Some exam objectives don't fit neatly into a single domain — they span protocols, tools, or concepts covered briefly in multiple sections. These cards treat each item as a stand-alone fact, the way an exam question presents it: one concept, one answer.",
           "flashcards": [
             {
-              "front": "What's the difference between Layer 2 and Layer 3?",
-              "back": "L2 (data link) uses MAC addresses to deliver frames inside a single broadcast domain (a switch). L3 (network) uses IP addresses to route packets between networks (a router). Switches do L2; routers do L3."
+              "front": "What is the difference between a hub, a switch, and a router?",
+              "back": "Hub: Layer 1, repeats every frame to all ports — all devices share bandwidth, collisions guaranteed. Switch: Layer 2, forwards frames using a MAC address table to only the destination port — full duplex, no collisions, each port gets full bandwidth. Router: Layer 3, makes forwarding decisions based on IP address, connects different networks. Hub is legacy; switches dominate LAN; routers are at network edges."
             },
             {
-              "front": "How does a subnet mask work?",
-              "back": "The mask splits an IP into a network portion (the high bits, set to 1) and a host portion (the low bits, set to 0). `/24` means the first 24 bits are network = up to 256 hosts (254 usable). `/30` is 4 IPs = 2 hosts — typical for a point-to-point link."
+              "front": "What is RAID 5 and how many drives can it tolerate losing?",
+              "back": "RAID 5 stripes data and parity across at least 3 drives. Any single drive failure can be recovered by reconstructing missing data from the remaining drives and parity. It cannot tolerate 2 simultaneous drive failures. Effective capacity = (N-1) × drive size. Read performance is excellent; write requires parity recalculation. RAID 6 tolerates 2 failures using double parity."
             },
             {
-              "front": "What does DNS do?",
-              "back": "Domain Name System translates human-readable names (`example.com`) into IP addresses. A recursive resolver asks the root, the TLD server (`.com`), and finally the authoritative server for the domain. TTL controls how long answers are cached."
+              "front": "What does a proxy server do, and how does a forward proxy differ from a reverse proxy?",
+              "back": "Forward proxy: sits between clients and the internet on behalf of clients — used for content filtering, caching, and anonymizing outbound requests (the server sees the proxy's IP). Reverse proxy: sits in front of servers on behalf of the server — used for load balancing, SSL termination, caching, and hiding backend topology (the client sees the proxy's IP). Both intermediate HTTP, but they protect opposite sides."
             },
             {
-              "front": "TCP vs UDP — when do you pick each?",
-              "back": "TCP is reliable, ordered, congestion-controlled — use it when every byte matters (HTTP, SSH, SMTP). UDP is lightweight, no handshake, no retransmit — use it for streaming, gaming, DNS queries, anywhere latency beats reliability."
+              "front": "What is the purpose of a DMZ in network architecture?",
+              "back": "A demilitarized zone is a network segment between the untrusted internet and the trusted internal network, typically protected by two firewalls (or two interfaces on one firewall). Public-facing services (web, email, DNS) sit in the DMZ: internet can reach them but not the internal network; if the DMZ host is compromised, the inner firewall still blocks access to the internal LAN."
             }
           ],
           "source": "concept-library",
-          "sourceTag": "networking"
+          "sourceTag": "mixed-topics"
         },
         {
           "id": "c4-quiz1",
@@ -289,7 +290,7 @@
     "timeMinutes": 27
   },
   "meta": {
-    "generatedAt": "2026-05-15T09:20:13.201Z",
+    "generatedAt": "2026-05-21T08:04:04.041Z",
     "totalNodes": 17,
     "totalQuestions": 61,
     "nodeTypes": [
