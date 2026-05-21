@@ -127,17 +127,28 @@ up when there's time.
   domaine ? Fais le quiz"). sitemap.xml +1. No cache bump — new
   HTML page only, references current `?v=` assets.
 
-### UX-8 — Profile page not optimised on phone ✅ PARTIAL 2026-05-20
+### UX-8 — Profile page not optimised on phone ✅ DONE 2026-05-21
 
 - `profile.css` had almost no mobile tuning (one 480px rule). The
   worst offender — the `.profile-hero` — was a 3-item flex row
   (avatar + level block + share button) that squeezed the level
   block on a phone.
-- **Fix shipped:** `@media (max-width:560px)` stacks the hero —
+- **Fix 1 (2026-05-20):** `@media (max-width:560px)` stacks the hero —
   avatar on top, level block full-width, share button full-width.
-- **Still to check on a real device:** heatmap (14-col), account
-  rows, milestones/hats grids — reported "boxes don't fit" may have
-  more than the hero. Needs a screenshot pass.
+- **Root cause of "boxes don't fit" found + fixed (2026-05-21):** the
+  generic mobile rule in `desktop.css`
+  (`[class$="-grid"]:not(…){grid-template-columns:1fr!important}` at
+  `@media max-width:720px`) was collapsing EVERY `*-grid` to one
+  column — including `.profile-stats-grid` and `.profile-hats-grid`,
+  which carry their own intended mobile layouts. The attribute
+  selector + `!important` outranked profile.css's own rules, so the
+  6 stat cards and the hat tiles each stacked full-width on a phone.
+  Added `:not(.profile-stats-grid):not(.profile-hats-grid):not(.profile-milestones-grid)`
+  to the exclusion list — profile.css now governs. Verified by
+  headless screenshot at 360 (stats 2-col, hats 2-col) and 768
+  (stats/milestones 3-col, no regression). Heatmap (`.profile-heatmap`,
+  not a `-grid` class) was never affected — 14-col row fits fine.
+  Cache bumped v100 → v101.
 
 ### UX-9 — Profile top-bar bug on scroll-to-top — NEEDS REPRO
 
@@ -149,6 +160,12 @@ up when there's time.
   no page-specific override. **Needs a screenshot** at the exact
   scroll position + viewport width before a safe fix — blind-editing
   the global sticky header risks all 200 pages.
+- **2026-05-21:** re-attempted repro via headless Chrome — scrolled
+  the profile page to 1200px then back to 0 at 360px width; the
+  header (avatar / hearts / mascot / chip / hamburger) renders
+  correctly inside the bar at scroll 0. Still cannot reproduce;
+  likely a real-device-specific condition (momentum scroll / URL
+  bar resize). Left as NEEDS REPRO.
 
 ### Full audit — 2026-05-20
 
