@@ -771,6 +771,12 @@ competition-driven, community-driven** layer. Highest-priority builds:
   Also de-staled `scripts/gen-compare-pages.js` (CACHE_BUST v87 → v91,
   header trimmed to the canonical 4-item nav) so regeneration stops
   regressing existing pages. sitemap.xml +3.
+- **2026-05-22:** +1 comparison dataset (comparator 10 → 11) —
+  `aws-clf-c02-vs-aws-saa-c03` (the classic "Cloud Practitioner
+  d'abord, ou directement Solutions Architect ?" 2-way, 6 verdict
+  profiles, salary medians wired from `aws-clf-c02`/`aws-saa`). Also
+  re-de-staled the generator's `CACHE_BUST` v100 → v101 so regeneration
+  no longer downgrades the 10 sibling pages' cache-bust. sitemap.xml +1.
 
 ### 6.3 — Fail Analysis (per certification) ✅ SHIPPED 2026-05-15
 
