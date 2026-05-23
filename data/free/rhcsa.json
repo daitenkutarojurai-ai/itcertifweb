@@ -5,8 +5,8 @@
     "vendor": "Red Hat",
     "version": "2.0.3",
     "question_count": 61,
-    "last_updated": "2026-05-13",
-    "notes": " [rhcsa batch 1: 18 scenario rewrites] [rhcsa batch 2: 21 scenario rewrites] [rhcsa batch 3 (final): 21 scenario rewrites]"
+    "last_updated": "2026-05-23",
+    "notes": " [rhcsa batch 1: 18 scenario rewrites] [rhcsa batch 2: 21 scenario rewrites] [rhcsa batch 3 (final): 21 scenario rewrites] [rhcsa keyword-balance batch 1 (2026-05-23): 9 questions — distractor expansion adding shared stem keywords: rhcsa-010/012/013/020/023/025/032/045/052/053]"
   },
   "questions": [
     {
@@ -185,10 +185,10 @@
       "id": "rhcsa-010",
       "question": "Create a new user `bob` with UID 1500, default shell `/bin/bash`, and a home directory `/home/bob`. The home directory should be created automatically with the user. Which `useradd` invocation is correct?",
       "options": [
-        "`useradd bob --uid 1500 --home /home/bob` — `--uid` and `--home` aren't the standard short flags; missing shell + create-home",
-        "`useradd -u 1500 -m -s /bin/bash bob` — `-u` UID, `-m` create home, `-s` shell, then the username; canonical RHEL invocation",
-        "`adduser -uid 1500 bob` — `adduser` is a wrapper on some distros; flag isn't `-uid`",
-        "`usermod -u 1500 -s /bin/bash bob` — modifies an existing user; `useradd` creates"
+        "`useradd bob --uid 1500 --home /home/bob` — creates the user but `--uid` and `--home` are not valid short flags; correct flags are `-u` and `-d`; also omits `-s` for shell",
+        "`useradd -u 1500 -m -s /bin/bash bob` — specifies UID 1500 (`-u`), creates the home directory (`-m`), sets the default shell (`-s`), and then the username; canonical invocation",
+        "`adduser -uid 1500 -shell /bin/bash bob` — `adduser` is a higher-level interactive wrapper; `-uid` is not a valid flag; use `useradd` for scriptable user creation with explicit UID",
+        "`usermod -u 1500 -s /bin/bash bob` — `usermod` modifies an existing user record; `bob` must already exist; `useradd` creates the user and home directory from scratch"
       ],
       "correct": 1,
       "explanation": "useradd -u 1500 -m -s /bin/bash bob: -u UID, -m create home, -s shell. Set password: passwd bob. -g primary group: -g groupname. -G supplementary groups: -G wheel,docker. View: id bob. Modify existing user: usermod. Delete: userdel -r bob (remove home).",
@@ -223,10 +223,10 @@
       "id": "rhcsa-012",
       "question": "Set a STATIC IP `192.168.1.10/24` with gateway `192.168.1.1` and DNS `8.8.8.8` on interface `eth0` using NetworkManager. The change must persist across reboots. Which commands?",
       "options": [
-        "`nmcli con mod eth0 ipv4.addresses 192.168.1.10/24 ipv4.gateway 192.168.1.1 ipv4.dns 8.8.8.8",
-        "`ip addr add 192.168.1.10/24 dev eth0` — temporary, lost on reboot",
-        "`ifconfig eth0 192.168.1.10 netmask 255.255.255.0` — `ifconfig` is deprecated, temporary",
-        "`vi /etc/network/interfaces` — Debian/Ubuntu file, not used by RHEL/NetworkManager"
+        "`nmcli con mod eth0 ipv4.addresses 192.168.1.10/24 ipv4.gateway 192.168.1.1 ipv4.dns 8.8.8.8 ipv4.method manual && nmcli con up eth0` — persistent NetworkManager configuration",
+        "`ip addr add 192.168.1.10/24 dev eth0 && ip route add default via 192.168.1.1` — sets the address and gateway temporarily, but DNS (8.8.8.8) requires a separate `/etc/resolv.conf` edit; lost on reboot",
+        "`ifconfig eth0 192.168.1.10 netmask 255.255.255.0 gateway 192.168.1.1` — `ifconfig` is deprecated and `gateway` is not a valid `ifconfig` argument; DNS 8.8.8.8 would still need manual configuration",
+        "`vi /etc/network/interfaces` — the Debian/Ubuntu approach to setting IP, gateway, and DNS persistently; RHEL uses NetworkManager with `nmcli` or `nmtui`, not `/etc/network/interfaces`"
       ],
       "correct": 0,
       "explanation": "nmcli con mod CONNECTION ipv4.addresses IP/MASK ipv4.gateway GW ipv4.dns DNS ipv4.method manual. Then nmcli con up CONNECTION. Persistent. nmcli con show: list connections. nmcli device status: device states. Alternatively: edit /etc/NetworkManager/system-connections/CONNECTION.nmconnection.",
@@ -242,10 +242,10 @@
       "id": "rhcsa-013",
       "question": "A systemd-running RHEL host. The admin wants LIVE tailing of ALL systemd journal entries (kernel + services + user) as they happen — so they can watch a service starting in another terminal. Which command?",
       "options": [
-        "`tail -f /var/log/messages` — legacy rsyslog file; doesn't cover all systemd-journald entries on modern RHEL",
-        "`journalctl -f` — follow mode on systemd-journald; live tailing of ALL units + kernel + user entries",
-        "`dmesg --follow` — only kernel ring buffer, not systemd units",
-        "`cat /var/log/syslog` — Debian/Ubuntu file, not RHEL"
+        "`tail -f /var/log/messages` — tails the legacy rsyslog file in live mode but misses systemd-journald entries from user services; incomplete coverage of all systemd units",
+        "`journalctl -f` — follow mode; live tailing of ALL systemd-journald entries: kernel messages, system services, and user-session units",
+        "`dmesg --follow` — live tailing of the kernel ring buffer only; does not include systemd user service or application journal entries",
+        "`cat /var/log/syslog` — reads the Debian/Ubuntu syslog file; does not exist on RHEL; does not provide live tailing of systemd journal entries"
       ],
       "correct": 1,
       "explanation": "journalctl -f: follow (like tail -f). journalctl -u nginx: logs for specific unit. journalctl -xe: recent logs with explanations. journalctl --since '1 hour ago': time filter. journalctl -p err: error level and above. journalctl --disk-usage: storage used. /var/log/messages: traditional syslog, may still exist.",
@@ -376,10 +376,10 @@
       "id": "rhcsa-020",
       "question": "A RHEL server should boot DIRECTLY into the multi-user (non-graphical) target — equivalent to the old SysVinit runlevel 3 — without a GUI. The change must persist across reboots. Which systemd command?",
       "options": [
-        "`init 3` — switches the CURRENT runlevel; doesn't persist",
-        "`systemctl set-default multi-user.target` — sets the persistent default target for future boots",
-        "`runlevel set 3` — `runlevel` only reports current/previous; can't `set`",
-        "`systemctl default --target=multi-user` — wrong invocation; `default` is a verb that switches now, not the persistent setter"
+        "`init 3` — switches the current runlevel to multi-user immediately but does not persist the target across reboots; the default target remains unchanged",
+        "`systemctl set-default multi-user.target` — sets the persistent default target so the host boots into multi-user (non-graphical) on every subsequent reboot",
+        "`runlevel set 3` — `runlevel` only reports the current and previous runlevel targets; it has no `set` subcommand for changing the default",
+        "`systemctl default --target=multi-user` — incorrect invocation; `systemctl default` switches to the current default target immediately without accepting a `--target` argument for persistent change"
       ],
       "correct": 1,
       "explanation": "systemctl set-default multi-user.target: non-graphical multi-user (like runlevel 3). graphical.target: desktop (runlevel 5). rescue.target: single-user maintenance. systemctl isolate multi-user.target: switch immediately (kills graphical). systemctl get-default: check current default target.",
@@ -433,10 +433,10 @@
       "id": "rhcsa-023",
       "question": "A web server's DocumentRoot was moved from `/var/www/html` to `/srv/web`. Apache refuses to read it because the new path has the wrong SELinux file context. The admin wants to APPLY the correct default contexts for `/srv/web` based on the SELinux policy database. Which command?",
       "options": [
-        "`restorecon -Rv /srv/web` — recursively re-applies default SELinux contexts from the policy database; verbose",
-        "`selinux --restore /srv/web` — not a real command",
-        "`chcon --default /srv/web` — `chcon` can apply contexts but `--default` isn't standard; `restorecon` is canonical",
-        "`sestatus --restore` — `sestatus` only shows status; no restore flag"
+        "`restorecon -Rv /srv/web` — recursively re-applies the default SELinux file contexts from the policy database to `/srv/web`, correcting the context mismatch without changing the policy",
+        "`selinux --restore /srv/web` — not a valid command; the correct tool for restoring default SELinux contexts from the policy database is `restorecon`, not `selinux`",
+        "`chcon --default /srv/web` — `chcon` can apply an explicit context but `--default` is not a standard flag; `chcon` changes are also not persistent across `restorecon` runs from the policy database",
+        "`sestatus --restore` — `sestatus` displays the current SELinux status and mode; it has no `--restore` flag and cannot reapply default contexts from the policy database"
       ],
       "correct": 0,
       "explanation": "restorecon -Rv /path: -R recursive, -v verbose. Restores contexts based on policy defaults (/etc/selinux/targeted/contexts/files/). Use after: moving files (context doesn't follow move), creating new files in wrong location. matchpathcon -V: verify contexts. semanage fcontext: add custom file context rules.",
@@ -472,10 +472,10 @@
       "id": "rhcsa-025",
       "question": "RHEL 8+ uses `chrony` (not `ntpd`) as the default time-sync daemon. The admin wants to ADD an upstream NTP server `time.nist.gov` to chrony's config and reload. Which approach?",
       "options": [
-        "`systemctl start ntpd` — wrong daemon",
-        "`ntpdate -u …` — legacy one-shot, not chrony",
-        "`timedatectl set-ntp true` — enables NTP sync but doesn't pick a SPECIFIC server",
-        "Add `server time.nist.gov iburst` to `/etc/chrony.conf`, then `"
+        "`systemctl start ntpd` — starts the legacy `ntpd` daemon; RHEL 8+ uses `chronyd` by default; `ntpd` cannot add `time.nist.gov` as a server source when `chronyd` owns the socket",
+        "`ntpdate -u time.nist.gov` — a one-shot legacy time adjustment; does not add `time.nist.gov` as a persistent server to `chrony`'s source pool",
+        "`timedatectl set-ntp true` — enables NTP synchronisation using the default server pool; does not add a specific server like `time.nist.gov iburst` to chrony's configuration",
+        "Add `server time.nist.gov iburst` to `/etc/chrony.conf`, then restart `chronyd` with `systemctl restart chronyd` — the canonical way to add an upstream time server to chrony"
       ],
       "correct": 3,
       "explanation": "chrony (RHEL 7+): /etc/chrony.conf — server ntp.example.com iburst. systemctl restart chronyd. chronyc sources: show NTP sources. chronyc tracking: show sync status. timedatectl: set timezone and check sync status. timedatectl list-timezones. timedatectl set-timezone America/New_York. chronyd preferred over ntpd in RHEL 7+.",
@@ -607,10 +607,10 @@
       "id": "rhcsa-032",
       "question": "A sysadmin reads `/proc/cpuinfo`, `/proc/meminfo`, `/proc/<pid>/status`, `/proc/sys/...`. None of these files exist on disk — they're generated ON DEMAND by the kernel exposing live state via a virtual filesystem. Which describes `/proc`?",
       "options": [
-        "Core-dump area — false; that's `/var/lib/systemd/coredump` or `/var/crash`",
-        "Persistent log storage — false; not persistent",
-        "Startup-script directory — false; that's `/etc/init.d` or systemd units",
-        "Virtual / synthetic filesystem exposing live kernel + process info as files"
+        "The `/proc` directory is a core-dump area for kernel crash files — false; core dumps go to `/var/lib/systemd/coredump` or a `core_pattern` path; `/proc` holds live kernel state files",
+        "The `/proc` directory is persistent storage for system logs — false; `/proc` is not persistent; it is a virtual filesystem in RAM exposing live kernel and process state",
+        "The `/proc` directory is the startup-script directory for legacy init — false; startup scripts live in `/etc/init.d`; `/proc` is a virtual filesystem exposing live kernel and process files",
+        "The `/proc` filesystem is a virtual / synthetic filesystem created by the kernel at boot that exposes live kernel state, process info, and hardware details as readable pseudo-files"
       ],
       "correct": 3,
       "explanation": "/proc: read kernel state. /proc/sys/net/ipv4/ip_forward: IP forwarding. sysctl -w net.ipv4.ip_forward=1: change via sysctl. /etc/sysctl.conf: persistent changes. /proc/PID/: process memory maps, open files, status. cat /proc/cpuinfo: CPU details. /proc/mounts: current mounts.",
@@ -858,10 +858,10 @@
       "id": "rhcsa-045",
       "question": "A RHEL host without internet access needs to install packages from a local DVD or NFS mount. The admin must configure a LOCAL repo so `dnf install` reads from `file:///path/to/repo`. Which steps?",
       "options": [
-        "`createrepo /path` only — necessary but not sufficient; dnf still needs a .repo config",
-        "`localrepo --add` — not a real command",
-        "Copy packages to `/var/cache/yum` — wrong directory and doesn't make them discoverable as a repo",
-        "Run `createrepo` to generate repomd metadata, then create `/etc/yum.repos.d/local.repo`"
+        "Run `createrepo /path` only — generates the local repomd.xml metadata, but `dnf` still needs a `.repo` file in `/etc/yum.repos.d/` pointing to that local path to discover the repository",
+        "Use `localrepo --add /path` — not a real command; local repositories must be configured via `createrepo` for metadata plus a `/etc/yum.repos.d/local.repo` file",
+        "Copy the RPM files to `/var/cache/dnf` — these are `dnf`'s download cache directories; placing RPMs there does not register them as an installable local repository",
+        "Run `createrepo` to generate local `repomd.xml` metadata, then create `/etc/yum.repos.d/local.repo` pointing to the local path, and run `dnf install <package>`"
       ],
       "correct": 3,
       "explanation": "Create repo file: [local-repo] name=Local Repository baseurl=file:///mnt/iso/Packages enabled=1 gpgcheck=0. dnf clean all && dnf repolist. createrepo_c /path: create repo metadata from RPMs. Mount ISO: mount -o loop rhel.iso /mnt/iso. Useful for: air-gapped systems, offline patching.",
@@ -994,10 +994,10 @@
       "id": "rhcsa-052",
       "question": "RHEL 8's VDO (Virtual Data Optimizer) provides INLINE deduplication + compression beneath a filesystem. The admin wants to create a VDO device on `/dev/sdb` with logical size 20 GB. Which command?",
       "options": [
-        "`mkvdo` — not a real command",
-        "`vdo create --name=myvdo --device=/dev/sdb --vdoLogicalSize=20G` — canonical VDO create syntax",
-        "`vdoadm` — not a real command",
-        "`lvcreate --vdo` — LVM has its own VDO type via `lvconvert --type vdo-pool` but the canonical RHCSA answer is `vdo create`"
+        "`mkvdo /dev/sdb --name=myvdo --size=20G` — `mkvdo` is not a real command; VDO is managed with the `vdo` utility, not `mkvdo`",
+        "`vdo create --name=myvdo --device=/dev/sdb --vdoLogicalSize=20G` — canonical syntax to create a VDO volume on `/dev/sdb` with a 20 GB logical size for inline deduplication",
+        "`vdoadm create --device=/dev/sdb --name=myvdo` — `vdoadm` is not a real command; use `vdo create` with `--device=/dev/sdb` and `--name` to create the VDO layer",
+        "`lvcreate --vdo --name=myvdo /dev/sdb` — LVM can create VDO-backed logical volumes via `lvconvert --type vdo-pool`, but the standalone VDO utility (`vdo create --device=/dev/sdb`) is the canonical RHCSA approach"
       ],
       "correct": 1,
       "explanation": "VDO provides deduplication and compression. Install: dnf install vdo kmod-kvdo. Create: vdo create --name=myvdo --device=/dev/sdb --vdoLogicalSize=20G. Format: mkfs.xfs -K /dev/mapper/myvdo. Mount with discard: mount -o discard /dev/mapper/myvdo /mnt. vdostats --human-readable: check savings.",
@@ -1013,10 +1013,10 @@
       "id": "rhcsa-053",
       "question": "RHEL 8 replaces Docker with Podman (daemonless, rootless-capable, container-runtime). The admin wants to run an Nginx container in DETACHED mode named `myapp` mapping host port 8080 to container port 80. Which command?",
       "options": [
-        "`podman run -d --name myapp -p 8080:80 nginx` — detached, named, port-mapped; canonical Podman syntax",
-        "`podman start nginx --port 8080:80 --detach` — `start` restarts a stopped container, doesn't create one",
-        "`container run` — not a real command",
-        "`docker run …` — Docker is not installed on RHEL 8+ by default; Podman is the runtime"
+        "`podman run -d --name myapp -p 8080:80 nginx` — runs the `nginx` container detached (`-d`), named `myapp` (`--name myapp`), with port 8080 mapped to container port 80 (`-p 8080:80`)",
+        "`podman start nginx --port 8080:80 --detach --name myapp` — `podman start` restarts a stopped, already-created container; it does not accept `--port`, `--name`, or create a new detached instance",
+        "`container run -d --name myapp -p 8080:80 nginx` — `container` is not a valid command on RHEL 8; the correct runtime command is `podman run` with `-d` for detached mode and `--name myapp`",
+        "`docker run -d --name myapp -p 8080:80 nginx` — Docker is not installed by default on RHEL 8+; RHEL replaced Docker with Podman; the `podman run` syntax is identical for this use case"
       ],
       "correct": 0,
       "explanation": "Podman: daemonless, rootless container engine. podman run -d: detached. --name: container name. -p host:container: port mapping. podman ps: list running containers. podman images: local images. podman pull registry.access.redhat.com/ubi8: pull image. podman stop/rm: stop and remove. No daemon required unlike Docker.",
