@@ -3,10 +3,11 @@
     "id": "aws-sap-c02",
     "name": "AWS Solutions Architect Professional (SAP-C02)",
     "vendor": "Amazon AWS",
-    "version": "1.0.0",
+    "version": "1.0.2",
     "question_count": 10,
     "last_updated": "2026-05-16",
-    "notes": " [bulk-tag pass: added `aws-sap-c02` tag to 10 questions] [hardening pass: rebalanced absolute-language tells across 4 distractors (Q003, Q006, Q008, Q010)]"
+    "notes": " [bulk-tag pass: added `aws-sap-c02` tag to 10 questions] [hardening pass: rebalanced absolute-language tells across 4 distractors (Q003, Q006, Q008, Q010)] | 2026-05-23 keyword-balance pass",
+    "updated": "2026-05-23"
   },
   "questions": [
     {
@@ -14,7 +15,7 @@
       "question": "A multi-account organization uses AWS Organizations across 50 member accounts. Security requires that no member account principal can ever disable AWS CloudTrail, while still allowing local admins to manage other services. Which approach scales best?",
       "options": [
         "Attach a Service Control Policy at the organization root that denies the CloudTrail stop, delete, and update API actions across all member accounts",
-        "Author an explicit-deny IAM policy in each member account and attach it manually to every user, role, and IAM Identity Center permission set in use",
+        "Author an explicit-deny IAM policy in each member account and attach it to every IAM role across the organization — per-account IAM policies require manual effort in each account and can be overridden by account admins; SCPs at the organization root apply across all accounts automatically",
         "Use AWS Config rules in every account that detect when CloudTrail is disabled and trigger a Lambda function to re-enable the trail after the fact",
         "Deploy a CloudFormation StackSet that recreates each account's CloudTrail every night so any disablement is silently reversed by the scheduled stack drift run"
       ],
@@ -33,7 +34,7 @@
       "id": "aws-sap-c02-002",
       "question": "A SaaS team operates 30 workload accounts that all need IP-routable access to a shared services VPC for Active Directory, DNS, and central logging. The networking team wants to manage routing in a single account. Which design fits best?",
       "options": [
-        "Peer every workload VPC directly with the shared services VPC and modify route tables individually in each account whenever topology changes occur",
+        "Peer every workload VPC directly with the shared services VPC — VPC peering requires a separate peering connection per workload VPC, routes must be manually updated in each, and transitive routing through the shared services networking account is not supported by peering",
         "Build a Transit Gateway in the networking account, share it with each workload account via AWS RAM, and attach each VPC to that Transit Gateway",
         "Establish AWS Site-to-Site VPN tunnels from every workload VPC to the shared services VPC so traffic is encrypted across the public internet",
         "Duplicate the shared services VPC into every workload account and keep AD, DNS, and logging data in sync via scheduled cross-account exports"
@@ -53,9 +54,9 @@
       "id": "aws-sap-c02-003",
       "question": "An on-premises application requires NFS access and low-latency reads against a working set of a 200 TB file dataset that the team wants to standardize on Amazon S3. Which approach minimizes operational overhead?",
       "options": [
-        "Replicate the entire S3 dataset nightly to a local NAS appliance via AWS DataSync and have the application read the working set from that on-premises NAS",
+        "Replicate the entire S3 dataset nightly to a local NAS appliance via AWS DataSync — nightly replication does not provide low-latency local reads during the day and may not keep the NAS current for applications that need frequent reads between sync windows",
         "Deploy AWS Storage Gateway as a File Gateway on-premises, backed by the S3 bucket, so the hot working set stays cached locally for low-latency NFS reads",
-        "Mount the S3 bucket directly on each application server with s3fs-fuse and rely on the Linux page cache to absorb read latency for the NFS-facing clients",
+        "Mount the S3 bucket directly on each application server with s3fs-fuse and rely on the Linux page cache to absorb read latency — fuse-based S3 mounts do not maintain a local working set cache with the consistency and performance of a dedicated File Gateway appliance",
         "Deploy AWS Storage Gateway in Volume Gateway cached-volume mode on-premises and expose the S3-backed iSCSI volumes to the application servers as NFS exports"
       ],
       "correct": 1,
@@ -73,9 +74,9 @@
       "id": "aws-sap-c02-004",
       "question": "A trading platform requires single-digit-millisecond writes from users in two AWS regions and must keep accepting writes if either region fails, with no manual failover step. Which data layer best meets these requirements?",
       "options": [
-        "An Amazon Aurora global database with a single writer in the primary region and a read-only Aurora replica running in the secondary region serving reads",
+        "An Amazon Aurora global database with a single writer in the primary region — Aurora Global Database has one primary region that accepts all writes; read replicas in secondary regions cannot accept writes, so it does not support either-region write acceptance",
         "An Amazon DynamoDB global table with active replicas in both regions, accepting writes locally in either region under last-writer-wins resolution rules",
-        "An Amazon RDS for PostgreSQL Multi-AZ deployment in the primary region plus a cross-region read replica that operators promote during a regional outage",
+        "An Amazon RDS for PostgreSQL Multi-AZ deployment in the primary region plus a cross-region read replica — the replica is not accepting writes; operators must promote it manually during a regional outage, creating downtime and potential data-loss risk",
         "An Amazon S3 cross-region replication pipeline copying database write-ahead log files between the two regions, with application-side reconciliation on failover"
       ],
       "correct": 1,
@@ -113,7 +114,7 @@
       "id": "aws-sap-c02-006",
       "question": "An Amazon RDS for PostgreSQL writer shows CPU spikes during business hours that trace to a few heavy reporting queries, and OLTP latency suffers. Which improvement is most cost-effective for restoring transactional performance?",
       "options": [
-        "Vertically scale the writer to the next-larger instance class so the reporting workload no longer impacts OLTP transaction latency for end users during peak",
+        "Vertically scale the writer to the next-larger instance class so the reporting workload fits alongside transactional writes — vertical scaling increases cost and does not isolate reporting queries from transactional writes; a read replica accepts reads independently without impacting the PostgreSQL writer",
         "Move the reporting workload onto a PostgreSQL read replica and point the reporting application's connection string at the replica endpoint going forward",
         "Re-architect the application so both transactional writes and analytical reporting run together against a single Amazon Redshift cluster from now on",
         "Place an ElastiCache for Redis cluster in front of reporting queries so common lookups return from cache and the writer is shielded from most analytical traffic"
@@ -134,7 +135,7 @@
       "question": "A security audit finds an existing 30 TB S3 bucket containing tens of millions of unencrypted objects. The bucket must remain available to live applications while existing data is encrypted at rest. Which approach is best?",
       "options": [
         "Run an S3 Batch Operations Copy job that overwrites each existing object in place using SSE-KMS encryption, while applications continue reading and writing online",
-        "Halt all application writes for 48 hours, download every object to a local server, encrypt the files with GPG, and re-upload the resulting ciphertext to the bucket",
+        "Halt all application writes for 48 hours, download every object to a local server, re-encrypt with the new KMS key, and re-upload — halting writes for 48 hours is operationally disruptive; S3 Batch Operations Copy can re-encrypt objects in-place while the application continues writing",
         "Provision a brand-new bucket with default encryption enabled, point applications at it, and dual-write to both the old and the new buckets for a full month",
         "Enable Default Encryption on the existing bucket and rely on the setting to encrypt all existing objects transparently over time as background tasks run later"
       ],
@@ -153,9 +154,9 @@
       "id": "aws-sap-c02-008",
       "question": "A microservice has intermittent 5xx errors that reproduce only in production. Engineers need to identify which downstream call is failing without modifying the service's source code. What should they do first?",
       "options": [
-        "Enable detailed CloudWatch instance monitoring across the EC2 fleet and inspect aggregated CPU, network, and disk graphs spanning every running instance of the service",
+        "Enable detailed CloudWatch instance monitoring across the EC2 fleet and inspect per-instance call metrics — CloudWatch detailed monitoring provides instance-level resource metrics but does not capture distributed downstream call traces or propagate trace context across service boundaries",
         "Turn on AWS X-Ray active tracing for the service so every downstream call is captured as a span and inspect the traces to find the span returning the 5xx errors",
-        "Ship the service logs into Amazon S3 and run a manual grep workflow across the raw log files captured during the last 24 hours to look for error strings by hand",
+        "Ship the service logs into Amazon S3 and run a manual grep workflow across raw log files to look for errors by hand — manual grep does not correlate distributed spans or identify which downstream dependency is returning 5xx failures",
         "Add custom CloudWatch metrics emitted from every method in the service so that each failure path appears as a separate dimension on a metric graph for engineers to read"
       ],
       "correct": 1,

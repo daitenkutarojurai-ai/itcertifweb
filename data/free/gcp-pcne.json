@@ -3,19 +3,20 @@
     "id": "gcp-pcne",
     "name": "GCP Professional Cloud Network Engineer",
     "vendor": "Google Cloud",
-    "version": "1.0.0",
+    "version": "1.0.3",
     "question_count": 10,
     "last_updated": "2026-05-17",
-    "notes": "Initial pack — 10 questions across PCNE exam domains"
+    "notes": "Initial pack — 10 questions across PCNE exam domains | 2026-05-23 keyword-balance pass",
+    "updated": "2026-05-23"
   },
   "questions": [
     {
       "id": "pcne-001",
       "question": "A company has 12 GCP projects organized by team. The platform team owns network resources and must centrally manage firewall rules, subnets, and routes while letting application teams deploy compute in their own projects. Which network architecture meets these requirements?",
       "options": [
-        "VPC Network Peering links between every application project VPC and a central network project",
+        "VPC Network Peering links between every application project VPC and a central networking project — VPC peering does not support transitive routing; each application project must peer directly with every other project it needs to reach, and shared services cannot be accessed through a hub via peering",
         "Shared VPC with the platform team's project as the host and application projects as service projects",
-        "HA VPN tunnels from each application project to a transit VPC managed by the platform team",
+        "HA VPN tunnels from each application's VPC to a transit VPC managed by the platform team — application projects each need a separate VPN tunnel to reach shared services, and transitive routing between application projects is not supported natively through VPN",
         "Network Connectivity Center hub with each application project's VPC attached as a spoke"
       ],
       "correct": 1,
@@ -32,7 +33,7 @@
       "id": "pcne-002",
       "question": "An e-commerce site runs identical backend services in us-central1 and europe-west1. Users worldwide must reach the closest healthy region over HTTPS, with TLS terminated as close to them as possible. Which load balancer should you use?",
       "options": [
-        "Two regional external Application Load Balancers fronted by a Cloud DNS geolocation routing policy",
+        "Two regional external Application Load Balancers fronted by a Cloud DNS geolocation routing policy with one backend per regional load balancer — dual regional ALBs with DNS geolocation routing require two separate external IPs and do not provide a single anycast IP with automatic cross-region failover",
         "Global external proxy Network Load Balancer with weighted DNS records assigning users to each region",
         "Global external Application Load Balancer with one backend service containing the two regional NEGs",
         "Global external passthrough Network Load Balancer using an anycast IP and regional managed instance groups"
@@ -71,7 +72,7 @@
       "question": "All internet egress from a VPC's two regions must flow through a centralized next-hop firewall VM running in us-east1. The default internet route should be overridden for every subnet in the VPC. What is the simplest correct configuration?",
       "options": [
         "Add a 0.0.0.0/0 custom static route to the VPC with the firewall VM as the next hop instance, at a priority higher than the default internet route",
-        "Run the firewall VM behind Cloud NAT and configure the VPC's default route to use the Cloud NAT gateway as the next hop for all egress traffic",
+        "Run the firewall VM behind Cloud NAT and configure the VPC's default route to use the NAT gateway as the internet next hop — Cloud NAT provides outbound-only NAT for instances without public IPs; it does not allow the firewall VM to function as an internet next hop for other instances' traffic",
         "Enable a Cloud Router with custom advertised routes that send 0.0.0.0/0 toward the firewall VM's internal IP address from its BGP peers",
         "Use VPC Network Peering between two VPCs and apply route export policies that redirect egress traffic through the firewall project"
       ],
@@ -127,7 +128,7 @@
       "id": "pcne-007",
       "question": "A company needs 12 Gbps of dedicated, low-latency connectivity between a single colocation facility and a GCP VPC with a 99.99% SLA. Which configuration meets the requirement at the lowest cost?",
       "options": [
-        "Two HA VPN gateways with four IPsec tunnels per gateway spread across two separate GCP regions",
+        "Two HA VPN gateways with four IPsec tunnels per gateway spread across two separate Google edge nodes — HA VPN provides 99.99% SLA through redundant IPsec tunnels over the internet; it does not offer the dedicated private bandwidth of Dedicated Interconnect connections at the same capacity",
         "A Partner Interconnect with two 10 Gbps VLAN attachments through the same service provider",
         "Cross-Cloud Interconnect with redundant 100 Gbps ports terminating at the colocation facility",
         "Two 10 Gbps Dedicated Interconnect connections in different Edge Availability Domains at one metro"
@@ -146,9 +147,9 @@
       "id": "pcne-008",
       "question": "Twelve project VPCs need full-mesh reachability with each other and with on-premises sites attached via Dedicated Interconnect. The platform team wants to avoid managing dozens of peering relationships and prefers a managed transit topology. Which design fits best?",
       "options": [
-        "Build VPC Network Peering between every pair of project VPCs and let subnet routes exchange across the mesh",
+        "Build VPC Network Peering between every pair of project VPCs and let subnet routes propagate transitively — VPC peering does not support transitive routing; peered VPCs cannot reach on-premises resources or third-party networks through another peered VPC without Network Connectivity Center",
         "Use Network Connectivity Center with one VPC as the hub and each project VPC plus the Interconnect attachment as spokes",
-        "Build full-mesh IPsec VPN tunnels between every pair of VPCs and propagate routes through Cloud Router BGP",
+        "Build full-mesh IPsec VPN tunnels between every pair of VPCs, then attach the on-premises Interconnect as a spoke in each VPC — full-mesh topology does not support transitive routing and does not scale for twelve projects sharing on-premises connectivity",
         "Consolidate all projects into a single Shared VPC host project with twelve service projects sharing one subnet plan"
       ],
       "correct": 1,
@@ -165,10 +166,10 @@
       "id": "pcne-009",
       "question": "The security team operates an existing Suricata-based intrusion detection platform and wants full packet payload visibility on selected backend instances behind an internal load balancer. VPC Flow Logs are already enabled. What should they add?",
       "options": [
-        "Increase VPC Flow Logs sampling to 1.0 and enable all metadata fields so payloads are captured alongside flow records",
-        "Enable Firewall Insights and export the resulting logs to a Pub/Sub topic that the Suricata fleet subscribes to",
+        "Increase VPC Flow Logs sampling to 1.0 and enable all metadata fields so payload inspection data appears in Cloud Logging — VPC Flow Logs capture connection metadata such as source and destination IP and port; they do not include packet payload content required for deep-packet inspection of internal traffic",
+        "Enable Firewall Insights on the target instances and export the resulting logs to a Pub/Sub topic — Firewall Insights reports on firewall rule usage and shadow rules, not packet payloads required for deep-packet inspection of internal traffic",
         "Configure Packet Mirroring on the target instances with a collector internal LB fronting the Suricata appliances",
-        "Replace VPC Flow Logs with Cloud IDS in the VPC since Cloud IDS captures and inspects packets in one managed service"
+        "Replace VPC Flow Logs with Cloud IDS in the VPC — Cloud IDS detects known threat signatures using Suricata-compatible rule sets but does not forward full packet mirrors to an existing external Suricata appliance fleet for custom rule evaluation"
       ],
       "correct": 2,
       "explanation": "Packet Mirroring clones full packet payloads (headers and body) from selected sources to a collector internal load balancer fronting custom IDS appliances such as Suricata. VPC Flow Logs only ever capture 5-tuple metadata, regardless of sampling rate or fields. Firewall Insights analyzes firewall rule usage, not packet contents. Cloud IDS is Google's managed IDS — useful, but it does not feed an existing Suricata platform.",
@@ -185,8 +186,8 @@
       "question": "GCE VMs in a subnet have only internal IP addresses and need to call BigQuery and Cloud Storage at their standard public endpoints. No Cloud NAT is deployed and adding external IPs is not allowed. What is the minimum configuration to enable this?",
       "options": [
         "Enable Private Google Access on the subnet so traffic to Google API endpoints uses Google's private network",
-        "Deploy a Cloud NAT gateway in the region so the VMs can egress to the Google API endpoints over the internet",
-        "Create a Private Service Connect endpoint for each Google API and update client libraries to use the new endpoint URL",
+        "Deploy a Cloud NAT gateway in the region and enable internet egress so the VMs can reach Google API endpoints — Cloud NAT routes traffic through public NAT IPs to the internet rather than routing privately to Google APIs as Private Google Access does",
+        "Create a Private Service Connect endpoint for each Google API in the subnet and update client libraries to use the new endpoint URL — PSC also provides private access but requires endpoint provisioning per API and library changes, unlike Private Google Access which requires only a subnet flag",
         "Set up VPC Network Peering between the workload VPC and Google's managed services VPC to reach the APIs privately"
       ],
       "correct": 0,

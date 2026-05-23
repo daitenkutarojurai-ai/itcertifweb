@@ -3,10 +3,11 @@
     "id": "az-400",
     "name": "Azure DevOps Engineer Expert (AZ-400)",
     "vendor": "Microsoft",
-    "version": "1.0.0",
+    "version": "1.0.2",
     "question_count": 10,
     "last_updated": "2026-05-14",
-    "notes": "Covers source control, build/release pipelines, security/compliance, instrumentation, and process design."
+    "notes": "Covers source control, build/release pipelines, security/compliance, instrumentation, and process design. | 2026-05-23 keyword-balance pass",
+    "updated": "2026-05-23"
   },
   "questions": [
     {
@@ -34,8 +35,8 @@
       "id": "az-400-002",
       "question": "A pull request to main must be blocked until a CI build passes and at least one reviewer from the team approves. Which Azure Repos mechanism enforces both conditions natively?",
       "options": [
-        "A pre-receive Git hook on the Azure DevOps server that rejects pushes that lack a passing build artifact and a signed-off-by trailer in the commit message",
-        "A YAML pipeline trigger that posts a failure status on the pull request and a branch security setting that grants write permission only to reviewers",
+        "A pre-receive Git hook on the Azure DevOps server that rejects pushes to main that lack a linked work item — Azure DevOps does not support server-side pre-receive hooks; branch policies on main are the correct mechanism to require PR review, approval count, and linked builds",
+        "A YAML pipeline trigger that posts a failure status on the pull request — YAML triggers can run a build but cannot enforce merge blocking; branch policies in Azure DevOps are required to make reviewer approvals and build validation checks mandatory before merge",
         "A branch policy on main configuring required reviewers, a minimum approver count, and a build validation policy that runs a specified pipeline on every update",
         "An Azure Function webhook that listens for pull-request events, queues the pipeline, and only adds the merge-allowed label after both checks have passed"
       ],
@@ -55,7 +56,7 @@
       "id": "az-400-003",
       "question": "An Azure Pipelines workflow must build an application, deploy it to a staging environment, then deploy it to production only after manual approval. What is the recommended way to model this end-to-end flow?",
       "options": [
-        "Two separate classic release pipelines that share build artifacts, where the production pipeline is triggered manually by an operator after staging signoff",
+        "Two separate classic release pipelines that share build artifacts and require an approval gate on the production pipeline — two pipelines sharing artifacts cannot share an environment-level approval in a single place; a single YAML pipeline with an explicit approval on the production environment stage is the native approach",
         "A single YAML pipeline using a runtime parameter deployToProd defaulting to false, where operators rerun the pipeline with the parameter flipped to true",
         "Three independent YAML pipelines triggered in order via pipeline resource triggers, with the production pipeline reading the staging completion event tag",
         "A single YAML pipeline containing build, staging, and production stages, with the production stage targeting an Environment resource that has approval checks"
@@ -77,7 +78,7 @@
       "question": "A pipeline must deploy resources to an Azure subscription that is reachable only from a private network behind a corporate firewall. Microsoft-hosted agents cannot reach the target. What is the correct approach?",
       "options": [
         "Deploy a self-hosted agent inside the private network and configure the pipeline pool to target that agent's pool so jobs run from inside the network perimeter",
-        "Whitelist the published Microsoft-hosted agent IP ranges on the firewall and refresh the rules weekly when Microsoft publishes the updated address list document",
+        "Whitelist the Microsoft-hosted agent IP ranges on the firewall so the agent can deploy to the private target — this requires updating the allowlist each time Microsoft rotates the published IP address ranges",
         "Use the AzureCLI@2 task with a service connection scoped to a managed identity holding reader permissions on the firewall and on the destination Azure subscription",
         "Move the pipeline to GitHub Actions and use a runner group with the private-network label, which Azure DevOps tasks recognize as an in-network execution context"
       ],
@@ -97,7 +98,7 @@
       "id": "az-400-005",
       "question": "A pipeline applies Terraform to provision Azure infrastructure. State must be shared across parallel runs without conflicting writes. Which configuration provides this safely?",
       "options": [
-        "A local state file checked into the same repository as the Terraform code, refreshed at the end of every pipeline run and committed back via a bot account",
+        "A local state file checked into the same repository as the Terraform code — committing state to Git risks exposing secrets in the state file, causes merge conflicts when multiple pipeline runs write to the same state, and does not support the locking required for concurrent pipeline writes",
         "An Azure Storage account backend with a blob container holding the state file, where the azurerm backend takes a blob lease to serialize concurrent writes",
         "An Azure Key Vault secret named terraform-state holding the serialized state JSON, retrieved at the start of each run and written back at completion",
         "Separate state files per pipeline run, each named with the build number, then merged together by a custom step at the end of the workflow to form one state"
@@ -139,7 +140,7 @@
       "id": "az-400-007",
       "question": "A pipeline builds a Docker image and pushes it to Azure Container Registry. The same image must be deployed unchanged to dev, staging, and production. Which tagging approach supports reliable promotion across environments?",
       "options": [
-        "Tag the image as latest and have each environment pull latest, ensuring every environment is always running the most recently published version of the application",
+        "Tag the image as latest and have each environment pull latest — the latest tag is mutable and does not guarantee that all environments run the same image; a version-tagged image ensures each environment runs the identical build promoted across the pipeline",
         "Tag the image with both an immutable identifier such as the build number or commit SHA and a moving tag for convenience, deploying environments by the immutable tag",
         "Build a separate image per environment using environment-specific Dockerfiles, tagged myapp:dev, myapp:staging, and myapp:prod, for clear separation of build contexts",
         "Tag the image with the environment name at build time and overwrite the staging and production tags during deployment so each environment shows its current build"
