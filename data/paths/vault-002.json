@@ -6,60 +6,125 @@
   "chapters": [
     {
       "id": "ch1",
-      "title": "Part 1",
-      "tag": "part-1",
+      "title": "Policies",
+      "tag": "policies",
       "nodes": [
         {
           "id": "c1-concept",
           "type": "concept",
-          "title": "Cloud fundamentals (CLF-C02 / AZ-900 / CCNA): Key Ideas",
-          "content": "Cloud fundamentals questions appear on almost every entry-level certification. They test your ability to map a business requirement to the correct service model (IaaS/PaaS/SaaS), understand the provider vs customer responsibility split, and compare on-premises capex to cloud opex — all before any technical deep-dive.",
+          "title": "Access control lists: Key Ideas",
+          "content": "An ACL is an ordered list of permit/deny rules evaluated top-down until first match. Used everywhere: router interfaces, switch ports, NTFS files, cloud network ACLs. Order matters — a permit at line 5 won't fire if a deny at line 3 matches the same traffic.",
           "flashcards": [
             {
-              "front": "IaaS vs PaaS vs SaaS — who manages what in each model?",
-              "back": "IaaS (EC2, Azure VM, Compute Engine): provider manages hardware + hypervisor; you manage OS, runtime, app, data. PaaS (App Service, Elastic Beanstalk, App Engine): provider adds OS + runtime; you manage app + data. SaaS (Office 365, Salesforce): provider manages everything; you manage user config and data. As you move up the stack you trade control for speed."
+              "front": "Standard vs extended ACL — what's the difference?",
+              "back": "Standard ACL (Cisco IOS 1-99): matches source IP only. Extended (100-199 or named): matches source IP + destination + protocol + port. Use extended for anything realistic — standard ACLs can't say 'block SSH from this subnet to that host'. Apply extended close to the source, standard close to the destination."
             },
             {
-              "front": "Shared responsibility model — where is the exact dividing line?",
-              "back": "The provider is always responsible for security OF the cloud (physical data centers, networking fabric, hypervisor, managed service software). The customer is always responsible for security IN the cloud (data classification, IAM configuration, OS patching on IaaS VMs, application code). The dividing line shifts up the stack for PaaS and SaaS — the more managed the service, the more the provider owns."
+              "front": "What is the implicit deny?",
+              "back": "Every ACL has an invisible `deny ip any any` at the end. If nothing matches your permit rules, traffic is dropped. Common gotcha: configure 'permit ssh from 10.0.0.0/24', forget that this blocks DNS, NTP, ICMP — anything you didn't explicitly permit. Always log the implicit deny while testing to see what you accidentally blocked."
             },
             {
-              "front": "Regions vs Availability Zones — what is each?",
-              "back": "A region is a geographic cluster of data centers (e.g., us-east-1, West Europe). An AZ is one or more discrete data centers within a region with independent power, cooling, and networking. AZs in a region are close enough for low-latency synchronous replication but far enough apart that a fire/flood in one doesn't hit another. Spread workloads across at least 2 AZs for high availability."
+              "front": "Inbound vs outbound — which direction to apply?",
+              "back": "Inbound: filter traffic ENTERING the interface BEFORE the router routes it. Outbound: filter traffic LEAVING after the router decided where it's going. Inbound is more efficient (drops bad traffic before routing); outbound is rarely needed except for specific egress filtering. When in doubt, apply inbound on the closest interface to the source."
             },
             {
-              "front": "Capex vs opex — why does cloud shift the spending model?",
-              "back": "Capex (capital expenditure): large upfront purchase of hardware that you then depreciate over years; on-premises servers. Opex (operating expenditure): ongoing pay-as-you-go cost; cloud compute bills. Cloud converts infra from capex to opex — no hardware procurement lead times, costs scale with actual usage, easier to budget for a startup or to kill a failed project without a sunk-cost legacy."
+              "front": "Why does order matter in an ACL?",
+              "back": "Rules are evaluated top to bottom; first match wins. If you put 'deny 10.0.0.0/24' before 'permit 10.0.0.5', host .5 is denied — its specific permit never gets reached. Order most-specific rules first, broad rules last. Always end with explicit denies that log, so you can see what's getting blocked."
             }
           ],
           "source": "concept-library",
-          "sourceTag": "fundamentals"
+          "sourceTag": "acl"
         },
         {
           "id": "c1-quiz1",
           "type": "quiz",
-          "title": "Part 1 — Drill 1",
+          "title": "Policies — Drill 1",
           "questionIds": [
-            "vault-001"
+            "vault-005",
+            "vault-026",
+            "vault-033",
+            "vault-028",
+            "vault-046"
           ]
+        },
+        {
+          "id": "c1-game",
+          "type": "minigame",
+          "gameType": "lightning",
+          "mode": "lightning-round",
+          "data": {
+            "secondsPerQuestion": 7,
+            "livesAllowed": 3,
+            "questions": [
+              {
+                "q": "A platform team writes a policy attached to an app role. Inside the policy they declare which actions the holder may perform on each path. The set of allowed actions is fixed by Vault. Which set lists capabilities a policy can grant on a path?",
+                "choices": [
+                  "create, read, update, delete, list, sudo, deny",
+                  "get, post, put, patch, delete, head, options",
+                  "select, insert, update, delete, execute, grant, revoke",
+                  "allow, deny, audit, broadcast, suppress, escalate, override"
+                ],
+                "correctIndex": 0,
+                "explanation": "Vault policy capabilities: create (write new), read, update (overwrite existing), delete, list (enumerate keys), sudo (root-restricted operations), deny (explicit deny overrides any allow). Policies are written in HCL or JSON and assigned to tokens at authentication time."
+              },
+              {
+                "q": "A policy attached to a token reads: `path \"secret/data/app/*\" { capabilities = [\"read\"] }`. The token attempts `vault kv get secret/data/app/db`. Vault allows it. The same token then tries `vault kv put secret/data/app/db @creds.json`. What happens to the write?",
+                "choices": [
+                  "Allowed — the wildcard glob covers all verbs against any path matching the prefix, including writes, until an explicit deny rule fires",
+                  "Allowed but degraded — the write succeeds and is stored under a quarantine flag pending out-of-band approval by a policy reviewer",
+                  "Denied — the policy grants only the read capability on that prefix, and a write requires explicit create or update capability",
+                  "Denied with a token revocation — Vault treats the attempted write as a privilege escalation and invalidates the token immediately"
+                ],
+                "correctIndex": 2,
+                "explanation": "The policy grants only 'read' capability on the path. Writing (vault kv put) requires 'create' or 'update' capability. Listing requires 'list' capability on the parent path. The policy explicitly restricts writes, so vault kv put would be denied. Note: list also requires listing the path secret/metadata/app/ for KV v2."
+              },
+              {
+                "q": "A team wants to create a Vault policy that allows listing secrets in secret/team-a/ but prevents reading the secret VALUES. Which capability achieves this?",
+                "choices": [
+                  "Read capability with a condition blocking value access",
+                  "List capability on the metadata path without",
+                  "Sudo capability with read disabled",
+                  "Create capability on secret/team-a/"
+                ],
+                "correctIndex": 1,
+                "explanation": "In KV v2, listing secrets requires 'list' on 'secret/metadata/team-a/*'. Reading secret values requires 'read' on 'secret/data/team-a/*'. By granting list on the metadata path only (without read on data), users can see secret names but cannot read their values. This separation is a KV v2 advantage over v1."
+              },
+              {
+                "q": "A new client authenticates and receives a token with two policies listed: the application policy and another policy that is automatically attached. The auto-attached policy grants the bare minimum needed for the token to renew itself and look up its own info. Which policy is it?",
+                "choices": [
+                  "The `root` policy, attached as a fallback when no other policy is specified at token creation, granting unrestricted access until tuned",
+                  "The `default` policy, automatically attached to every non-root token unless explicitly excluded, granting self-renew, self-lookup, cubbyhole, and a few other",
+                  "The `admin` policy, attached for the first hour of a token's life so that the application can complete bootstrap before being demoted",
+                  "The `audit` policy, attached so that the token can write its own audit records to the configured audit devices for forensic replay"
+                ],
+                "correctIndex": 1,
+                "explanation": "The 'default' policy is automatically attached to every token created in Vault. It grants minimal permissions like token renewal (auth/token/renew-self), self-lookup (auth/token/lookup-self), and revocation (auth/token/revoke-self). You can add more permissions to the default policy or explicitly exclude it using token_no_default_policy in auth roles. self-lookup) — attached to ALL tokens automatically"
+              },
+              {
+                "q": "A team stores secrets at secret/data/team-a/db. They want to enforce that only tokens with entity metadata 'team=team-a' can access this path. Which Vault ACL template feature enables this?",
+                "choices": [
+                  "Vault cannot use token metadata for policy decisions",
+                  "ACL templating with {{identity.entity.metadata.team}",
+                  "AWS IAM condition keys in Vault policies",
+                  "LDAP group binding to the secret path"
+                ],
+                "correctIndex": 1,
+                "explanation": "Vault ACL templating allows dynamic policy paths using identity metadata. A policy like path 'secret/data/{{identity.entity.metadata.team}}/*' { capabilities = ['read'] } restricts each entity to only their team's secrets path. The placeholder resolves at policy evaluation time based on the authenticated entity's metadata."
+              }
+            ]
+          },
+          "title": "Policies — Lightning Round"
         },
         {
           "id": "c1-boss",
           "type": "subboss",
-          "title": "Boss: Part 1",
+          "title": "Boss: Policies",
           "questionIds": [
-            "vault-002",
-            "vault-003",
-            "vault-004",
-            "vault-006",
             "vault-005",
-            "vault-007",
-            "vault-008",
-            "vault-009",
-            "vault-010",
-            "vault-011",
-            "vault-012",
-            "vault-013"
+            "vault-026",
+            "vault-033",
+            "vault-028",
+            "vault-046"
           ]
         },
         {
@@ -73,60 +138,125 @@
     },
     {
       "id": "ch2",
-      "title": "Part 2",
-      "tag": "part-2",
+      "title": "Tokens",
+      "tag": "tokens",
       "nodes": [
         {
           "id": "c2-concept",
           "type": "concept",
-          "title": "Security fundamentals: Key Ideas",
-          "content": "Security is about layering defenses so no single failure compromises a system. Most exams test the same core ideas: least privilege, defense in depth, the CIA triad, and the shared-responsibility line between you and your cloud provider.",
+          "title": "HashiCorp Vault tokens: Key Ideas",
+          "content": "Tokens are the core authentication mechanism in Vault — every authenticated client uses a token to make API calls. Vault token types, TTLs, and policies determine what a client can do.",
           "flashcards": [
             {
-              "front": "What is the CIA triad?",
-              "back": "Confidentiality (only the right people see the data), Integrity (data isn't tampered with), Availability (the system is reachable when needed). Every security control maps to at least one of these three pillars."
+              "front": "Root token — when and why to use it?",
+              "back": "Generated during 'vault operator init'; has unlimited access. Should be revoked immediately after bootstrapping policies — never used for day-to-day operations."
             },
             {
-              "front": "What does 'least privilege' mean?",
-              "back": "Grant each identity (user, role, service account) the minimum permissions needed to do its job — no more. The opposite is wildcard access, which makes a single credential leak catastrophic."
+              "front": "Service token vs batch token?",
+              "back": "Service token: stored in Vault, supports renewal, can create child tokens. Batch token: lightweight, encrypted, not stored — cheaper for high-throughput use cases but cannot be renewed or looked up."
             },
             {
-              "front": "What is defense in depth?",
-              "back": "Stack multiple, independent controls so an attacker has to defeat all of them. Example: WAF in front of an app, network ACL on the subnet, IAM on the workload, encryption at rest in the database."
+              "front": "Token TTL vs Max TTL?",
+              "back": "TTL: how long until the token expires unless renewed. Max TTL: the absolute ceiling a token's lifetime can be extended to — renewal cannot push past it."
             },
             {
-              "front": "Shared responsibility model — who does what?",
-              "back": "The cloud provider secures the cloud (physical hardware, hypervisor, region facilities). You secure what's IN the cloud (your data, IAM config, OS patching on EC2, application code). The exact line shifts by service: serverless is more on the provider, IaaS is more on you."
+              "front": "vault token create -orphan flag?",
+              "back": "Creates a token without a parent; revocation of the creator's token does not cascade to this token. Useful for long-lived service accounts."
             }
           ],
           "source": "concept-library",
-          "sourceTag": "security"
+          "sourceTag": "tokens"
         },
         {
           "id": "c2-quiz1",
           "type": "quiz",
-          "title": "Part 2 — Drill 1",
+          "title": "Tokens — Drill 1",
           "questionIds": [
-            "vault-022"
+            "vault-031",
+            "vault-048",
+            "vault-023",
+            "vault-040",
+            "vault-multi-1"
           ]
+        },
+        {
+          "id": "c2-game",
+          "type": "minigame",
+          "gameType": "lightning",
+          "mode": "lightning-round",
+          "data": {
+            "secondsPerQuestion": 7,
+            "livesAllowed": 3,
+            "questions": [
+              {
+                "q": "A high-throughput application creates thousands of Vault tokens per second. Which token type is optimized for this scenario and why?",
+                "choices": [
+                  "Orphan tokens — they don't need parent token management",
+                  "Batch tokens — they're lightweight, not stored in Vault,.",
+                  "Root tokens — they bypass storage overhead",
+                  "Service tokens — they're more secure for high-volume workloads"
+                ],
+                "correctIndex": 1,
+                "explanation": "Batch tokens are encoded entirely in the token string and not stored in Vault's storage backend. This makes them extremely lightweight — no storage write per token creation. They cannot be renewed and have no children, but for short-lived, high-volume use cases (Lambda functions, CI/CD jobs) they are far more efficient than service tokens. and faster to create"
+              },
+              {
+                "q": "A Vault token has a TTL of 1 hour but the application needs it to remain valid for 8 hours. The token's max_ttl is 24 hours. What should the application do?",
+                "choices": [
+                  "Create a new token by re-authenticating after each hour",
+                  "Enable token immortality by setting TTL to 0",
+                  "Change the token's TTL using vault token update",
+                  "Call vault token renew before the TTL expires to extend"
+                ],
+                "correctIndex": 3,
+                "explanation": "Vault tokens with 'renewable: true' can be renewed before expiry using vault token renew (or the API equivalent). Each renewal extends the TTL by its increment, but the token cannot be renewed past max_ttl. Vault Agent automates this for applications. Setting TTL to 0 does NOT make a token immortal — it uses the system default TTL."
+              },
+              {
+                "q": "A workload requests a token whose lifetime should NOT depend on the lifetime of any other token. When the token that issued the credential expires or is revoked, the new token must survive. To achieve this, the issuing token uses a specific flag at create time. What does that flag set?",
+                "choices": [
+                  "Creates a token with no parent in Vault's token hierarchy — it is not revoked when its issuer is revoked, only by its own TTL, max_ttl, or explicit revocation",
+                  "Marks the token as exempt from any audit log for the duration of its validity, so that high-throughput batch jobs do not flood downstream SIEMs",
+                  "Allows the token to bypass policy checks on a configurable subset of paths to support break-glass operations during an incident",
+                  "Causes the token's TTL to be refreshed every time a child token is created beneath it, effectively pinning the parent's lifetime to the child's"
+                ],
+                "correctIndex": 0,
+                "explanation": "Normally, revoking a parent token revokes all its child tokens. An orphan token (token_type = orphan) has no parent — it exists independently. This is important for long-running services that authenticate via AppRole: the AppRole login token is ephemeral (parent), but the service shouldn't lose access just because the login token expired. Orphan tokens persist until their own TTL expires or they're explicitly revoked. it survives independently of the creating token's lifecycle"
+              },
+              {
+                "q": "An operator runs vault token lookup and sees 'renewable: false'. What does this mean for the token lifecycle?",
+                "choices": [
+                  "The token will never expire",
+                  "The token can only be renewed by root users",
+                  "The token can be renewed but the TTL won't increase",
+                  "The token will expire at its TTL and cannot be"
+                ],
+                "correctIndex": 3,
+                "explanation": "A non-renewable token cannot be extended with vault token renew. Once its TTL expires, it becomes invalid. The application must re-authenticate to get a new token. Batch tokens are always non-renewable by design. Some auth method roles can be configured to issue non-renewable tokens for security purposes. a new token must be obtained"
+              },
+              {
+                "q": "A token is issued with TTL=1h and max_ttl=24h. The application renews the token roughly every 45 minutes while it is running. Which TWO statements about its lifetime are accurate? (select two)",
+                "choices": [
+                  "Each renewal can extend the token's expiry by up to TTL=1h from the renewal moment, but never past max_ttl=24h from initial creation",
+                  "Renewals reset both TTL and max_ttl, so a long-running process can keep the same token alive indefinitely with periodic renewals",
+                  "After 24 hours from creation the token expires regardless of how recently it was renewed; the application must authenticate again to obtain a fresh token",
+                  "The token enters a grace period after expiry during which it can still authorise reads but is rejected for any write operation against any path"
+                ],
+                "correctIndex": 0,
+                "explanation": "max_ttl is the hard cap on total lifetime from creation, regardless of renewals. As you approach max_ttl, the renewal grant shrinks (Vault returns less than the requested TTL). Renewals are NOT automatic — clients must call /auth/token/renew. Use cases like agent auto-auth handle that on the client side."
+              }
+            ]
+          },
+          "title": "Tokens — Lightning Round"
         },
         {
           "id": "c2-boss",
           "type": "subboss",
-          "title": "Boss: Part 2",
+          "title": "Boss: Tokens",
           "questionIds": [
-            "vault-015",
-            "vault-016",
-            "vault-017",
-            "vault-018",
-            "vault-021",
-            "vault-026",
-            "vault-014",
-            "vault-019",
-            "vault-020",
+            "vault-031",
+            "vault-048",
             "vault-023",
-            "vault-024",
-            "vault-025"
+            "vault-040",
+            "vault-multi-1"
           ]
         },
         {
@@ -140,60 +270,112 @@
     },
     {
       "id": "ch3",
-      "title": "Part 3",
-      "tag": "part-3",
+      "title": "Secrets Engines",
+      "tag": "secrets-engines",
       "nodes": [
         {
           "id": "c3-concept",
           "type": "concept",
-          "title": "Security fundamentals: Key Ideas",
-          "content": "Security is about layering defenses so no single failure compromises a system. Most exams test the same core ideas: least privilege, defense in depth, the CIA triad, and the shared-responsibility line between you and your cloud provider.",
+          "title": "Vault secrets engines: Key Ideas",
+          "content": "Secrets engines are the plugins that store, generate, or encrypt secrets in Vault. Each engine is mounted at a path and has its own API. Vault Associate/Professional exams test the major engine types and their use cases.",
           "flashcards": [
             {
-              "front": "What is the CIA triad?",
-              "back": "Confidentiality (only the right people see the data), Integrity (data isn't tampered with), Availability (the system is reachable when needed). Every security control maps to at least one of these three pillars."
+              "front": "KV v1 vs KV v2 secrets engine?",
+              "back": "KV v1: simple key-value, no versioning. KV v2: stores up to N versions of each secret; you can recover deleted secrets and compare versions."
             },
             {
-              "front": "What does 'least privilege' mean?",
-              "back": "Grant each identity (user, role, service account) the minimum permissions needed to do its job — no more. The opposite is wildcard access, which makes a single credential leak catastrophic."
+              "front": "Dynamic secrets — why prefer over static?",
+              "back": "Vault generates short-lived credentials on demand (e.g., AWS IAM keys, database passwords) that auto-expire, reducing the blast radius of a leaked credential."
             },
             {
-              "front": "What is defense in depth?",
-              "back": "Stack multiple, independent controls so an attacker has to defeat all of them. Example: WAF in front of an app, network ACL on the subnet, IAM on the workload, encryption at rest in the database."
+              "front": "Transit secrets engine — what does it do?",
+              "back": "Encryption-as-a-service: Vault encrypts/decrypts data without storing it. Applications send plaintext, receive ciphertext — the key never leaves Vault."
             },
             {
-              "front": "Shared responsibility model — who does what?",
-              "back": "The cloud provider secures the cloud (physical hardware, hypervisor, region facilities). You secure what's IN the cloud (your data, IAM config, OS patching on EC2, application code). The exact line shifts by service: serverless is more on the provider, IaaS is more on you."
+              "front": "PKI secrets engine — core capability?",
+              "back": "Acts as an internal Certificate Authority: issues X.509 certificates with configurable TTLs on demand, enabling automated short-lived TLS certs for services."
             }
           ],
           "source": "concept-library",
-          "sourceTag": "security"
+          "sourceTag": "secrets-engines"
         },
         {
           "id": "c3-quiz1",
           "type": "quiz",
-          "title": "Part 3 — Drill 1",
+          "title": "Secrets Engines — Drill 1",
           "questionIds": [
-            "vault-027"
+            "vault-002",
+            "vault-006",
+            "vault-007",
+            "vault-032"
           ]
+        },
+        {
+          "id": "c3-game",
+          "type": "minigame",
+          "gameType": "lightning",
+          "mode": "lightning-round",
+          "data": {
+            "secondsPerQuestion": 7,
+            "livesAllowed": 3,
+            "questions": [
+              {
+                "q": "Which Vault secrets engine generates real AWS IAM credentials with a configurable TTL that are automatically revoked on expiry?",
+                "choices": [
+                  "Transit secrets engine",
+                  "AWS secrets engine",
+                  "KV v2 secrets engine",
+                  "Cubbyhole secrets engine"
+                ],
+                "correctIndex": 1,
+                "explanation": "The AWS secrets engine generates dynamic IAM access keys on demand with a TTL. Vault creates the IAM credentials, hands them to the application, and automatically deletes them when the lease expires. Each application gets unique credentials — no shared long-lived keys."
+              },
+              {
+                "q": "A team is choosing between two flavours of the static-secrets engine. One stores only the current value of each key. The other adds versioning, soft-delete, and metadata. What is the principal difference?",
+                "choices": [
+                  "The newer flavour persists data on Raft while the older flavour writes to the file backend, the only choice for production deployments",
+                  "The newer flavour adds per-key versioning with configurable max-versions, soft-delete + undelete, and per-key metadata",
+                  "The older flavour returns secrets in JSON only, while the newer flavour adds a Protobuf wire format negotiated at request time for compactness",
+                  "Audit logging is only available on the newer flavour, with the older flavour requiring an external syslog forwarder for compliance"
+                ],
+                "correctIndex": 1,
+                "explanation": "KV v2 is versioned: writing a new value keeps the old versions (configurable max). Soft-delete marks a version deleted but allows recovery. Destroy permanently removes a version. KV v1 silently overwrites data with no way to recover previous values. Use KV v2 for production. v1 overwrites data with no recovery"
+              },
+              {
+                "q": "A microservice requests a database credential. Instead of being handed a long-lived password from a config file, it receives a freshly generated username + password whose lifetime is bound to a lease and which Vault will revoke when the lease expires. What is this called, and what is its principal advantage?",
+                "choices": [
+                  "Wrapping — Vault returns a one-time handle that the workload unwraps to obtain a pre-generated long-lived password from the operator",
+                  "Dynamic secret",
+                  "Response signing — Vault attaches a JWT to the secret so callers can verify provenance, but the credential itself is rotated by an external job",
+                  "Static rotation — Vault stores the password unchanged and rotates it on a fixed schedule, notifying clients via a webhook ahead of the change"
+                ],
+                "correctIndex": 1,
+                "explanation": "Dynamic secrets are generated on-demand (real database users, AWS IAM keys) with a TTL. They auto-revoke when the lease expires. Key advantages: short-lived (reduces exposure window), unique per application (breach isolation), no manual rotation needed. The AWS and Database secrets engines are primary examples. each request gets unique credentials, no shared long-lived secrets"
+              },
+              {
+                "q": "An infrastructure team wants to grant engineers SSH access to ephemeral VMs without distributing long-lived SSH keys. Instead they want Vault to mint a one-time password per host that the host's PAM module validates against Vault. Which secrets engine fits?",
+                "choices": [
+                  "The PKI engine — Vault signs short-lived X.509 certificates that openssh-server can validate via TrustedUserCAKeys, no per-host secret needed",
+                  "The SSH engine in OTP mode — Vault generates a one-time password per session that the target host validates against Vault via the vault-ssh-helper PAM plugin",
+                  "The TOTP engine — Vault stores per-host shared TOTP secrets and engineers compute a 6-digit code locally using their authenticator app",
+                  "The KV engine combined with a sidecar — a daemon on each host polls Vault every 60 seconds for the rotating password and updates /etc/shadow"
+                ],
+                "correctIndex": 1,
+                "explanation": "The SSH secrets engine has two modes: OTP mode generates a single-use password for a specific user/host, and CA mode signs SSH public keys creating short-lived SSH certificates. Both eliminate the need to distribute and manage SSH keys manually. CA mode is preferred for scale as it doesn't require a Vault helper on each target host."
+              }
+            ]
+          },
+          "title": "Secrets Engines — Lightning Round"
         },
         {
           "id": "c3-boss",
           "type": "subboss",
-          "title": "Boss: Part 3",
+          "title": "Boss: Secrets Engines",
           "questionIds": [
-            "vault-037",
-            "vault-038",
-            "vault-029",
-            "vault-030",
-            "vault-031",
-            "vault-032",
-            "vault-033",
-            "vault-035",
-            "vault-036",
-            "vault-039",
-            "vault-028",
-            "vault-034"
+            "vault-002",
+            "vault-006",
+            "vault-007",
+            "vault-032"
           ]
         },
         {
@@ -207,52 +389,112 @@
     },
     {
       "id": "ch4",
-      "title": "Part 4",
-      "tag": "part-4",
+      "title": "Operator",
+      "tag": "operator",
       "nodes": [
         {
           "id": "c4-concept",
           "type": "concept",
-          "title": "Security fundamentals: Key Ideas",
-          "content": "Security is about layering defenses so no single failure compromises a system. Most exams test the same core ideas: least privilege, defense in depth, the CIA triad, and the shared-responsibility line between you and your cloud provider.",
+          "title": "Vault operator commands: Key Ideas",
+          "content": "The vault operator subcommands manage Vault's lifecycle — initialising a new cluster, unsealing after a restart, and taking snapshots. These are tested on Vault Associate exams.",
           "flashcards": [
             {
-              "front": "What is the CIA triad?",
-              "back": "Confidentiality (only the right people see the data), Integrity (data isn't tampered with), Availability (the system is reachable when needed). Every security control maps to at least one of these three pillars."
+              "front": "vault operator init — what does it output?",
+              "back": "Unseal keys (5 by default) and the initial root token. These are shown only once — store securely. The number of keys and required threshold are configurable."
             },
             {
-              "front": "What does 'least privilege' mean?",
-              "back": "Grant each identity (user, role, service account) the minimum permissions needed to do its job — no more. The opposite is wildcard access, which makes a single credential leak catastrophic."
+              "front": "Shamir secret sharing in Vault unseal?",
+              "back": "The master key is split into N shares; a threshold (default 3 of 5) must be provided to reconstruct it and unseal Vault. No single person needs the full key."
             },
             {
-              "front": "What is defense in depth?",
-              "back": "Stack multiple, independent controls so an attacker has to defeat all of them. Example: WAF in front of an app, network ACL on the subnet, IAM on the workload, encryption at rest in the database."
+              "front": "vault operator unseal vs auto unseal?",
+              "back": "Manual unseal: operators enter shares at the CLI (one per command). Auto unseal: Vault uses an external KMS (AWS KMS, Azure Key Vault, GCP KMS) to decrypt the master key automatically on restart."
             },
             {
-              "front": "Shared responsibility model — who does what?",
-              "back": "The cloud provider secures the cloud (physical hardware, hypervisor, region facilities). You secure what's IN the cloud (your data, IAM config, OS patching on EC2, application code). The exact line shifts by service: serverless is more on the provider, IaaS is more on you."
+              "front": "vault operator raft snapshot save — purpose?",
+              "back": "Creates a point-in-time backup of the integrated Raft storage backend to a file. Use for disaster recovery; restore with vault operator raft snapshot restore."
             }
           ],
           "source": "concept-library",
-          "sourceTag": "security"
+          "sourceTag": "operator"
+        },
+        {
+          "id": "c4-quiz1",
+          "type": "quiz",
+          "title": "Operator — Drill 1",
+          "questionIds": [
+            "vault-027",
+            "vault-047",
+            "vault-035",
+            "vault-044"
+          ]
+        },
+        {
+          "id": "c4-game",
+          "type": "minigame",
+          "gameType": "lightning",
+          "mode": "lightning-round",
+          "data": {
+            "secondsPerQuestion": 7,
+            "livesAllowed": 3,
+            "questions": [
+              {
+                "q": "On a brand-new Vault server with no data, an operator runs a single command that generates the root key, splits it into shares with a configurable threshold, and prints an initial root token. The command can only succeed once on a given cluster. Which operator command is it?",
+                "choices": [
+                  "`vault operator init`",
+                  "`vault operator unseal` — accepts key shares one at a time until threshold is reached, then transitions the node from sealed to unsealed",
+                  "`vault operator generate-root` — uses a quorum of existing key shares to mint a new root token for break-glass operations on a running cluster",
+                  "`vault operator rekey` — generates fresh unseal key shares from a quorum of existing shares without invalidating the underlying root key"
+                ],
+                "correctIndex": 0,
+                "explanation": "vault operator init is run exactly once on a new Vault cluster. It generates the Shamir key shares (unseal keys) and an initial root token. The unseal keys must be securely distributed to key holders immediately. The root token should be used minimally to bootstrap initial configuration, then revoked. generating unseal keys and a root token — run ONCE on a brand new cluster"
+              },
+              {
+                "q": "A Vault HA cluster runs on integrated storage. The operator needs to take a consistent point-in-time backup of the entire data store (encrypted) that can later be restored on a fresh cluster as part of disaster recovery drills. They run a single CLI command that streams the snapshot to a local file. Which command does this?",
+                "choices": [
+                  "`vault operator raft snapshot save backup.snap`",
+                  "`vault audit enable file file_path=backup.snap` — exports an append-only log of every operation, which can be replayed against a new cluster to reconstruct state",
+                  "`vault operator rekey -backup file=backup.snap` — exports the current unseal key shares so that a quorum can be reconstituted by a new operator team",
+                  "`vault operator generate-root -dr backup.snap` — produces a recovery bundle containing the root token + policies that bootstraps a replacement node"
+                ],
+                "correctIndex": 0,
+                "explanation": "vault operator raft snapshot save creates a binary snapshot of the entire Raft storage state. This snapshot can be restored with vault operator raft snapshot restore to recover from data loss or cluster failure. It captures all Vault data: secrets, policies, auth config, and audit logs. Regular automated snapshots are a critical backup practice."
+              },
+              {
+                "q": "An operator wants to force a controlled leader election on a Vault HA cluster — perhaps to drain the active node before an OS upgrade. They run a CLI command on the active node that causes it to relinquish leadership; another standby is then promoted. Which command does this?",
+                "choices": [
+                  "Forces the current active Vault node to relinquish leadership, sealing itself and triggering an election among the standbys to promote a new active node",
+                  "Drains in-flight requests on the active node and queues new ones until the operator manually promotes a standby with a `force-promote` call",
+                  "Pauses replication to performance-secondary clusters so that the active node can complete maintenance without affecting downstream replicas",
+                  "Disables the read-replica role on the local node and promotes it to perform an out-of-cluster restore from the latest Raft snapshot"
+                ],
+                "correctIndex": 0,
+                "explanation": "vault operator step-down forces the active Vault node to give up its leadership. A standby node then wins the leader election and becomes active. This is used for planned maintenance, rolling upgrades, or testing failover. The stepped-down node becomes a standby and remains in the cluster. triggering a failover to a standby node"
+              },
+              {
+                "q": "A new operator on a fresh Vault server wants to enable the database secrets engine at a custom path so the team can mint dynamic Postgres credentials. They have access to the host but have not interacted with the API yet. What MUST happen first?",
+                "choices": [
+                  "The server must be initialised AND unsealed, and the operator must be authenticated with a token whose policy grants the required capabilities on `sys/mounts/<path>`",
+                  "The host must have a working Postgres driver installed locally, because mounts call out to the database plugin during the enable handshake",
+                  "An audit device must be enabled, because mount operations are rejected on clusters where no audit device has been configured for any path",
+                  "The license file must declare the database engine in the entitlements bundle, because the engine is gated behind a premium tier even in non-prod"
+                ],
+                "correctIndex": 0,
+                "explanation": "The first step is vault secrets enable -path=myengine <engine-type> (e.g., vault secrets enable -path=aws aws). This mounts the engine at the specified path. After mounting, you configure the engine (e.g., vault write aws/config/root credentials). Policies can be created before or after, but the engine must be mounted before it can be used."
+              }
+            ]
+          },
+          "title": "Operator — Lightning Round"
         },
         {
           "id": "c4-boss",
           "type": "subboss",
-          "title": "Boss: Part 4",
+          "title": "Boss: Operator",
           "questionIds": [
+            "vault-027",
             "vault-047",
-            "vault-049",
-            "vault-042",
-            "vault-043",
-            "vault-044",
-            "vault-048",
-            "vault-050",
-            "vault-040",
-            "vault-041",
-            "vault-045",
-            "vault-046",
-            "vault-multi-1"
+            "vault-035",
+            "vault-044"
           ]
         },
         {
@@ -261,6 +503,186 @@
           "title": "Treasure Chest",
           "rewardXp": 30,
           "cosmeticKey": "chapter-4"
+        }
+      ]
+    },
+    {
+      "id": "ch5",
+      "title": "Mixed Topics",
+      "tag": "mixed-topics",
+      "nodes": [
+        {
+          "id": "c5-concept",
+          "type": "concept",
+          "title": "Mixed exam topics: Key Ideas",
+          "content": "Some exam objectives don't fit neatly into a single domain — they span protocols, tools, or concepts covered briefly in multiple sections. These cards treat each item as a stand-alone fact, the way an exam question presents it: one concept, one answer.",
+          "flashcards": [
+            {
+              "front": "What is the difference between a hub, a switch, and a router?",
+              "back": "Hub: Layer 1, repeats every frame to all ports — all devices share bandwidth, collisions guaranteed. Switch: Layer 2, forwards frames using a MAC address table to only the destination port — full duplex, no collisions, each port gets full bandwidth. Router: Layer 3, makes forwarding decisions based on IP address, connects different networks. Hub is legacy; switches dominate LAN; routers are at network edges."
+            },
+            {
+              "front": "What is RAID 5 and how many drives can it tolerate losing?",
+              "back": "RAID 5 stripes data and parity across at least 3 drives. Any single drive failure can be recovered by reconstructing missing data from the remaining drives and parity. It cannot tolerate 2 simultaneous drive failures. Effective capacity = (N-1) × drive size. Read performance is excellent; write requires parity recalculation. RAID 6 tolerates 2 failures using double parity."
+            },
+            {
+              "front": "What does a proxy server do, and how does a forward proxy differ from a reverse proxy?",
+              "back": "Forward proxy: sits between clients and the internet on behalf of clients — used for content filtering, caching, and anonymizing outbound requests (the server sees the proxy's IP). Reverse proxy: sits in front of servers on behalf of the server — used for load balancing, SSL termination, caching, and hiding backend topology (the client sees the proxy's IP). Both intermediate HTTP, but they protect opposite sides."
+            },
+            {
+              "front": "What is the purpose of a DMZ in network architecture?",
+              "back": "A demilitarized zone is a network segment between the untrusted internet and the trusted internal network, typically protected by two firewalls (or two interfaces on one firewall). Public-facing services (web, email, DNS) sit in the DMZ: internet can reach them but not the internal network; if the DMZ host is compromised, the inner firewall still blocks access to the internal LAN."
+            }
+          ],
+          "source": "concept-library",
+          "sourceTag": "mixed-topics"
+        },
+        {
+          "id": "c5-quiz1",
+          "type": "quiz",
+          "title": "Mixed Topics — Drill 1",
+          "questionIds": [
+            "vault-004",
+            "vault-022",
+            "vault-038",
+            "vault-001",
+            "vault-003"
+          ]
+        },
+        {
+          "id": "c5-quiz2",
+          "type": "quiz",
+          "title": "Mixed Topics — Drill 2",
+          "questionIds": [
+            "vault-037",
+            "vault-049",
+            "vault-021",
+            "vault-008",
+            "vault-030"
+          ]
+        },
+        {
+          "id": "c5-checkpoint",
+          "type": "subboss",
+          "title": "Checkpoint: Mixed Topics",
+          "questionIds": [
+            "vault-034",
+            "vault-014",
+            "vault-041",
+            "vault-019"
+          ]
+        },
+        {
+          "id": "c5-quiz3",
+          "type": "quiz",
+          "title": "Mixed Topics — Drill 3",
+          "questionIds": [
+            "vault-009",
+            "vault-036",
+            "vault-010",
+            "vault-039",
+            "vault-015"
+          ]
+        },
+        {
+          "id": "c5-quiz4",
+          "type": "quiz",
+          "title": "Mixed Topics — Drill 4",
+          "questionIds": [
+            "vault-016",
+            "vault-029",
+            "vault-011",
+            "vault-012",
+            "vault-013"
+          ]
+        },
+        {
+          "id": "c5-quiz5",
+          "type": "quiz",
+          "title": "Mixed Topics — Drill 5",
+          "questionIds": [
+            "vault-017",
+            "vault-018",
+            "vault-042",
+            "vault-043",
+            "vault-050"
+          ]
+        },
+        {
+          "id": "c5-game",
+          "type": "minigame",
+          "gameType": "yesno",
+          "pairs": [
+            {
+              "qid": "vault-013",
+              "prompt": "Vault Agent runs as a client-side daemon, handles automatic authentication, and writes secrets to local files for applications to consume.",
+              "correct": true
+            },
+            {
+              "qid": "vault-045",
+              "prompt": "LDAP group-based policy assignment allows path-based routing rules to override or deny access based on contextual information like time of day or IP address? (Enterprise).",
+              "correct": false
+            },
+            {
+              "qid": "vault-049",
+              "prompt": "The vault CLI environment variable used to set the Vault server address so you don't have to pass -address on every command is VAULT_ADDR.",
+              "correct": true
+            },
+            {
+              "qid": "vault-024",
+              "prompt": "Cubbyhole secrets engine is automatically mounted, scoped exclusively to the current token, and used internally for response wrapping.",
+              "correct": true
+            }
+          ],
+          "timePerQ": 10,
+          "mode": "true-false-blitz",
+          "data": {
+            "statements": [
+              {
+                "id": "vault-013",
+                "statement": "Vault Agent runs as a client-side daemon, handles automatic authentication, and writes secrets to local files for applications to consume.",
+                "answer": true,
+                "explanation": "Vault Agent is a client daemon that handles auto-auth (AppRole, Kubernetes, AWS), automatically renews tokens and leases, and uses template rendering to write secrets to config files. Applications can read secrets from files without needing the Vault SDK, and Vault Agent handles all TTL management."
+              },
+              {
+                "id": "vault-045",
+                "statement": "LDAP group-based policy assignment allows path-based routing rules to override or deny access based on contextual information like time of day or IP address? (Enterprise).",
+                "answer": false,
+                "explanation": "Vault Enterprise includes Sentinel-based Endpoint Governing Policies (EGPs) and Role Governing Policies (RGPs). These allow complex policy logic (time-based, IP-based, MFA-required conditions) using HashiCorp Sentinel's policy-as-code framework. This goes beyond static ACL capabilities. EGPs apply to specific paths; RGPs apply to roles."
+              },
+              {
+                "id": "vault-049",
+                "statement": "The vault CLI environment variable used to set the Vault server address so you don't have to pass -address on every command is VAULT_ADDR.",
+                "answer": true,
+                "explanation": "VAULT_ADDR sets the default Vault server address (e.g., export VAULT_ADDR=https://vault.example.com:8200). Other important Vault environment variables: VAULT_TOKEN (default token), VAULT_NAMESPACE (namespace for Enterprise), VAULT_CACERT (CA certificate path), VAULT_TLS_SKIP_VERIFY (skip TLS verification, NOT for production)."
+              },
+              {
+                "id": "vault-024",
+                "statement": "Cubbyhole secrets engine is automatically mounted, scoped exclusively to the current token, and used internally for response wrapping.",
+                "answer": true,
+                "explanation": "The Cubbyhole secrets engine is always mounted at cubbyhole/ and is private to each token — no other token can access another token's cubbyhole. Response wrapping stores the wrapped secret in the cubbyhole of a single-use wrapping token. When the wrapping token expires, its cubbyhole (and the wrapped secret) is also destroyed."
+              }
+            ]
+          },
+          "title": "Mixed Topics — Quick Drill"
+        },
+        {
+          "id": "c5-boss",
+          "type": "subboss",
+          "title": "Boss: Mixed Topics",
+          "questionIds": [
+            "vault-020",
+            "vault-024",
+            "vault-025",
+            "vault-045"
+          ]
+        },
+        {
+          "id": "c5-chest",
+          "type": "chest",
+          "title": "Treasure Chest",
+          "rewardXp": 30,
+          "cosmeticKey": "chapter-5"
         }
       ]
     }
@@ -273,8 +695,8 @@
     "timeMinutes": 23
   },
   "meta": {
-    "generatedAt": "2026-05-21T08:07:48.738Z",
-    "totalNodes": 16,
+    "generatedAt": "2026-05-23T19:46:00.760Z",
+    "totalNodes": 31,
     "totalQuestions": 51,
     "nodeTypes": [
       "concept",

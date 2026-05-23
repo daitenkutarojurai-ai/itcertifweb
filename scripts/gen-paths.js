@@ -4,13 +4,21 @@
  *
  * Generates Duolingo-style learning paths from existing question packs.
  * Reads /data/free/<pack>.json, groups questions by their primary tag,
- * picks top 5-7 tags as chapters, fills each chapter with concept +
- * quiz + sub-boss nodes, ends with a final-boss mock exam.
+ * picks up to TARGET_CHAPTERS tags as chapters, fills each chapter with
+ * concept + quiz drills + optional mid-checkpoint + minigame + subboss + chest,
+ * ends with a final-boss mock exam.
  *
  * Output: /data/paths/<pack>.json
  *
  * Run:  node scripts/gen-paths.js
  * Re-runs are idempotent: existing paths are overwritten cleanly.
+ *
+ * v0.17 changes (2026-05-23):
+ *   Phase 1 — Deeper paths: TARGET_CHAPTERS 6→8, MIN_QS_PER_CHAPTER 6→4,
+ *              SUBBOSS_NODE_SIZE 12→8 with a guaranteed quiz-node floor,
+ *              mid-chapter checkpoint when a chapter has ≥3 quiz drills.
+ *   Phase 2 — Game variety: per-chapter rotation across true-false-blitz /
+ *              lightning-round / match-pair / acronym-decoder.
  */
 const fs = require('fs');
 const path = require('path');
@@ -33,13 +41,15 @@ try {
   console.warn('  ⚠ concept-library.json missing or invalid — using auto-derived only');
 }
 
-const TARGET_CHAPTERS = 6;        // 5-7 is the sweet spot
-const QUIZ_NODE_SIZE = 5;         // questions per quiz node
-const SUBBOSS_NODE_SIZE = 12;     // sub-boss = harder, more questions
-const MIN_QS_PER_CHAPTER = 6;     // need at least this many to form a chapter
-const FINAL_BOSS_MAX = 30;        // hard ceiling — final boss caps at 30 Qs
-const FINAL_BOSS_PCT = 0.30;      // soft target — ~30% of the pack
-const FINAL_BOSS_MIN = 15;        // need at least this many to feel like a boss
+const TARGET_CHAPTERS = 8;        // was 6 — more structure per path
+const QUIZ_NODE_SIZE = 5;         // questions per quiz drill node
+const SUBBOSS_NODE_SIZE = 8;      // was 12 — leave more questions for quiz drills
+const MIN_SUBBOSS_SIZE = 3;       // skip subboss if pool is smaller than this
+const MIN_QS_PER_CHAPTER = 4;     // was 6 — more tags qualify as chapters
+const MID_SUBBOSS_THRESHOLD = 3;  // insert a mid-checkpoint when chapter has >= N drills
+const FINAL_BOSS_MAX = 30;
+const FINAL_BOSS_PCT = 0.30;
+const FINAL_BOSS_MIN = 15;
 
 function loadPack(file) {
   try {
@@ -110,6 +120,211 @@ function chunk(arr, size) {
   return out;
 }
 
+// ── Game mode builders ───────────────────────────────────────────────────────
+
+// Mode 1: True / False Blitz (existing logic, refactored).
+// Synthesises declarative statements from yes/no-eligible questions.
+function tryBuildTrueFalseBlitz(chap, chapIndex, sorted, qsByIdMap, title) {
+  const POOL_PRESELECT = sorted.filter(q => {
+    const ci = Array.isArray(q.correct) ? q.correct[0] : q.correct;
+    return canYesNoify(q.question) && buildYesNoPrompt(q.question, q.options[ci] || '');
+  });
+  if (POOL_PRESELECT.length < 3) return null;
+
+  const CARDS_PER_GAME = 6;
+  const TARGET_CORRECT = 3;
+  const pool = POOL_PRESELECT.slice(0, Math.min(CARDS_PER_GAME, POOL_PRESELECT.length));
+  const pairs = pool.map((q, i) => {
+    const showCorrect = i < TARGET_CORRECT;
+    const correctIdx = Array.isArray(q.correct) ? q.correct[0] : q.correct;
+    let optionIdx;
+    if (showCorrect) {
+      optionIdx = correctIdx;
+    } else {
+      const wrongOptions = q.options
+        .map((_, oi) => oi)
+        .filter(oi => Array.isArray(q.correct) ? !q.correct.includes(oi) : oi !== correctIdx);
+      optionIdx = wrongOptions.length
+        ? wrongOptions[(chapIndex + i) % wrongOptions.length]
+        : correctIdx;
+    }
+    const option = q.options[optionIdx] || '';
+    const prompt = buildYesNoPrompt(q.question, option);
+    const safePrompt = prompt || (function () {
+      const fallbackOpt = q.options[correctIdx] || '';
+      const seed = buildYesNoPrompt(q.question, fallbackOpt);
+      return seed ? seed.replace(fallbackOpt, option) : null;
+    })();
+    return { qid: q.id, prompt: safePrompt, correct: optionIdx === correctIdx };
+  }).filter(p => p.prompt);
+
+  // Deterministic shuffle
+  for (let i = pairs.length - 1; i > 0; i--) {
+    const j = ((chapIndex + 1) * 31 + i * 17) % (i + 1);
+    [pairs[i], pairs[j]] = [pairs[j], pairs[i]];
+  }
+  if (pairs.length < 3) return null;
+
+  const statements = pairs.map(p => {
+    const q = (qsByIdMap || {})[p.qid] || {};
+    return {
+      id: p.qid,
+      statement: p.prompt,
+      answer: p.correct,
+      explanation: q.explanation || (p.correct
+        ? 'Correct — this statement is true.'
+        : 'Incorrect — this statement is false.')
+    };
+  });
+
+  return {
+    id: `c${chapIndex + 1}-game`,
+    type: 'minigame',
+    gameType: 'yesno',
+    pairs,
+    timePerQ: 10,
+    mode: 'true-false-blitz',
+    data: { statements },
+    title: `${title} — Quick Drill`,
+  };
+}
+
+// Mode 2: Lightning Round — rapid-fire multiple choice with a timer.
+// Always eligible: any pool of ≥ 3 questions works.
+function tryBuildLightningRound(chap, chapIndex, title) {
+  const pool = [...chap.questions];
+  if (pool.length < 3) return null;
+  const taken = pool.slice(0, Math.min(8, pool.length));
+  return {
+    id: `c${chapIndex + 1}-game`,
+    type: 'minigame',
+    gameType: 'lightning',
+    mode: 'lightning-round',
+    data: {
+      secondsPerQuestion: 7,
+      livesAllowed: 3,
+      questions: taken.map(q => {
+        const node = {
+          q: q.question,
+          choices: q.options,
+          correctIndex: Array.isArray(q.correct) ? q.correct[0] : q.correct,
+        };
+        if (q.explanation) node.explanation = q.explanation;
+        return node;
+      })
+    },
+    title: `${title} — Lightning Round`,
+  };
+}
+
+// Mode 3: Match the Pair — match a description (left) to a short term/service (right).
+// Eligible when the correct option is ≤ 4 words (service/concept names, not sentences).
+function tryBuildMatchPair(chap, chapIndex, title) {
+  const MAX_OPT_WORDS = 4;
+  const eligible = chap.questions.filter(q => {
+    const ci = Array.isArray(q.correct) ? q.correct[0] : q.correct;
+    const opt = (q.options[ci] || '').trim();
+    return opt && opt.split(/\s+/).length <= MAX_OPT_WORDS && opt.length <= 40;
+  });
+  if (eligible.length < 3) return null;
+
+  const seen = new Set();
+  const pairs = [];
+  for (const q of eligible.slice(0, 8)) {
+    const ci = Array.isArray(q.correct) ? q.correct[0] : q.correct;
+    const right = q.options[ci].trim();
+    if (seen.has(right)) continue;
+    seen.add(right);
+    // Trim question to a clean description (strip trailing "?" etc.)
+    const left = q.question.replace(/\?$/, '').trim().slice(0, 80);
+    pairs.push({ left, right });
+    if (pairs.length >= 6) break;
+  }
+  if (pairs.length < 3) return null;
+
+  return {
+    id: `c${chapIndex + 1}-game`,
+    type: 'minigame',
+    gameType: 'match-pair',
+    mode: 'match-pair',
+    data: { pairs },
+    title: `${title} — Match the Pair`,
+  };
+}
+
+// Mode 4: Acronym Decoder — given an acronym, pick its correct expansion.
+// Eligible when at least one question contains "stand for" / "abbreviated" / "acronym"
+// and has an all-caps acronym in the stem plus enough wrong options as distractors.
+function tryBuildAcronymDecoder(chap, chapIndex) {
+  const STAND_FOR_RE = /(?:stand for|full form|abbreviat|full name of|acronym for)/i;
+  const ACRONYM_RE = /\b([A-Z]{2,7})\b/;
+
+  const candidate = chap.questions.find(q => {
+    const stem = q.question || '';
+    if (!STAND_FOR_RE.test(stem)) return false;
+    if (!ACRONYM_RE.test(stem)) return false;
+    const ci = Array.isArray(q.correct) ? q.correct[0] : q.correct;
+    const wrongCount = q.options.filter((_, oi) =>
+      Array.isArray(q.correct) ? !q.correct.includes(oi) : oi !== ci
+    ).length;
+    return wrongCount >= 3;
+  });
+  if (!candidate) return null;
+
+  const stem = candidate.question;
+  const match = stem.match(ACRONYM_RE);
+  const acronym = match ? match[1] : null;
+  if (!acronym) return null;
+
+  const ci = Array.isArray(candidate.correct) ? candidate.correct[0] : candidate.correct;
+  const correctFull = (candidate.options[ci] || '').trim();
+  const distractorTexts = candidate.options
+    .map((opt, oi) => ({ opt, oi }))
+    .filter(({ oi }) => Array.isArray(candidate.correct) ? !candidate.correct.includes(oi) : oi !== ci)
+    .map(({ opt }) => opt.trim());
+  const useCase = candidate.explanation ? candidate.explanation.slice(0, 120) : '';
+
+  return {
+    id: `${candidate.chapPrefix || `c${chapIndex + 1}`}-game`,
+    type: 'minigame',
+    gameType: 'acronym',
+    mode: 'acronym-decoder',
+    data: {
+      acronym,
+      correct: { fullName: correctFull, useCase },
+      distractors: distractorTexts.slice(0, 3).map(fullName => ({ fullName, useCase: '' }))
+    },
+    title: `Decode: ${acronym}`,
+  };
+}
+
+// Pick the best-fitting minigame mode for this chapter by rotating the
+// preferred mode across chapter indices. Falls back down the rotation
+// until one is eligible, or returns null (no minigame this chapter).
+// LightningRound is placed last because it is always eligible — the other
+// three modes are more interesting but have eligibility gates, so they
+// get first pick in rotation before the guaranteed fallback.
+function buildMinigame(chap, chapIndex, sorted, qsByIdMap, title) {
+  const MODES = [
+    () => tryBuildTrueFalseBlitz(chap, chapIndex, sorted, qsByIdMap, title),
+    () => tryBuildMatchPair(chap, chapIndex, title),
+    () => tryBuildAcronymDecoder(chap, chapIndex),
+    () => tryBuildLightningRound(chap, chapIndex, title),
+  ];
+  const startAt = chapIndex % MODES.length;
+  for (let i = 0; i < MODES.length; i++) {
+    const node = MODES[(startAt + i) % MODES.length]();
+    if (node) {
+      // Ensure the id uses the right chapter prefix regardless of which builder ran.
+      node.id = `c${chapIndex + 1}-game`;
+      return node;
+    }
+  }
+  return null;
+}
+
+// ── Chapter builder ──────────────────────────────────────────────────────────
+
 function buildChapter(chap, chapIndex, qsByIdMap) {
   const title = tagToTitle(chap.tag);
   const nodes = [];
@@ -126,8 +341,8 @@ function buildChapter(chap, chapIndex, qsByIdMap) {
   //       most of its questions also carry "dns" as a secondary tag.
   //   (b) Fallback: derive from the first few questions in the chapter,
   //       using the FULL question stem (no 80-char slice — that was
-  //       cutting off in the middle of words like "...build, train, and
-  //       de?"). The explanation is the back of the card.
+  //       cutting off in the middle of words). The explanation is the
+  //       back of the card.
   let libEntry = CONCEPT_LIBRARY[chap.tag];
   let matchedTag = libEntry ? chap.tag : null;
   if (!libEntry) {
@@ -154,9 +369,7 @@ function buildChapter(chap, chapIndex, qsByIdMap) {
         front: c.front,
         back: c.back,
       })),
-      // Marker so the renderer / audit can tell authored vs auto-derived
       source: 'concept-library',
-      // Which library tag won — useful for coverage analytics
       sourceTag: matchedTag,
     };
   } else {
@@ -174,15 +387,38 @@ function buildChapter(chap, chapIndex, qsByIdMap) {
   }
   nodes.push(conceptNode);
 
-  // 2) Quiz nodes — 5 Qs each, easy/medium difficulty first
+  // 2) Quiz nodes + optional mid-chapter checkpoint.
+  //
+  // Reserve the hardest questions for the end-subboss, but always leave
+  // at least QUIZ_NODE_SIZE questions for quiz drills so small chapters
+  // aren't starved of drill content.
   const sorted = [...chap.questions].sort((a, b) => {
     const da = (a.difficulty === 'hard') ? 2 : (a.difficulty === 'medium') ? 1 : 0;
     const db = (b.difficulty === 'hard') ? 2 : (b.difficulty === 'medium') ? 1 : 0;
     return da - db;
   });
-  // reserve hardest QSUBBOSS for the sub-boss
-  const easierBatch = sorted.slice(0, sorted.length - Math.min(SUBBOSS_NODE_SIZE, sorted.length));
+
+  const subbossReserve = Math.min(
+    SUBBOSS_NODE_SIZE,
+    Math.max(0, sorted.length - QUIZ_NODE_SIZE)
+  );
+  const easierBatch = sorted.slice(0, sorted.length - subbossReserve);
+  const bossPool    = sorted.slice(-subbossReserve);
+
+  // For long chapters (≥ MID_SUBBOSS_THRESHOLD quiz drills), split the boss
+  // pool into a mid-chapter checkpoint and the end subboss.
+  let midBossPool = [];
+  let endBossPool = bossPool;
+  if (bossPool.length >= MIN_SUBBOSS_SIZE * 2) {
+    const midCount = Math.floor(bossPool.length / 2);
+    midBossPool = bossPool.slice(0, midCount);
+    endBossPool = bossPool.slice(midCount);
+  }
+
   const quizChunks = chunk(easierBatch, QUIZ_NODE_SIZE);
+  const useMidBoss = quizChunks.length >= MID_SUBBOSS_THRESHOLD && midBossPool.length >= MIN_SUBBOSS_SIZE;
+  const midSplitIdx = useMidBoss ? Math.floor(quizChunks.length / 2) : -1;
+
   quizChunks.forEach((qs, i) => {
     nodes.push({
       id: `c${chapIndex + 1}-quiz${i + 1}`,
@@ -190,115 +426,38 @@ function buildChapter(chap, chapIndex, qsByIdMap) {
       title: `${title} — Drill ${i + 1}`,
       questionIds: qs.map(q => q.id)
     });
+    // Insert mid-chapter checkpoint halfway through quiz drills.
+    if (i === midSplitIdx - 1) {
+      nodes.push({
+        id: `c${chapIndex + 1}-checkpoint`,
+        type: 'subboss',
+        title: `Checkpoint: ${title}`,
+        questionIds: midBossPool.map(q => q.id)
+      });
+    }
   });
 
-  // 3) Mini-game node — Yes/No declarative drill (Phase 5.13, 2026-05-15).
-  //
-  // History: TF generator concatenated stem + option as "True or false?"
-  // → broken English for any non-statement stem. v2 swapped to a "Q: … /
-  // A: … — Is this the right answer?" card → user complaint that it read
-  // as a riddle. v3 (this version): synthesise a SINGLE DECLARATIVE
-  // sentence per card via src/yesno-prompt.js. If the stem can't be
-  // turned into a clean statement (scenario stems, "what should you do"
-  // stems, negative-framed stems), the question is excluded from the
-  // pool. If fewer than 3 eligible questions remain, the chapter gets
-  // NO mini-game node — honest > confusing.
-  const POOL_PRESELECT = sorted
-    .filter(q => {
-      const ci = Array.isArray(q.correct) ? q.correct[0] : q.correct;
-      return canYesNoify(q.question) && buildYesNoPrompt(q.question, q.options[ci] || '');
-    });
-  if (POOL_PRESELECT.length >= 3) {
-    const CARDS_PER_GAME = 6;
-    const TARGET_CORRECT = 3;
-    const pool = POOL_PRESELECT.slice(0, Math.min(CARDS_PER_GAME, POOL_PRESELECT.length));
-    const pairs = pool.map((q, i) => {
-      const showCorrect = i < TARGET_CORRECT;
-      const correctIdx = Array.isArray(q.correct) ? q.correct[0] : q.correct;
-      let optionIdx;
-      if (showCorrect) {
-        optionIdx = correctIdx;
-      } else {
-        const wrongOptions = q.options
-          .map((_, oi) => oi)
-          .filter(oi => Array.isArray(q.correct) ? !q.correct.includes(oi) : oi !== correctIdx);
-        optionIdx = wrongOptions.length
-          ? wrongOptions[(chapIndex + i) % wrongOptions.length]
-          : correctIdx;
-      }
-      const option = q.options[optionIdx] || '';
-      const prompt = buildYesNoPrompt(q.question, option);
-      // POOL_PRESELECT only includes questions where buildYesNoPrompt
-      // succeeded for the CORRECT option. For wrong options, the
-      // synthesiser may still return null (different option, different
-      // syntactic fit). Guard with a fallback that mirrors the correct
-      // option's prompt structure: if null, swap option text in the
-      // correct prompt — produces a plausible-sounding wrong statement.
-      const safePrompt = prompt
-        || (function () {
-            const fallbackOpt = q.options[correctIdx] || '';
-            const seed = buildYesNoPrompt(q.question, fallbackOpt);
-            return seed ? seed.replace(fallbackOpt, option) : null;
-          })();
-      return {
-        qid:     q.id,
-        prompt:  safePrompt,
-        correct: optionIdx === correctIdx
-      };
-    }).filter(p => p.prompt);
-    // Deterministic shuffle so each chapter has a different correct/wrong order.
-    for (let i = pairs.length - 1; i > 0; i--) {
-      const j = ((chapIndex + 1) * 31 + i * 17) % (i + 1);
-      [pairs[i], pairs[j]] = [pairs[j], pairs[i]];
-    }
-    if (pairs.length >= 3) {
-      // Build the v0.14 native-app payload (mode: true-false-blitz) alongside
-      // the web yesno format so both surfaces work from the same path file.
-      // qsByIdMap is built in buildPath() and passed as the third argument.
-      const statements = pairs.map(p => {
-        const q = (qsByIdMap || {})[p.qid] || {};
-        return {
-          id: p.qid,
-          statement: p.prompt,
-          answer: p.correct,
-          explanation: q.explanation || (p.correct
-            ? 'Correct — this statement is true.'
-            : 'Incorrect — this statement is false.')
-        };
-      });
-      nodes.push({
-        id: `c${chapIndex + 1}-game`,
-        type: 'minigame',
-        // Web format (src/path.js)
-        gameType: 'yesno',
-        pairs,
-        timePerQ: 10,
-        // Native-app v0.14 format (app/path/games dispatcher)
-        mode: 'true-false-blitz',
-        data: { statements },
-        title: `${title} — Quick Drill`,
-      });
-    }
-  }
+  // 3) Mini-game node — mode chosen by per-chapter rotation.
+  const minigame = buildMinigame(chap, chapIndex, sorted, qsByIdMap, title);
+  if (minigame) nodes.push(minigame);
 
-  // 4) Sub-boss
-  if (sorted.length >= 4) {
-    const bossPool = sorted.slice(-Math.min(SUBBOSS_NODE_SIZE, sorted.length));
+  // 4) End-of-chapter sub-boss (harder questions).
+  const finalBossPool = useMidBoss ? endBossPool : bossPool;
+  if (finalBossPool.length >= MIN_SUBBOSS_SIZE) {
     nodes.push({
       id: `c${chapIndex + 1}-boss`,
       type: 'subboss',
       title: `Boss: ${title}`,
-      questionIds: bossPool.map(q => q.id)
+      questionIds: finalBossPool.map(q => q.id)
     });
   }
 
-  // 5) Treasure chest (reward for clearing the chapter)
+  // 5) Treasure chest (reward for clearing the chapter).
   nodes.push({
     id: `c${chapIndex + 1}-chest`,
     type: 'chest',
     title: 'Treasure Chest',
     rewardXp: 30,
-    /* cosmetic key may unlock a new hat from /data/cosmetics.json */
     cosmeticKey: `chapter-${chapIndex + 1}`
   });
 
@@ -323,19 +482,14 @@ function buildPath(packId, pack) {
   for (const q of questions) qsByIdMap[q.id] = q;
   const builtChapters = chapters.map((c, i) => buildChapter(c, i, qsByIdMap));
   const allQuestionIds = questions.map(q => q.id);
-  // Final boss caps at FINAL_BOSS_MAX so it doesn't trivialize the pack —
-  // the previous 50%/40-question target meant a 20-Q pack got a 20-Q final
-  // boss which leaked the entire bank into the boss fight.
   const finalMockSize = Math.min(
     FINAL_BOSS_MAX,
     Math.max(FINAL_BOSS_MIN, Math.floor(allQuestionIds.length * FINAL_BOSS_PCT))
   );
 
-  /* Pack metadata is nested: { meta: { name, vendor, … }, questions: [] } */
   const meta = pack.meta || {};
   const title = meta.name || pack.title || pack.name || packId;
   const brandName = meta.vendor || pack.brand || pack.brandName || '';
-  /* Map vendors → brand colors (matches the homepage cert-card palette) */
   const BRAND_COLORS = {
     'Amazon': '#FF9900', 'AWS': '#FF9900',
     'Microsoft': '#0078D4',
@@ -378,7 +532,7 @@ function main() {
 
   let ok = 0;
   const index = [];
-  const skipped = []; /* structured skip report so we can see WHY each pack was dropped */
+  const skipped = [];
   for (const file of files) {
     const packId = file.replace(/\.json$/, '');
     const raw = (() => {
@@ -401,9 +555,19 @@ function main() {
       skipped.push({ packId, reason: 'no-viable-chapters', questionCount: qCount });
       continue;
     }
+
+    // Collect game-mode distribution for reporting.
+    const gameModes = {};
+    for (const ch of built.chapters) {
+      for (const n of ch.nodes) {
+        if (n.type === 'minigame' && n.mode) gameModes[n.mode] = (gameModes[n.mode] || 0) + 1;
+      }
+    }
+    const modeStr = Object.entries(gameModes).map(([m, c]) => `${m}×${c}`).join(', ') || 'none';
+
     const outFile = path.join(OUT_DIR, file);
     fs.writeFileSync(outFile, JSON.stringify(built, null, 2));
-    console.log(`  ✓ ${packId}  → ${built.meta.totalNodes} nodes, ${built.chapters.length} chapters`);
+    console.log(`  ✓ ${packId}  → ${built.meta.totalNodes} nodes, ${built.chapters.length} ch  [${modeStr}]`);
     index.push({
       packId,
       title: built.title,

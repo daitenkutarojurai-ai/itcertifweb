@@ -40,18 +40,119 @@
           "type": "quiz",
           "title": "Bigquery — Drill 1",
           "questionIds": [
-            "pde-005"
+            "pde-005",
+            "pde-012",
+            "pde-025",
+            "pde-054",
+            "pde-001"
           ]
+        },
+        {
+          "id": "c1-game",
+          "type": "minigame",
+          "gameType": "lightning",
+          "mode": "lightning-round",
+          "data": {
+            "secondsPerQuestion": 7,
+            "livesAllowed": 3,
+            "questions": [
+              {
+                "q": "A retail company tracks billions of product view events per day. Analysts need to query the last 7 days of events by product category with sub-second latency. Which BigQuery feature best accelerates these repetitive aggregation queries without moving data?",
+                "choices": [
+                  "Export data to Bigtable and query with HBase-compatible APIs for low-latency reads",
+                  "Create a materialized view that precomputes daily aggregates by product category",
+                  "Partition the table by ingestion time and cluster by category, then run standard SQL queries",
+                  "Enable BigQuery BI Engine reservations to cache the most frequently queried data in memory"
+                ],
+                "correctIndex": 1,
+                "explanation": "Materialized views precompute and store query results, automatically refreshing on new data. For repetitive aggregation queries over a rolling 7-day window by category, they eliminate redundant computation. BI Engine accelerates ad-hoc queries but is better for interactive dashboards. Partitioning/clustering helps scan cost but does not precompute aggregates. Bigtable is for key-value lookups, not analytical aggregation."
+              },
+              {
+                "q": "A healthcare company needs to load 10 years of patient visit records stored as Avro files in Cloud Storage into BigQuery for long-term analytics. The data is static and never changes after loading. Which loading method best balances speed, cost, and simplicity?",
+                "choices": [
+                  "Create an external (federated) table pointing to the Avro files and query them in place without loading",
+                  "Stream each record individually using the BigQuery Streaming API to populate the table in real time",
+                  "Use BigQuery load jobs with WRITE_TRUNCATE to batch-load all Avro files directly from Cloud Storage",
+                  "Use Dataflow with a BigQuery sink to transform and load the Avro files in parallel"
+                ],
+                "correctIndex": 2,
+                "explanation": "BigQuery load jobs are the recommended way to bulk-load static data from Cloud Storage. They are free (no charge per byte loaded), support Avro natively with automatic schema detection, and are fast for large datasets. Streaming inserts are charged per byte and suited for real-time data, not historical bulk loads. External tables avoid loading but incur query-time GCS scan costs and have no caching. Dataflow adds transformation capability but is unnecessary overhead for a straight load of already-structured Avro files."
+              },
+              {
+                "q": "A company stores raw event logs in a BigQuery table partitioned by `event_date`. Security policy requires that analysts in the EU region must not be able to read rows where `region = 'US'`. Which BigQuery feature enforces this row-level restriction?",
+                "choices": [
+                  "Apply a column-level policy tag to the `region` column and restrict access via Data Catalog taxonomy",
+                  "Create BigQuery row access policies that bind the `region = 'EU'` filter to the analysts' IAM group",
+                  "Use BigQuery authorized views that filter rows by `region` and grant analysts access only to the view",
+                  "Partition the table by `region` column and revoke partition-level IAM permissions for US partitions"
+                ],
+                "correctIndex": 1,
+                "explanation": "BigQuery row access policies (introduced as row-level security) attach filter predicates to IAM principals, transparently applying a WHERE clause to every query that principal runs. Assigning `region = 'EU'` to the EU analysts' group prevents them from ever reading US rows. Policy tags control column-level access (masking/encryption), not row filtering. Authorized views work but require maintaining a separate view per region and granting access to underlying tables. BigQuery partitioning is by date or integer range, not arbitrary column values for IAM-level row restriction."
+              },
+              {
+                "q": "A financial company needs to train a regression model to predict loan default probability using 50 structured features stored in BigQuery. The data science team has limited ML engineering experience and wants to avoid writing model training code. Which GCP approach minimizes custom code?",
+                "choices": [
+                  "Deploy a Dataflow pipeline to preprocess features and train a scikit-learn model on worker nodes",
+                  "Export BigQuery data to Cloud Storage and train a model with Vertex AI custom training containers",
+                  "Use Vertex AI Workbench to write a TensorFlow Keras model trained on the BigQuery data",
+                  "Use BigQuery ML with CREATE MODEL and model_type='LOGISTIC_REG' directly on the BigQuery table"
+                ],
+                "correctIndex": 3,
+                "explanation": "BigQuery ML allows data analysts to create and train models using SQL inside BigQuery, with no need to export data or write Python/TensorFlow code. `CREATE MODEL ... OPTIONS(model_type='LOGISTIC_REG')` trains a logistic regression directly on BigQuery tables. Vertex AI Workbench and custom training containers require ML engineering code. Dataflow is a data processing framework, not a model training platform."
+              },
+              {
+                "q": "A company's BigQuery analytics workload has unpredictable query volume — some days run thousands of queries and other days run almost none. The team wants to ensure consistent query performance during peak times without overpaying during quiet periods. Which BigQuery pricing model best fits this requirement?",
+                "choices": [
+                  "Purchase a 1-year flat-rate slot commitment and assign it to a reservation to guarantee consistent performance during both peak and quiet periods",
+                  "Use on-demand (per-TB) pricing for all queries and rely on BigQuery autoscaling to handle peaks — performance may degrade during sudden bursts",
+                  "Switch all queries to BigQuery BI Engine to cache results and reduce slot consumption during repeated dashboard queries",
+                  "Upgrade to BigQuery Enterprise Plus edition with Autoscaler enabled to dynamically add slots during bursts without overpaying during idle periods"
+                ],
+                "correctIndex": 3,
+                "explanation": "BigQuery Enterprise Plus edition includes the Autoscaler feature, which dynamically allocates additional slots during query bursts beyond the baseline commitment and releases them when demand drops. This provides consistent performance during peaks while avoiding the cost of permanently provisioning peak capacity. A 1-year flat-rate commitment provides consistent slots but wastes money during quiet periods. On-demand pricing scales cost with bytes scanned but does not guarantee slot availability. BI Engine accelerates specific cached queries but does not manage overall slot capacity."
+              },
+              {
+                "q": "A BigQuery table named `events` is partitioned by `event_date` and has 3 years of data (1,000+ partitions). Most queries filter by a specific `user_id`. Analysts report that queries are still scanning the full table despite date filters. What additional optimization should be applied?",
+                "choices": [
+                  "Materialize a daily aggregation view grouped by `user_id` to precompute row counts, reducing the data each query must scan within a given partition",
+                  "Enable BigQuery table clustering on the `user_id` column so data blocks within each partition are sorted by user_id, enabling efficient block pruning",
+                  "Create a secondary index on `user_id` in BigQuery to allow direct row lookups filtered by user_id without scanning full partition data",
+                  "Migrate the table to Bigtable with a `user_id#event_date` composite row key for sub-millisecond user_id lookups on the 3-year dataset"
+                ],
+                "correctIndex": 1,
+                "explanation": "BigQuery clustering physically sorts data within each partition by the clustering columns. When a query filters on `user_id`, BigQuery uses block-level metadata to prune data blocks that do not contain the requested user_id, reducing bytes scanned significantly within each partition. BigQuery does not support traditional secondary indexes. Migrating to Bigtable changes the service entirely and loses SQL analytics capabilities. Materialized views precompute aggregates but do not help if analysts need row-level event data per user."
+              },
+              {
+                "q": "A BigQuery dataset contains a column `annual_income` with numeric salary values. Analysts need to query this data, but the raw values must not be visible — they should see bucketed ranges like '50k-100k' instead of exact figures. No data should be physically deleted or modified. Which BigQuery feature achieves this?",
+                "choices": [
+                  "Use Cloud DLP to run a de-identification job that replaces numeric values in the column with bucketed range tokens stored in a separate masked table",
+                  "Assign a policy tag to the `annual_income` column and configure a data masking rule that applies bucketing transformation to analysts without fine-grained access",
+                  "Create an authorized view that applies a CASE expression to the column to convert `annual_income` to ranges, then revoke direct table access for analysts",
+                  "Apply a BigQuery row access policy that filters rows to specific income threshold ranges, hiding the exact column values from restricted users"
+                ],
+                "correctIndex": 1,
+                "explanation": "BigQuery column-level security with policy tags supports data masking transformations. By creating a policy tag taxonomy and assigning a masking rule (including bucketing/range substitution) to the `annual_income` column, users without the `Fine-Grained Reader` role see masked (bucketed) values while the underlying data is unchanged. Cloud DLP de-identification physically modifies data. Row access policies filter rows, not column values. Authorized views work but require creating and maintaining separate view objects and are less integrated with BigQuery's column security framework."
+              },
+              {
+                "q": "A company stores 10 years of financial transaction data in BigQuery. The compliance team needs to run point-in-time queries — seeing the state of the table exactly as it was 45 days ago — without maintaining manual snapshots. Which BigQuery feature enables this?",
+                "choices": [
+                  "Create a BigQuery table snapshot of the table at a specific past timestamp and query the snapshot",
+                  "Use BigQuery table clones to maintain immutable historical copies at defined checkpoints",
+                  "Use BigQuery time travel with the FOR SYSTEM_TIME AS OF clause to query historical table states up to 7 days back",
+                  "Enable BigQuery streaming inserts with a deduplicated staging table and replay events up to the target date"
+                ],
+                "correctIndex": 0,
+                "explanation": "BigQuery table snapshots capture the state of a table at a specific point in time and store it as a zero-copy snapshot (only changed data is charged). A snapshot taken at a past timestamp can be queried like a regular table, enabling point-in-time analysis. BigQuery time travel (FOR SYSTEM_TIME AS OF) only goes back 7 days by default (up to 7 days). Streaming inserts with replay would require storing change events explicitly and is a complex custom implementation. Table clones create editable copies, not immutable point-in-time views."
+              }
+            ]
+          },
+          "title": "Bigquery — Lightning Round"
         },
         {
           "id": "c1-boss",
           "type": "subboss",
           "title": "Boss: Bigquery",
           "questionIds": [
-            "pde-012",
-            "pde-025",
-            "pde-054",
-            "pde-001",
             "pde-034",
             "pde-041",
             "pde-046",
@@ -103,15 +204,123 @@
           "sourceTag": "dataflow"
         },
         {
-          "id": "c2-boss",
-          "type": "subboss",
-          "title": "Boss: Dataflow",
+          "id": "c2-quiz1",
+          "type": "quiz",
+          "title": "Dataflow — Drill 1",
           "questionIds": [
             "pde-007",
             "pde-002",
             "pde-027",
             "pde-049",
-            "pde-055",
+            "pde-055"
+          ]
+        },
+        {
+          "id": "c2-game",
+          "type": "minigame",
+          "gameType": "lightning",
+          "mode": "lightning-round",
+          "data": {
+            "secondsPerQuestion": 7,
+            "livesAllowed": 3,
+            "questions": [
+              {
+                "q": "A streaming pipeline built on Dataflow ingests IoT sensor readings from 10,000 devices. Some devices occasionally go silent for up to 90 seconds before resuming. The team needs to emit one aggregate per device per activity burst, regardless of silence gaps. Which windowing strategy should they use?",
+                "choices": [
+                  "Global windows with a periodic trigger firing every 90 seconds",
+                  "Session windows with a 90-second inactivity gap timeout per device key",
+                  "Sliding windows of 90-second width with a 30-second slide interval",
+                  "Fixed (tumbling) windows of 90-second duration per device"
+                ],
+                "correctIndex": 1,
+                "explanation": "Session windows group events separated by gaps smaller than a defined timeout. With a 90-second gap timeout keyed per device, each continuous burst of sensor data forms one session, and silence for 90+ seconds closes the window. Fixed/tumbling windows split bursts artificially at clock boundaries. Sliding windows create overlapping aggregates. Global windows with periodic triggers do not adapt to per-device activity patterns."
+              },
+              {
+                "q": "An e-commerce company's Dataflow streaming pipeline processes order events from Pub/Sub. During flash sales, message volume spikes 20x. The pipeline's workers fall behind and event processing latency climbs to 30 minutes. What should the team configure to automatically handle these spikes without manual intervention?",
+                "choices": [
+                  "Switch from Dataflow Streaming Engine to a batch pipeline that processes hourly micro-batches",
+                  "Configure Pub/Sub message ordering keys to serialize event processing and reduce contention",
+                  "Increase the maxNumWorkers setting in the Dataflow pipeline so autoscaling can add workers during spikes",
+                  "Add a Pub/Sub dead-letter topic to capture overflow messages and replay them during off-peak hours"
+                ],
+                "correctIndex": 2,
+                "explanation": "Dataflow supports horizontal autoscaling by adding workers up to maxNumWorkers. Raising this ceiling allows the pipeline to scale out during flash-sale spikes and handle 20x volume without manual changes. Switching to batch loses real-time processing. Dead-letter topics handle undeliverable messages, not throughput lag. Message ordering keys serialize delivery per key, which would worsen throughput under spike conditions."
+              },
+              {
+                "q": "A startup ingests clickstream events into Pub/Sub and processes them with a Dataflow pipeline that writes to BigQuery. On some days, source systems publish events with timestamps up to 2 hours late due to mobile app offline buffering. The team needs accurate hourly aggregates that account for these late arrivals. What is the correct Dataflow configuration?",
+                "choices": [
+                  "Configure Pub/Sub message retention to 2 hours and re-read the topic after each window closes",
+                  "Set the pipeline's allowed lateness to 2 hours and use event-time fixed windows with an accumulating trigger",
+                  "Deploy a second pipeline that reads the BigQuery output table and corrects late records with UPDATE statements",
+                  "Use processing-time windows and set a 2-hour fixed delay before emitting results for each window"
+                ],
+                "correctIndex": 1,
+                "explanation": "Apache Beam / Dataflow supports allowed lateness on event-time windows. Setting allowed lateness to 2 hours means the window will continue to accept late elements arriving up to 2 hours after the watermark passes the window end. Combined with an accumulating (or accumulating+retracting) trigger, the pipeline emits updated aggregates as late data arrives. Processing-time windows lose event-time accuracy. Re-reading a Pub/Sub topic after window close is not a reliable pattern. BigQuery UPDATE-based correction is complex and expensive."
+              },
+              {
+                "q": "A telecom company needs to detect anomalous call patterns in real time. Their Dataflow pipeline uses a 5-minute fixed window over call events. Some legitimate calls last longer than 5 minutes and their end event arrives in the next window. The aggregation must count completed calls per window accurately. What Beam feature handles this?",
+                "choices": [
+                  "Enable allowed lateness on the 5-minute fixed window so late call-end events update the correct window",
+                  "Use a global window with a count-based trigger that fires after every 1,000 events regardless of time",
+                  "Configure sliding windows with a 10-minute width and 5-minute slide to overlap consecutive windows",
+                  "Apply a side input containing a lookup table of call start times to enrich each call-end event"
+                ],
+                "correctIndex": 0,
+                "explanation": "Allowed lateness in Apache Beam permits elements whose event timestamp falls in an already-closed window to be assigned to that window and update the result. For a call that started in window W but whose end event arrives after the watermark passes the end of W, allowed lateness (e.g., 10 minutes) ensures it updates window W rather than being discarded. Global windows with count triggers ignore event-time semantics entirely. Sliding windows create overlapping aggregates, double-counting calls. Side inputs provide lookup enrichment, not late-data handling."
+              },
+              {
+                "q": "A Dataflow pipeline reads from a Pub/Sub subscription and joins each event with a slowly changing reference dataset (product catalog) that is updated once per day. The reference dataset is 500 MB. What is the most memory-efficient Beam pattern for this enrichment?",
+                "choices": [
+                  "Load the reference dataset as a Beam side input (as a Map) and access it inside the main event DoFn",
+                  "Write all events to a temporary BigQuery table and run a scheduled SQL JOIN query against the reference data",
+                  "Reload the reference dataset from BigQuery on every element using a stateful DoFn to ensure freshness",
+                  "Perform a CoGroupByKey transform joining the event PCollection with a PCollection loaded from BigQuery"
+                ],
+                "correctIndex": 0,
+                "explanation": "Beam side inputs allow a bounded PCollection (the product catalog) to be materialized as an in-memory structure (e.g., a dict/Map) and made available to every worker processing the main stream. At 500 MB, it fits comfortably in worker memory. The catalog is loaded once per bundle, not per element. CoGroupByKey requires the reference data to be a streaming PCollection, which is wasteful for a static dataset. Reloading from BigQuery per element creates massive query costs. Writing to a temporary table and running SQL is a batch approach, not a streaming enrichment."
+              },
+              {
+                "q": "A streaming Dataflow pipeline reads sensor telemetry from Pub/Sub. A downstream alert system needs to receive events only when temperature exceeds 80°C for more than 3 consecutive events from the same sensor. Which Beam feature implements this stateful pattern?",
+                "choices": [
+                  "Use a Beam stateful DoFn with a ValueState counter per sensor key that increments on threshold breach and resets on normal",
+                  "Use a fixed 1-minute window and filter windows where the max temperature exceeds 80°C with a count trigger",
+                  "Configure a session window per sensor — a stateful Beam primitive — with a 10-second gap timeout to detect bursts of high readings",
+                  "Apply a Combine.perKey transform that maintains a stateful rolling count of high-temperature events and emits alerts at count 3"
+                ],
+                "correctIndex": 0,
+                "explanation": "Beam stateful DoFns allow per-key state to be maintained across elements in a streaming pipeline. A ValueState counter keyed by sensor_id can track consecutive threshold breaches: increment when temperature > 80°C, reset to 0 when it falls below. When the counter reaches 3, emit an alert. This is not expressible with windowing or Combine because the 'consecutive' requirement requires element-by-element stateful tracking. Fixed windows aggregate over time, not consecutive count. Combine.perKey computes aggregates, not stateful sequential counters. Session windows detect inactivity gaps, not consecutive event conditions."
+              },
+              {
+                "q": "A Dataflow streaming pipeline processes payment transactions and emits fraud alerts. The fraud detection logic requires looking up each transaction's merchant category code (MCC) from a 10 MB static lookup table stored in Cloud Storage. The lookup must be available on every worker without a network call per element. What is the correct implementation?",
+                "choices": [
+                  "Deploy a Cloud Memorystore Redis instance and have each Dataflow worker query it for MCC lookups during processing",
+                  "Add the MCC CSV file to the Dataflow worker disk via a startup script and read it from the local filesystem in the DoFn",
+                  "Read the MCC lookup table from Cloud Storage inside the `process` method of the DoFn, caching it in a class-level dict",
+                  "Create a Beam side input from a bounded PCollection loaded from Cloud Storage and pass it as a dict to the fraud detection DoFn"
+                ],
+                "correctIndex": 3,
+                "explanation": "Beam side inputs are the idiomatic solution for enriching a streaming pipeline with a static lookup dataset. The MCC table is read once as a bounded PCollection, materialized as an AsDict side input view, and passed to the fraud detection DoFn. Each bundle on each worker loads the side input once from Dataflow's distributed cache, making it available for all elements without per-element network calls. Reading from Cloud Storage inside `process` makes a network call per element. Memorystore Redis requires a network call per element. Custom worker startup scripts are fragile and not portable."
+              },
+              {
+                "q": "A data engineer needs to build a pipeline that reads raw user events from Cloud Storage, applies cleaning transformations (null removal, type casting, deduplication), and loads the results into BigQuery on a daily schedule. The pipeline should run without managing servers and support Python. Which combination is most appropriate?",
+                "choices": [
+                  "Use a Cloud Composer DAG to trigger a Dataproc Serverless PySpark job for cleaning and a BigQuery load job for ingestion",
+                  "Write an Apache Beam Python pipeline and deploy it on Cloud Dataflow using a Dataflow Flex Template, triggered by Cloud Scheduler",
+                  "Schedule a BigQuery Data Transfer Service job to load raw files and apply transformations using scheduled SQL queries",
+                  "Use Cloud Functions to read each file from Cloud Storage, transform in-memory, and stream results to BigQuery via the Streaming API"
+                ],
+                "correctIndex": 1,
+                "explanation": "A Cloud Dataflow Flex Template packages the Apache Beam pipeline as a Docker container, enabling serverless execution triggered on a schedule via Cloud Scheduler or Cloud Composer. Beam Python SDK supports null removal, type casting, and deduplication natively. Dataflow handles scaling, retries, and resource management automatically. Dataproc Serverless PySpark via Composer is also valid but adds orchestration complexity. Cloud Functions have limited memory (8 GB max) and execution time unsuitable for large file processing. BigQuery DTS + SQL transformations cannot express complex deduplication logic that requires row comparison."
+              }
+            ]
+          },
+          "title": "Dataflow — Lightning Round"
+        },
+        {
+          "id": "c2-boss",
+          "type": "subboss",
+          "title": "Boss: Dataflow",
+          "questionIds": [
             "pde-009",
             "pde-017",
             "pde-035"
@@ -158,17 +367,95 @@
           "sourceTag": "vertex-ai"
         },
         {
-          "id": "c3-boss",
-          "type": "subboss",
-          "title": "Boss: Vertex Ai",
+          "id": "c3-quiz1",
+          "type": "quiz",
+          "title": "Vertex Ai — Drill 1",
           "questionIds": [
             "pde-033",
             "pde-021",
             "pde-024",
             "pde-030",
-            "pde-044",
-            "pde-052"
+            "pde-044"
           ]
+        },
+        {
+          "id": "c3-game",
+          "type": "minigame",
+          "gameType": "lightning",
+          "mode": "lightning-round",
+          "data": {
+            "secondsPerQuestion": 7,
+            "livesAllowed": 3,
+            "questions": [
+              {
+                "q": "A machine learning team needs to share engineered features — such as user purchase history embeddings — across multiple models in production. Features must be served with low latency for online inference and must be consistent between training and serving. Which GCP service is designed for this use case?",
+                "choices": [
+                  "Save feature vectors as Parquet files in Cloud Storage and mount them into Vertex AI prediction containers",
+                  "Use Vertex AI Feature Store to define feature groups, ingest batch values,.",
+                  "Store features in a BigQuery table and have each model query it during inference for consistency",
+                  "Publish features to Pub/Sub and have each model subscribe to the feature stream during inference"
+                ],
+                "correctIndex": 1,
+                "explanation": "Vertex AI Feature Store is designed to solve the training-serving skew problem by providing a single source of truth for features used in both model training and online serving. It stores feature values, provides low-latency online serving via the Feature Store API, and supports batch serving for training data consistency. BigQuery queries during inference add latency unsuitable for online predictions. Cloud Storage Parquet files are batch-oriented and cannot serve point lookups with millisecond latency. Pub/Sub is a messaging system, not a feature store. and serve features online via the Feature Store API"
+              },
+              {
+                "q": "A fraud detection model deployed on Vertex AI Prediction needs to be retrained weekly with fresh transaction data. The retraining pipeline includes data validation, feature engineering, training, evaluation, and conditional deployment. Which GCP service is best suited to automate this recurring ML pipeline?",
+                "choices": [
+                  "Build the pipeline as a Cloud Composer DAG using Vertex AI operators to orchestrate each step",
+                  "Use Cloud Scheduler to trigger individual Cloud Functions for each pipeline step sequentially",
+                  "Configure a BigQuery scheduled query to run the training SQL and trigger model export automatically",
+                  "Define the pipeline as a Vertex AI Pipeline using KFP (Kubeflow Pipelines) SDK with Cloud Scheduler"
+                ],
+                "correctIndex": 3,
+                "explanation": "Vertex AI Pipelines (built on KFP) is the recommended MLOps orchestration service on GCP. Each step (data validation, feature engineering, training, evaluation, deployment) is a pipeline component, and conditional logic controls deployment based on evaluation metrics. The pipeline is registered in Vertex AI and can be triggered on a schedule via Cloud Scheduler. Cloud Functions chained by Cloud Scheduler lack conditional branching and pipeline artifact tracking. Cloud Composer is a general workflow orchestrator — valid but less integrated with Vertex AI than Vertex AI Pipelines. BigQuery scheduled queries are for SQL transformations, not ML pipeline orchestration."
+              },
+              {
+                "q": "A data science team trains a TensorFlow model on Vertex AI custom training. After training, they want to track model versions, compare evaluation metrics across runs, and promote the best version to production. Which Vertex AI feature manages this workflow?",
+                "choices": [
+                  "Use Vertex AI Experiments to log metrics per training run and Vertex AI Model Registry to version, compare, and deploy models",
+                  "Upload each trained model artifact to Cloud Storage with a GCS object version tag, then manually compare evaluation metrics from TensorBoard logs",
+                  "Create a BigQuery table to store evaluation metrics per training run, use Looker Studio to compare runs, and deploy the best model via Vertex AI Prediction",
+                  "Tag Docker images in Artifact Registry with semantic version numbers and compare training results via Cloud Logging before deploying via Cloud Run"
+                ],
+                "correctIndex": 0,
+                "explanation": "Vertex AI Experiments records metrics, parameters, and artifacts for each training run, enabling side-by-side comparison. Vertex AI Model Registry stores model versions with lineage, evaluation metadata, and deployment history. Together they provide a complete MLOps versioning and promotion workflow. Cloud Storage object versioning stores files but provides no metrics comparison or deployment integration. Artifact Registry Docker tags track container versions, not ML model evaluation metrics. A BigQuery metrics table is a custom solution that does not integrate with Vertex AI's deployment pipeline."
+              },
+              {
+                "q": "A retail company wants to predict customer churn using 20 features from BigQuery. The team wants an AutoML model that automatically selects the best algorithm, handles feature preprocessing, and performs hyperparameter tuning without writing ML code. Which service provides this?",
+                "choices": [
+                  "Configure a Vertex AI custom training job that runs feature selection and hyperparameter tuning to automatically pick the best algorithm for each experiment",
+                  "Train a Vertex AI AutoML Tabular model on the BigQuery dataset, letting AutoML handle feature engineering and algorithm selection automatically",
+                  "Use BigQuery ML with model_type='AUTOML_CLASSIFIER' to train an AutoML model directly in BigQuery with automatic feature preprocessing",
+                  "Use Vertex AI Workbench to run a TPOT (Tree-based Pipeline Optimization) AutoML library in a notebook with full control over feature engineering and algorithm search"
+                ],
+                "correctIndex": 1,
+                "explanation": "Vertex AI AutoML Tabular accepts a BigQuery table as input and automatically handles feature preprocessing, algorithm selection (neural architecture search, gradient boosted trees, etc.), and hyperparameter tuning to find the best model. Results include feature importance and evaluation metrics. BigQuery ML AUTOML_CLASSIFIER is a valid option that also runs AutoML from SQL, but Vertex AI AutoML provides more advanced tuning and a richer evaluation UI. Vertex AI Workbench with TPOT requires writing Python code. A hyperparameter tuning job requires a custom training script."
+              },
+              {
+                "q": "A retail company wants to train a product recommendation model. Training data contains user purchase histories stored in BigQuery. The team needs feature vectors for each user to be consistent across training and serving, and the features must be updated daily with new purchase data. Which architecture best solves the training-serving skew problem?",
+                "choices": [
+                  "Use Vertex AI Feature Store: ingest daily batch features from BigQuery into feature groups,.",
+                  "Train the model on BigQuery data exports and serve predictions using a Vertex AI endpoint that queries BigQuery at inference time",
+                  "Compute features on the fly using a Dataflow streaming pipeline that enriches each prediction request with real-time aggregates",
+                  "Store feature vectors as JSON in Firestore and read them during training from a Vertex AI training job and during serving from the prediction container"
+                ],
+                "correctIndex": 0,
+                "explanation": "Vertex AI Feature Store solves training-serving skew by providing a single feature registry used for both batch (training) and online (serving) access. Daily purchase features are ingested into feature groups from BigQuery, ensuring training data and online serving data come from the same computed values. Online serving provides low-latency point lookups at inference time. Querying BigQuery at inference time adds unacceptable latency for real-time serving. Firestore does not integrate natively with the Vertex AI training and serving pipeline. On-the-fly Dataflow computation is complex and introduces serving latency. then read features for training via batch serving and for inference via online serving"
+              },
+              {
+                "q": "A data team is building a Vertex AI ML pipeline that trains a model on Vertex AI Training, evaluates it, and conditionally deploys it to a Vertex AI Endpoint only if the evaluation AUC exceeds 0.85. Which Vertex AI Pipelines component pattern implements the conditional deployment?",
+                "choices": [
+                  "Configure a Cloud Composer DAG with a BranchPythonOperator to evaluate the AUC metric and trigger a Vertex AI deployment task conditionally",
+                  "Write a custom Python script that calls the Vertex AI REST API to check AUC and conditionally deploy, triggered by Cloud Scheduler",
+                  "Use the `dsl.Condition` control flow component in the KFP SDK pipeline definition to branch on the evaluation component's AUC output",
+                  "Set the Vertex AI training job's early stopping parameter to halt training and skip deployment when AUC falls below 0.85"
+                ],
+                "correctIndex": 2,
+                "explanation": "Vertex AI Pipelines is built on KFP (Kubeflow Pipelines). The `dsl.Condition` construct in KFP allows conditional branching based on output parameters from upstream components. The evaluation component outputs the AUC as a parameter, and `with dsl.Condition(auc > 0.85)` wraps the deployment component, executing it only when the condition is true. This is the native, declarative way to implement conditional deployment within a Vertex AI Pipeline. Custom scripts and Composer DAGs are valid but external to the pipeline graph, reducing observability. Early stopping controls training duration, not post-evaluation deployment."
+              }
+            ]
+          },
+          "title": "Vertex Ai — Lightning Round"
         },
         {
           "id": "c3-chest",
@@ -181,11 +468,513 @@
     },
     {
       "id": "ch4",
+      "title": "Bigtable",
+      "tag": "bigtable",
+      "nodes": [
+        {
+          "id": "c4-concept",
+          "type": "concept",
+          "title": "Google BigQuery: Key Ideas",
+          "content": "BigQuery is GCP's serverless data warehouse — petabyte-scale SQL with no clusters to manage. You pay for storage and for bytes scanned by each query (or for slots if you reserve capacity). The exam tests partitioning, clustering, cost control, and access patterns.",
+          "flashcards": [
+            {
+              "front": "What's the difference between partitioning and clustering?",
+              "back": "Partitioning splits a table into separate physical chunks by date or integer range — queries that filter on the partition column scan only relevant chunks. Clustering sorts data inside each partition by up to 4 columns — further reduces bytes read. Use both: partition by ingest_date, cluster by user_id."
+            },
+            {
+              "front": "On-demand vs flat-rate pricing — pick one.",
+              "back": "On-demand: $5/TB scanned, perfect for unpredictable workloads. Flat-rate: reserve N slots (compute units) for $/month or $/year, no per-query cost — pick when you have a steady high query volume and want predictable bills. Most teams start on-demand and switch to flat-rate around ~$10k/month."
+            },
+            {
+              "front": "Why does column selection matter so much?",
+              "back": "BigQuery is columnar — `SELECT *` scans every column for every row. `SELECT user_id, ts` scans only those two. On a 10-column table, that's a 5x cost reduction with one keystroke. Never `SELECT *` in production analytics; always project explicitly."
+            },
+            {
+              "front": "Where do you put data BigQuery can query directly?",
+              "back": "Native BigQuery storage (best perf, replicated automatically), or external tables over Cloud Storage / Bigtable / Cloud SQL (federated queries, no copy needed but slower and cost-variable). Use native for analytics queries; use external when source-of-truth lives elsewhere."
+            }
+          ],
+          "source": "concept-library",
+          "sourceTag": "bigquery"
+        },
+        {
+          "id": "c4-quiz1",
+          "type": "quiz",
+          "title": "Bigtable — Drill 1",
+          "questionIds": [
+            "pde-051",
+            "pde-011",
+            "pde-023",
+            "pde-060",
+            "pde-031"
+          ]
+        },
+        {
+          "id": "c4-game",
+          "type": "minigame",
+          "gameType": "lightning",
+          "mode": "lightning-round",
+          "data": {
+            "secondsPerQuestion": 7,
+            "livesAllowed": 3,
+            "questions": [
+              {
+                "q": "A media company stores user engagement events in Bigtable with row keys formatted as `user_id#event_type#timestamp`. During peak hours, writes are hotspotting on a small number of tablets. Which row key redesign best eliminates the hot spot?",
+                "choices": [
+                  "Prepend a 2-byte hash prefix (salt) of `user_id` to distribute rows across tablets evenly",
+                  "Add an additional `region` field at the end of the row key to increase key cardinality",
+                  "Replace `user_id` with a sequential auto-increment integer to spread rows across the key space",
+                  "Use a composite key with `event_type#user_id#timestamp` to co-locate events by type"
+                ],
+                "correctIndex": 0,
+                "explanation": "Bigtable stores rows in sorted order; sequential or repeated-prefix keys concentrate writes on the same tablet (hot spot). Prepending a hash-derived salt (e.g., 2-byte prefix derived from hashing user_id) distributes the key space evenly across tablets, eliminating the hot spot. Auto-increment integers create a new sequential hot spot at the current highest value. Appending a region field does not change the leading prefix distribution. Reordering to event_type first moves the hot spot to the most popular event type."
+              },
+              {
+                "q": "A data platform team has a Bigtable cluster serving read-heavy workloads for a global user base. Regions include North America and Europe. During planned maintenance on the NA cluster, reads must automatically failover to the EU cluster. What Bigtable configuration enables this?",
+                "choices": [
+                  "Enable Bigtable replication by adding a second cluster in the EU region with a replication policy.",
+                  "Deploy two independent Bigtable instances in NA and EU and write all data to both instances from the application layer",
+                  "Use Cloud Spanner instead of Bigtable because only Spanner supports automatic multi-region failover",
+                  "Create daily Bigtable backups and restore them to a new EU cluster when the NA cluster goes into maintenance"
+                ],
+                "correctIndex": 0,
+                "explanation": "Bigtable supports multi-cluster replication within an instance. By adding a second cluster in the EU region and configuring the Bigtable client with a multi-cluster routing profile (route to any cluster), reads automatically fail over to the available cluster if one cluster is in maintenance. Backups require manual restore and have high RTO. Cloud Spanner is not a drop-in for Bigtable and is designed for relational workloads. Dual independent instances require application-layer writes to both, which is complex and error-prone. and configure client routing to use the closest available cluster"
+              },
+              {
+                "q": "A gaming company stores player leaderboard data in Bigtable. A single global leaderboard row key `global_leaderboard` receives 50,000 writes per second, causing severe hot spot. What is the best redesign?",
+                "choices": [
+                  "Enable Bigtable autoscaling to add nodes and absorb the write throughput on the single leaderboard row",
+                  "Move the leaderboard to Cloud Memorystore (Redis) sorted sets for in-memory high-throughput writes",
+                  "Shard the leaderboard into multiple rows using a prefix.",
+                  "Switch to Cloud Spanner for the leaderboard because Spanner handles high write throughput to single rows without hot spotting"
+                ],
+                "correctIndex": 2,
+                "explanation": "Bigtable hot spots on a single row key cannot be resolved by adding nodes because all writes to a single key are routed to one tablet. The standard pattern is to shard the row into multiple keys using a prefix (shard_00 to shard_99), distributing writes across 100 tablets. At read time, all shards are fetched and merged. Cloud Spanner does not eliminate single-key hot spots either — it also routes all mutations to a single split leader for a given key range. Adding Bigtable nodes increases throughput per tablet but does not help a single-row hot spot. Redis Sorted Sets are a valid alternative for leaderboards but constitute a service migration, not a Bigtable row key fix. for example, `shard_00#global_leaderboard` through `shard_99#global_leaderboard` — and merge shards at read time"
+              },
+              {
+                "q": "A machine learning team stores 1,000 feature vectors per user in Bigtable for real-time model inference. Each vector is a float array of 128 dimensions. Reads must complete in under 5 ms. The team is experiencing slow reads during peak hours. What is the most direct fix?",
+                "choices": [
+                  "Increase Bigtable cluster node count to add throughput and reduce read latency during peak traffic",
+                  "Compress feature vectors using gzip before storing them in Bigtable to reduce storage and read I/O",
+                  "Move feature vectors to Firestore, which is optimized for document-oriented low-latency reads",
+                  "Add a second Bigtable cluster in a different zone to distribute reads across two clusters"
+                ],
+                "correctIndex": 0,
+                "explanation": "Bigtable read latency during peak traffic typically indicates CPU or I/O saturation on the existing nodes. Adding cluster nodes distributes tablet serving across more nodes, reducing CPU load and I/O per node, directly improving read latency. Gzip compression adds decompression CPU overhead that can worsen latency for sub-5ms requirements. Adding a second cluster adds capacity but is a larger change — horizontal scaling within one cluster is simpler and immediate. Firestore is not optimized for high-dimensional vector lookups and has different latency characteristics."
+              },
+              {
+                "q": "A company wants to enable data analysts to query Bigtable data using SQL from BigQuery without copying the data. The Bigtable table stores time-series sensor readings with row keys in the format `sensor_id#timestamp`. Which BigQuery feature enables this?",
+                "choices": [
+                  "Configure Datastream to replicate Bigtable changes to BigQuery in real time for SQL-based analytics",
+                  "Use Dataflow to periodically export Bigtable data to Cloud Storage as Avro files and create BigQuery external tables over them",
+                  "Use the BigQuery Storage API to read Bigtable data directly using the Bigtable-to-BigQuery bridge",
+                  "Create a BigQuery external table using the Bigtable data source connector,."
+                ],
+                "correctIndex": 3,
+                "explanation": "BigQuery supports Bigtable as an external data source via federated queries. By creating a BigQuery external table pointing to the Bigtable instance and table, analysts can query Bigtable data using SQL without copying it. The connector translates SQL filter predicates into Bigtable row key range scans and prefix filters. This is useful for joining Bigtable sensor data with BigQuery reference tables. Dataflow export to Cloud Storage + external tables adds latency and requires intermediate storage. Datastream does not support Bigtable as a source. The BigQuery Storage API is for reading BigQuery-native tables at speed, not for querying Bigtable. which federates SQL queries against Bigtable row key ranges"
+              }
+            ]
+          },
+          "title": "Bigtable — Lightning Round"
+        },
+        {
+          "id": "c4-boss",
+          "type": "subboss",
+          "title": "Boss: Bigtable",
+          "questionIds": [
+            "pde-051",
+            "pde-011",
+            "pde-023",
+            "pde-060",
+            "pde-031"
+          ]
+        },
+        {
+          "id": "c4-chest",
+          "type": "chest",
+          "title": "Treasure Chest",
+          "rewardXp": 30,
+          "cosmeticKey": "chapter-4"
+        }
+      ]
+    },
+    {
+      "id": "ch5",
+      "title": "Pubsub",
+      "tag": "pubsub",
+      "nodes": [
+        {
+          "id": "c5-concept",
+          "type": "concept",
+          "title": "Google Cloud Pub/Sub: Key Ideas",
+          "content": "Pub/Sub is GCP's fully managed, serverless messaging service for asynchronous event-driven architectures. GCP PDE exams test topic/subscription model, delivery guarantees, and integration with Dataflow.",
+          "flashcards": [
+            {
+              "front": "Pub/Sub delivery guarantee — exactly-once or at-least-once?",
+              "back": "At-least-once by default — consumers must be idempotent. Exactly-once delivery is available with Dataflow streaming pipelines using the exactly-once processing mode."
+            },
+            {
+              "front": "Pull vs Push subscription?",
+              "back": "Pull: consumer calls Pub/Sub API to fetch messages (subscriber controls rate). Push: Pub/Sub POSTs messages to a webhook URL (simpler for serverless like Cloud Run/App Engine)."
+            },
+            {
+              "front": "Pub/Sub Lite vs Pub/Sub — key trade-off?",
+              "back": "Pub/Sub Lite: zonal, lower cost, capacity pre-provisioned. Standard Pub/Sub: global, auto-scaling, no pre-provisioning — recommended unless cost is the primary concern."
+            },
+            {
+              "front": "Message retention in Pub/Sub?",
+              "back": "Unacknowledged messages are retained up to 7 days by default (configurable to 10 minutes–7 days). Acknowledged messages are deleted."
+            }
+          ],
+          "source": "concept-library",
+          "sourceTag": "pubsub"
+        },
+        {
+          "id": "c5-quiz1",
+          "type": "quiz",
+          "title": "Pubsub — Drill 1",
+          "questionIds": [
+            "pde-013",
+            "pde-022",
+            "pde-029",
+            "pde-043",
+            "pde-053"
+          ]
+        },
+        {
+          "id": "c5-game",
+          "type": "minigame",
+          "gameType": "lightning",
+          "mode": "lightning-round",
+          "data": {
+            "secondsPerQuestion": 7,
+            "livesAllowed": 3,
+            "questions": [
+              {
+                "q": "A social platform ingests 5 million user activity events per second via Pub/Sub. Multiple downstream systems — analytics, fraud detection, and personalization — each need to consume every event independently at their own pace. What Pub/Sub architecture supports this requirement?",
+                "choices": [
+                  "Create one Pub/Sub topic with a separate subscription for each downstream consumer system",
+                  "Deploy Pub/Sub Lite with a single partition and have all consumers read from the same partition",
+                  "Use a single Pub/Sub subscription with message filtering attributes per consumer",
+                  "Create three separate Pub/Sub topics and route events to each topic based on event type"
+                ],
+                "correctIndex": 0,
+                "explanation": "Pub/Sub implements fan-out by allowing multiple subscriptions on a single topic. Each subscription receives an independent copy of every message and maintains its own offset, so analytics, fraud detection, and personalization can each consume at their own pace without interfering with each other. Separate topics require the publisher to send to three topics. Shared subscription with filtering still competes for messages — only one subscriber gets each message. Pub/Sub Lite single-partition is designed for ordered, low-throughput use cases and does not support independent fan-out."
+              },
+              {
+                "q": "A Pub/Sub topic receives messages that contain a mix of `order_placed`, `order_shipped`, and `order_delivered` event types. A downstream Dataflow pipeline only needs to process `order_delivered` events and ignore the others. What is the most efficient way to filter messages before they reach Dataflow?",
+                "choices": [
+                  "Add a second Pub/Sub topic for `order_delivered` events and have the publisher write to both topics",
+                  "Add a filter function inside the Dataflow pipeline to drop messages where event_type != 'order_delivered'",
+                  "Use Eventarc to route only `order_delivered` events to a Cloud Function that forwards them to Dataflow",
+                  "Create a Pub/Sub subscription with a server-side filter attribute expression `attributes.event_type = \"order_delivered\"`"
+                ],
+                "correctIndex": 3,
+                "explanation": "Pub/Sub subscriptions support server-side filtering using attribute expressions. A subscription with `attributes.event_type = \"order_delivered\"` will only deliver messages matching that filter, reducing message volume delivered to Dataflow. This is more efficient than filtering inside Dataflow because non-matching messages are never delivered. Filtering in Dataflow wastes resources reading and deserializing messages only to discard them. Eventarc adds unnecessary routing complexity. Publishing to a second topic requires publisher changes and duplicates messages."
+              },
+              {
+                "q": "A company needs to enforce a schema contract on all messages published to a Pub/Sub topic. Publishers must use a specific Protobuf schema, and messages that do not conform should be rejected at publish time. How should they configure this?",
+                "choices": [
+                  "Register a Protobuf schema in the Pub/Sub schema registry and attach it to the topic with ENCODING=BINARY",
+                  "Deploy a Dataflow pipeline that validates each incoming message schema and publishes valid messages to a downstream topic",
+                  "Configure a dead-letter topic on the Pub/Sub subscription to capture malformed messages after delivery",
+                  "Use a Cloud Function triggered by Pub/Sub to validate message structure and nack non-conforming messages"
+                ],
+                "correctIndex": 0,
+                "explanation": "Pub/Sub supports schema enforcement natively via the schema registry. A Protobuf (or Avro) schema is registered and attached to a topic. Any publish request whose message payload does not conform to the schema is rejected by the Pub/Sub API before the message is stored, guaranteeing that only valid messages reach subscribers. Dataflow validation accepts all messages first, then discards bad ones — invalid messages are already stored. Cloud Function nack cannot prevent message storage in standard Pub/Sub flow. Dead-letter topics capture undeliverable messages, not schema-invalid ones."
+              },
+              {
+                "q": "A company has a Pub/Sub subscription that feeds a Dataflow pipeline. During a deployment outage lasting 4 hours, the Dataflow pipeline went offline. When it came back, the team needed to reprocess all 4 hours of missed messages. Which Pub/Sub configuration ensures these messages are still available for reprocessing?",
+                "choices": [
+                  "Create a separate dead-letter subscription that receives unacknowledged messages from the main subscription when the pipeline is offline",
+                  "Set the Pub/Sub message retention duration to at least 4 hours (default is 7 days) on the topic so messages remain available for the subscription to pull",
+                  "Enable Pub/Sub message ordering keys so messages can be replayed through the subscription in their original publish order",
+                  "Configure the Pub/Sub topic with a seek-to-timestamp operation to reset the subscription's cursor to the outage start time"
+                ],
+                "correctIndex": 3,
+                "explanation": "Pub/Sub's seek feature allows rewinding a subscription's cursor to a past timestamp. After the pipeline recovers, an operator runs `gcloud pubsub subscriptions seek --time=<outage_start>` to reset the subscription's ack cursor, causing Pub/Sub to redeliver all messages published since that time. The prerequisite is that the topic's message retention period (default 7 days) covers the outage window — no special configuration is needed since the default already covers 4 hours. Ordering keys affect delivery order, not replay. Dead-letter topics only receive messages that exceed max delivery attempts. The default retention of 7 days already retains the 4 hours of messages."
+              },
+              {
+                "q": "A company uses Pub/Sub to deliver payment events to multiple consumers. One consumer is a compliance audit service that must receive every message exactly once, with no duplicates even during retries. Which Pub/Sub feature provides exactly-once delivery semantics?",
+                "choices": [
+                  "Set `ackDeadlineSeconds` to 600 seconds on the subscription to give the consumer enough time to process before retry",
+                  "Use Pub/Sub exactly-once delivery by enabling it on the subscription,.",
+                  "Deploy a Dataflow pipeline with a BigQuery sink that uses INSERT IGNORE to deduplicate events at the destination",
+                  "Enable message ordering keys on the Pub/Sub topic so messages are delivered in order and not re-sent after ack"
+                ],
+                "correctIndex": 1,
+                "explanation": "Pub/Sub exactly-once delivery (enabled per subscription) guarantees that a message is delivered to the subscriber at most once after it is successfully acknowledged. The service tracks ack IDs and prevents re-delivery of acknowledged messages. It also includes publisher-side deduplication for messages published with the same message ID within a deduplication window. Extending ackDeadlineSeconds reduces retries due to slow processing but does not prevent duplicate delivery. Ordering keys ensure order but not exactly-once semantics — re-delivery can still occur if ack times out. Dataflow deduplication works at the sink but still processes duplicates upstream. which prevents re-delivery of acked messages and detects duplicate publishes"
+              }
+            ]
+          },
+          "title": "Pubsub — Lightning Round"
+        },
+        {
+          "id": "c5-boss",
+          "type": "subboss",
+          "title": "Boss: Pubsub",
+          "questionIds": [
+            "pde-013",
+            "pde-022",
+            "pde-029",
+            "pde-043",
+            "pde-053"
+          ]
+        },
+        {
+          "id": "c5-chest",
+          "type": "chest",
+          "title": "Treasure Chest",
+          "rewardXp": 30,
+          "cosmeticKey": "chapter-5"
+        }
+      ]
+    },
+    {
+      "id": "ch6",
+      "title": "Dataproc",
+      "tag": "dataproc",
+      "nodes": [
+        {
+          "id": "c6-concept",
+          "type": "concept",
+          "title": "Google Cloud Dataproc: Key Ideas",
+          "content": "Dataproc is GCP's managed Apache Spark and Hadoop service. It lets you spin up clusters in seconds and integrates with GCS, BigQuery, and Pub/Sub. GCP PDE exams test cluster sizing, job types, and lifecycle.",
+          "flashcards": [
+            {
+              "front": "Dataproc vs Dataflow — when to choose Dataproc?",
+              "back": "Dataproc: lift-and-shift existing Spark/Hadoop jobs or when you need fine-grained cluster control. Dataflow: managed Apache Beam for new unified batch+streaming pipelines."
+            },
+            {
+              "front": "Dataproc Autoscaling — what does it adjust?",
+              "back": "Horizontally scales the number of preemptible (secondary) workers based on pending YARN jobs — primary workers stay fixed to avoid data locality loss."
+            },
+            {
+              "front": "Ephemeral vs persistent Dataproc cluster?",
+              "back": "Ephemeral: create for a job, delete when done — cheaper, no idle cost. Persistent: long-lived for interactive workloads or frequent jobs."
+            },
+            {
+              "front": "How does Dataproc integrate with BigQuery?",
+              "back": "BigQuery connector lets Spark jobs read from / write to BigQuery tables directly without intermediate GCS staging, using the BigQuery Storage API for high throughput."
+            }
+          ],
+          "source": "concept-library",
+          "sourceTag": "dataproc"
+        },
+        {
+          "id": "c6-quiz1",
+          "type": "quiz",
+          "title": "Dataproc — Drill 1",
+          "questionIds": [
+            "pde-015",
+            "pde-042",
+            "pde-032",
+            "pde-039"
+          ]
+        },
+        {
+          "id": "c6-game",
+          "type": "minigame",
+          "gameType": "lightning",
+          "mode": "lightning-round",
+          "data": {
+            "secondsPerQuestion": 7,
+            "livesAllowed": 3,
+            "questions": [
+              {
+                "q": "A data engineering team runs large Apache Spark ETL jobs on Dataproc. The jobs run once daily for 3 hours and do not require persistent clusters. The team wants to minimize cost. What is the recommended Dataproc pattern?",
+                "choices": [
+                  "Keep a permanent Dataproc cluster running 24/7 and submit jobs to it throughout the day to save cluster creation time",
+                  "Switch from Dataproc to a Dataflow pipeline with a Spark runner to reuse existing Spark code",
+                  "Create an ephemeral Dataproc cluster at job start, run the Spark job,.",
+                  "Use a Dataproc High Availability cluster with 3 master nodes to reduce the risk of job failure"
+                ],
+                "correctIndex": 2,
+                "explanation": "Dataproc ephemeral clusters — created on demand, used for the duration of the job, then deleted — are the recommended cost optimization pattern. Charges apply only while the cluster exists, so a 3-hour daily job incurs 3 hours of cluster cost rather than 24 hours. Persistent 24/7 clusters waste resources during idle hours. HA clusters with 3 masters increase cost and are warranted for production SLAs, not cost savings. Rewriting Spark jobs as Dataflow pipelines is a significant engineering effort with no guaranteed cost benefit. then delete the cluster immediately after completion"
+              },
+              {
+                "q": "A company's Dataproc cluster runs a Spark job that reads Parquet files from Cloud Storage, joins them with Hive-managed tables, and writes results back to Cloud Storage. A second team also runs Hive queries on the same tables. Both teams need to share the same Hive metadata catalog without maintaining duplicate metadata. Which service provides a shared Hive Metastore on GCP?",
+                "choices": [
+                  "Use Dataproc Metastore (a managed Apache Hive Metastore service) as a shared catalog for both Dataproc clusters",
+                  "Create a separate Dataproc cluster exclusively as a persistent Hive Metastore server and have both teams connect to it",
+                  "Deploy a Cloud SQL for MySQL instance and configure both Dataproc clusters to use it as their Hive Metastore backend",
+                  "Store Hive metadata as JSON files in Cloud Storage and have each Dataproc cluster load metadata at job startup"
+                ],
+                "correctIndex": 0,
+                "explanation": "Dataproc Metastore is Google's fully managed, serverless Apache Hive Metastore service. Multiple Dataproc clusters (and other services like Dataflow and Spark on Kubernetes) can be configured to use the same Dataproc Metastore endpoint, sharing table definitions, partition metadata, and schema. Cloud SQL for MySQL is the traditional DIY Metastore approach — functional but requires managing the database. A dedicated persistent Dataproc cluster as Metastore server incurs full cluster costs. JSON files in Cloud Storage are not a supported Hive Metastore backend."
+              },
+              {
+                "q": "A company needs to build a data pipeline that reads from a legacy Hadoop HDFS cluster on-premises, applies transformations using Apache Spark, and writes output to BigQuery. The on-premises cluster will be decommissioned in 6 months. Which approach minimizes rewriting of existing Spark code?",
+                "choices": [
+                  "Submit existing Spark jobs to Dataproc Serverless Spark, which runs Spark natively without managing clusters",
+                  "Deploy the Spark jobs on GKE using a custom Spark operator and write results to BigQuery via the Spark-BigQuery connector",
+                  "Rewrite all Spark jobs as Apache Beam pipelines and deploy them on Dataflow for a fully managed solution",
+                  "Use BigQuery external tables to query HDFS directly via a federated query without moving data"
+                ],
+                "correctIndex": 0,
+                "explanation": "Dataproc Serverless Spark allows existing PySpark or Scala Spark jobs to run on GCP without provisioning or managing clusters. The Spark-BigQuery connector (`spark.read`/`write.format('bigquery')`) enables direct BigQuery integration. Minimal code changes are needed — primarily updating source paths from HDFS to Cloud Storage (after migrating the input data). Rewriting as Apache Beam pipelines requires significant rework. BigQuery external tables cannot query on-premises HDFS directly. GKE with a Spark operator requires cluster management overhead."
+              },
+              {
+                "q": "A data engineering team needs to run a short-lived Spark job to process a daily 50 GB CSV file. They want to avoid cluster management, pay only for job duration, and reuse existing PySpark code with minimal changes. Which service best fits this requirement?",
+                "choices": [
+                  "Submit the PySpark script to Dataproc Serverless for Spark, which allocates and releases resources per job",
+                  "Deploy a persistent Dataproc cluster with autoscaling and submit the daily job via Cloud Composer",
+                  "Rewrite the PySpark logic as a Dataflow pipeline with the Beam Python SDK for full serverless execution",
+                  "Package the Spark job as a Docker container and run it on Cloud Run with a 3600-second timeout limit"
+                ],
+                "correctIndex": 0,
+                "explanation": "Dataproc Serverless for Spark runs PySpark and Scala Spark batch jobs without provisioning a cluster. Resources are allocated when the job starts and released when it finishes. Billing is per vCPU-second and per GB-second of shuffle storage. Existing PySpark code requires minimal changes (update input/output paths to Cloud Storage). Persistent Dataproc clusters incur costs even when idle. Rewriting as Dataflow requires adopting the Apache Beam SDK. Cloud Run has a 3,600-second hard timeout and is not designed for Spark workloads."
+              }
+            ]
+          },
+          "title": "Dataproc — Lightning Round"
+        },
+        {
+          "id": "c6-boss",
+          "type": "subboss",
+          "title": "Boss: Dataproc",
+          "questionIds": [
+            "pde-015",
+            "pde-042",
+            "pde-032",
+            "pde-039"
+          ]
+        },
+        {
+          "id": "c6-chest",
+          "type": "chest",
+          "title": "Treasure Chest",
+          "rewardXp": 30,
+          "cosmeticKey": "chapter-6"
+        }
+      ]
+    },
+    {
+      "id": "ch7",
+      "title": "Composer",
+      "tag": "composer",
+      "nodes": [
+        {
+          "id": "c7-concept",
+          "type": "concept",
+          "title": "Google Cloud Composer: Key Ideas",
+          "content": "Cloud Composer is GCP's managed Apache Airflow service for orchestrating complex workflows (DAGs). GCP PDE exams test DAG design, scheduling, task dependencies, and integration with BigQuery and Dataflow.",
+          "flashcards": [
+            {
+              "front": "What is a DAG in Airflow/Composer?",
+              "back": "Directed Acyclic Graph — a Python file defining tasks and their dependencies. Each task is an Operator; the DAG scheduler triggers runs based on schedule_interval."
+            },
+            {
+              "front": "Sensor vs Operator in Airflow?",
+              "back": "Sensor: waits (polls) for an external condition (file in GCS, BigQuery table, time). Operator: performs an action (runs a query, submits a Dataproc job)."
+            },
+            {
+              "front": "Where does Composer store DAGs and logs?",
+              "back": "DAGs are synced from a GCS bucket; logs are stored in GCS and viewable in the Airflow UI. The metadata database runs on Cloud SQL (Postgres)."
+            },
+            {
+              "front": "Cloud Composer 2 vs 1 — key improvement?",
+              "back": "Composer 2 uses GKE Autopilot and auto-scales workers; Composer 1 uses standard GKE with fixed node pools. Composer 2 is recommended for new deployments."
+            }
+          ],
+          "source": "concept-library",
+          "sourceTag": "composer"
+        },
+        {
+          "id": "c7-quiz1",
+          "type": "quiz",
+          "title": "Composer — Drill 1",
+          "questionIds": [
+            "pde-016",
+            "pde-037",
+            "pde-045",
+            "pde-059"
+          ]
+        },
+        {
+          "id": "c7-game",
+          "type": "minigame",
+          "gameType": "lightning",
+          "mode": "lightning-round",
+          "data": {
+            "secondsPerQuestion": 7,
+            "livesAllowed": 3,
+            "questions": [
+              {
+                "q": "A data team uses Cloud Composer (managed Apache Airflow) to orchestrate nightly BigQuery transformations. One DAG task consistently fails due to rate limit errors from a downstream API. The team wants the task to automatically retry with exponential back-off without blocking other tasks. Which Airflow configuration achieves this?",
+                "choices": [
+                  "Set `retries=3`, `retry_delay=timedelta(minutes=5)`,.",
+                  "Use Airflow pools with a concurrency limit of 1 to queue retries for the API-calling task",
+                  "Add a PythonSensor before the task that polls the API every 5 minutes until it stops rate-limiting",
+                  "Configure a Cloud Monitoring alert to detect the failure and trigger a Cloud Function that re-triggers the DAG"
+                ],
+                "correctIndex": 0,
+                "explanation": "Airflow task-level retry parameters — `retries`, `retry_delay`, and `retry_exponential_backoff=True` — instruct the scheduler to automatically re-run the failed task with increasing delays, without holding up other independent tasks in the DAG. Cloud Monitoring + Cloud Function adds unnecessary complexity for a simple retry. Airflow pools limit concurrency but do not implement back-off. Sensors pause the DAG run while waiting and do not retry the original task. and `retry_exponential_backoff=True` directly on the failing task operator"
+              },
+              {
+                "q": "A company runs multiple Cloud Composer environments across 3 GCP projects. They want to upgrade all environments from Composer 2.x to the latest minor version with minimal DAG downtime. What is the recommended upgrade strategy?",
+                "choices": [
+                  "Export all Airflow variables and connections, upgrade the Cloud SQL database version manually, then restart the Composer workers",
+                  "Deploy new Composer 2.x environments at the target version in parallel, migrate DAGs, cut over traffic, then decommission the old environments",
+                  "Delete each existing Composer environment and recreate it with the new version, then reimport all DAGs from the Cloud Storage bucket",
+                  "Update the Composer environment version in-place using the `gcloud composer environments update` command,."
+                ],
+                "correctIndex": 3,
+                "explanation": "Cloud Composer 2 supports in-place minor version upgrades using `gcloud composer environments update --image-version`. The upgrade applies the new Airflow image to existing workers in a rolling fashion, preserving the DAG bucket, metadata database, variables, and connections. DAGs continue to execute on the existing scheduler and workers during the upgrade. Deleting and recreating environments causes downtime and risks losing metadata. Blue-green parallel deployments are a valid zero-downtime strategy but have higher cost and complexity for minor upgrades. Manually upgrading the Cloud SQL database is not the correct approach. which upgrades the environment while keeping DAGs running"
+              },
+              {
+                "q": "A Cloud Composer DAG orchestrates a multi-step ETL pipeline. One step calls an external REST API that occasionally returns HTTP 429 (Too Many Requests). The engineer wants the DAG to automatically pause and retry that specific step after a delay without failing the entire DAG run. Which Airflow approach handles this?",
+                "choices": [
+                  "Wrap the API call in a try/except block inside a PythonOperator and raise AirflowSkipException on HTTP 429 — skips the task permanently instead of retrying after a delay",
+                  "Use a BranchPythonOperator that checks the API response code and routes to a TimeDeltaSensor wait task that enforces a configurable delay before retrying on HTTP 429",
+                  "Configure `retries=5`, `retry_delay=timedelta(minutes=2)`, and `retry_exponential_backoff=True` on the HTTP operator for that specific task",
+                  "Set `on_failure_callback` on the DAG to send a PagerDuty alert and re-trigger the run with a manual delay after the rate limit window passes"
+                ],
+                "correctIndex": 2,
+                "explanation": "Setting `retries`, `retry_delay`, and `retry_exponential_backoff=True` on the specific task operator causes Airflow to automatically re-run the task after the delay when it fails with an exception (which the HTTP operator raises on 429). Exponential back-off increases the delay between attempts, reducing the chance of hitting the rate limit again. Other DAG tasks are not blocked. `on_failure_callback` is for alerting, not automated retry. BranchPythonOperator can reroute but requires checking responses manually and does not implement back-off natively. `AirflowSkipException` marks the task as skipped, not retried, which would skip the API call entirely."
+              },
+              {
+                "q": "A company runs a Cloud Composer pipeline that ingests data from 50 different source systems every hour. Each source system has its own ingest task. Some tasks take much longer than others, and slow tasks block the Airflow scheduler from starting new runs. What Airflow configuration best prevents slow tasks from starving other tasks?",
+                "choices": [
+                  "Split the monolithic DAG into 50 separate DAGs (one per source system) so each runs independently on its own schedule",
+                  "Configure Airflow pools with a dedicated slot budget per source system and assign each task to its source pool",
+                  "Set `max_active_tasks` on the DAG to 50 to allow all source system tasks to run in parallel simultaneously",
+                  "Enable Airflow task concurrency limits at the task level using `task_concurrency` to prevent any single task from consuming all workers"
+                ],
+                "correctIndex": 1,
+                "explanation": "Airflow pools divide the worker slot pool into named buckets with configurable sizes. Creating a pool per source system (e.g., 2 slots each) ensures that slow tasks in one source system can only consume their pool's slots, preventing them from starving other systems. Other pools remain available. Splitting into 50 DAGs improves isolation but adds operational overhead and does not directly address worker starvation within shared infrastructure. `max_active_tasks` limits concurrent tasks for the whole DAG but does not prevent one slow source from consuming all available slots. `task_concurrency` limits concurrent instances of a single task definition, not cross-source interference."
+              }
+            ]
+          },
+          "title": "Composer — Lightning Round"
+        },
+        {
+          "id": "c7-boss",
+          "type": "subboss",
+          "title": "Boss: Composer",
+          "questionIds": [
+            "pde-016",
+            "pde-037",
+            "pde-045",
+            "pde-059"
+          ]
+        },
+        {
+          "id": "c7-chest",
+          "type": "chest",
+          "title": "Treasure Chest",
+          "rewardXp": 30,
+          "cosmeticKey": "chapter-7"
+        }
+      ]
+    },
+    {
+      "id": "ch8",
       "title": "Mixed Topics",
       "tag": "mixed-topics",
       "nodes": [
         {
-          "id": "c4-concept",
+          "id": "c8-concept",
           "type": "concept",
           "title": "Mixed exam topics: Key Ideas",
           "content": "Some exam objectives don't fit neatly into a single domain — they span protocols, tools, or concepts covered briefly in multiple sections. These cards treat each item as a stand-alone fact, the way an exam question presents it: one concept, one answer.",
@@ -211,74 +1000,136 @@
           "sourceTag": "mixed-topics"
         },
         {
-          "id": "c4-quiz1",
+          "id": "c8-quiz1",
           "type": "quiz",
           "title": "Mixed Topics — Drill 1",
           "questionIds": [
-            "pde-051",
-            "pde-013",
-            "pde-015",
-            "pde-042",
-            "pde-019"
-          ]
-        },
-        {
-          "id": "c4-quiz2",
-          "type": "quiz",
-          "title": "Mixed Topics — Drill 2",
-          "questionIds": [
+            "pde-019",
             "pde-026",
             "pde-018",
-            "pde-011",
-            "pde-023",
-            "pde-060"
-          ]
-        },
-        {
-          "id": "c4-quiz3",
-          "type": "quiz",
-          "title": "Mixed Topics — Drill 3",
-          "questionIds": [
-            "pde-022",
-            "pde-029",
-            "pde-043",
-            "pde-053",
-            "pde-032"
-          ]
-        },
-        {
-          "id": "c4-quiz4",
-          "type": "quiz",
-          "title": "Mixed Topics — Drill 4",
-          "questionIds": [
-            "pde-039",
-            "pde-016",
-            "pde-037",
-            "pde-045",
-            "pde-003"
-          ]
-        },
-        {
-          "id": "c4-quiz5",
-          "type": "quiz",
-          "title": "Mixed Topics — Drill 5",
-          "questionIds": [
+            "pde-003",
             "pde-056"
           ]
         },
         {
-          "id": "c4-boss",
+          "id": "c8-quiz2",
+          "type": "quiz",
+          "title": "Mixed Topics — Drill 2",
+          "questionIds": [
+            "pde-006",
+            "pde-038"
+          ]
+        },
+        {
+          "id": "c8-game",
+          "type": "minigame",
+          "gameType": "lightning",
+          "mode": "lightning-round",
+          "data": {
+            "secondsPerQuestion": 7,
+            "livesAllowed": 3,
+            "questions": [
+              {
+                "q": "A data engineering team needs to migrate 200 TB of historical log files from an on-premises NFS server to Cloud Storage. The migration must complete within 48 hours and the on-premises network supports 1 Gbps sustained throughput. Which approach is most appropriate?",
+                "choices": [
+                  "Configure Storage Transfer Service with a source agent pool on the on-premises server",
+                  "Use Transfer Appliance to ship the data physically to Google and import to Cloud Storage",
+                  "Use Dataflow with a custom I/O connector reading from NFS and writing to Cloud Storage",
+                  "Run gsutil -m cp with parallel composite uploads from multiple on-premises machines"
+                ],
+                "correctIndex": 0,
+                "explanation": "Storage Transfer Service supports on-premises sources via agent pools — agents are installed on the source servers and manage parallel, reliable transfer to Cloud Storage. At 1 Gbps sustained, 200 TB can be transferred in roughly 44 hours, which fits the 48-hour window. gsutil -m cp lacks centralized scheduling, retries, and bandwidth management at this scale. Transfer Appliance is for offline scenarios where network bandwidth is severely limited. Dataflow adds unnecessary complexity for a bulk file copy."
+              },
+              {
+                "q": "A data team stores 500 TB of raw JSON log files in Cloud Storage. The data is accessed daily for the first 30 days, then accessed once a month for 6 months, then rarely accessed after that. What lifecycle policy minimizes cost while maintaining data availability?",
+                "choices": [
+                  "Keep all data in Standard storage to ensure immediate availability when accessed infrequently",
+                  "Transition objects to Nearline after 30 days, then to Coldline after 90 days, then to Archive after 365 days",
+                  "Set a lifecycle rule to delete all objects after 30 days to eliminate storage costs entirely",
+                  "Move all objects to Nearline immediately on upload to reduce storage costs from the start"
+                ],
+                "correctIndex": 1,
+                "explanation": "Cloud Storage lifecycle management can automatically transition objects to lower-cost storage classes based on age. Moving to Nearline (minimum 30-day retention, $0.01/GB) after 30 days, to Coldline (90-day minimum, $0.004/GB) after 90 days, and to Archive (365-day minimum, $0.0012/GB) after 1 year matches the access pattern while minimizing cost. Deleting after 30 days loses the data. Standard storage is unnecessarily expensive for rarely accessed data. Moving to Nearline on upload incurs retrieval fees for the first 30 days of frequent access."
+              },
+              {
+                "q": "A company is migrating a MySQL database with 5 TB of data to Cloud SQL. The migration must be online (zero downtime) with minimal impact to the production MySQL server. After cutover, the Cloud SQL instance should be in sync with the final transactions. Which migration tool supports this pattern?",
+                "choices": [
+                  "Use Database Migration Service (DMS) with continuous replication to sync changes from MySQL to Cloud SQL until cutover",
+                  "Configure Cloud SQL External Server Replication to make Cloud SQL a replica of the on-premises MySQL, promoting it at cutover",
+                  "Use mysqldump to export the entire database, copy to Cloud Storage, then import into Cloud SQL during a maintenance window",
+                  "Deploy Datastream from the on-premises MySQL to Cloud SQL using binlog-based CDC for near-real-time replication"
+                ],
+                "correctIndex": 0,
+                "explanation": "Database Migration Service (DMS) performs an initial full dump migration followed by continuous CDC (change data capture) using MySQL binlog replication. During the replication phase, the source production server continues serving traffic while DMS keeps Cloud SQL in near-real-time sync. At cutover, the application is pointed to Cloud SQL. This achieves minimal downtime and minimizes impact on the source server. mysqldump requires a maintenance window for cutover. Datastream can replicate to BigQuery but is not designed to write to Cloud SQL. External Server Replication (Cloud SQL as a read replica of an external MySQL) is similar to DMS but DMS provides a managed UI, monitoring, and promotion workflow."
+              },
+              {
+                "q": "A financial services company stores customer transaction records in Cloud Spanner. Queries frequently join a `transactions` table with an `accounts` table on `account_id`. The team wants to minimize cross-node RPC calls for this join. Which Spanner design feature should they use?",
+                "choices": [
+                  "Shard both tables manually by hashing `account_id` across multiple databases",
+                  "Use commit timestamps on the `transactions` table to enforce time-ordering of writes",
+                  "Interleave the `transactions` table inside the `accounts` table using `account_id`",
+                  "Create a secondary index on `account_id` in both tables to speed up the join"
+                ],
+                "correctIndex": 2,
+                "explanation": "Interleaved tables in Cloud Spanner co-locate child rows with their parent row in the same Spanner split, eliminating cross-node RPCs for parent-child joins. Transactions interleaved inside accounts on `account_id` means all transactions for an account are stored adjacent to that account row. Secondary indexes speed lookups but do not eliminate cross-node joins. Manual sharding is managed by Spanner automatically. Commit timestamps track change order but do not affect co-location."
+              },
+              {
+                "q": "A team maintains a Cloud Spanner database for a global inventory management system. They need to detect all rows modified in the last 10 minutes for a real-time audit log without polling the database. Which Spanner feature enables this?",
+                "choices": [
+                  "Enable Spanner Change Streams on the target tables and consume change events via the Dataflow Spanner Change Streams connector",
+                  "Query the `information_schema.SPANNER_STATISTICS` view periodically to detect rows with recent `LAST_MODIFIED` timestamps",
+                  "Use Datastream to replicate Spanner CDC events to BigQuery and query the BigQuery audit table",
+                  "Configure a Spanner commit timestamp column and poll for rows where `last_modified > CURRENT_TIMESTAMP() - INTERVAL 10 MINUTE`"
+                ],
+                "correctIndex": 0,
+                "explanation": "Cloud Spanner Change Streams capture DML changes (INSERT, UPDATE, DELETE) at the partition level and expose them as a stream. The official Dataflow Spanner Change Streams connector reads this stream in real time and can route changes to BigQuery, Pub/Sub, or other sinks without polling. `information_schema.SPANNER_STATISTICS` does not provide row-level change events. Datastream does not currently support Spanner as a source (it supports MySQL and PostgreSQL). Polling a commit timestamp column requires write-side schema changes and introduces polling latency."
+              },
+              {
+                "q": "A company is designing a Cloud Spanner schema for a multi-tenant SaaS application. Each tenant has millions of user records. Queries frequently filter by `tenant_id` and sort results by `created_at` descending to show recent users. Which schema design best supports this query pattern while preventing hot spots?",
+                "choices": [
+                  "Use a primary key of `(tenant_id, created_at DESC, user_id)` so rows are physically co-located by tenant and sorted by recency",
+                  "Use a primary key of `(GENERATE_UUID(), tenant_id)` to randomize row distribution and add a secondary index on tenant_id",
+                  "Use a primary key of `(tenant_id, user_id)` and add a commit timestamp column `created_at ALLOW_COMMIT_TIMESTAMP` for tracking",
+                  "Use a primary key of `(user_id)` with a secondary index on `(tenant_id, created_at DESC)` for filtered, sorted lookups"
+                ],
+                "correctIndex": 2,
+                "explanation": "Using `(tenant_id, user_id)` as the primary key co-locates all rows for a tenant in the same key range, making tenant-scoped queries efficient without cross-split reads. Adding a `created_at` column with `ALLOW_COMMIT_TIMESTAMP` automatically records the server-side write timestamp, enabling time-ordered queries. Monotonically increasing `created_at DESC` in the primary key can cause write hot spots in Spanner because all new rows for a tenant land at the same split boundary. A secondary index can cover the sorted-by-recency query efficiently. UUID prefix randomizes distribution but requires a secondary index for tenant filtering."
+              },
+              {
+                "q": "A data platform team wants to enforce data quality rules across raw and curated zones of their Cloud Storage-based data lake — including schema validation, null checks, and referential integrity — with results visible in a central governance UI. Which GCP service best addresses this requirement?",
+                "choices": [
+                  "Use Dataplex data quality tasks with YAML-based rule definitions, surfacing results in the Dataplex console with pass/fail metrics per rule",
+                  "Build a Cloud Composer DAG that runs custom Python validation scripts and writes results to a shared BigQuery audit table for governance review",
+                  "Configure BigQuery data policies and column-level security tags to enforce quality standards — controls access rather than producing data quality results",
+                  "Apply Cloud DLP inspection jobs over each zone and surface results in the DLP dashboard — detects sensitive data, not schema or null-check quality results"
+                ],
+                "correctIndex": 0,
+                "explanation": "Dataplex provides native data quality tasks that run on BigQuery tables and GCS data assets. Rules are defined in YAML (row completeness, column nullability, referential checks) and results appear in the Dataplex console with pass/fail metrics. Cloud DLP is for sensitive data discovery, not schema or null validation. Cloud Composer DAGs can do validation but require custom code and lack a built-in governance UI. BigQuery data policies control access, not quality."
+              },
+              {
+                "q": "A data engineering team uses Dataplex to organize their Cloud Storage data lake. They want to automatically discover, catalog, and apply data quality checks to all Parquet files landing in the `raw` zone. What is the correct Dataplex setup?",
+                "choices": [
+                  "Create a Dataplex lake with a `raw` zone, attach the Cloud Storage bucket as a managed asset with auto-discovery enabled, and create Dataplex data quality tasks for the discovered Parquet tables",
+                  "Write a Cloud Composer DAG that runs Great Expectations checks on all new Parquet files and registers results in a BigQuery audit table — requires custom code outside Dataplex",
+                  "Use BigQuery external tables pointing to the Dataplex-managed raw Parquet files and run BigQuery data quality rules via scheduled queries — does not use Dataplex's built-in quality tasks",
+                  "Configure Dataplex Catalog to crawl the `raw` bucket and apply quality checks via a custom tag template — crawl only; no automated data quality task execution"
+                ],
+                "correctIndex": 0,
+                "explanation": "Dataplex provides an integrated data lake management platform. Creating a Dataplex lake and raw zone, then attaching the Cloud Storage bucket as an asset with auto-discovery enabled, causes Dataplex to automatically scan new Parquet files, infer schemas, register them in the metadata catalog, and make them available for Dataplex data quality tasks. This is the native, end-to-end workflow. Data Catalog can crawl GCS but does not natively run quality checks. Cloud Composer with Great Expectations is a valid but custom solution requiring code maintenance. BigQuery external tables with scheduled queries lack auto-discovery and the unified governance UI that Dataplex provides. attach the Cloud Storage bucket as a Dataplex asset with auto-discovery enabled, and create data quality tasks for the discovered tables"
+              }
+            ]
+          },
+          "title": "Mixed Topics — Lightning Round"
+        },
+        {
+          "id": "c8-boss",
           "type": "subboss",
           "title": "Boss: Mixed Topics",
           "questionIds": [
-            "pde-006",
-            "pde-038",
             "pde-036",
             "pde-057",
             "pde-010",
             "pde-014",
-            "pde-031",
-            "pde-059",
             "pde-004",
             "pde-040",
             "pde-047",
@@ -286,11 +1137,11 @@
           ]
         },
         {
-          "id": "c4-chest",
+          "id": "c8-chest",
           "type": "chest",
           "title": "Treasure Chest",
           "rewardXp": 30,
-          "cosmeticKey": "chapter-4"
+          "cosmeticKey": "chapter-8"
         }
       ]
     }
@@ -303,8 +1154,8 @@
     "timeMinutes": 27
   },
   "meta": {
-    "generatedAt": "2026-05-21T08:07:48.727Z",
-    "totalNodes": 19,
+    "generatedAt": "2026-05-23T19:46:00.739Z",
+    "totalNodes": 41,
     "totalQuestions": 60,
     "nodeTypes": [
       "concept",

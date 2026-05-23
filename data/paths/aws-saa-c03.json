@@ -36,17 +36,95 @@
           "sourceTag": "s3"
         },
         {
-          "id": "c1-boss",
-          "type": "subboss",
-          "title": "Boss: S3",
+          "id": "c1-quiz1",
+          "type": "quiz",
+          "title": "S3 — Drill 1",
           "questionIds": [
             "saa-003",
             "saa-008",
             "saa-012",
             "saa-017",
-            "saa-023",
-            "saa-030"
+            "saa-023"
           ]
+        },
+        {
+          "id": "c1-game",
+          "type": "minigame",
+          "gameType": "lightning",
+          "mode": "lightning-round",
+          "data": {
+            "secondsPerQuestion": 7,
+            "livesAllowed": 3,
+            "questions": [
+              {
+                "q": "An application stores user-uploaded files in S3. Files are frequently accessed for the first 30 days, rarely accessed for the next 60 days, then never needed again. Which S3 lifecycle configuration minimizes storage cost?",
+                "choices": [
+                  "S3 Standard with no lifecycle policy, retaining objects for all 90+ days indefinitely",
+                  "Transition to S3 Standard-IA at day 30; expire at 90 days total",
+                  "Store all objects in S3 Glacier Deep Archive from day 1 — including the first 30 days",
+                  "Apply S3 Intelligent-Tiering across all 90 days to auto-manage storage class"
+                ],
+                "correctIndex": 1,
+                "explanation": "S3 Standard-IA charges lower per-GB storage rates than Standard but adds a per-GB retrieval fee — an ideal trade-off once objects transition from frequent to infrequent access after day 30. Expiring objects at day 90 (30 active + 60 infrequent = 90 total) eliminates any ongoing cost for data that will never be needed again. Option C (Glacier Deep Archive from day 1) imposes up to 12-hour retrieval delays during the first 30 days when files are frequently accessed, making retrieval fees and latency far worse than the storage savings during that initial window."
+              },
+              {
+                "q": "A global software vendor needs to publish product documentation, images, and downloadable PDFs for a product launch microsite. The 3 GB file set is updated roughly once per month and must load quickly for visitors across North America, Europe, and Asia-Pacific. The team has no dedicated server administrators and must minimize both cost and ongoing operational effort. Which architecture meets these requirements?",
+                "choices": [
+                  "Deploy file-serving EC2 instances in three regions behind Route 53 latency-based routing with Auto Scaling",
+                  "Use Elastic Beanstalk to run a Node.js server that reads assets from an Amazon EFS volume",
+                  "Place files in S3 and expose them through an Application Load Balancer with cross-zone load balancing enabled",
+                  "Host the assets in S3 and distribute them through a CloudFront distribution with edge caching"
+                ],
+                "correctIndex": 3,
+                "explanation": "S3 provides durable, serverless object storage with no servers to patch or scale, and CloudFront distributes content from 400+ edge locations so visitors worldwide receive files from the nearest point of presence — achieving sub-100ms load times with no compute to operate. Multi-region EC2 in option A achieves geographic proximity but requires capacity planning, OS patching, Auto Scaling configuration, and 24/7 operations in each region, directly violating the 'no dedicated administrators' constraint. An Application Load Balancer (option D) cannot use S3 as a native origin, does not perform edge caching, and would still require backend compute to serve the files."
+              },
+              {
+                "q": "A company runs a compliance archival system where regulatory documents are uploaded once and retrieved at most once per year for audits. The compliance team's primary constraint is storage cost, not retrieval speed. Which S3 storage class is most appropriate?",
+                "choices": [
+                  "S3 Standard-IA — millisecond reads, $0.0125/GB-month plus retrieval fee",
+                  "S3 One Zone-IA — single AZ, lower redundancy, millisecond access",
+                  "S3 Glacier Deep Archive — 12-hour retrieval, $0.00099/GB-month",
+                  "S3 Standard — multi-AZ, immediate access, $0.023/GB-month"
+                ],
+                "correctIndex": 2,
+                "explanation": "S3 Glacier Deep Archive is the lowest-cost S3 storage class at approximately $0.00099 per GB-month, designed for data accessed at most once or twice per year with a retrieval time of up to 12 hours. For annual compliance audits where retrieval latency is irrelevant, this is the cost-optimal choice. S3 Standard-IA costs more per GB and charges a per-retrieval fee that makes it expensive for unpredictable audit requests; One Zone-IA is cheaper than Standard-IA but more expensive than Glacier and sacrifices multi-AZ durability without offering archival-level pricing."
+              },
+              {
+                "q": "A media sharing platform lets users upload large video files from a browser. Currently all uploads pass through the application server tier before being written to S3, creating bandwidth bottlenecks and high EC2 costs during peak hours. The security team requires that upload credentials expire no more than 15 minutes after issuance. Which solution removes the application server from the upload data path while meeting the security requirement?",
+                "choices": [
+                  "Deploy AWS Transfer Family with SFTP on the application server fleet to receive browser uploads",
+                  "Route uploads through an API Gateway integration that proxies browser data via the application server",
+                  "Open the S3 bucket for public PUT access; bypass the application server with a static 15-minute token",
+                  "Have the application server generate a presigned S3 PUT URL (15-minute TTL) and return it to the browser"
+                ],
+                "correctIndex": 3,
+                "explanation": "A presigned PUT URL embeds the uploader's identity and an expiry timestamp into a cryptographically signed request URL. The application server generates the URL without touching any file data, then returns it to the browser; the browser PUTs the file directly to S3 — no upload data flows through EC2. Setting the expiry to 15 minutes satisfies the credential lifetime requirement. Option C (API Gateway proxy) replaces the EC2 bottleneck with an API Gateway bottleneck — the full file still transits a server, and API Gateway's 10 MB request body limit makes it unsuitable for large video files."
+              },
+              {
+                "q": "A healthcare startup stores de-identified patient records in S3. A new compliance framework requires (1) a verifiable log of every encryption key use, and (2) the ability to immediately revoke read access to all stored records during a security incident. The startup uses AWS KMS for key management. Which S3 server-side encryption configuration satisfies both requirements?",
+                "choices": [
+                  "SSE-S3 using the Amazon-managed S3 key (no KMS dependency)",
+                  "SSE-KMS with a dedicated company-owned KMS key and key policy",
+                  "SSE-KMS with the aws/s3 AWS-managed KMS key for the account",
+                  "Client-side encryption using a key fetched from AWS Secrets Manager"
+                ],
+                "correctIndex": 1,
+                "explanation": "SSE-KMS with a company-owned KMS key records every GenerateDataKey and Decrypt call in CloudTrail, providing the verifiable key-usage log required by the compliance framework. Disabling the KMS key immediately prevents all future decrypts of every object encrypted with it, satisfying the instant-revoke requirement. Option B (aws/s3 key) also logs KMS events in CloudTrail but is fully managed by AWS — the company cannot disable it, so instant revocation of all read access is not possible."
+              },
+              {
+                "q": "A financial services company stores sensitive compliance reports in an S3 bucket that is accessed from multiple AWS accounts within the same AWS Organization. After an internal audit, the security team needs a control that prevents any principal outside the organization from accessing the bucket — even if an IAM policy in a member account is later misconfigured. Which S3 feature most directly satisfies this requirement?",
+                "choices": [
+                  "S3 Object Ownership set to Bucket Owner Enforced mode with no resource policy change",
+                  "S3 bucket policy with the aws:PrincipalOrgID condition key",
+                  "IAM permission boundary policy applied to every user across the AWS Organization",
+                  "S3 Block Public Access policy enabled at the AWS Organization's management account"
+                ],
+                "correctIndex": 1,
+                "explanation": "A bucket policy using the aws:PrincipalOrgID global condition key restricts access so that only principals belonging to the specified AWS Organization can make requests, acting as an organization-wide perimeter regardless of individual IAM grants. IAM permission boundaries constrain what a single IAM entity can do but cannot enforce cross-account access restrictions for every account in an organization. S3 Block Public Access prevents anonymous (unauthenticated) access but does not block authenticated requests from principals outside the organization."
+              }
+            ]
+          },
+          "title": "S3 — Lightning Round"
         },
         {
           "id": "c1-chest",
@@ -59,11 +137,130 @@
     },
     {
       "id": "ch2",
+      "title": "IAM",
+      "tag": "iam",
+      "nodes": [
+        {
+          "id": "c2-concept",
+          "type": "concept",
+          "title": "Identity and access management: Key Ideas",
+          "content": "IAM is the layer that decides who can do what. It's almost always the first thing to misconfigure and the most common security failure mode. Every cloud uses the same primitives — identities, policies, roles — under slightly different names.",
+          "flashcards": [
+            {
+              "front": "What's the difference between authentication and authorization?",
+              "back": "Authentication (AuthN) proves who you are — password, MFA, certificate. Authorization (AuthZ) decides what you're allowed to do once authenticated — policies, roles, ACLs. AuthN happens first; AuthZ is checked on every request."
+            },
+            {
+              "front": "What is a role (vs a user)?",
+              "back": "A user is a long-lived identity tied to a person. A role is a short-lived, assumable identity — services or users 'become' the role to get temporary credentials. Roles let you grant access without sharing long-term keys. Always prefer roles."
+            },
+            {
+              "front": "Identity-based vs resource-based policies.",
+              "back": "Identity-based policies attach to a user / role and say what THEY can do. Resource-based policies attach to a thing (S3 bucket, KMS key, SQS queue) and say who can access IT. Cross-account access usually needs both: target's resource policy says 'allow this account', source identity policy says 'allow this action on that resource'."
+            },
+            {
+              "front": "Why federation / SSO?",
+              "back": "Instead of creating cloud users for every employee, federate from your corporate identity provider (Okta, Azure AD, Google Workspace). Users sign in once with their work account; the IdP issues a SAML / OIDC token; the cloud trades it for temporary credentials. One source of truth, instant deprovisioning."
+            }
+          ],
+          "source": "concept-library",
+          "sourceTag": "iam"
+        },
+        {
+          "id": "c2-quiz1",
+          "type": "quiz",
+          "title": "IAM — Drill 1",
+          "questionIds": [
+            "saa-005",
+            "saa-050",
+            "saa-056",
+            "saa-034"
+          ]
+        },
+        {
+          "id": "c2-game",
+          "type": "minigame",
+          "gameType": "lightning",
+          "mode": "lightning-round",
+          "data": {
+            "secondsPerQuestion": 7,
+            "livesAllowed": 3,
+            "questions": [
+              {
+                "q": "A DevOps engineer discovers that an EC2 web application is calling S3 using access keys stored in a plaintext configuration file on the instance. The security team requires these long-lived credentials to be removed immediately while preserving S3 read access. What should the solutions architect recommend?",
+                "choices": [
+                  "Attach an IAM role to the instance and remove all hard-coded access keys",
+                  "Create a dedicated IAM user, deploy its credentials to the instance via environment variables",
+                  "Store the credentials as SecureString parameters in SSM and pull them on each instance boot",
+                  "Rotate the access keys and redeploy the instance image with updated credential values"
+                ],
+                "correctIndex": 0,
+                "explanation": "Attaching an IAM role to an EC2 instance causes the instance metadata service (IMDS) to vend temporary, automatically-rotated credentials — no static keys exist to be stolen or leaked. The application calls S3 using the same SDK calls with no code changes required. Option D still uses long-lived IAM user credentials stored on disk, which carries the same fundamental risk as the original config file; it improves secret discoverability but does not eliminate the static-credential exposure."
+              },
+              {
+                "q": "A company's security policy requires that IAM users cannot perform any AWS API action in the current session unless they authenticated with their MFA device — not just their password — during that session. An IAM user who logs in with only username and password must be blocked from all API calls. Which control enforces this at the API request level?",
+                "choices": [
+                  "CloudTrail alarm firing on API calls made without MFA token",
+                  "IAM Deny statement on aws:MultiFactorAuthPresent = false",
+                  "AWS Config managed rule checking MFA activation per user",
+                  "IAM password policy set to require MFA device registration"
+                ],
+                "correctIndex": 1,
+                "explanation": "An IAM policy with `Effect: Deny, Action: *` and condition `aws:MultiFactorAuthPresent: false` blocks all API calls in sessions where MFA was not used, regardless of what other policies allow. The user can authenticate but cannot take any action until they use their MFA device. A password policy can require MFA device registration during account setup, but it does not enforce per-request MFA at the API level after login."
+              },
+              {
+                "q": "A fintech company's SOC 2 audit requires that third-party auditors, who operate their own separate AWS account, have read-only access to specific S3 buckets for a two-week review window. The security team's constraints are: no long-lived credentials may be created, and no bucket endpoint may be exposed to the public internet. What should they configure?",
+                "choices": [
+                  "Create an IAM user per auditor and email the access keys to each",
+                  "Create a cross-account IAM role and share its ARN with the auditors",
+                  "Share presigned S3 URLs (2-week expiry) directly with each auditor",
+                  "Create a new AWS account for auditors and assign root-level S3 access"
+                ],
+                "correctIndex": 1,
+                "explanation": "A cross-account IAM role with an S3 read-only policy and a trust policy scoped to the auditor's AWS account lets the auditors call sts:AssumeRole to obtain short-lived temporary credentials — no long-lived keys are created or shared. Deleting the role at the end of the review instantly revokes all access. Sharing IAM user access keys by email (option A) creates long-lived credentials that may be forwarded or cached, violating the no-permanent-credentials requirement. Presigned URLs (option C) are internet-accessible HTTPS endpoints — anyone who holds the URL can fetch the object — and cannot be scoped to another AWS account's identity, failing both security constraints."
+              },
+              {
+                "q": "A web application runs on an EC2 instance with an instance profile granting s3:* on all resources and ec2:* on all resources. A security review shows the application only ever performs object retrieval from a single S3 bucket named 'prod-assets'. The team wants to reduce the blast radius if the instance is compromised. Which IAM change should a solutions architect implement?",
+                "choices": [
+                  "Remove ec2:* entirely and replace s3:* with s3:GetObject scoped to the 'prod-assets' bucket ARN",
+                  "Add an explicit Deny on s3:PutObject and s3:DeleteObject for the bucket plus ec2:Modify* actions",
+                  "Attach a permissions boundary that limits the instance to S3 read-only on any bucket",
+                  "Enable IAM Access Analyzer and archive bucket findings for the instance profile"
+                ],
+                "correctIndex": 0,
+                "explanation": "Least privilege requires granting only the exact permissions actually needed. Removing ec2:* entirely (the application makes no EC2 API calls) and replacing s3:* with s3:GetObject on the specific bucket ARN directly eliminates the excess permissions. Adding Deny statements is weaker because the broad Allow remains and implicit allow logic still grants everything not explicitly denied. A permissions boundary constrains the ceiling but does not grant or remove the underlying permissions—the role's policy still carries s3:* and ec2:*. IAM Access Analyzer flags findings but does not fix them."
+              }
+            ]
+          },
+          "title": "IAM — Lightning Round"
+        },
+        {
+          "id": "c2-boss",
+          "type": "subboss",
+          "title": "Boss: IAM",
+          "questionIds": [
+            "saa-005",
+            "saa-050",
+            "saa-056",
+            "saa-034"
+          ]
+        },
+        {
+          "id": "c2-chest",
+          "type": "chest",
+          "title": "Treasure Chest",
+          "rewardXp": 30,
+          "cosmeticKey": "chapter-2"
+        }
+      ]
+    },
+    {
+      "id": "ch3",
       "title": "Mixed Topics",
       "tag": "mixed-topics",
       "nodes": [
         {
-          "id": "c2-concept",
+          "id": "c3-concept",
           "type": "concept",
           "title": "Mixed exam topics: Key Ideas",
           "content": "Some exam objectives don't fit neatly into a single domain — they span protocols, tools, or concepts covered briefly in multiple sections. These cards treat each item as a stand-alone fact, the way an exam question presents it: one concept, one answer.",
@@ -89,7 +286,7 @@
           "sourceTag": "mixed-topics"
         },
         {
-          "id": "c2-quiz1",
+          "id": "c3-quiz1",
           "type": "quiz",
           "title": "Mixed Topics — Drill 1",
           "questionIds": [
@@ -101,111 +298,215 @@
           ]
         },
         {
-          "id": "c2-quiz2",
+          "id": "c3-quiz2",
           "type": "quiz",
           "title": "Mixed Topics — Drill 2",
           "questionIds": [
-            "saa-005",
-            "saa-050",
-            "saa-056",
             "saa-002",
-            "saa-016"
+            "saa-016",
+            "saa-039",
+            "saa-009",
+            "saa-047"
           ]
         },
         {
-          "id": "c2-quiz3",
+          "id": "c3-quiz3",
           "type": "quiz",
           "title": "Mixed Topics — Drill 3",
           "questionIds": [
-            "saa-039",
-            "saa-009",
-            "saa-047",
             "saa-013",
-            "saa-036"
+            "saa-036",
+            "saa-052",
+            "saa-021",
+            "saa-024"
           ]
         },
         {
-          "id": "c2-quiz4",
+          "id": "c3-quiz4",
           "type": "quiz",
           "title": "Mixed Topics — Drill 4",
           "questionIds": [
-            "saa-052",
-            "saa-021",
-            "saa-024",
             "saa-054",
-            "saa-049"
-          ]
-        },
-        {
-          "id": "c2-quiz5",
-          "type": "quiz",
-          "title": "Mixed Topics — Drill 5",
-          "questionIds": [
+            "saa-049",
             "saa-001",
             "saa-006",
-            "saa-026",
-            "saa-019",
-            "saa-058"
+            "saa-026"
           ]
         },
         {
-          "id": "c2-quiz6",
-          "type": "quiz",
-          "title": "Mixed Topics — Drill 6",
-          "questionIds": [
-            "saa-038",
-            "saa-037",
-            "saa-060",
-            "saa-004",
-            "saa-007"
-          ]
-        },
-        {
-          "id": "c2-quiz7",
-          "type": "quiz",
-          "title": "Mixed Topics — Drill 7",
-          "questionIds": [
-            "saa-010",
-            "saa-011",
-            "saa-014",
-            "saa-015",
-            "saa-020"
-          ]
-        },
-        {
-          "id": "c2-quiz8",
-          "type": "quiz",
-          "title": "Mixed Topics — Drill 8",
-          "questionIds": [
-            "saa-022",
-            "saa-025",
-            "saa-027",
-            "saa-032",
-            "saa-043"
-          ]
-        },
-        {
-          "id": "c2-quiz9",
-          "type": "quiz",
-          "title": "Mixed Topics — Drill 9",
-          "questionIds": [
-            "saa-044",
-            "saa-048"
-          ]
-        },
-        {
-          "id": "c2-boss",
+          "id": "c3-checkpoint",
           "type": "subboss",
-          "title": "Boss: Mixed Topics",
+          "title": "Checkpoint: Mixed Topics",
           "questionIds": [
-            "saa-053",
-            "saa-055",
-            "saa-034",
-            "saa-031",
             "saa-042",
             "saa-059",
             "saa-033",
-            "saa-057",
+            "saa-057"
+          ]
+        },
+        {
+          "id": "c3-quiz5",
+          "type": "quiz",
+          "title": "Mixed Topics — Drill 5",
+          "questionIds": [
+            "saa-019",
+            "saa-058",
+            "saa-038",
+            "saa-037",
+            "saa-060"
+          ]
+        },
+        {
+          "id": "c3-quiz6",
+          "type": "quiz",
+          "title": "Mixed Topics — Drill 6",
+          "questionIds": [
+            "saa-004",
+            "saa-007",
+            "saa-010",
+            "saa-011",
+            "saa-014"
+          ]
+        },
+        {
+          "id": "c3-quiz7",
+          "type": "quiz",
+          "title": "Mixed Topics — Drill 7",
+          "questionIds": [
+            "saa-015",
+            "saa-020",
+            "saa-022",
+            "saa-025",
+            "saa-027"
+          ]
+        },
+        {
+          "id": "c3-quiz8",
+          "type": "quiz",
+          "title": "Mixed Topics — Drill 8",
+          "questionIds": [
+            "saa-032",
+            "saa-043",
+            "saa-044",
+            "saa-048",
+            "saa-053"
+          ]
+        },
+        {
+          "id": "c3-quiz9",
+          "type": "quiz",
+          "title": "Mixed Topics — Drill 9",
+          "questionIds": [
+            "saa-055",
+            "saa-031"
+          ]
+        },
+        {
+          "id": "c3-game",
+          "type": "minigame",
+          "gameType": "lightning",
+          "mode": "lightning-round",
+          "data": {
+            "secondsPerQuestion": 7,
+            "livesAllowed": 3,
+            "questions": [
+              {
+                "q": "An online gaming platform stores a real-time leaderboard mapping player IDs to scores and ranks. During peak tournament events, the service handles 600,000 read operations per minute and every lookup is by a single player ID — no aggregations or joins are required. Response latency must stay under 5 milliseconds as player count is expected to triple over the next year. Which AWS database service is the best fit?",
+                "choices": [
+                  "Amazon DynamoDB with on-demand capacity mode",
+                  "Amazon Aurora MySQL with a Multi-AZ standby and provisioned IOPS",
+                  "Amazon Redshift with result-set caching enabled for repeated queries",
+                  "Amazon ElastiCache for Memcached used as the authoritative data store"
+                ],
+                "correctIndex": 0,
+                "explanation": "DynamoDB is purpose-built for high-throughput, low-latency key lookups at any scale — on-demand capacity automatically adjusts to handle unpredictable peak volumes without manual provisioning, and single-digit millisecond performance is maintained regardless of table size. Aurora MySQL is a relational engine optimized for transactional workloads with complex queries; matching DynamoDB's sub-5ms key-lookup latency at 600k requests/minute requires significant tuning overhead and dedicated read replicas, making it a poor fit for this simple, high-volume access pattern. Memcached (option D) is an in-memory cache without durability — all data is lost on node restart or eviction, making it unsuitable as the authoritative store for a leaderboard that must persist through failures."
+              },
+              {
+                "q": "A financial reporting service writes an account balance to DynamoDB and immediately performs a read to return the updated value to the client. Testers consistently observe stale values — the read returns the pre-update balance. The development team wants to fix this in code without changing the table design or data model. What change should they make?",
+                "choices": [
+                  "Switch table reads to a Global Secondary Index scoped to the account partition",
+                  "Set ConsistentRead=true on every GetItem and Query call against the table",
+                  "Enable DynamoDB Accelerator (DAX) in front of the table for cached reads",
+                  "Replace GetItem with a Query that uses a FilterExpression on the balance attribute of the same table"
+                ],
+                "correctIndex": 1,
+                "explanation": "Setting ConsistentRead=true forces DynamoDB to read from the partition's leader node and return data that reflects all writes acknowledged before the read, eliminating stale-read windows that exist under eventually consistent (default) mode. DAX caches reads in memory and would worsen the problem — it would serve the cached pre-update value until its TTL expires, not the freshly written value. Global Secondary Indexes do not support strongly consistent reads at all, regardless of the ConsistentRead flag."
+              },
+              {
+                "q": "A fintech company stores payment transactions in DynamoDB. For regulatory compliance, every item modification must be captured in an immutable audit log showing both the old and new attribute values. The solution must not require changes to the existing application, which writes directly to DynamoDB. Which approach creates a complete item-level change history?",
+                "choices": [
+                  "DynamoDB Point-in-Time Recovery with hourly snapshot comparisons",
+                  "DynamoDB Streams consumed by Lambda, writing events to S3",
+                  "DynamoDB on-demand backup job triggered by an EventBridge rule",
+                  "DynamoDB Global Tables replicating to an audit-only AWS region"
+                ],
+                "correctIndex": 1,
+                "explanation": "DynamoDB Streams records every INSERT, MODIFY, and REMOVE event at the item level, including both old and new attribute images, with no changes needed in the writing application. A Lambda function triggered by the stream writes each event record to S3, creating an immutable, time-ordered audit trail. Point-in-Time Recovery lets you restore the entire table to a past moment but does not expose a log of individual change events. On-demand backups capture full table snapshots rather than per-modification records, and Global Tables replicate data across regions without tracking what changed."
+              },
+              {
+                "q": "A security audit finds that a Lambda function processing payment records connects to an RDS PostgreSQL database using the publicly accessible endpoint. The security team requires the database to be unreachable from the internet while Lambda retains the ability to execute queries. What configuration achieves this?",
+                "choices": [
+                  "Remove RDS public access and restrict connections via a security policy scoped to Lambda's execution role",
+                  "Create a VPC peering connection and a security group that routes Lambda traffic into the private RDS subnet",
+                  "Deploy Lambda inside the VPC and configure the RDS security group to allow access from the Lambda security group",
+                  "Keep RDS publicly accessible, harden the network security group, and rotate credentials hourly via Secrets Manager"
+                ],
+                "correctIndex": 2,
+                "explanation": "Configuring Lambda with VPC settings creates an ENI in the specified subnets, allowing Lambda to reach RDS over private IP addresses — no public endpoint required. Disabling RDS public accessibility ensures no internet-originating connection can reach the database. Option B is incorrect because RDS does not support resource-based policies that restrict TCP-level connectivity; network access is controlled by security groups, not by a role-scoped policy attached to the RDS resource itself."
+              },
+              {
+                "q": "An image-processing service is triggered by S3 uploads and runs on AWS Lambda. High-resolution RAW camera files have started arriving that require 22 minutes of CPU-intensive processing — seven minutes beyond Lambda's hard 15-minute execution limit. The team wants to keep a serverless approach. What is the BEST architectural fix?",
+                "choices": [
+                  "ECS Fargate task definition to sidestep Lambda time limits",
+                  "EC2 Auto Scaling group to replace the Lambda function",
+                  "Lambda at maximum 10 GB memory to reduce CPU execution time",
+                  "Step Functions orchestrating chunked Lambda invocations"
+                ],
+                "correctIndex": 3,
+                "explanation": "AWS Step Functions can split a large job into stages — each Lambda invocation processes a chunk of the image within the 15-minute window, and Step Functions manages sequencing, state, and retries. This preserves the serverless model while working around Lambda's hard timeout. Increasing Lambda memory speeds up CPU-bound work but cannot extend the maximum execution limit beyond 15 minutes, so a 22-minute job still fails."
+              },
+              {
+                "q": "A team's serverless checkout API runs on API Gateway backed by Lambda. During a flash sale, multiple functions in the same AWS account exhaust the shared regional concurrency pool, leaving the checkout function throttled while lower-priority background functions remain active. The team wants to guarantee the checkout function always has a minimum concurrency allocation that other functions in the account cannot claim. Which Lambda feature addresses this?",
+                "choices": [
+                  "Provisioned concurrency for the checkout Lambda function",
+                  "Reserved concurrency set on the checkout Lambda function",
+                  "AWS Lambda Power Tuning to reduce per-invocation duration",
+                  "API Gateway usage plan throttling per customer API key"
+                ],
+                "correctIndex": 1,
+                "explanation": "Reserved concurrency carves out a dedicated slice of the account-level concurrency pool exclusively for the specified function. Other functions cannot consume that reserved portion, ensuring the checkout function is never starved by lower-priority workloads competing for the shared pool. Provisioned concurrency (option A) pre-initializes execution environments to eliminate cold starts and improve latency, but it does not prevent other functions from consuming the unreserved portion of the account-wide limit that applies to non-provisioned invocations. API Gateway usage plans throttle individual external callers but have no effect on how Lambda allocates its internal concurrency pool."
+              },
+              {
+                "q": "A financial application processes wire transfer instructions from an SQS queue using a Lambda function. After a code deployment, certain message formats cause the Lambda function to throw an unhandled exception. These messages are returned to the queue, immediately retried, and continue failing — consuming Lambda invocations while delaying valid messages. What should the solutions architect implement?",
+                "choices": [
+                  "Enable FIFO ordering so wire transfers are processed in strict first-in, first-out order",
+                  "Increase the visibility timeout to 5 minutes so Lambda has sufficient time to process each message",
+                  "Extend the message retention period to 14 days so failed messages are not permanently deleted",
+                  "Configure a Dead Letter Queue with maxReceiveCount=3 and a depth alarm"
+                ],
+                "correctIndex": 3,
+                "explanation": "A Dead Letter Queue (DLQ) receives messages that have exceeded maxReceiveCount processing attempts, permanently removing them from the main queue so they stop consuming Lambda invocations and blocking valid messages. A CloudWatch alarm on DLQ depth alerts the team when failures accumulate, enabling rapid root-cause investigation. Option B (increasing visibility timeout) only delays retries — it does not prevent a 'poison pill' message from cycling through the queue indefinitely once the timeout expires."
+              },
+              {
+                "q": "A company's analytics portal lets users request custom PDF reports that take 8–12 minutes to generate. The architecture must return an immediate acknowledgment to the browser, continue generating the report in the background, and notify the user via SNS when the report is ready. API Gateway has a hard 29-second integration timeout. Which pattern meets all three requirements?",
+                "choices": [
+                  "HTTP long-poll connection held open until report finishes; user sees a spinner the whole time",
+                  "Extend API Gateway integration timeout past 29 s; user request blocks until report is done",
+                  "Async SQS queue with worker plus an SNS completion topic that emails the user",
+                  "Browser polls a Lambda status endpoint every 10 s and shows status to the user"
+                ],
+                "correctIndex": 2,
+                "explanation": "An SQS-backed async pattern decouples the browser request from the long-running job: the frontend enqueues the request and immediately receives a job ID, a background worker processes the PDF, and SNS sends a notification on completion. API Gateway's 29-second integration timeout makes options B and D impossible for a task that takes 8–12 minutes — the connection would be terminated before the job finishes. Polling every 10 seconds works but wastes compute and still requires a separate notification mechanism."
+              }
+            ]
+          },
+          "title": "Mixed Topics — Lightning Round"
+        },
+        {
+          "id": "c3-boss",
+          "type": "subboss",
+          "title": "Boss: Mixed Topics",
+          "questionIds": [
             "saa-045",
             "saa-046",
             "saa-018",
@@ -213,11 +514,11 @@
           ]
         },
         {
-          "id": "c2-chest",
+          "id": "c3-chest",
           "type": "chest",
           "title": "Treasure Chest",
           "rewardXp": 30,
-          "cosmeticKey": "chapter-2"
+          "cosmeticKey": "chapter-3"
         }
       ]
     }
@@ -230,8 +531,8 @@
     "timeMinutes": 27
   },
   "meta": {
-    "generatedAt": "2026-05-21T08:07:48.698Z",
-    "totalNodes": 16,
+    "generatedAt": "2026-05-23T19:46:00.670Z",
+    "totalNodes": 24,
     "totalQuestions": 60,
     "nodeTypes": [
       "concept",
