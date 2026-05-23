@@ -267,7 +267,7 @@ courses URLs all resolve, no duplicate IDs on key pages.
   4. Verify at 360 / 768 / 1440 — the hamburger must be fully
      clickable while the popup is visible.
 
-### UX-12 — Leaderboard: web/app parity, live sync, gamification promotion
+### UX-12 — Leaderboard: web/app parity, live sync, gamification promotion ✅ DONE 2026-05-23
 
 - **Goal:** the web leaderboard (`/leaderboard/`, Phase 6.7) should
   reach feature parity with the Android app's leaderboard, share the

@@ -407,8 +407,29 @@
       cb.checked = optIn;
       stateEl.textContent = optIn ? 'On' : 'Off';
       if (nameRow) nameRow.hidden = !optIn;
+      if (optIn) loadLeaderboardRank();
     } catch (e) {
       if (window.cqDbg) window.cqDbg('[cq-profile] leaderboard load failed:', e.message);
+    }
+  }
+
+  async function loadLeaderboardRank() {
+    var rankRow = $('profile-lb-rank-row');
+    var rankBadge = $('profile-lb-rank-badge');
+    if (!rankRow || !rankBadge || !window.cqAuth || !window.cqAuth._client) return;
+    var session = window.cqAuth._client.auth && (await window.cqAuth._client.auth.getSession()).data.session;
+    if (!session) return;
+    try {
+      var r = await window.cqAuth._client.rpc('get_my_leaderboard_rank');
+      if (r.error || !r.data || !r.data.opted_in) return;
+      var parts = [];
+      if (r.data.rank_all_time) parts.push('🏆 #' + r.data.rank_all_time + ' tous les temps');
+      if (r.data.rank_weekly)   parts.push('⚡ #' + r.data.rank_weekly + ' cette semaine');
+      if (!parts.length) return;
+      rankBadge.textContent = parts.join(' · ');
+      rankRow.hidden = false;
+    } catch (e) {
+      if (window.cqDbg) window.cqDbg('[cq-profile] rank RPC failed:', e.message);
     }
   }
 
