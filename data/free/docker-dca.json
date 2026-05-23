@@ -6,7 +6,7 @@
     "version": "1.0.4",
     "question_count": 61,
     "last_updated": "2026-05-13",
-    "notes": " [bulk-tag pass: added `docker-dca` tag to 61 questions] [dca batch 1: 18 scenario rewrites] [dca batch 2: 20 scenario rewrites] [dca batch 3 (final): 22 scenario rewrites] [recall sweep: 1 balanced rewrites] | keyword-balance pass 2026-05-23: expanded 34 distractor options across 34 questions",
+    "notes": " [bulk-tag pass: added `docker-dca` tag to 61 questions] [dca batch 1: 18 scenario rewrites] [dca batch 2: 20 scenario rewrites] [dca batch 3 (final): 22 scenario rewrites] [recall sweep: 1 balanced rewrites] | keyword-balance pass 2026-05-23: expanded 34 distractor options across 34 questions | residual fixes 2026-05-23",
     "updated": "2026-05-23"
   },
   "questions": [
@@ -537,7 +537,7 @@
       "id": "dca-027",
       "question": "A web server container runs as root because it must bind to port 80 (privileged port < 1024). Best practice is to drop ALL Linux capabilities, then add back ONLY the specific capability needed to bind to low ports: `CAP_NET_BIND_SERVICE`. The container becomes least-privileged. Which describes the effect?",
       "options": [
-        "Prevents the container from ever becoming root and grants full network admin capabilities — partially similar but `NET_BIND_SERVICE` is not the same as `NET_ADMIN`, which grants full network administration",
+        "Prevents the container from ever becoming root and adds back full network admin capabilities via NET_ADMIN — partial match but NET_BIND_SERVICE is more limited than full NET_ADMIN",
         "Removes the AppArmor and seccomp security profiles from the container — wrong concept; Linux capabilities and MAC profiles are separate security controls",
         "Drops ALL Linux capabilities, then adds back ONLY `NET_BIND_SERVICE`",
         "Disables all container networking and Linux kernel namespaces — wrong concept; dropping capabilities does not affect network namespace isolation"
@@ -598,10 +598,10 @@
       "id": "dca-030",
       "question": "Two persistent-storage mount types: (A) BIND MOUNT — host path mapped directly into container; managed by the host filesystem; great for dev (live-edit), less portable. (B) VOLUME — managed by Docker (`/var/lib/docker/volumes/`); portable; supports volume drivers (NFS, EBS, etc.); preferred for production. Which describes the difference?",
       "options": [
-        "Docker volumes are read-only while bind mounts are read-write — false; both mount types support read-write access and neither is read-only by default",
-        "Bind mounts only work on Linux hosts — false; bind mounts work on Linux, macOS, and Windows hosts with Docker Desktop",
+        "Docker volumes are read-only while bind mounts support read-write — false; both mount types support read-write by default",
+        "Bind mounts only work on Linux hosts — false; bind mounts have a specific host path mapped directly into the container on Linux, macOS, and Windows with Docker Desktop",
         "Bind mount = specific host path mapped into the container (depends on",
-        "Bind mounts are faster than Docker volumes because they skip the container filesystem layer — partially true on Linux but portability is the more significant architectural distinction"
+        "Bind mounts are faster than Docker volumes because a bind mount path bypasses the Docker storage layer — performance is comparable; portability is the key distinction"
       ],
       "correct": 2,
       "explanation": "Bind mounts: `docker run -v /host/path:/container/path` — tightly couples the container to a specific host directory. Great for development (live code editing) but reduces portability. Docker volumes: `docker run -v myvolume:/container/path` — Docker manages the storage location (/var/lib/docker/volumes/), independent lifecycle, easier to backup/migrate, work with volume drivers for cloud storage (EBS, NFS, etc.). Docker volumes are managed by Docker with their own lifecycle independent of containers",
@@ -702,9 +702,9 @@
       "question": "By default a container's processes run as ROOT (uid 0) inside the container. The `USER` Dockerfile instruction switches the user (and optional group) that ALL SUBSEQUENT `RUN`, `CMD`, `ENTRYPOINT` instructions execute as. Combined with `RUN groupadd -r app && useradd -r -g app app`, this is the canonical non-root container pattern. Which describes USER?",
       "options": [
         "Sets the user (and optional group) that subsequent `RUN` / `CMD`",
-        "Restricts which users on the host can run `docker run` for this image — wrong concept; USER controls the in-container UID, not Docker CLI access permissions on the host",
-        "Restricts which users can pull the image from a registry — wrong concept; that is governed by registry authentication and access control, not the USER instruction",
-        "Creates a host system user account with the specified name and optional group — false; USER sets the container-internal execution identity and does not modify host system accounts"
+        "Restricts which users on the host can run `docker run` for this image in subsequent sessions — wrong concept; USER sets the in-container UID, not host-level CLI permissions",
+        "Restricts which registry users can pull the image in subsequent operations — wrong concept; that is registry access control, not the USER Dockerfile instruction",
+        "Creates an optional host system user account with the specified name and group — false; USER only sets the container-internal execution identity and never modifies host accounts"
       ],
       "correct": 0,
       "explanation": "By default, containers run as root (UID 0), which is a security risk — a container escape would give the attacker root on the host. The USER instruction sets a non-root user for subsequent instructions and the final container. Best practice: create a dedicated user (RUN useradd -r appuser) then set USER appuser before CMD/ENTRYPOINT. Rootless containers reduce the blast radius of vulnerabilities. CMD, and ENTRYPOINT instructions run as — critical for avoiding running as root",
@@ -822,9 +822,9 @@
       "id": "dca-041",
       "question": "A `docker-compose.yml` lists a web service with `depends_on: [db]`. The team expects Compose to wait until the DB is READY (accepting connections) before starting `web`. They run `docker compose up` and `web` starts BEFORE the DB is ready — failing. What does `depends_on` actually do?",
       "options": [
-        "Compose waits until the db service is healthy before starting web — false by default; this only works when condition: service_healthy is set AND a HEALTHCHECK is defined",
-        "Creates a dedicated network link between the web and db containers — false; network connectivity is configured separately through the `networks` key, not depends_on",
-        "Copies the db service configuration into the web container at startup — false; depends_on has no effect on configuration or environment variable sharing",
+        "Compose waits until the db service is healthy before web starts — false by default; this requires condition: service_healthy AND a defined HEALTHCHECK; by default it only waits for the container to start",
+        "Creates a dedicated network link that only starts once both services are running — false; networks are configured via the networks key and are independent of depends_on",
+        "Copies the db service config into the web container before web starts — false; depends_on has no effect on configuration sharing or environment injection",
         "Controls startup ORDER only (`web` starts after the DB container starts)"
       ],
       "correct": 3,
@@ -862,9 +862,9 @@
       "id": "dca-043",
       "question": "A container running on a Linux host sees its OWN process IDs (PID 1 is the container's entrypoint), its OWN network interfaces, its OWN filesystem root, its OWN user IDs. The Linux kernel feature providing each of these ISOLATED VIEWS is namespaces (PID, NET, MNT, USER, UTS, IPC, CGROUP). Which feature?",
       "options": [
-        "cgroups (control groups) — the Linux kernel feature that meters and limits resource consumption (CPU, memory, block I/O) rather than providing isolated namespace views",
-        "AppArmor — a Linux mandatory access control framework that restricts file and syscall access rather than providing isolated namespace views",
-        "seccomp — a Linux kernel syscall filter that restricts which system calls a process can invoke rather than providing isolated namespace views per container",
+        "cgroups (control groups) — the Linux kernel mechanism that meters and enforces resource limits (CPU, memory); not the feature that creates isolated namespaces for processes, networks, or filesystems",
+        "AppArmor — a Linux mandatory access control layer that applies per-process file and syscall policies; it does not create isolated namespaces for PID, network, or mount views",
+        "seccomp — a Linux kernel syscall filter that restricts permitted system calls; it does not create isolated namespaces for separate PID trees, network stacks, or filesystem roots",
         "Linux namespaces"
       ],
       "correct": 3,
