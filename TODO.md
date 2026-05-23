@@ -297,7 +297,7 @@ courses URLs all resolve, no duplicate IDs on key pages.
   6. Verify opt-out hides the user everywhere; verify
      responsive at 360 / 768 / 1440.
 
-### UX-13 — Competitive comparison metrics on cert + path surfaces
+### UX-13 — Competitive comparison metrics on cert + path surfaces ✅ DONE 2026-05-23
 
 - **Goal:** on every certification page and on the learning-path map,
   show the user how they compare — to other users, to the cohort

@@ -31,6 +31,9 @@ export function render(container, navigate, params) {
     if (newAchievements.length > 0) showAchievements(newAchievements);
     if (goalJustCompleted) showGoalCompleteToast();
   });
+
+  // Cohort accuracy comparison — async, non-blocking (UX-13)
+  loadResultCohortStat(pack.id, results.percentage);
 }
 
 // ─── Diagnostic results: plan-not-score view ───────────────────────────────────
@@ -438,6 +441,11 @@ function buildHTML(pack, results, mode, newAchievements) {
             <span class="result-stat-val">${formatTime(results.totalTime)}</span>
             <span class="result-stat-lbl">Time</span>
           </div>
+          <!-- Cohort stat injected async by loadResultCohortStat (UX-13) -->
+          <div class="result-stat-card" id="result-cohort-card" hidden>
+            <span class="result-stat-val" id="result-cohort-val" style="font-size:1.1em">—</span>
+            <span class="result-stat-lbl">Cohort avg</span>
+          </div>
         </div>
       </div>
 
@@ -615,4 +623,34 @@ function attachListeners(container, navigate, params) {
   });
 
   attachEmailCardListener(container, params);
+}
+
+/* ── Cohort accuracy stat (UX-13) ────────────────────────────────────────────
+   Fetches anonymous cohort accuracy for this pack via anon-accessible RPC.
+   Reveals the 4th result-stat-card when data is available. */
+function loadResultCohortStat(packId, userPct) {
+  const url  = window.CQ_SUPABASE_URL  || '';
+  const anon = window.CQ_SUPABASE_ANON || '';
+  if (!url) return;
+
+  fetch(url + '/rest/v1/rpc/get_pack_cohort_stats', {
+    method: 'POST',
+    headers: {
+      'apikey': anon,
+      'Authorization': 'Bearer ' + anon,
+      'Content-Type': 'application/json',
+      'Accept': 'application/json'
+    },
+    body: JSON.stringify({ p_pack_id: packId })
+  })
+  .then(r => r.ok ? r.json() : null)
+  .then(data => {
+    if (!data || data.min_sample) return;
+    const card = document.getElementById('result-cohort-card');
+    const val  = document.getElementById('result-cohort-val');
+    if (!card || !val) return;
+    val.textContent = data.avg_accuracy + '%';
+    card.removeAttribute('hidden');
+  })
+  .catch(() => {});
 }

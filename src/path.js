@@ -1166,6 +1166,7 @@
         document.title = pathDoc.title + ' — Cert Quest · CertQuests';
         hide('path-loading'); show('path-root');
         renderMap(pathDoc);
+        loadPathCohortStat(packId);
       })
       .catch(function (err) {
         if (resumed) {
@@ -1459,5 +1460,47 @@
     };
     if (document.readyState !== 'loading') observePathMap();
     else document.addEventListener('DOMContentLoaded', observePathMap);
+  }
+
+  /* ── Cohort accuracy stat for the path header (UX-13) ────────────────────
+     Calls get_pack_cohort_stats RPC (anon-accessible) and injects a stat
+     pill showing "Cohort: 64% · Vous: 78%" if enough data exists. */
+  function loadPathCohortStat(packId) {
+    var cohortEl = document.getElementById('path-cohort');
+    var cohortVal = document.getElementById('path-cohort-val');
+    if (!cohortEl || !cohortVal) return;
+
+    var userPct = null;
+    try {
+      var s = JSON.parse(localStorage.getItem('cq-stats-v1') || '{}');
+      var pp = s.perPack && s.perPack[packId];
+      if (pp && Number(pp.questionsAnswered) >= 5) {
+        userPct = Math.round(Number(pp.correctAnswered) / Number(pp.questionsAnswered) * 100);
+      }
+    } catch (_) {}
+
+    var url  = window.CQ_SUPABASE_URL  || '';
+    var anon = window.CQ_SUPABASE_ANON || '';
+    if (!url) return;
+
+    fetch(url + '/rest/v1/rpc/get_pack_cohort_stats', {
+      method: 'POST',
+      headers: {
+        'apikey': anon,
+        'Authorization': 'Bearer ' + anon,
+        'Content-Type': 'application/json',
+        'Accept': 'application/json'
+      },
+      body: JSON.stringify({ p_pack_id: packId })
+    })
+    .then(function (r) { return r.ok ? r.json() : null; })
+    .then(function (data) {
+      if (!data || data.min_sample) return;
+      var text = 'Cohort: ' + data.avg_accuracy + '%';
+      if (userPct !== null) text += ' · Vous: ' + userPct + '%';
+      cohortVal.textContent = text;
+      cohortEl.removeAttribute('hidden');
+    })
+    .catch(function () {});
   }
 })();

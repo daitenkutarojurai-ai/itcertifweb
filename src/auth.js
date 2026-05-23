@@ -214,6 +214,11 @@ if (window.__cqAuthInit) {
   }
 
   /* ───── Expose ─────────────────────────────────────────────────────── */
+  /* Anon key exposed so path.js / results.js can call anon-accessible RPCs
+     (e.g. get_pack_cohort_stats) without importing auth.js directly. */
+  window.CQ_SUPABASE_URL  = SUPABASE_URL;
+  window.CQ_SUPABASE_ANON = SUPABASE_ANON_KEY;
+
   window.cqAuth = {
     signUp,
     signInWithPassword,
