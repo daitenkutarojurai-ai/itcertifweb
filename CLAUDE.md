@@ -320,6 +320,8 @@ ephemeral handshake / dismissal ones) is also mirrored to Supabase via
 
 ## Supabase schema (project `certquests` / `zhxnteqtiyqnyidfkivj`)
 
+> **Cross-repo constraint:** The native Android app (`~/certquestapp/`) uses this **same Supabase project**. Never migrate this project's schema without coordinating with `certquestapp/CLAUDE.md`. The native app added 3 tables in v0.14 (`user_spaced_repetition`, `user_active_session`, `user_settings`) that extend the 7 listed below. The web uses `cq-*` localStorage keys; the native app uses `cqn_*` — keep them separate.
+
 Tables — all RLS-enabled, all gated by `auth.uid() = user_id`:
 
 ```
