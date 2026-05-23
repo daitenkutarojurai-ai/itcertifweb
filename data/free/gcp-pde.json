@@ -4,10 +4,10 @@
     "name": "GCP Professional Data Engineer",
     "vendor": "Google Cloud",
     "tier": "free",
-    "version": "1.0.2",
+    "version": "1.0.3",
     "question_count": 60,
-    "last_updated": "2026-05-13",
-    "notes": " [gcp-pde batch 1: 1 FACTUAL FIX (pde-008 row-access policy) + bulk tag pass adding `gcp-pde` to every question]"
+    "last_updated": "2026-05-23",
+    "notes": " [gcp-pde batch 1: 1 FACTUAL FIX (pde-008 row-access policy) + bulk tag pass adding `gcp-pde` to every question] [gcp-pde keyword-balance batch 1 (2026-05-23): 13 questions — keyword-tell distractors balanced so shared stems words appear in at least one distractor: pde-006/020/025/028/030/033/035/038/041/043/045/046/054]"
   },
   "questions": [
     {
@@ -104,10 +104,10 @@
       "id": "pde-006",
       "question": "A data platform team wants to enforce data quality rules across raw and curated zones of their Cloud Storage-based data lake — including schema validation, null checks, and referential integrity — with results visible in a central governance UI. Which GCP service best addresses this requirement?",
       "options": [
-        "Use Dataplex data quality tasks with YAML-based rule definitions, surfacing results in the Dataplex console",
-        "Build a Cloud Composer DAG that runs custom Python validation scripts against each dataset daily",
-        "Configure BigQuery data policies and column-level security tags to enforce quality standards",
-        "Apply Cloud DLP inspection jobs over each zone to detect schema anomalies and null values"
+        "Use Dataplex data quality tasks with YAML-based rule definitions, surfacing results in the Dataplex console with pass/fail metrics per rule",
+        "Build a Cloud Composer DAG that runs custom Python validation scripts and writes results to a shared BigQuery audit table for governance review",
+        "Configure BigQuery data policies and column-level security tags to enforce quality standards — controls access rather than producing data quality results",
+        "Apply Cloud DLP inspection jobs over each zone and surface results in the DLP dashboard — detects sensitive data, not schema or null-check quality results"
       ],
       "correct": 0,
       "explanation": "Dataplex provides native data quality tasks that run on BigQuery tables and GCS data assets. Rules are defined in YAML (row completeness, column nullability, referential checks) and results appear in the Dataplex console with pass/fail metrics. Cloud DLP is for sensitive data discovery, not schema or null validation. Cloud Composer DAGs can do validation but require custom code and lack a built-in governance UI. BigQuery data policies control access, not quality.",
@@ -359,10 +359,10 @@
       "id": "pde-020",
       "question": "A company's BigQuery analytics workload has unpredictable query volume — some days run thousands of queries and other days run almost none. The team wants to ensure consistent query performance during peak times without overpaying during quiet periods. Which BigQuery pricing model best fits this requirement?",
       "options": [
-        "Purchase a 1-year flat-rate slot commitment and assign it to a reservation for the analytics workload",
-        "Use on-demand (per-TB) pricing for all queries and rely on BigQuery autoscaling to handle peaks",
-        "Switch all queries to BigQuery BI Engine to cache results and reduce slot consumption",
-        "Upgrade to BigQuery Enterprise Plus edition with Autoscaler enabled to dynamically add slots during bursts"
+        "Purchase a 1-year flat-rate slot commitment and assign it to a reservation to guarantee consistent performance during both peak and quiet periods",
+        "Use on-demand (per-TB) pricing for all queries and rely on BigQuery autoscaling to handle peaks — performance may degrade during sudden bursts",
+        "Switch all queries to BigQuery BI Engine to cache results and reduce slot consumption during repeated dashboard queries",
+        "Upgrade to BigQuery Enterprise Plus edition with Autoscaler enabled to dynamically add slots during bursts without overpaying during idle periods"
       ],
       "correct": 3,
       "explanation": "BigQuery Enterprise Plus edition includes the Autoscaler feature, which dynamically allocates additional slots during query bursts beyond the baseline commitment and releases them when demand drops. This provides consistent performance during peaks while avoiding the cost of permanently provisioning peak capacity. A 1-year flat-rate commitment provides consistent slots but wastes money during quiet periods. On-demand pricing scales cost with bytes scanned but does not guarantee slot availability. BI Engine accelerates specific cached queries but does not manage overall slot capacity.",
@@ -450,10 +450,10 @@
       "id": "pde-025",
       "question": "A BigQuery table named `events` is partitioned by `event_date` and has 3 years of data (1,000+ partitions). Most queries filter by a specific `user_id`. Analysts report that queries are still scanning the full table despite date filters. What additional optimization should be applied?",
       "options": [
-        "Materialize a daily aggregation view grouped by `user_id` to reduce the rows each query must scan",
-        "Enable BigQuery table clustering on the `user_id` column so data blocks within each partition are sorted by",
-        "Create a secondary index on `user_id` in BigQuery to allow direct row lookups without partition scans",
-        "Migrate the table to Bigtable with a `user_id#event_date` row key for faster lookups"
+        "Materialize a daily aggregation view grouped by `user_id` to precompute row counts, reducing the data each query must scan within a given partition",
+        "Enable BigQuery table clustering on the `user_id` column so data blocks within each partition are sorted by user_id, enabling efficient block pruning",
+        "Create a secondary index on `user_id` in BigQuery to allow direct row lookups filtered by user_id without scanning full partition data",
+        "Migrate the table to Bigtable with a `user_id#event_date` composite row key for sub-millisecond user_id lookups on the 3-year dataset"
       ],
       "correct": 1,
       "explanation": "BigQuery clustering physically sorts data within each partition by the clustering columns. When a query filters on `user_id`, BigQuery uses block-level metadata to prune data blocks that do not contain the requested user_id, reducing bytes scanned significantly within each partition. BigQuery does not support traditional secondary indexes. Migrating to Bigtable changes the service entirely and loses SQL analytics capabilities. Materialized views precompute aggregates but do not help if analysts need row-level event data per user.",
@@ -504,10 +504,10 @@
       "id": "pde-028",
       "question": "A BigQuery dataset contains a column `annual_income` with numeric salary values. Analysts need to query this data, but the raw values must not be visible — they should see bucketed ranges like '50k-100k' instead of exact figures. No data should be physically deleted or modified. Which BigQuery feature achieves this?",
       "options": [
-        "Use Cloud DLP to run a de-identification job that replaces numeric values with bucketed range tokens",
-        "Assign a policy tag to the `annual_income` column and configure a data masking rule that applies bucketing transformation",
-        "Create an authorized view that applies a CASE expression to convert `annual_income` to ranges and revoke direct table access",
-        "Apply a BigQuery row access policy that restricts access to rows based on income thresholds"
+        "Use Cloud DLP to run a de-identification job that replaces numeric values in the column with bucketed range tokens stored in a separate masked table",
+        "Assign a policy tag to the `annual_income` column and configure a data masking rule that applies bucketing transformation to analysts without fine-grained access",
+        "Create an authorized view that applies a CASE expression to the column to convert `annual_income` to ranges, then revoke direct table access for analysts",
+        "Apply a BigQuery row access policy that filters rows to specific income threshold ranges, hiding the exact column values from restricted users"
       ],
       "correct": 1,
       "explanation": "BigQuery column-level security with policy tags supports data masking transformations. By creating a policy tag taxonomy and assigning a masking rule (including bucketing/range substitution) to the `annual_income` column, users without the `Fine-Grained Reader` role see masked (bucketed) values while the underlying data is unchanged. Cloud DLP de-identification physically modifies data. Row access policies filter rows, not column values. Authorized views work but require creating and maintaining separate view objects and are less integrated with BigQuery's column security framework.",
@@ -541,9 +541,9 @@
       "question": "A data science team trains a TensorFlow model on Vertex AI custom training. After training, they want to track model versions, compare evaluation metrics across runs, and promote the best version to production. Which Vertex AI feature manages this workflow?",
       "options": [
         "Use Vertex AI Experiments to log metrics per training run and Vertex AI Model Registry to version, compare, and deploy models",
-        "Upload each trained model artifact to Cloud Storage and manage versioning using object versioning on the GCS bucket",
-        "Create a BigQuery table to store evaluation metrics per run and manually select the best model for deployment",
-        "Tag Docker images in Artifact Registry with semantic version numbers and deploy them directly via Cloud Run"
+        "Upload each trained model artifact to Cloud Storage with a GCS object version tag, then manually compare evaluation metrics from TensorBoard logs",
+        "Create a BigQuery table to store evaluation metrics per training run, use Looker Studio to compare runs, and deploy the best model via Vertex AI Prediction",
+        "Tag Docker images in Artifact Registry with semantic version numbers and compare training results via Cloud Logging before deploying via Cloud Run"
       ],
       "correct": 0,
       "explanation": "Vertex AI Experiments records metrics, parameters, and artifacts for each training run, enabling side-by-side comparison. Vertex AI Model Registry stores model versions with lineage, evaluation metadata, and deployment history. Together they provide a complete MLOps versioning and promotion workflow. Cloud Storage object versioning stores files but provides no metrics comparison or deployment integration. Artifact Registry Docker tags track container versions, not ML model evaluation metrics. A BigQuery metrics table is a custom solution that does not integrate with Vertex AI's deployment pipeline.",
@@ -594,10 +594,10 @@
       "id": "pde-033",
       "question": "A retail company wants to predict customer churn using 20 features from BigQuery. The team wants an AutoML model that automatically selects the best algorithm, handles feature preprocessing, and performs hyperparameter tuning without writing ML code. Which service provides this?",
       "options": [
-        "Configure a Vertex AI custom training job with a hyperparameter tuning job to search the best model automatically",
-        "Train a Vertex AI AutoML Tabular model on the BigQuery dataset, letting AutoML handle feature engineering and algorithm selection",
-        "Use BigQuery ML with model_type='AUTOML_CLASSIFIER' to train an AutoML model directly in BigQuery SQL",
-        "Use Vertex AI Workbench to run a TPOT (Tree-based Pipeline Optimization) AutoML library in a managed notebook"
+        "Configure a Vertex AI custom training job that runs feature selection and hyperparameter tuning to automatically pick the best algorithm for each experiment",
+        "Train a Vertex AI AutoML Tabular model on the BigQuery dataset, letting AutoML handle feature engineering and algorithm selection automatically",
+        "Use BigQuery ML with model_type='AUTOML_CLASSIFIER' to train an AutoML model directly in BigQuery with automatic feature preprocessing",
+        "Use Vertex AI Workbench to run a TPOT (Tree-based Pipeline Optimization) AutoML library in a notebook with full control over feature engineering and algorithm search"
       ],
       "correct": 1,
       "explanation": "Vertex AI AutoML Tabular accepts a BigQuery table as input and automatically handles feature preprocessing, algorithm selection (neural architecture search, gradient boosted trees, etc.), and hyperparameter tuning to find the best model. Results include feature importance and evaluation metrics. BigQuery ML AUTOML_CLASSIFIER is a valid option that also runs AutoML from SQL, but Vertex AI AutoML provides more advanced tuning and a richer evaluation UI. Vertex AI Workbench with TPOT requires writing Python code. A hyperparameter tuning job requires a custom training script.",
@@ -632,8 +632,8 @@
       "options": [
         "Use a Beam stateful DoFn with a ValueState counter per sensor key that increments on threshold breach and resets on normal",
         "Use a fixed 1-minute window and filter windows where the max temperature exceeds 80°C with a count trigger",
-        "Configure a session window per sensor with a 10-second gap timeout to detect bursts of high-temperature events",
-        "Apply a Combine.perKey transform to track the rolling count of high-temperature events per sensor"
+        "Configure a session window per sensor — a stateful Beam primitive — with a 10-second gap timeout to detect bursts of high readings",
+        "Apply a Combine.perKey transform that maintains a stateful rolling count of high-temperature events and emits alerts at count 3"
       ],
       "correct": 0,
       "explanation": "Beam stateful DoFns allow per-key state to be maintained across elements in a streaming pipeline. A ValueState counter keyed by sensor_id can track consecutive threshold breaches: increment when temperature > 80°C, reset to 0 when it falls below. When the counter reaches 3, emit an alert. This is not expressible with windowing or Combine because the 'consecutive' requirement requires element-by-element stateful tracking. Fixed windows aggregate over time, not consecutive count. Combine.perKey computes aggregates, not stateful sequential counters. Session windows detect inactivity gaps, not consecutive event conditions.",
@@ -686,10 +686,10 @@
       "id": "pde-038",
       "question": "A data engineering team uses Dataplex to organize their Cloud Storage data lake. They want to automatically discover, catalog, and apply data quality checks to all Parquet files landing in the `raw` zone. What is the correct Dataplex setup?",
       "options": [
-        "Create a Dataplex lake, add a `raw` zone.",
-        "Write a Cloud Composer DAG that runs Great Expectations checks on all new Parquet files and registers results in a BigQuery audit table",
-        "Use BigQuery external tables pointing to the raw Parquet files and run BigQuery data quality rules via scheduled queries",
-        "Configure Cloud Data Catalog to crawl the `raw` bucket and apply quality checks via a custom tag template"
+        "Create a Dataplex lake with a `raw` zone, attach the Cloud Storage bucket as a managed asset with auto-discovery enabled, and create Dataplex data quality tasks for the discovered Parquet tables",
+        "Write a Cloud Composer DAG that runs Great Expectations checks on all new Parquet files and registers results in a BigQuery audit table — requires custom code outside Dataplex",
+        "Use BigQuery external tables pointing to the Dataplex-managed raw Parquet files and run BigQuery data quality rules via scheduled queries — does not use Dataplex's built-in quality tasks",
+        "Configure Dataplex Catalog to crawl the `raw` bucket and apply quality checks via a custom tag template — crawl only; no automated data quality task execution"
       ],
       "correct": 0,
       "explanation": "Dataplex provides an integrated data lake management platform. Creating a Dataplex lake and raw zone, then attaching the Cloud Storage bucket as an asset with auto-discovery enabled, causes Dataplex to automatically scan new Parquet files, infer schemas, register them in the metadata catalog, and make them available for Dataplex data quality tasks. This is the native, end-to-end workflow. Data Catalog can crawl GCS but does not natively run quality checks. Cloud Composer with Great Expectations is a valid but custom solution requiring code maintenance. BigQuery external tables with scheduled queries lack auto-discovery and the unified governance UI that Dataplex provides. attach the Cloud Storage bucket as a Dataplex asset with auto-discovery enabled, and create data quality tasks for the discovered tables",
@@ -740,10 +740,10 @@
       "id": "pde-041",
       "question": "A BigQuery table has 2 TB of data partitioned by `created_date`. A data engineer runs a query `SELECT * FROM events WHERE user_id = 'abc'` and is surprised to see a 2 TB bytes-processed estimate. Which combination of changes would reduce the bytes scanned to under 10 GB for this common query pattern?",
       "options": [
-        "Migrate the table to Bigtable with `user_id` as the row key prefix to enable O(1) key lookups",
-        "Enable BigQuery BI Engine to cache the table in memory and serve queries without scanning the full table",
+        "Migrate the table to Bigtable with `user_id` as the row key prefix to enable O(1) key lookups on the partitioned data",
+        "Enable BigQuery BI Engine on the partitioned table to cache the most queried partition in memory and serve queries without full scans",
         "Add clustering on `user_id` to the partitioned table so BigQuery can prune blocks within each partition based on user_id",
-        "Create a BigQuery materialized view grouped by `user_id` to precompute aggregates and reduce scan size"
+        "Create a BigQuery materialized view grouped by `user_id` across all partitioned data to precompute aggregates and reduce scan size"
       ],
       "correct": 2,
       "explanation": "With a 2 TB table partitioned by date but queried without a date filter, all partitions are scanned. Adding clustering on `user_id` allows BigQuery to use block-level metadata to skip data blocks in each partition that do not contain the target user_id, dramatically reducing bytes scanned. If the query also adds a date filter, partition pruning further reduces the scan. Materialized views precompute aggregates, not individual row lookups. Migrating to Bigtable removes SQL analytics capability. BI Engine caches query results for interactive queries but does not reduce bytes processed at the storage layer.",
@@ -776,9 +776,9 @@
       "id": "pde-043",
       "question": "A company has a Pub/Sub subscription that feeds a Dataflow pipeline. During a deployment outage lasting 4 hours, the Dataflow pipeline went offline. When it came back, the team needed to reprocess all 4 hours of missed messages. Which Pub/Sub configuration ensures these messages are still available for reprocessing?",
       "options": [
-        "Create a separate dead-letter topic that stores unacknowledged messages during pipeline outages",
-        "Set the Pub/Sub message retention duration to at least 4 hours (default is 7 days) on the topic so messages remain available",
-        "Enable Pub/Sub message ordering keys so messages can be replayed in their original publish order",
+        "Create a separate dead-letter subscription that receives unacknowledged messages from the main subscription when the pipeline is offline",
+        "Set the Pub/Sub message retention duration to at least 4 hours (default is 7 days) on the topic so messages remain available for the subscription to pull",
+        "Enable Pub/Sub message ordering keys so messages can be replayed through the subscription in their original publish order",
         "Configure the Pub/Sub topic with a seek-to-timestamp operation to reset the subscription's cursor to the outage start time"
       ],
       "correct": 3,
@@ -813,10 +813,10 @@
       "id": "pde-045",
       "question": "A Cloud Composer DAG orchestrates a multi-step ETL pipeline. One step calls an external REST API that occasionally returns HTTP 429 (Too Many Requests). The engineer wants the DAG to automatically pause and retry that specific step after a delay without failing the entire DAG run. Which Airflow approach handles this?",
       "options": [
-        "Wrap the API call in a try/except block inside a PythonOperator and raise AirflowSkipException on HTTP 429 to skip the task",
-        "Use a BranchPythonOperator that checks the API response code and reroutes to a wait task on HTTP 429",
+        "Wrap the API call in a try/except block inside a PythonOperator and raise AirflowSkipException on HTTP 429 — skips the task permanently instead of retrying after a delay",
+        "Use a BranchPythonOperator that checks the API response code and routes to a TimeDeltaSensor wait task that enforces a configurable delay before retrying on HTTP 429",
         "Configure `retries=5`, `retry_delay=timedelta(minutes=2)`, and `retry_exponential_backoff=True` on the HTTP operator for that specific task",
-        "Set `on_failure_callback` on the DAG to send a PagerDuty alert and manually retry the step after the rate limit window passes"
+        "Set `on_failure_callback` on the DAG to send a PagerDuty alert and re-trigger the run with a manual delay after the rate limit window passes"
       ],
       "correct": 2,
       "explanation": "Setting `retries`, `retry_delay`, and `retry_exponential_backoff=True` on the specific task operator causes Airflow to automatically re-run the task after the delay when it fails with an exception (which the HTTP operator raises on 429). Exponential back-off increases the delay between attempts, reducing the chance of hitting the rate limit again. Other DAG tasks are not blocked. `on_failure_callback` is for alerting, not automated retry. BranchPythonOperator can reroute but requires checking responses manually and does not implement back-off natively. `AirflowSkipException` marks the task as skipped, not retried, which would skip the API call entirely.",
@@ -831,10 +831,10 @@
       "id": "pde-046",
       "question": "A company wants to build a real-time analytics dashboard showing aggregated sales metrics updated every 30 seconds. The underlying data comes from a BigQuery table with 500 GB of data. Currently, each dashboard refresh runs a full aggregation query, consuming several TB of slot-seconds. Which BigQuery feature reduces the compute cost of repeated dashboard queries?",
       "options": [
-        "Use BigQuery BI Engine to cache the aggregation results in memory and serve repeated queries without re-scanning",
-        "Export the 500 GB table to Cloud Bigtable and query the aggregates using a low-latency key lookup",
-        "Schedule a BigQuery materialized view refresh every 30 seconds to precompute the aggregates",
-        "Enable BigQuery table partitioning and clustering so each query only scans relevant partitions"
+        "Use BigQuery BI Engine to cache the aggregation results in memory and serve repeated queries without re-scanning the underlying table",
+        "Export the 500 GB table to Cloud Bigtable and run repeated aggregation queries using a low-latency key lookup on pre-stored metric buckets",
+        "Schedule a BigQuery materialized view refresh every 30 seconds to precompute the aggregates so repeated queries read from the view",
+        "Enable BigQuery table partitioning and clustering so repeated queries scan only relevant partition blocks — reduces scan size but still recomputes aggregation each time"
       ],
       "correct": 0,
       "explanation": "BigQuery BI Engine is an in-memory analysis service that accelerates repeated BI and dashboard queries by caching table data and query results in fast in-memory storage. It is specifically designed for dashboarding tools (Looker, Looker Studio, Tableau) that re-run the same aggregation queries frequently. BI Engine serves cached results with sub-second latency and minimal slot consumption. Partitioning/clustering reduces scan cost but does not cache results across refreshes. Materialized views have a minimum refresh interval and are not designed for 30-second refresh cycles. Bigtable is a key-value store, not an analytics engine for SQL aggregations.",
@@ -979,9 +979,9 @@
       "question": "A company stores 50 TB of Parquet files in Cloud Storage. They want data analysts to query these files using SQL without loading them into BigQuery or converting the format. Queries should support joins with BigQuery native tables. Which BigQuery feature enables this?",
       "options": [
         "Create BigQuery external tables pointing to the Cloud Storage Parquet files and join them with native tables in standard SQL",
-        "Use BigQuery Omni to run queries on Cloud Storage Parquet files from the AWS or Azure BigQuery deployments",
-        "Deploy Dataproc with Hive configured on the Cloud Storage Parquet files and federate queries from BigQuery",
-        "Use Storage Transfer Service to copy Parquet files to BigQuery native storage and enable federated queries"
+        "Use BigQuery Omni to federate SQL queries from Azure or AWS BigQuery deployments against the Parquet files stored in Cloud Storage",
+        "Deploy Dataproc with Hive external tables on the Parquet files and expose them to analysts through a BigQuery federated SQL connection",
+        "Use Storage Transfer Service to copy Parquet files into native BigQuery tables and run standard SQL joins against the loaded data"
       ],
       "correct": 0,
       "explanation": "BigQuery external tables (federated queries) allow querying files in Cloud Storage (Parquet, CSV, Avro, ORC, JSON) using standard SQL without loading or converting the data. External tables can be joined with native BigQuery tables in the same query. There is no data movement required. Storage Transfer Service copies data, which is the opposite of the requirement. Dataproc with Hive requires a separate cluster and does not integrate with BigQuery SQL natively. BigQuery Omni extends BigQuery to AWS/Azure, not to GCS files that are already in Google Cloud.",

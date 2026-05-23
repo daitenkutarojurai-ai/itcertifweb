@@ -275,7 +275,23 @@
       const preferred = ['aws-saa-c03', 'ccna', 'rhcsa', 'comptia-security-plus'];
       const def = preferred.find(function (id) { return CERT_BY_ID.has(id); });
       if (def) certEl.value = def;
-      defaultDates();
+
+      // Restore state from shareable hash URL if present.
+      var hashRestored = false;
+      try {
+        var raw = decodeURIComponent(location.hash.replace(/^#/, ''));
+        if (raw) {
+          var st = JSON.parse(raw);
+          if (st.c && CERT_BY_ID.has(st.c)) certEl.value = st.c;
+          if (st.s) startEl.value = st.s;
+          if (st.e) dateEl.value  = st.e;
+          if (st.h) hoursEl.value = st.h;
+          if (st.l) levelEl.value = st.l;
+          if (st.o) offEl.value   = st.o;
+          hashRestored = true;
+        }
+      } catch (_) {}
+      if (!hashRestored) defaultDates();
       updateCertHint();
       generate();
     }).catch(function (err) {
@@ -423,6 +439,13 @@
     }
 
     function renderPlan(ctx) {
+      // Serialize current inputs to the hash so the plan URL is shareable.
+      try {
+        var _st = { c: certEl.value, s: startEl.value, e: dateEl.value,
+                    h: hoursEl.value, l: levelEl.value, o: offEl.value };
+        history.replaceState(null, '', '#' + encodeURIComponent(JSON.stringify(_st)));
+      } catch (_) {}
+
       const { cert, weeks, hours, totalH, recommended, coverage, start, dist, syllabus, examISO } = ctx;
 
       let alertHtml = '';
@@ -506,6 +529,7 @@
         '<a class="secondary" href="/train.html?pack=' + esc(cert.id) + '">⚡ Démarrer la pratique</a>' +
         (PATH_INDEX.some(function (p) { return p.packId === cert.id; }) ?
           '<a class="secondary" href="/path.html?pack=' + esc(cert.id) + '">🗺️ Cert Quest path</a>' : '') +
+        '<button type="button" class="secondary" id="sp-share" title="Copier le lien partageable">🔗 Partager</button>' +
       '</div>';
 
       out.innerHTML = '<h2>Ton planning ' + esc(cert.name) + '</h2>' +
@@ -513,6 +537,22 @@
 
       const icsBtn = document.getElementById('sp-ics');
       if (icsBtn) icsBtn.addEventListener('click', function () { downloadIcs(ctx); });
+
+      const shareBtn = document.getElementById('sp-share');
+      if (shareBtn) {
+        shareBtn.addEventListener('click', function () {
+          var url = window.location.href.split('#')[0] + location.hash;
+          if (navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText(url).then(function () {
+              var old = shareBtn.innerHTML;
+              shareBtn.textContent = '✓ Lien copié';
+              setTimeout(function () { shareBtn.innerHTML = old; }, 1800);
+            }).catch(function () { prompt('Copie ce lien :', url); });
+          } else {
+            prompt('Copie ce lien :', url);
+          }
+        });
+      }
     }
 
     /* ── ICS export ──────────────────────────────────────────── */

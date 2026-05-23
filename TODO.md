@@ -1438,12 +1438,14 @@ Wave 4 — Data-dependent (defer until pipeline exists):
 - [ ] **Brevo integration** — only if 6.4/6.5 lead-gen flows decide
       to leave Supabase Auth's transactional email. Alternative:
       keep Supabase + add a `marketing_emails` opt-in column.
-- [ ] **Data-freshness convention** — every data-driven page (salary,
-      pricing, tool radar) MUST surface "last reviewed YYYY-MM" near
-      the headline. Bake into a shared `<DataFreshness>` partial.
-- [ ] **Shareable-result URLs** — 6.5 + 6.6 use deterministic input
-      hashes as URL tokens (no backend persistence). Document the
-      pattern once so subsequent calculators reuse it.
+- [x] ✅ **Data-freshness convention (2026-05-23)** — all 8 page generators
+      already emit `lastReviewed` pills (salary, compare, toolradar,
+      reality-check, failanalysis, failbase, devstack, prompt-dungeon).
+      Data files carry `"lastReviewed": "2026-05"`. Already live.
+- [x] ✅ **Shareable-result URLs (2026-05-23)** — infracost already had hash
+      URLs. Added the same pattern to study-planner: state serialised to
+      `#encodeURIComponent(JSON.stringify({c,s,e,h,l,o}))` on every render;
+      restored on load; "🔗 Partager" button copies the full URL.
 - [x] ✅ **Generator drift swept (2026-05-20)** — all 8 page generators
       (`gen-{salary,failanalysis,reality-check,prompt,toolradar,failbase,
       devstack,compare}-pages.js`) had hard-coded `CACHE_BUST='v=87'`

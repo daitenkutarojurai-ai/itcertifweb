@@ -5,8 +5,8 @@
     "vendor": "Splunk",
     "version": "2.0.3",
     "question_count": 66,
-    "last_updated": "2026-05-13",
-    "notes": " [splunk-core batch 1: 11 scenario rewrites + 1 FACTUAL FIX (splunk-011: len() vs length())] [splunk-core batch 2: 15 scenario rewrites] [splunk-core batch 3: 18 scenario rewrites] [splunk-core batch 4 (final): 21 scenario rewrites] [recall sweep: 2 balanced rewrites]"
+    "last_updated": "2026-05-23",
+    "notes": " [splunk-core batch 1: 11 scenario rewrites + 1 FACTUAL FIX (splunk-011: len() vs length())] [splunk-core batch 2: 15 scenario rewrites] [splunk-core batch 3: 18 scenario rewrites] [splunk-core batch 4 (final): 21 scenario rewrites] [recall sweep: 2 balanced rewrites] [splunk keyword-balance batch 1 (2026-05-23): 12 questions — distractor expansion + keyword balancing: splunk-007/015/024/031/036/037/043/045/048/051/055/063/065]"
   },
   "questions": [
     {
@@ -133,10 +133,10 @@
       "id": "splunk-007",
       "question": "A Splunk analyst is choosing between `chart` and `timechart` for time-series aggregation. The key difference: ONE automatically uses `_time` as the X-axis and creates time bins (defaulting based on the search time range); the other lets the analyst pick any field as the X-axis. Which describes `timechart`?",
       "options": [
-        "`timechart` supports more stats functions — false; same function set as `chart`",
-        "`timechart` faster + less memory — false; performance comparable",
-        "`timechart` automatically uses `_time` as the X-axis and creates time-bucket bins (span",
-        "`timechart` only line charts — false; works with multiple visualisation types"
+        "`timechart` supports more aggregation functions and automatically computes extended bins — false; chart and timechart share the same function set",
+        "`timechart` is faster and automatically creates fewer intermediate results — false; performance is comparable for equivalent queries",
+        "`timechart` automatically uses `_time` as the X-axis and creates time-bucket bins (span), while `chart` requires an explicit X-axis field",
+        "`timechart` only creates line charts and automatically chooses the best bin granularity — false; it works with multiple visualisation types; span must be specified"
       ],
       "correct": 2,
       "explanation": "The `timechart` command is a specialized version of `chart` where `_time` is always the X-axis (split-by column). It automatically creates time buckets based on the search time range. `chart` requires you to specify both X and Y axes. Both are transforming commands.",
@@ -294,10 +294,10 @@
       "id": "splunk-015",
       "question": "Splunk supports AUTOMATIC LOOKUPS: a lookup configured in `Settings → Lookups → Automatic lookups` so it's applied to EVERY search against a specified host / source / sourcetype WITHOUT requiring `| lookup …` in the SPL. Which describes this?",
       "options": [
-        "A lookup that runs as a scheduled report — wrong (that's saved search + lookup)",
-        "A lookup refreshing cached results every 24h — wrong concept",
-        "A lookup configured in Settings that is automatically applied to search results",
-        "A lookup auto-creating new entries — wrong; lookups don't auto-write"
+        "A lookup that is configured as a scheduled saved search and automatically applied to enrich results on each scheduled run — that is a saved-search + outputlookup combination, not automatic lookup",
+        "A lookup configured with an auto-refresh interval in Settings that periodically re-reads the CSV and applies updated values to future searches — that describes KV Store collection refresh, not automatic lookup",
+        "A lookup configured in Settings → Lookups → Automatic Lookups that is automatically applied to search results when an event contains the lookup's input field",
+        "A lookup that is automatically applied when writing new entries, auto-creating records for each unique field value encountered — lookups are read-only by default and do not auto-write"
       ],
       "correct": 2,
       "explanation": "An automatic lookup (configured in Settings > Lookups > Automatic Lookups) is applied automatically at search time whenever events contain the lookup's input field — without requiring `| lookup` in the search string. This is useful for enriching events at index time or universally, such as automatically adding hostname from IP using a DNS lookup table.",
@@ -473,12 +473,12 @@
     },
     {
       "id": "splunk-024",
-      "question": "An SPL `chart count BY status OVER host` produces a 2-D matrix. The `over` clause specifies which field becomes the X-AXIS (rows in the output table) — the OTHER field (`status`) becomes the columns (series). Which describes `over`?",
+      "question": "An SPL `chart count BY status OVER host` produces a 2-D matrix. What role does the field specified by the `over` clause play in the resulting table?",
       "options": [
-        "Threshold for display — wrong",
-        "Time range — wrong (chart isn't time-specific)",
-        "The field used as the X-axis (rows in the table)",
-        "Max series to display — that's the `limit` option"
+        "It sets the display threshold above which additional series are grouped into an 'OTHER' bucket — that is the `limit` option, not the `over` clause",
+        "It restricts the time range for the chart, filtering rows to events within that field's value range — time filtering uses `earliest`/`latest`, not the `over` clause",
+        "It specifies the field used as the X-axis (rows in the table), with one row per unique field value",
+        "It sets the maximum number of series to display in the chart — that is controlled by `limit`, not by the `over` clause"
       ],
       "correct": 2,
       "explanation": "In the `chart` command, the `over` clause defines the X-axis (the row field). The `by` clause defines the column series. For example, `chart count over host by status` creates a table where each row is a host, each column is a status code, and each cell contains the count. The `over` and `by` clauses together define the two dimensions of the chart.",
@@ -618,10 +618,10 @@
       "id": "splunk-031",
       "question": "An analyst runs the SPL pipeline `index=web | fields user_agent, status, bytes`. They want to reduce the cost of subsequent commands by carrying forward only the fields they actually need. What does `fields user_agent, status, bytes` do at this position in the pipeline?",
       "options": [
-        "Restricts the events flowing to subsequent commands to the listed fields plus default internal fields (`_time`, `_raw`, etc.)",
-        "Filters out events where any of the listed fields is missing or empty — incorrect; that would be `search` or `where`, not `fields`",
-        "Sorts the events by the listed fields in left-to-right order — sorting is `sort`, not `fields`",
-        "Renames the listed fields to canonical names; renames are performed by `rename`, not `fields`"
+        "Restricts the events flowing to subsequent commands to the listed fields plus default internal fields (_time, _raw, etc.) — removing unwanted fields reduces memory and improves subsequent command performance",
+        "Filters out events where any of the listed fields is missing or empty before passing them to subsequent commands — field absence filtering uses `where` or `search`, not `fields`",
+        "Sorts events by the listed fields in left-to-right order before passing them to subsequent commands in the pipeline — sorting is performed by `sort`, not `fields`",
+        "Renames the listed fields to canonical names for subsequent commands — field renaming is performed by `rename`, not `fields`"
       ],
       "correct": 0,
       "explanation": "The `fields` command controls which fields appear in search results. `fields + field1, field2` includes only those fields (whitelist). `fields - field1, field2` removes those fields from results (blacklist). It is often used to reduce result set size and improve performance by removing unnecessary fields before piping to other commands.",
@@ -717,10 +717,10 @@
       "id": "splunk-036",
       "question": "An analyst wants to GROUP related events into ONE multi-event transaction (e.g., all events for a single web session sharing `JSESSIONID`, within a 30-min idle gap). The `transaction` command does this but is RESOURCE-EXPENSIVE and should be avoided for high-cardinality / very-long sessions. Which describes `transaction` + the trade-off?",
       "options": [
-        "ACID compliance — wrong category",
-        "KV-store DB transactions — wrong category",
-        "Multi-step business processes — partial; the canonical use is session grouping",
-        "Groups related events into one multi-event transaction by"
+        "ACID-compliant multi-event write transactions — wrong category; SPL `transaction` groups related events for analysis, not database write atomicity",
+        "KV-store database transactions that group related records into one atomic write — wrong category; KV Store operations are separate from SPL `transaction` grouping",
+        "Multi-step business process orchestration pipelines that group related workflow events — partial; the primary use case is session grouping of related search-time events",
+        "Groups related events into one multi-event transaction by a shared field value (e.g., session_id) or a time window, adding `duration` and `eventcount` fields"
       ],
       "correct": 3,
       "explanation": "The `transaction` command groups related events into a single transaction based on a shared field value (e.g., `session_id`) and optional time/pause constraints. It's useful for tracking session activity or multi-step processes. However, it's memory-intensive and slow for large datasets — `stats` is almost always preferable when the goal is simply aggregation. avoid for large datasets due to high memory usage",
@@ -738,10 +738,10 @@
       "id": "splunk-037",
       "question": "Two ways to define a field extraction in Splunk: (A) INLINE in `props.conf` using `EXTRACT-<name> = <regex>` — search-time, simple, single file. (B) `TRANSFORMS-<class>` in `props.conf` pointing to a stanza in `transforms.conf` — search-time too, but allows ADDITIONAL features (SOURCE_KEY, format, MV_ADD, REPEAT_MATCH). Which describes the pair?",
       "options": [
-        "Identical — false",
-        "Inline = search time, transforms = index time — false; both can be search-time (transforms.conf can also be configured for INDEX-time via INDEXED_EXTRACTIONS, but the props.conf EXTRACT vs TRANSFORMS distinction is mainly feature scope)",
-        "Inline uses rex; transforms uses erex — false",
-        "Inline EXTRACT-name in props.conf = simple search-time regex; TRANSFORMS-class in props.conf + transforms.conf stanza = advanced features (SOURCE_KEY, format strings, multi-value, etc.)"
+        "They are identical — both define a simple regex in props.conf that extracts fields at search time with no meaningful difference in features or stanza format",
+        "Inline `EXTRACT-` extracts fields at search time; `TRANSFORMS-` extracts at index time — false; both can be search-time extractions; only transforms with SOURCE_KEY overrides run at index time",
+        "Inline uses `rex` command syntax; transforms uses `erex` automatic learning format — false; both use standard regex format, not rex/erex command syntax",
+        "Inline `EXTRACT-name` in props.conf = simple single-stanza regex; `TRANSFORMS-class` in props.conf + transforms.conf stanza = named transforms with features like SOURCE_KEY, FORMAT reuse, and per-sourcetype stanza targeting"
       ],
       "correct": 3,
       "explanation": "Inline field extractions use `EXTRACT-<name> = <regex>` directly in `props.conf`. Transforms-based extractions define a reusable stanza in `transforms.conf` (with the `REGEX` and `FORMAT` keys) and reference it from `props.conf` with `REPORT-<name> = <transform_stanza_name>`. Transforms are preferred for complex or reusable extractions; inline is simpler for one-off cases. transforms.conf extractions define reusable transform stanzas referenced from props.conf with REPORT-",
@@ -859,10 +859,10 @@
       "id": "splunk-043",
       "question": "An alert fires on every 5-minute schedule whenever the trigger condition is met. The ops team gets spammed with duplicate emails. The admin enables THROTTLING with `suppress for 1 hour by src_ip` — after firing for an IP, the alert won't re-fire for the SAME IP for 1 hour. What does THROTTLE do?",
       "options": [
-        "Suppresses RE-FIRING of the alert for a specified period (optionally",
-        "Reduces schedule frequency — different (that's the schedule config)",
-        "Limits event count — different (use `head` or `where` for that)",
-        "Caps search runtime — different (that's `runtime` limit)"
+        "Throttle sets the minimum number of events that must appear in the alert results before the alert action fires — that is the alert trigger condition threshold, not throttling",
+        "Throttle reduces the alert's search schedule frequency to lower resource consumption — that is the alert cron schedule setting, not throttling",
+        "Throttle limits the number of events returned in the alert results using the same logic as the `head` command — that is result limiting, not alert suppression",
+        "Throttle suppresses re-firing of the alert for a specified period (optionally per field value), preventing duplicate notifications when the alert condition persists"
       ],
       "correct": 0,
       "explanation": "Alert throttling suppresses the alert from firing again for a configurable time window (e.g., 24 hours) after it first triggers, to prevent alert fatigue. You can throttle on a specific field value — for example, throttle for 1 hour per unique `src_ip` so the same attacker IP only triggers one alert per hour instead of one per 5-minute search cycle.",
@@ -899,10 +899,10 @@
       "id": "splunk-045",
       "question": "A scheduled saved-search computes daily aggregates and PERSISTS the results to a CSV lookup file `daily_totals.csv`. Subsequent dashboards read from the CSV via `| inputlookup daily_totals.csv`. The pipe that WRITES the search's current results into the lookup is `| outputlookup daily_totals.csv`. Which describes `outputlookup`?",
       "options": [
-        "Reads a lookup file — wrong; that's `inputlookup`",
-        "Writes current search results to a CSV lookup",
-        "Outputs lookup config to admin — wrong",
-        "Exports to external DB — wrong"
+        "`inputlookup daily_summary.csv` — reads current records from a CSV lookup file into the search results for joining or enrichment; opposite of writing",
+        "`outputlookup daily_summary.csv` — writes current search results to a CSV lookup file, replacing or appending the file's contents",
+        "`outputcsv daily_summary` — outputs the admin configuration of a lookup to the CSV search results pane — wrong; `outputcsv` is not a valid SPL command",
+        "`dbxlookup daily_summary` — exports current search results to an external database via the Splunk DB Connect add-on — wrong; that requires the DB Connect app and a different syntax"
       ],
       "correct": 1,
       "explanation": "`outputlookup` writes search results to a CSV file or KV Store lookup table. This is used to create or update lookup files programmatically. For example, running a daily search that outputs a list of known bad IPs to a CSV, which is then used by `lookup` to enrich future events. Requires write permission on the lookup.",
@@ -959,10 +959,10 @@
       "id": "splunk-048",
       "question": "Two ways to JOIN two searches' results: (A) APPENDCOLS — runs a second search and pastes its result COLUMNS side-by-side with the first (matching by row position). (B) APPEND — runs a second search and STACKS its rows below the first (matching by column name). Which describes `appendcols`?",
       "options": [
-        "Adding new columns from eval — that's `eval`",
-        "Adding rows to a lookup — wrong (outputlookup adds to a lookup)",
-        "Appending ROWS from a second search — that's `append`, not `appendcols`",
-        "Runs a SECOND search and appends its COLUMNS side-by-side with the"
+        "Adding new field columns computed from existing fields using `eval` expressions — `eval` generates new fields side-by-side with existing ones but does not run a second search",
+        "Appending rows from a second search below the main results — that is `append`, which adds rows; `appendcols` runs a second search and adds its columns side-by-side instead",
+        "Adding rows from a lookup file side-by-side with events using the `lookup` command — `lookup` enriches events with lookup fields but does not run a second parallel search",
+        "Runs a second search and appends its columns side-by-side with the main results, aligned row-by-row; differs from `append` (adds rows) and `join` (matches on a key field)"
       ],
       "correct": 3,
       "explanation": "`appendcols` runs a subsearch and appends the columns (fields) from the subsearch results alongside the main search results, row by row. Unlike `append` (which adds rows), `appendcols` adds columns. It's useful for combining two separate aggregations side-by-side. The number of rows in the subsearch should match the main search, or rows are filled with null.",
@@ -1021,9 +1021,9 @@
       "id": "splunk-051",
       "question": "Splunk time modifier `earliest=-60m@m latest=@m` snaps both bounds to the START of a minute. So `-60m@m` means 60 minutes ago snapped down to that minute's :00 seconds; `@m` means the current minute's :00 seconds. Effective range = the previous 60 minutes (start-of-minute aligned). Which describes this?",
       "options": [
-        "Last full hour with hour-snap — false; uses minute-snap (`@m`), not hour-snap (`@h`)",
-        "60 min ago to now — partial; doesn't capture the snap-to-minute",
-        "60 min ago midnight to now midnight — wrong unit (it's `@d` not `@m`)",
+        "Last full hour with hour-snap — false; `@m` snaps to the minute boundary, not the hour; hour-snapping would use `@h`, e.g., `earliest=-1h@h`",
+        "From 60 minutes ago to now with no snapping — partially correct on the offset but ignores the `@m` snap-to-minute boundary on both bounds",
+        "From 60 minutes ago snapped to the start of that day's midnight to the current day's midnight — wrong unit; `@m` snaps to the minute boundary, not `@d` for day",
         "From 60 minutes ago snapped to that minute's start to the current minute's start"
       ],
       "correct": 3,
@@ -1101,10 +1101,10 @@
       "id": "splunk-055",
       "question": "Splunk's data model knowledge object is a HIERARCHICAL definition of: ROOT EVENT (a base search defining the dataset), CHILD events / transactions (filtered subsets), CONSTRAINTS (`eval`, `lookup`, calculated fields per dataset). Used by pivot reports + accelerated by tstats. Which describes a data model?",
       "options": [
-        "Visual schema; components are indexes / sourcetypes / fields — too vague",
-        "Hierarchical knowledge object defining datasets (root + child events / transactions / search) with",
-        "CIM extension only — partial; CIM IS a set of data models, but data models in general are broader",
-        "A config file mapping raw data to indexes — that's `props.conf` + `transforms.conf`, not a data model"
+        "A visual schema builder where components are mapped to indexes, sourcetypes, and individual fields for search-time parsing — too vague; data models define a hierarchical knowledge object structure, not just a visual mapping",
+        "A hierarchical knowledge object defining datasets as root event, child event, transaction, and search types, enabling accelerated pivot reports and CIM-compliant field naming",
+        "A CIM extension pack only — partial; CIM is a set of pre-built data models following the data model schema, but the data model knowledge object itself is a broader concept",
+        "A configuration file that maps raw incoming data to Splunk indexes and sourcetypes — that is `inputs.conf` and `transforms.conf`; data models operate on indexed data at search time"
       ],
       "correct": 1,
       "explanation": "A data model is a hierarchical knowledge object that organizes data into structured datasets (event-based, search-based, or transaction-based). Root datasets define the top-level search constraint; child datasets inherit and add constraints. Each dataset has defined fields (attributes). Data models can be accelerated (stored as TSIDX files) for fast `tstats` queries. The CIM ships several pre-built data models. components are root datasets, child datasets, and field definitions",
@@ -1266,10 +1266,10 @@
       "id": "splunk-063",
       "question": "An analyst runs `| lookup customers customer_id AS user_id OUTPUT name` but gets ZERO matched rows even though the CSV has matching entries. The CSV has a column `customer_id` and events have `user_id`. Most likely cause?",
       "options": [
-        "Lookup needs rebuild after CSV change — partially true but the cause here is naming mismatch, not refresh",
-        "INPUT field name in the lookup definition doesn't match the event field name",
-        "CSV lookups can't be case-sensitive — false; case-sensitivity is configurable",
-        "File too large + truncated — different failure mode"
+        "The CSV lookup file was modified and needs to be rebuilt or re-uploaded before the field name mapping takes effect — partially true in some cases but the primary cause here is a field name mismatch",
+        "The lookup's input field name in the lookup definition (`customer_id`) doesn't match the event field name (`user_id`) — using `AS user_id` aliases the event field but the lookup definition still expects `customer_id` as the output key",
+        "CSV lookups cannot perform case-sensitive name matching, so `name` values with mixed case are silently dropped — case-sensitivity is configurable in the lookup definition, not the cause here",
+        "The lookup file is too large and was truncated during upload, dropping all rows that contain the `name` field — the zero-match symptom here is a naming mismatch, not file truncation"
       ],
       "correct": 1,
       "explanation": "The most common cause of lookup returning 0 enrichment results is a mismatch between the input field name in the lookup definition and the field name that actually exists in the events. For example, if the lookup definition specifies input field `src_ip` but events have the field as `src`, the lookup won't find matches. Check the field name exactly. Case sensitivity of values is the second most common issue (default lookups are case-sensitive).",
@@ -1306,10 +1306,10 @@
       "id": "splunk-065",
       "question": "An analyst wants to compute `avg(response_ms) BY host` but KEEP EACH ORIGINAL EVENT AND add the per-host average as a new field on each event (so they can compare each event to the host average). `stats` collapses to one row per host. The streaming alternative preserves events. Which command?",
       "options": [
-        "`eventstats avg(response_ms) AS avg_by_host BY host`",
-        "Search across multiple indexes — `eventstats` is unrelated to that",
-        "Functions stats doesn't support — false; same function set",
-        "Real-time only — false"
+        "`eventstats avg(response_ms) AS avg_by_host BY host` — computes avg(response_ms) per host and appends it as a new field to each original event without removing any events",
+        "Use `eventstats` to search across multiple indexes simultaneously, computing avg(response_ms) per host across all matching data — `eventstats` operates on the current search results, not across indexes",
+        "Use `eventstats` for aggregation functions that `stats` doesn't support, such as computing running averages per host — both commands support the same function set; the difference is event retention",
+        "Use `eventstats` for real-time searches only, since it computes avg(response_ms) per host without buffering — `eventstats` works on both historical and real-time searches"
       ],
       "correct": 0,
       "explanation": "`eventstats` computes aggregate statistics and adds them as new fields to every original event — the result has the same number of rows as the input. `stats` collapses all events into a summary table. Example: `eventstats avg(bytes) as avg_bytes` adds the overall average as a field to each event, allowing `where bytes > avg_bytes` to filter above-average events. This pattern is very common in security analytics.",
