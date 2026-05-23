@@ -3,9 +3,9 @@
     "id": "vault-002",
     "name": "HashiCorp Vault Associate (002)",
     "vendor": "HashiCorp",
-    "version": "2.0.3",
+    "version": "2.0.4",
     "question_count": 51,
-    "last_updated": "2026-05-03",
+    "last_updated": "2026-05-23",
     "notes": " [bulk-tag pass: added `vault-002` tag to 51 questions] [vault batch 1: 16 balanced-length scenario rewrites] [vault batch 2: 8 balanced rewrites — all recall cleared]"
   },
   "questions": [
@@ -13,7 +13,7 @@
       "id": "vault-001",
       "question": "A fintech platform stores database passwords, API keys, and TLS private keys scattered across config files, environment variables, and developer laptops. Audit trails are nonexistent and rotation is manual. They want centralised storage, fine-grained access control, leasing, and tamper-evident audit logs for sensitive material. Which problem does the product solve?",
       "options": [
-        "Acts as a high-throughput cache for application configuration that is read often but rarely changed by the platform team",
+        "Acts as a high-throughput cache that stores sensitive configuration material with access logging, leasing, and audit trails — but without policy enforcement or dynamic credential generation",
         "Centralises sensitive material with policy-based access, short-lived dynamic credentials, leasing, and an append-only audit log of every read",
         "Replaces TLS certificate authorities with a managed root chain that signs end-entity certificates for browser-facing endpoints",
         "Provides a queue-based message bus that routes credential-rotation events between microservices in a fan-out pattern"
@@ -73,7 +73,7 @@
       "id": "vault-004",
       "question": "After any successful authentication against Vault (userpass, AppRole, AWS IAM, Kubernetes service account, OIDC, …) the client receives the same kind of object that carries TTL, policies, accessor, and metadata, and is presented on later API calls. Which object is returned?",
       "options": [
-        "A short-lived signed JWT bearing the user's external identity claims, validated locally by each Vault node without server lookup",
+        "A short-lived signed JWT bearing the user's external identity claims with embedded policies, accessor reference, and metadata — validated locally by each Vault node without server lookup",
         "A session cookie scoped to the auth method that mounted the path, kept only in the client's in-memory keyring",
         "A token with TTL, policies, accessor, and metadata that the client presents in subsequent requests until revocation or expiry",
         "A wrapped response handle that must be unwrapped exactly once before the actual credentials become usable to the workload"
@@ -116,7 +116,7 @@
         "The newer flavour persists data on Raft while the older flavour writes to the file backend, the only choice for production deployments",
         "The newer flavour adds per-key versioning with configurable max-versions, soft-delete + undelete, and per-key metadata",
         "The older flavour returns secrets in JSON only, while the newer flavour adds a Protobuf wire format negotiated at request time for compactness",
-        "Audit logging is only available on the newer flavour, with the older flavour requiring an external syslog forwarder for compliance"
+        "Audit logging uses the same metadata versioning and soft-delete event format in both flavours; the older flavour simply requires an external syslog forwarder for compliance"
       ],
       "correct": 1,
       "explanation": "KV v2 is versioned: writing a new value keeps the old versions (configurable max). Soft-delete marks a version deleted but allows recovery. Destroy permanently removes a version. KV v1 silently overwrites data with no way to recover previous values. Use KV v2 for production. v1 overwrites data with no recovery",
@@ -233,7 +233,7 @@
       "id": "vault-012",
       "question": "A developer runs vault read database/creds/my-role and gets a username and password. What happens to those credentials when the Vault lease expires?",
       "options": [
-        "The credentials are archived in the KV store",
+        "The credentials are archived in the database KV store for audit purposes",
         "Vault sends a notification to the application to stop using them",
         "The credentials remain valid indefinitely — Vault only tracks them internally",
         "Vault connects to the database and drops the created user, revoking access"
@@ -295,7 +295,7 @@
         "Continues operating normally and queues audit records in memory for replay once any device recovers, accepting bounded loss on crash",
         "Switches to a hot-standby node that has independent audit devices, transparently retrying the request without affecting the client",
         "Blocks all requests until at least one audit device acknowledges the write, so no operation proceeds without a durable audit record",
-        "Falls back to writing a degraded audit summary on the storage backend, marking each entry with a flag indicating reduced fidelity"
+        "Falls back to write requests through a degraded audit summary on the storage backend, marking each entry with a flag indicating reduced fidelity"
       ],
       "correct": 2,
       "explanation": "Vault prioritizes audit integrity over availability. If all enabled audit devices fail to write, Vault blocks all operations. This is by design — it prevents operating in an unaudited state. For HA environments, configure multiple audit devices (file + syslog) so a single failure doesn't halt operations.",
@@ -352,7 +352,7 @@
       "id": "vault-018",
       "question": "A team is choosing the storage backend for a production Vault cluster. They want minimal moving parts, no external dependencies, native HA, and snapshot/restore tooling. Which advantage favours the embedded Raft option over an external consensus store?",
       "options": [
-        "Raft supports more secrets engines and auth methods than other backends, because plugins consult the backend driver to enumerate supported features",
+        "Raft supports more secrets engines and auth methods than other backends, because the embedded consensus cluster driver exposes a richer plugin enumeration interface",
         "Raft removes the operational burden of running a separate consensus cluster",
         "Raft writes plaintext data and Vault encrypts at the application layer, where other backends store ciphertext that must be decrypted on read",
         "Raft is the only backend that supports performance + disaster-recovery replication across regions, which other backends gate behind a paid tier"
@@ -412,7 +412,7 @@
       "id": "vault-021",
       "question": "A pod running in a managed cluster needs to read database credentials from Vault. It has no pre-provisioned token or static API key — only its service-account JWT projected into the filesystem. Which auth method lets it authenticate using that JWT?",
       "options": [
-        "AppRole — the pod posts a role_id + secret_id retrieved from a sidecar that itself has long-lived credentials baked into the image",
+        "AppRole — the pod posts a role_id and secret_id retrieved from a sidecar; the sidecar itself holds long-lived credentials projected into the account's environment via a ConfigMap",
         "Kubernetes auth method — Vault validates the projected service-account JWT against the cluster's TokenReview API and issues a Vault token bound to a role",
         "TLS certificate auth — the cluster issues each pod a client certificate at admission time and Vault matches it against an allow-list",
         "AWS IAM auth — kubelet exchanges the pod identity for an AWS STS token that Vault then verifies against AWS for authentication"
@@ -454,7 +454,7 @@
       "options": [
         "Orphan tokens — they don't need parent token management",
         "Batch tokens — they're lightweight, not stored in Vault,.",
-        "Root tokens — they bypass storage overhead",
+        "Root tokens — they bypass Vault storage overhead but are restricted to bootstrap operations",
         "Service tokens — they're more secure for high-volume workloads"
       ],
       "correct": 1,
@@ -513,7 +513,7 @@
       "id": "vault-026",
       "question": "A policy attached to a token reads: `path \"secret/data/app/*\" { capabilities = [\"read\"] }`. The token attempts `vault kv get secret/data/app/db`. Vault allows it. The same token then tries `vault kv put secret/data/app/db @creds.json`. What happens to the write?",
       "options": [
-        "Allowed — the wildcard glob covers all verbs against any path matching the prefix, including writes, until an explicit deny rule fires",
+        "Allowed — the wildcard glob covers all verbs including read and write against any path matching the prefix, until an explicit deny rule fires",
         "Allowed but degraded — the write succeeds and is stored under a quarantine flag pending out-of-band approval by a policy reviewer",
         "Denied — the policy grants only the read capability on that prefix, and a write requires explicit create or update capability",
         "Denied with a token revocation — Vault treats the attempted write as a privilege escalation and invalidates the token immediately"
@@ -633,7 +633,7 @@
       "id": "vault-032",
       "question": "An infrastructure team wants to grant engineers SSH access to ephemeral VMs without distributing long-lived SSH keys. Instead they want Vault to mint a one-time password per host that the host's PAM module validates against Vault. Which secrets engine fits?",
       "options": [
-        "The PKI engine — Vault signs short-lived X.509 certificates that openssh-server can validate via TrustedUserCAKeys, no per-host secret needed",
+        "The PKI engine — Vault signs short-lived X.509 certificates that openssh-server validates against the CA public key via TrustedUserCAKeys, no per-host secret needed",
         "The SSH engine in OTP mode — Vault generates a one-time password per session that the target host validates against Vault via the vault-ssh-helper PAM plugin",
         "The TOTP engine — Vault stores per-host shared TOTP secrets and engineers compute a 6-digit code locally using their authenticator app",
         "The KV engine combined with a sidecar — a daemon on each host polls Vault every 60 seconds for the rotating password and updates /etc/shadow"
@@ -655,7 +655,7 @@
       "options": [
         "The `root` policy, attached as a fallback when no other policy is specified at token creation, granting unrestricted access until tuned",
         "The `default` policy, automatically attached to every non-root token unless explicitly excluded, granting self-renew, self-lookup, cubbyhole, and a few other",
-        "The `admin` policy, attached for the first hour of a token's life so that the application can complete bootstrap before being demoted",
+        "The `admin` policy, automatically attached so the application can renew its token during the first hour of its life before being demoted to a lower-privilege role",
         "The `audit` policy, attached so that the token can write its own audit records to the configured audit devices for forensic replay"
       ],
       "correct": 1,
@@ -673,7 +673,7 @@
       "id": "vault-034",
       "question": "A Vault transit key has been rotated (now on version 3). Data was encrypted with versions 1 and 2. How does Vault handle decryption of old ciphertext?",
       "options": [
-        "Vault automatically re-encrypts all stored data with the new key on rotation",
+        "Vault automatically re-encrypts all stored data across all old versions with the new key on rotation",
         "Old ciphertext can no longer be decrypted after key rotation",
         "The application must manually specify the key version when decrypting",
         "Vault maintains all key versions and can decrypt ciphertext from any non-deleted"
@@ -695,7 +695,7 @@
       "options": [
         "`vault operator raft snapshot save backup.snap`",
         "`vault audit enable file file_path=backup.snap` — exports an append-only log of every operation, which can be replayed against a new cluster to reconstruct state",
-        "`vault operator rekey -backup file=backup.snap` — exports the current unseal key shares so that a quorum can be reconstituted by a new operator team",
+        "`vault operator rekey -backup snapshot=backup.snap` — exports the current unseal key shares so that a quorum can be reconstituted by a new operator team",
         "`vault operator generate-root -dr backup.snap` — produces a recovery bundle containing the root token + policies that bootstraps a replacement node"
       ],
       "correct": 0,
@@ -795,7 +795,7 @@
       "question": "A workload requests a token whose lifetime should NOT depend on the lifetime of any other token. When the token that issued the credential expires or is revoked, the new token must survive. To achieve this, the issuing token uses a specific flag at create time. What does that flag set?",
       "options": [
         "Creates a token with no parent in Vault's token hierarchy — it is not revoked when its issuer is revoked, only by its own TTL, max_ttl, or explicit revocation",
-        "Marks the token as exempt from any audit log for the duration of its validity, so that high-throughput batch jobs do not flood downstream SIEMs",
+        "Marks the token as exempt from any audit log for the duration of its validity, though it is still revoked if its parent token expires, so high-throughput batch jobs do not flood downstream SIEMs",
         "Allows the token to bypass policy checks on a configurable subset of paths to support break-glass operations during an incident",
         "Causes the token's TTL to be refreshed every time a child token is created beneath it, effectively pinning the parent's lifetime to the child's"
       ],
@@ -814,7 +814,7 @@
       "id": "vault-041",
       "question": "A Vault audit log shows a request with HMAC-ed token value. Why are token values HMACed in audit logs?",
       "options": [
-        "To compress the logs for storage efficiency",
+        "To compress the token representation in logs for storage efficiency",
         "To prevent the actual token from being readable in",
         "To allow log replay for debugging purposes",
         "To encrypt all audit log entries for compliance"
@@ -836,7 +836,7 @@
       "question": "On a KV-v2 mount, an operator runs `vault kv delete secret/app/db` then later runs `vault kv destroy -versions=3 secret/app/db`. The first command leaves the data recoverable; the second does not. What is the difference?",
       "options": [
         "The first removes the latest version from the listing while keeping all earlier versions readable; the second permanently deletes the listing entry for every prior version",
-        "Both commands permanently remove data; the difference is purely that the second writes an audit record at higher verbosity, with no behavioural distinction",
+        "Both commands permanently remove data that is not recoverable; the difference is that the second Vault command writes an audit record at higher verbosity, with no behavioural distinction",
         "The first marks specific versions as soft-deleted (recoverable via `vault kv undelete`); the second permanently wipes the underlying data for the specified versions and is irreversible",
         "The first removes only the policy that allows reads, leaving data intact; the second wipes the data and the policy, requiring re-grant before any further reads"
       ],
@@ -877,7 +877,7 @@
       "question": "An operator wants to force a controlled leader election on a Vault HA cluster — perhaps to drain the active node before an OS upgrade. They run a CLI command on the active node that causes it to relinquish leadership; another standby is then promoted. Which command does this?",
       "options": [
         "Forces the current active Vault node to relinquish leadership, sealing itself and triggering an election among the standbys to promote a new active node",
-        "Drains in-flight requests on the active node and queues new ones until the operator manually promotes a standby with a `force-promote` call",
+        "Drains in-flight requests on the active Vault node, causing it to relinquish a leadership lease and queue new requests until the election completes and a standby is manually promoted via a force-promote call",
         "Pauses replication to performance-secondary clusters so that the active node can complete maintenance without affecting downstream replicas",
         "Disables the read-replica role on the local node and promotes it to perform an out-of-cluster restore from the latest Raft snapshot"
       ],
@@ -897,7 +897,7 @@
       "question": "Which Vault feature allows path-based routing rules to override or deny access based on contextual information like time of day or IP address? (Enterprise)",
       "options": [
         "Vault Sentinel / Endpoint",
-        "ACL templating in policies",
+        "ACL templating in Vault policies",
         "LDAP group-based policy assignment",
         "Token metadata conditions"
       ],
@@ -916,7 +916,7 @@
       "id": "vault-046",
       "question": "A team stores secrets at secret/data/team-a/db. They want to enforce that only tokens with entity metadata 'team=team-a' can access this path. Which Vault ACL template feature enables this?",
       "options": [
-        "Vault cannot use token metadata for policy decisions",
+        "Vault cannot use entity metadata from a team's token for dynamic policy decisions — only static path prefixes are supported",
         "ACL templating with {{identity.entity.metadata.team}",
         "AWS IAM condition keys in Vault policies",
         "LDAP group binding to the secret path"
@@ -937,7 +937,7 @@
       "question": "A new operator on a fresh Vault server wants to enable the database secrets engine at a custom path so the team can mint dynamic Postgres credentials. They have access to the host but have not interacted with the API yet. What MUST happen first?",
       "options": [
         "The server must be initialised AND unsealed, and the operator must be authenticated with a token whose policy grants the required capabilities on `sys/mounts/<path>`",
-        "The host must have a working Postgres driver installed locally, because mounts call out to the database plugin during the enable handshake",
+        "The host must have a working Postgres driver installed locally; the operator cannot enable the engine until the driver handshake succeeds during the mount operation",
         "An audit device must be enabled, because mount operations are rejected on clusters where no audit device has been configured for any path",
         "The license file must declare the database engine in the entitlements bundle, because the engine is gated behind a premium tier even in non-prod"
       ],

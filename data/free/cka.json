@@ -3,9 +3,9 @@
     "id": "cka",
     "name": "Certified Kubernetes Administrator (CKA)",
     "vendor": "CNCF",
-    "version": "1.0.3",
+    "version": "1.0.4",
     "question_count": 61,
-    "last_updated": "2026-05-16",
+    "last_updated": "2026-05-23",
     "notes": " [bulk-tag pass: added `cka` tag to 61 questions] [recall sweep: 3 balanced rewrites] [cka batch 1 (2026-05-16): 15 rewrites — cka-003/004/007/021/026/033/035/039/041/043/045/049/050/052/057. Distractors made equally specific so the correct command no longer dwarfs them.]"
   },
   "questions": [
@@ -16,7 +16,7 @@
         "--control-plane-endpoint=10.0.1.100",
         "--node-ip=10.0.1.100",
         "--apiserver-advertise-address=10.0.1",
-        "--apiserver-bind-address=10.0.1.100"
+        "--apiserver-bind-address=10.0.1.100; this flag does not advertise the API server address to nodes"
       ],
       "correct": 2,
       "explanation": "--apiserver-advertise-address tells kubeadm which IP address the API server should advertise to members of the cluster. --apiserver-bind-address controls which interface it binds to. --control-plane-endpoint is used for HA setups with a load balancer DNS/VIP. --node-ip is a kubelet flag, not a kubeadm init flag.",
@@ -137,7 +137,7 @@
         "The kubelet on the developer's laptop is not running",
         "The user or ServiceAccount has no Role/ClusterRole binding for `get pods`",
         "The developer needs to run `kubectl auth login` to refresh their tokens",
-        "The kube-apiserver TLS certificate has expired on the control plane"
+        "The kube-apiserver TLS certificate has expired on the control plane; TLS expiry does not affect which pods appear forbidden"
       ],
       "correct": 1,
       "explanation": "A 403 Forbidden means the request reached the API server but the RBAC authoriser denied it — the calling subject has no Role or ClusterRole binding granting the `get` verb on `pods`. An expired API server cert would surface as a TLS handshake error, not Forbidden. There is no `kubectl auth login` subcommand. The kubelet is irrelevant on a client machine.",
@@ -256,7 +256,7 @@
       "options": [
         "Confirm the pod is listed in 'kubectl get pods --field-selector=status.phase=Pending'",
         "Verify the pod has a valid ServiceAccount token mounted",
-        "Check the kube-scheduler logs for scheduling errors",
+        "Check the kube-scheduler logs for scheduling errors; the manifest placed in /etc/kubernetes/manifests is not consulted by the scheduler",
         "Check the kubelet logs on the node where the manifest was placed."
       ],
       "correct": 3,
@@ -295,7 +295,7 @@
       "question": "You need to view the current kubeadm cluster configuration stored in the cluster. In which ConfigMap and namespace is this stored?",
       "options": [
         "ConfigMap 'kubeadm-config' in namespace 'kube-system'",
-        "ConfigMap 'kube-config' in namespace 'kube-public'",
+        "ConfigMap 'kube-config' in namespace 'kube-public' - kubeadm does not write cluster config to this ConfigMap location",
         "ConfigMap 'cluster-info' in namespace 'default'",
         "ConfigMap 'cluster-config' in namespace 'kube-node-lease'"
       ],
@@ -317,7 +317,7 @@
         "Scale the deployment down to 3 replicas to match the current state",
         "Delete and recreate the Deployment with the same spec",
         "Check 'kubectl get pods' for the deployment's pods and look for",
-        "Run 'kubectl rollout restart deployment/web-app' immediately"
+        "Run 'kubectl rollout restart deployment/web-app' immediately; restarting pods directly does not explain why fewer pods are running"
       ],
       "correct": 2,
       "explanation": "When a Deployment's desired replica count exceeds available, the pods themselves hold the diagnostic information. 'kubectl get pods' filtered to the deployment's selector reveals pod states (Pending, CrashLoopBackOff, etc.), and 'kubectl describe pod' shows events with specific error messages like image pull failures, resource constraints, or node affinity issues. then 'kubectl describe pod <pod-name>' for events",
@@ -335,7 +335,7 @@
       "id": "cka-017",
       "question": "You need a DaemonSet to run on every node including control plane nodes, which have the taint 'node-role.kubernetes.io/control-plane:NoSchedule'. What must you add to the DaemonSet pod spec?",
       "options": [
-        "Set hostNetwork: true in the pod spec",
+        "Set hostNetwork: true in the pod spec; hostNetwork does not help with the node-role taint effect noschedule",
         "Add a toleration for 'node-role.kubernetes.io/control-plane' with effect 'NoSchedule'",
         "Set nodeSelector to include control-plane nodes explicitly",
         "Add the annotation 'scheduler.alpha.kubernetes.io/tolerations' to the DaemonSet metadata"
@@ -475,7 +475,7 @@
       "id": "cka-024",
       "question": "A pod spec defines: resources: requests: cpu: '100m' limits: cpu: '200m'. The pod is running on a node under heavy CPU pressure. What happens to the pod's CPU usage?",
       "options": [
-        "The pod is evicted from the node to free up CPU for higher-priority workloads",
+        "The pod is evicted from the node to free up CPU for higher-priority workloads; eviction is not triggered by CPU usage throttling alone",
         "The pod's CPU usage is throttled at 200m — it cannot use more, but it is not killed",
         "The pod is OOMKilled because it exceeded its memory allocation",
         "The container runtime kills the container and reports a CrashLoopBackOff"
@@ -496,7 +496,7 @@
       "question": "You need a ClusterIP Service for an application but want to define your own cluster IP address (e.g., 10.96.100.50). Which Service spec field allows this?",
       "options": [
         "spec.clusterIP: '10.96.100.50'",
-        "spec.internalIP: '10.96.100.50'",
+        "spec.internalIP: '10.96.100.50' - spec.internalIP is not a valid field for setting a custom clusterip",
         "spec.loadBalancerIP: '10.96.100.50'",
         "spec.externalIPs: ['10.96.100.50']"
       ],
@@ -557,7 +557,7 @@
       "id": "cka-028",
       "question": "A NetworkPolicy is applied to pods labeled 'app=api'. After applying the policy, the API pods can no longer reach the database pods labeled 'app=db' on port 5432. The policy spec has an empty 'egress: []' array. Why?",
       "options": [
-        "NetworkPolicies only apply to ingress traffic by default",
+        "NetworkPolicies only apply to ingress traffic by default; ingress-only policies leave egress empty and unrestricted by default",
         "An empty 'egress",
         "The policy must be in the same namespace as the database pods to allow traffic",
         "NetworkPolicies do not apply to TCP traffic on port 5432 without explicit protocol specification"
@@ -700,7 +700,7 @@
       "options": [
         "No — ReadWriteOnce only allows binding when PV and PVC capacities are equal",
         "Yes, but the PV is shrunk to 5Gi to match the PVC's requested size",
-        "No — the PVC's requested capacity must exactly match the PV's capacity",
+        "No — the PVC's requested capacity must exactly match the PV's capacity; capacity must be sufficient but the access mode mismatch always prevents binding",
         "Yes — the PV satisfies the access mode and exceeds the requested capacity"
       ],
       "correct": 3,
@@ -821,7 +821,7 @@
       "id": "cka-041",
       "question": "A node shows status `NotReady`. You SSH in and run `systemctl status kubelet`; it reports `Active: failed`. What is the next diagnostic step?",
       "options": [
-        "Restart the container runtime (containerd/docker) on the node",
+        "Restart the container runtime (containerd/docker) on the node; restarting the container runtime before reading kubelet logs skips the root cause",
         "Run `kubectl describe node <name>` from the control plane host",
         "Delete the node object and let the cluster re-register the node",
         "Run `journalctl -u kubelet -n 100` to inspect the kubelet's logs"
@@ -841,7 +841,7 @@
       "id": "cka-042",
       "question": "After a kubelet restart, a previously Running pod is now in 'Unknown' state for 5 minutes. What most likely caused this state?",
       "options": [
-        "The pod was manually set to Unknown by an administrator",
+        "The pod was manually set to Unknown by an administrator; Unknown state cannot be set manually; only the kubelet heartbeat mechanism produces it",
         "The node's kubelet stopped reporting to the API server;.",
         "The pod's containers have all exited with code 0",
         "The pod's liveness probe has failed 3 times"
@@ -865,7 +865,7 @@
       "options": [
         "An imagePullSecret with credentials for that registry is wired to the pod",
         "Whether the pod has a valid (non-default) ServiceAccount mounted",
-        "Whether the image tag `v1.2` follows strict semantic versioning rules",
+        "Whether the image tag `v1.2` follows strict semantic versioning rules; image tag format does not affect registry credentials or authentication",
         "Whether the pod's nodeSelector targets a node with internet egress"
       ],
       "correct": 0,
@@ -905,7 +905,7 @@
       "id": "cka-045",
       "question": "A Deployment rolling update is stuck. `kubectl rollout status deployment/api` hangs with `1 old replicas are pending termination`. Which command best helps you find which pod is blocking the rollout?",
       "options": [
-        "`kubectl delete replicaset <old-rs-name>` and let the deployment recover",
+        "`kubectl delete replicaset <old-rs-name>` and let the deployment recover; deleting the replicaset bypasses termination hooks and loses diagnostic data",
         "`kubectl get replicasets -l app=api` to compare desired and ready counts",
         "`kubectl rollout pause deployment/api` to freeze the in-flight rollout",
         "`kubectl describe pod <old-pod>` to inspect termination events and hooks"
@@ -928,7 +928,7 @@
         "kubectl debug -it web-pod --image=busybox --target=web-container",
         "kubectl exec -it web-pod -- /bin/sh",
         "kubectl run debug --image=busybox --overrides='{\"spec\":{\"nodeName\":\"<node>\"}}'  --rm -it",
-        "kubectl attach web-pod -c debug"
+        "kubectl attach web-pod -c debug; kubectl attach connects to a running container process and does not inject a new container"
       ],
       "correct": 0,
       "explanation": "'kubectl debug -it <pod> --image=<image>' injects an ephemeral container into a running pod without restarting it. This is ideal when the main container lacks debugging tools. The --target flag shares the process namespace with the target container. 'kubectl exec' requires the tools to already be in the container image. An ephemeral container shares the pod's network namespace, making it perfect for network debugging.",
@@ -966,7 +966,7 @@
       "question": "A pod has the following in its spec: 'livenessProbe: httpGet: path: /healthz port: 8080 initialDelaySeconds: 5 failureThreshold: 3'. The pod enters CrashLoopBackOff shortly after start. Logs show the app starts fine. What is the most likely issue?",
       "options": [
         "The failureThreshold of 3 is too low and must be at least 5 for any probe",
-        "The liveness probe port 8080 is blocked by a NetworkPolicy",
+        "The liveness probe port 8080 is blocked by a NetworkPolicy; NetworkPolicy rules do not prevent the /healthz probe from being called on the pod itself",
         "The container is exceeding its memory limit during startup",
         "The /healthz endpoint is returning HTTP 500 before the app fully"
       ],
@@ -987,7 +987,7 @@
       "question": "An admin investigates why kube-controller-manager keeps restarting on each control-plane node. It runs as a static pod. They want stderr / panic output from the last failed start. Which command surfaces that output?",
       "options": [
         "`kubectl -n kube-system logs <controller-manager-pod> --previous`",
-        "`kubectl get events -A | grep controller-manager` to enumerate events",
+        "`kubectl get events -A | grep controller-manager` to enumerate events; get events only shows brief messages, not kube-system panic stack traces from failed starts",
         "`kubectl describe node <control-plane>` to read node-condition details",
         "`crictl rmp -f <pod>` to force-remove the pod and reset its state"
       ],
@@ -1027,7 +1027,7 @@
       "question": "You observe that a pod is being evicted every few hours. 'kubectl describe pod' shows 'Reason: Evicted' and the message references memory pressure. The pod has no resource requests set. What is the recommended fix?",
       "options": [
         "Set explicit memory requests and limits on the pod.",
-        "Move the pod to the kube-system namespace so it gets higher priority",
+        "Move the pod to the kube-system namespace so it gets higher priority; kube-system namespace does not grant immunity from BestEffort requests-based eviction",
         "Set the pod's restart policy to Never to prevent eviction",
         "Set imagePullPolicy to Never to reduce memory overhead during image pulls"
       ],
@@ -1048,7 +1048,7 @@
       "question": "After applying a new NetworkPolicy, pods in namespace `app` can no longer reach the kube-dns Service (10.96.0.10:53). What must be added so DNS works again?",
       "options": [
         "An egress rule on the policy allowing UDP/TCP 53 to the kube-system namespace",
-        "A podSelector that matches the kube-dns pods inside the same policy object",
+        "A podSelector that matches the kube-dns pods inside the same policy object; a podSelector alone inside the same policy namespace does not restore DNS egress",
         "A namespaceSelector allowing all ingress from kube-system on the policy",
         "An ingress rule allowing the kube-dns Service to reach the app pods on 53"
       ],
@@ -1154,7 +1154,7 @@
         "Set `livenessProbe.initialDelaySeconds` to wait before liveness checks",
         "Set `spec.minReadySeconds` on the Deployment to delay availability",
         "Use a `startupProbe` to gate readiness/liveness until init completes",
-        "Set `spec.progressDeadlineSeconds` to extend the rollout timeout"
+        "Set `spec.progressDeadlineSeconds` to extend the rollout timeout; progressDeadlineSeconds extends the rollout window but does not affect readiness probe timing"
       ],
       "correct": 2,
       "explanation": "A `startupProbe` (1.16+) is designed exactly for slow-starting apps: it disables readiness and liveness probes until it itself succeeds, so a bad readiness check never fires during init. `readinessProbe.initialDelaySeconds` works for short, predictable delays but you have to pick a constant. `minReadySeconds` only delays when a pod counts as available — not the probe itself. `progressDeadlineSeconds` is a rollout timeout.",
@@ -1171,7 +1171,7 @@
       "id": "cka-058",
       "question": "You run 'kubectl get nodes' and see node 'worker-3' in NotReady state. Running 'kubectl describe node worker-3' shows 'KubeletNotReady: container runtime network not ready: NetworkReady=false reason:NetworkPluginNotReady message:Network plugin returns error'. What is the most likely fix?",
       "options": [
-        "Reboot worker-3 to reset all network state",
+        "Reboot worker-3 to reset all network state; rebooting resets all state but does not reinstall a missing CNI plugin binary or config",
         "Reinstall or repair the CNI plugin on the node.",
         "Restart the kube-proxy daemonset pod on worker-3",
         "Delete the node object and re-join it to the cluster"
@@ -1212,7 +1212,7 @@
       "id": "cka-060",
       "question": "You need to quickly test whether a newly created ClusterRole 'deployment-viewer' provides the correct permissions. A user 'alice' should be able to 'get' and 'list' Deployments cluster-wide. Which sequence of commands validates this?",
       "options": [
-        "kubectl get clusterrole deployment-viewer -o yaml && kubectl get clusterrolebinding | grep alice",
+        "kubectl get clusterrole deployment-viewer -o yaml && kubectl get clusterrolebinding | grep alice; inspecting the clusterrole YAML shows rules but not whether alice can actually list deployments",
         "kubectl describe clusterrolebinding alice-binding",
         "kubectl auth reconcile --as=alice -f role.yaml",
         "kubectl auth can-i get deployments --as=alice && kubectl auth can-i list deployments --as=alice"
