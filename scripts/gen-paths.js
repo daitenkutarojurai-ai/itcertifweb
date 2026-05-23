@@ -169,8 +169,8 @@ function tryBuildTrueFalseBlitz(chap, chapIndex, sorted, qsByIdMap, title) {
     const q = (qsByIdMap || {})[p.qid] || {};
     return {
       id: p.qid,
-      statement: p.prompt,
-      answer: p.correct,
+      text: p.prompt,
+      isTrue: p.correct,
       explanation: q.explanation || (p.correct
         ? 'Correct — this statement is true.'
         : 'Incorrect — this statement is false.')

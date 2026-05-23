@@ -366,25 +366,15 @@ Triggers:
 - **Tests** — `npm test` (58 tests: stats + quizEngine)
 - **TODO.md** — full roadmap with shipped vs. pending tickets
 
-## Pushing changes
+## Before committing
 
-```
-# Bump CSS versions
-grep -rl "css?v=N" --include="*.html" . | xargs sed -i 's/css?v=N/css?v=N+1/g'
-
-# Rebuild bundle if you edited any module
+```bash
+# Rebuild bundle if you edited any module in src/
 npm run build-core
+
+# Bump CSS cache version in HTML + sw.js + audit-mobile.js (single ?v=N value throughout)
+grep -rlE '\.(css|js)\?v=[0-9]+' --include="*.html" . | head -3  # find the current N
 
 # Run tests
 npm test
-
-# Bump SW cache
-edit sw.js CACHE_VERSION
-
-# Stage only the files for this commit (avoid the merge-conflict JSONs)
-git reset HEAD; git add specific-files…; git commit; git push
 ```
-
-User memory: `main` is always pushed (no feature branches). On rebase
-conflicts with the JSON quiz files, stash them — they're pre-session
-work, not ours.

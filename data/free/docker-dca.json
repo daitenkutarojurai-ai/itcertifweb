@@ -3,10 +3,11 @@
     "id": "docker-dca",
     "name": "Docker Certified Associate (DCA)",
     "vendor": "Docker",
-    "version": "1.0.3",
+    "version": "1.0.4",
     "question_count": 61,
     "last_updated": "2026-05-13",
-    "notes": " [bulk-tag pass: added `docker-dca` tag to 61 questions] [dca batch 1: 18 scenario rewrites] [dca batch 2: 20 scenario rewrites] [dca batch 3 (final): 22 scenario rewrites] [recall sweep: 1 balanced rewrites]"
+    "notes": " [bulk-tag pass: added `docker-dca` tag to 61 questions] [dca batch 1: 18 scenario rewrites] [dca batch 2: 20 scenario rewrites] [dca batch 3 (final): 22 scenario rewrites] [recall sweep: 1 balanced rewrites] | keyword-balance pass 2026-05-23: expanded 34 distractor options across 34 questions",
+    "updated": "2026-05-23"
   },
   "questions": [
     {
@@ -14,9 +15,9 @@
       "question": "A developer asks 'are an image and a container the same thing?'. The SR engineer explains: ONE is a READ-ONLY artifact built from layered filesystem snapshots (stored in the registry / on disk). The OTHER is a RUNNING (or stopped) INSTANCE of that artifact with its own writable filesystem layer, namespaced PID + network, mounts, etc. Which mapping?",
       "options": [
         "Image = read-only layered filesystem template",
-        "Same thing — false",
-        "Image dev / container prod — false; same concepts in any env",
-        "Container on disk / image in memory — reversed"
+        "Same thing — false; an image is a read-only layered filesystem snapshot while a container is a running instance with its own writable layer",
+        "Images are for development, containers are for production — false; both concepts apply in any environment regardless of stage",
+        "A container lives on disk while the image is held in memory — reversed; images are stored on disk in the layered filesystem and containers are the runtime instances"
       ],
       "correct": 0,
       "explanation": "A Docker image is an immutable, layered filesystem snapshot (read-only). A container is a live, running instance of that image with an additional thin writable layer (copy-on-write). Many containers can share the same underlying image layers, saving disk space. When a container is deleted, its writable layer is lost unless committed or using a volume. a container is a running instance of an image with a writable layer on top",
@@ -55,9 +56,9 @@
       "question": "An admin starts `nginx` and wants: (a) it runs DETACHED (no terminal attached), (b) it automatically restarts if the container crashes, AND (c) it restarts when the Docker daemon restarts (e.g., after host reboot). Which `docker run` flags?",
       "options": [
         "`docker run -d --restart=always nginx`",
-        "`--daemon --always-restart` — not real flags",
-        "`--background --restart=on-failure` — `--background` not a flag; `on-failure` only on non-zero exit, not on stop",
-        "`-d --keep-alive` — `--keep-alive` not a flag"
+        "`docker run nginx --daemon --always-restart` — these are not real docker run flags; there is no --daemon or --always-restart option",
+        "`docker run nginx --background --restart=on-failure` — --background is not a valid docker run flag; on-failure only restarts on non-zero exit, not on daemon restart",
+        "`docker run nginx -d --keep-alive` — --keep-alive is not a real docker run flag"
       ],
       "correct": 0,
       "explanation": "-d (detach) runs the container in the background. --restart=always restarts the container regardless of exit code, including after Docker daemon restarts. Other policies: --restart=on-failure (only on non-zero exit), --restart=unless-stopped (always except when manually stopped).",
@@ -134,10 +135,10 @@
       "id": "dca-007",
       "question": "A Go service builds with `go build` into a 50 MB statically-linked binary. The build dependencies (go toolchain) are 800 MB. A SINGLE-stage Dockerfile produces an 800 MB image that includes the build toolchain. A MULTI-stage Dockerfile uses multiple FROM instructions: stage 1 builds the binary (uses the toolchain), stage 2 starts FROM scratch and COPYs ONLY the binary. The final image is ~50 MB. Which describes multi-stage builds?",
       "options": [
-        "Builds multiple images in parallel — false; multiple FROMs in ONE Dockerfile produce ONE final image",
+        "Multiple FROM instructions build multiple images simultaneously in parallel — false; multiple FROM instructions in one Dockerfile produce ONE final image through sequential stage execution",
         "Multiple FROM instructions in one Dockerfile separating build + runtime stages",
-        "Multiple OS targets — false; that's `--platform` build flag",
-        "Conditional logic — false; multi-stage isn't an if/else feature"
+        "Multiple FROM instructions define multiple OS platform targets for cross-compilation — false; cross-platform targets use the --platform build flag, not multiple FROM instructions",
+        "Multiple FROM instructions implement conditional build logic using if/else branching — false; multi-stage builds execute stages sequentially, not conditionally"
       ],
       "correct": 1,
       "explanation": "Multi-stage builds use multiple FROM instructions. Build stages compile/test code with all required build tools. The final stage copies only the compiled artifacts, resulting in a minimal image without compilers, test frameworks, or intermediate files. For example, a Go app: stage 1 uses golang:alpine to compile, stage 2 uses scratch or alpine and copies just the binary — reducing image size from GB to MB. producing a smaller final image without build tools",
@@ -154,10 +155,10 @@
       "id": "dca-008",
       "question": "A MySQL container's data must SURVIVE: (a) container restart, (b) container removal, (c) Docker daemon restart, (d) host reboot. The data should live on the host's disk but be MANAGED by Docker (path, lifecycle, permissions). Which mount type?",
       "options": [
-        "Container writable layer — wiped on container removal; OPPOSITE of persistence",
+        "Container writable layer — managed by Docker but wiped on container removal; the opposite of durable persistence across restarts and host reboots",
         "Named Docker volume — managed-by-Docker persistent storage; survives container removal; portable across containers; the canonical persistent storage",
-        "tmpfs mount — RAM-backed, lost on container stop",
-        "Bind mount to /tmp — host-managed bind mount works for persistence but /tmp is volatile on many distros (cleared at reboot); not the recommended approach"
+        "tmpfs mount — Docker-managed RAM-backed storage; data is lost when the container stops and is never written to host disk",
+        "Bind mount to /tmp on the host — works for persistence across container restarts but /tmp is volatile on most Linux systems (cleared at reboot) and is not Docker-managed"
       ],
       "correct": 1,
       "explanation": "Named Docker volumes are managed by Docker, portable, easy to back up, and work across different host paths. Bind mounts couple the container to a specific host path, reducing portability. tmpfs mounts are in-memory and lost when the container stops. The container's writable layer is removed with the container. Named volumes are the recommended production storage solution.",
@@ -174,10 +175,10 @@
       "id": "dca-009",
       "question": "Two Dockerfile instructions for putting files into an image: `COPY` is straightforward (copies from local context to image). `ADD` does the same BUT ALSO fetches remote URLs AND AUTO-EXTRACTS recognized tar archives (.tar / .tar.gz / .tar.bz2). Best-practice guidance prefers `COPY` unless URL/auto-extract is specifically needed. Which describes the difference?",
       "options": [
-        "Permissions differ — false; both preserve permissions",
-        "Identical / ADD deprecated — false; both supported, but COPY preferred for clarity",
+        "Permissions differ — false; both COPY and ADD preserve file permissions; neither automatically extracts archives or fetches remote URLs",
+        "They are identical / ADD is deprecated — false; both instructions are supported, but COPY is preferred when you do not need auto-extract or URL fetch capabilities",
         "`ADD` can fetch HTTP URLs AND auto-extracts tarballs",
-        "COPY = files only / ADD = directories — false; both handle files and directories"
+        "COPY handles files only while ADD handles directories — false; both instructions handle files and directories; the real difference is ADD auto-extracts tarballs and fetches URLs"
       ],
       "correct": 2,
       "explanation": "COPY simply copies files/directories from the build context into the image. ADD additionally: (1) can fetch files from remote URLs, (2) automatically extracts local tar archives (.tar, .tar.gz, etc.) into the destination. Best practice: use COPY by default. Use ADD only when you specifically need URL fetching or tar extraction — its implicit behavior can cause unexpected results. COPY only copies local files/directories — COPY is preferred when you don't need ADD's extra features",
@@ -215,10 +216,10 @@
       "id": "dca-011",
       "question": "By default, when you `docker run nginx` without specifying a network, the container is attached to the `bridge` network. This is the standard SINGLE-HOST containerised network using a Linux bridge + iptables NAT for outbound and port-publish for inbound. Which network driver provides this single-host NAT-based behaviour?",
       "options": [
-        "`none` driver — isolates the container with no network at all",
+        "`none` driver — removes all networking; the container has no bridge interface and no connectivity, not even to the host",
         "`bridge` driver",
-        "`overlay` driver — multi-host (Swarm) network; not single-host",
-        "`host` driver — shares the host's network namespace; no isolation"
+        "`overlay` driver — multi-host Swarm network using VXLAN encapsulation; not a single-host bridge-based driver",
+        "`host` driver — shares the host network namespace entirely; the container has no isolated bridge and sees all host interfaces directly"
       ],
       "correct": 1,
       "explanation": "The bridge driver (default for single-host) creates an isolated virtual network. Containers get private IPs and can communicate within the bridge network. Docker performs NAT so containers can reach the internet via the host. The host driver removes network isolation (container shares host's network stack). The overlay driver is for multi-host Swarm networking. none disables networking.",
@@ -296,9 +297,9 @@
       "question": "In Docker Swarm: a SERVICE is a DECLARATIVE deployment description — image, replica count, resources, networks, secrets, restart policy. The Swarm scheduler converts that into TASKS — each task is ONE container instance on a node. Tasks are the imperative scheduling unit; services are the desired state. Which describes the difference?",
       "options": [
         "A service defines the desired state (image,",
-        "Tasks stateless / services state — wrong distinction",
-        "Service = 1 container / task = group — reversed",
-        "Synonyms — false"
+        "Tasks hold persistent state while services are stateless scheduling units — false; tasks are the running container instances and services define the desired state",
+        "A service runs exactly one container while a task groups multiple replicas — reversed; a service defines the desired replica count and each task is one container instance",
+        "Service and task are synonyms in Swarm — false; a service defines the desired state including image and replica count, and each task is a concrete running instance"
       ],
       "correct": 0,
       "explanation": "A Swarm service declares desired state: which image to run, how many replicas, resource limits, placement constraints, update policies, etc. The Swarm manager decomposes the service into tasks — each task maps to exactly one container on one node. If a task fails, the manager creates a replacement task to maintain desired replica count. replicas, ports, constraints); a task is the atomic unit of scheduling — one container instance running the service on a specific node",
@@ -315,9 +316,9 @@
       "id": "dca-016",
       "question": "A running Swarm service `webapp` currently has 3 replicas. The team wants to scale it to 5. The Swarm scheduler will start 2 more tasks on appropriate nodes. Which command syntax?",
       "options": [
-        "`docker swarm scale webapp 5` — wrong verb (the scale verb is on `service`, not `swarm`)",
-        "`docker service resize webapp --replicas=5` — wrong verb (`resize` not real)",
-        "`docker service update webapp --count=5` — wrong flag (`--count` not real; use `--replicas` with `update`)",
+        "`docker swarm scale webapp 5` — wrong command structure; the `scale` subcommand belongs to `docker service`, not `docker swarm`",
+        "`docker service resize webapp --replicas=5` — wrong syntax; `resize` is not a valid `docker service` subcommand",
+        "`docker service update webapp --count=5` — wrong flag name; the correct syntax uses `--replicas` with `update`, not `--count`",
         "`docker service scale webapp=5` — the canonical scale syntax for a single service"
       ],
       "correct": 3,
@@ -335,10 +336,10 @@
       "id": "dca-017",
       "question": "Docker Content Trust (DCT) protects against TAMPERING and IMPERSONATION of images. When DCT is enabled (`DOCKER_CONTENT_TRUST=1`), Docker only pulls / runs images whose tag is SIGNED by a trusted publisher. Notary is the signing backend. The signing key chain protects against man-in-the-middle or compromised registry attacks. Which describes DCT?",
       "options": [
-        "Encrypts at rest in Hub — different concern (data-at-rest, not authenticity)",
-        "Requires 2FA — different surface (account auth, not image-trust)",
+        "Encrypts images at rest in Docker Hub — different concern; data-at-rest encryption does not verify image authenticity or Notary signatures",
+        "Requires two-factor authentication before images can be pulled — different surface; that is account authentication, not image signing or Notary-based trust",
         "Uses digital signatures (via Notary) to verify images haven't been tampered with since publication",
-        "Scans for CVEs — that's image vulnerability scanning (different feature, e.g., Snyk / Trivy / Hub scanning)"
+        "Scans images for CVE vulnerabilities — that is image vulnerability scanning (Snyk, Trivy, Hub scanning), separate from Notary-based content trust signing"
       ],
       "correct": 2,
       "explanation": "Docker Content Trust (DCT) uses The Update Framework (TUF) and Notary to sign and verify images. When enabled (DOCKER_CONTENT_TRUST=1), Docker only pulls/runs images with valid signatures. It protects against: man-in-the-middle attacks substituting a legitimate image, running unverified third-party images, and supply chain tampering. Signers use offline root keys and online targets keys.",
@@ -355,10 +356,10 @@
       "id": "dca-018",
       "question": "A security-tested container must run with NO NETWORK ACCESS WHATSOEVER — no DNS, no outbound, no inbound. The container should have a loopback interface only. Which Docker network driver?",
       "options": [
-        "`bridge --icc=false` — disables container-to-container, but the container can still reach external networks",
+        "`bridge` network with `--icc=false` — disables inter-container communication on the bridge but the container still has a bridge interface and can reach external networks",
         "`none` driver — gives the container ONLY a loopback interface; no external networking at all",
-        "`isolated` — not a real driver name",
-        "`host` driver — exposes ALL host networking; OPPOSITE of no-network"
+        "`isolated` — not a real Docker network driver name; Docker offers bridge, overlay, host, none, and macvlan drivers",
+        "`host` driver — exposes ALL host network interfaces to the container; the opposite of isolation, with no loopback-only restriction"
       ],
       "correct": 1,
       "explanation": "The 'none' network driver completely disables networking for the container. The container has only a loopback interface. Use it for containers processing local data with no network requirements (batch jobs, file processing), security-sensitive workloads, or containers that should not communicate with anything. `docker run --network=none myimage`.",
@@ -375,10 +376,10 @@
       "id": "dca-019",
       "question": "A developer runs `docker exec -it web bash`, manually installs Python + libs inside the running container, then runs `docker commit web custom-web`. The new `custom-web` image has the changes baked in. Why is this WORKFLOW DISCOURAGED for production?",
       "options": [
-        "Overwrites the original — false; it creates a new image",
+        "Overwrites the original image — false; `docker commit` creates a new image tag and does not overwrite the base image used to start the container",
         "`docker commit` creates a new image from a",
-        "Saves logs — wrong concept",
-        "Pushes to registry — wrong concept"
+        "Saves container logs to a new image layer — false; `docker commit` snapshots the container filesystem, not log output",
+        "Automatically pushes the committed image to the registry — false; `docker commit` only creates a local image; a separate `docker push` is required"
       ],
       "correct": 1,
       "explanation": "`docker commit CONTAINER IMAGE` snapshots a container's writable layer into a new image. It's discouraged because: (1) the result is a black-box — you can't see what changed, (2) it's not reproducible — others can't build the same image from source, (3) it doesn't work with CI/CD pipelines. Best practice: always define images with Dockerfiles committed to version control. unreproducible images not defined by a Dockerfile",
@@ -497,9 +498,9 @@
       "question": "A Swarm service `payments` needs the DB password. Hard-coding it in the image is unsafe. Env-vars are visible in `docker inspect`. The right approach: store the secret in the Swarm Raft log (encrypted at rest), make it available to the service as a FILE under `/run/secrets/db_password`, in-memory only on the worker. Which feature?",
       "options": [
         "Docker Secrets",
-        "Hardcode in image — anti-pattern",
-        "Env var in compose — visible in `inspect`, anti-pattern",
-        "Host directory mount — host-accessible, less secure than secrets framework"
+        "Hardcode the password in the Docker image ENV instruction — an anti-pattern; the secret is baked into every image layer and visible via `docker history` and `docker inspect`",
+        "Pass the password as an environment variable in docker-compose — visible in `docker inspect` output on any node and not encrypted at rest in the Swarm Raft log",
+        "Mount a host directory containing the password file into the container — host-accessible and less secure than the Docker Secrets framework; not encrypted in the Swarm state"
       ],
       "correct": 0,
       "explanation": "Docker Secrets (Swarm only) stores sensitive data encrypted in the Swarm's Raft log. Secrets are decrypted and mounted as in-memory tmpfs files at /run/secrets/SECRET_NAME inside authorized containers — never written to disk. Environment variables are visible in `docker inspect` output and process listings. Hardcoding in images is an obvious anti-pattern. `docker secret create` and `docker service create --secret`.",
@@ -536,10 +537,10 @@
       "id": "dca-027",
       "question": "A web server container runs as root because it must bind to port 80 (privileged port < 1024). Best practice is to drop ALL Linux capabilities, then add back ONLY the specific capability needed to bind to low ports: `CAP_NET_BIND_SERVICE`. The container becomes least-privileged. Which describes the effect?",
       "options": [
-        "Prevents becoming root + grants network admin — partially close but `NET_BIND_SERVICE` ≠ full network admin (`NET_ADMIN`)",
-        "Removes security profiles — wrong concept",
+        "Prevents the container from ever becoming root and grants full network admin capabilities — partially similar but `NET_BIND_SERVICE` is not the same as `NET_ADMIN`, which grants full network administration",
+        "Removes the AppArmor and seccomp security profiles from the container — wrong concept; Linux capabilities and MAC profiles are separate security controls",
         "Drops ALL Linux capabilities, then adds back ONLY `NET_BIND_SERVICE`",
-        "Disables networking — wrong concept"
+        "Disables all container networking and Linux kernel namespaces — wrong concept; dropping capabilities does not affect network namespace isolation"
       ],
       "correct": 2,
       "explanation": "Linux capabilities break root privileges into distinct units. `--cap-drop ALL` removes all capabilities from the container. `--cap-add NET_BIND_SERVICE` re-adds only the capability to bind to privileged ports (<1024). This follows the principle of least privilege — the container can run a web server on port 80 without any other elevated privileges. Never add SYS_ADMIN unless absolutely necessary. following the principle of least privilege",
@@ -558,9 +559,9 @@
       "question": "A team's images live on the public registry `hub.docker.com` (Docker Hub) AND on a self-hosted private registry `registry.company.com:5000`. The 'registry' is the SERVER-SIDE storage + distribution system. Docker Hub is just ONE OPERATOR's hosted instance of a registry. Which describes registries + Hub?",
       "options": [
         "A registry is the server-side image storage +",
-        "Synonyms — false",
-        "Hub open-source / registry commercial — reversed",
-        "Registry stores logs — false; registries store images"
+        "Docker Hub and a registry are synonyms — false; a registry is the server-side storage protocol and Docker Hub is one specific hosted instance of a registry",
+        "Docker Hub is open-source while a private registry is a commercial product — reversed; the Docker Registry server software is open-source and Docker Hub is the commercial hosted service",
+        "A registry server stores and serves container logs alongside images — false; a registry stores image layers and manifests, not container logs"
       ],
       "correct": 0,
       "explanation": "A Docker registry is any service that stores and serves Docker images using the Docker Registry HTTP API V2. Docker Hub is Docker's public hosted registry. Organizations run private registries for security/performance: Docker Trusted Registry (DTR, enterprise), Harbor, AWS ECR, GCR, Azure ACR. The registry is the infrastructure; Docker Hub is one implementation of it. Docker Hub is a specific public registry hosted by Docker Inc.",
@@ -597,10 +598,10 @@
       "id": "dca-030",
       "question": "Two persistent-storage mount types: (A) BIND MOUNT — host path mapped directly into container; managed by the host filesystem; great for dev (live-edit), less portable. (B) VOLUME — managed by Docker (`/var/lib/docker/volumes/`); portable; supports volume drivers (NFS, EBS, etc.); preferred for production. Which describes the difference?",
       "options": [
-        "Volumes RO only — false; both support RW",
-        "Bind mounts Linux-only — false; cross-platform",
+        "Docker volumes are read-only while bind mounts are read-write — false; both mount types support read-write access and neither is read-only by default",
+        "Bind mounts only work on Linux hosts — false; bind mounts work on Linux, macOS, and Windows hosts with Docker Desktop",
         "Bind mount = specific host path mapped into the container (depends on",
-        "Bind faster / volume portable — partial; speed comparable, portability is the bigger distinction"
+        "Bind mounts are faster than Docker volumes because they skip the container filesystem layer — partially true on Linux but portability is the more significant architectural distinction"
       ],
       "correct": 2,
       "explanation": "Bind mounts: `docker run -v /host/path:/container/path` — tightly couples the container to a specific host directory. Great for development (live code editing) but reduces portability. Docker volumes: `docker run -v myvolume:/container/path` — Docker manages the storage location (/var/lib/docker/volumes/), independent lifecycle, easier to backup/migrate, work with volume drivers for cloud storage (EBS, NFS, etc.). Docker volumes are managed by Docker with their own lifecycle independent of containers",
@@ -639,10 +640,10 @@
       "id": "dca-032",
       "question": "A Swarm-deployed monitoring agent needs to run EXACTLY ONE replica on EVERY node in the Swarm — including any new nodes that join later. The agent's mode is 'global'. The complement is 'replicated' (a fixed number of replicas the scheduler distributes). Which describes global mode?",
       "options": [
-        "Cross-Swarm federation — wrong concept (federation not a real Docker concept)",
+        "A service that federates work across multiple separate Swarm clusters — wrong concept; Docker does not have native cross-Swarm federation",
         "A service that runs EXACTLY ONE task on EVERY node in the Swarm",
-        "External public-IP access — wrong concept",
-        "Unlimited replicas — wrong; global is one-per-node, NOT unlimited"
+        "A service that exposes external public IP access for every container in the Swarm — wrong concept; ingress port publishing handles external access, not global mode",
+        "A service with an unlimited number of replicas distributed freely across every node — wrong; global mode runs exactly one task per node, not unlimited replicas"
       ],
       "correct": 1,
       "explanation": "Global mode services run exactly one task per node (similar to Kubernetes DaemonSets). As nodes join the Swarm, tasks are automatically scheduled on them. As nodes leave, tasks are cleaned up. Perfect for: node-level monitoring agents (Prometheus Node Exporter), log shippers (Fluentd), security scanners, or any workload that must run on every node. Create with: `docker service create --mode=global IMAGE`. used for monitoring agents, log shippers, and security scanners",
@@ -659,9 +660,9 @@
       "id": "dca-033",
       "question": "Two `docker` commands package container data into a tar file. (A) `docker save` — saves an IMAGE (with all layers + metadata) to a tar; can be re-loaded with `docker load`. (B) `docker export` — exports a CONTAINER'S filesystem (no layer history) to a tar; re-imported with `docker import`. Which describes the difference?",
       "options": [
-        "save = registry / export = filesystem — partial; both save to a local file",
-        "Identical — false",
-        "save = running state / export = layers — REVERSED",
+        "`docker save` exports to a registry while `docker export` saves to a local file — false; both commands write to a local tar file, not to a registry",
+        "They are identical — false; `docker save` preserves complete image layers and metadata while `docker export` flattens a container filesystem with no layer history",
+        "`docker save` captures running container state while `docker export` captures image layers — reversed; save targets images (all layers + metadata) and export targets a container filesystem snapshot",
         "`docker save` = IMAGE export (all layers + metadata)"
       ],
       "correct": 3,
@@ -701,9 +702,9 @@
       "question": "By default a container's processes run as ROOT (uid 0) inside the container. The `USER` Dockerfile instruction switches the user (and optional group) that ALL SUBSEQUENT `RUN`, `CMD`, `ENTRYPOINT` instructions execute as. Combined with `RUN groupadd -r app && useradd -r -g app app`, this is the canonical non-root container pattern. Which describes USER?",
       "options": [
         "Sets the user (and optional group) that subsequent `RUN` / `CMD`",
-        "Restricts who can `docker run` — wrong concept",
-        "Restricts who can pull — wrong concept (that's registry auth)",
-        "Creates a HOST system user — false; it's container-internal"
+        "Restricts which users on the host can run `docker run` for this image — wrong concept; USER controls the in-container UID, not Docker CLI access permissions on the host",
+        "Restricts which users can pull the image from a registry — wrong concept; that is governed by registry authentication and access control, not the USER instruction",
+        "Creates a host system user account with the specified name and optional group — false; USER sets the container-internal execution identity and does not modify host system accounts"
       ],
       "correct": 0,
       "explanation": "By default, containers run as root (UID 0), which is a security risk — a container escape would give the attacker root on the host. The USER instruction sets a non-root user for subsequent instructions and the final container. Best practice: create a dedicated user (RUN useradd -r appuser) then set USER appuser before CMD/ENTRYPOINT. Rootless containers reduce the blast radius of vulnerabilities. CMD, and ENTRYPOINT instructions run as — critical for avoiding running as root",
@@ -740,9 +741,9 @@
       "id": "dca-037",
       "question": "A Swarm has 5 managers. 3 of them go offline simultaneously (only 2 remain). The Raft consensus algorithm requires a MAJORITY (3 of 5) to commit state changes. With 2 managers, the Swarm CANNOT make state changes — existing services keep running, but no new tasks can be scheduled and no service updates accepted. Which describes manager / Raft + losing quorum?",
       "options": [
-        "Losing any manager stops everything — false; only QUORUM loss",
-        "Workers self-promote — false; promotion is manual",
-        "Managers run workloads only — false; managers do schedule plus run tasks unless drained",
+        "Losing any single manager immediately stops all scheduling and state changes — false; only losing quorum (majority of managers) prevents Raft consensus from committing state changes",
+        "Worker nodes self-promote to managers when quorum is lost to restore Raft consensus — false; promotion from worker to manager is a manual administrative operation",
+        "Managers only run workloads; workers handle Raft state consensus and scheduling — false; managers maintain the Raft distributed state store and schedule tasks, while workers run them",
         "Managers use Raft consensus to maintain cluster state"
       ],
       "correct": 3,
@@ -761,10 +762,10 @@
       "id": "dca-038",
       "question": "A web container needs a SCRATCH directory for fast in-memory writes — temp files / sockets / session caches — that's WIPED when the container stops and never touches host disk. Use a RAM-backed mount. Which mount type fits?",
       "options": [
-        "Compressed filesystem for layers — wrong concept",
-        "Read-only shared assets — wrong concept",
+        "Compressed overlay filesystem mount for image layers — wrong concept; overlay is the image filesystem driver, not a RAM-backed temporary mount",
+        "Read-only bind mount for sharing static assets between containers — wrong concept; bind mounts use host disk paths, not RAM",
         "`tmpfs` mount",
-        "On-disk temp build cache — wrong concept"
+        "On-disk BuildKit cache mount reused between build runs — wrong concept; BuildKit cache mounts persist build artifacts on disk, not in RAM"
       ],
       "correct": 2,
       "explanation": "tmpfs mounts are stored in the host's memory only (never on disk). Data is temporary — lost when the container stops or restarts. Use cases: storing session tokens, credentials, or other sensitive data that should never touch disk; high-performance temporary scratch space. `docker run --tmpfs /tmp:rw,size=64m myimage`. Available only on Linux. For secrets: use Docker Secrets in Swarm instead. data is never written to disk and is lost when the container stops; ideal for sensitive temporary data",
@@ -782,9 +783,9 @@
       "question": "A web container must be capped at 256 MB of memory and 0.5 vCPU (half a core). Which `docker run` flags?",
       "options": [
         "`--memory=256m --cpus=0.5` — canonical Docker resource limits; `--memory` (mem cap), `--cpus` (CPU quota as fraction of a core)",
-        "`--mem-limit --cpu-quota=50` — wrong flag names",
-        "`--ram --cpu=half` — wrong flag names",
-        "`--memory=256 --cpu-shares=0.5` — wrong: `--memory` without unit is BYTES; `--cpu-shares` is a relative weight, not absolute cap"
+        "`--mem-limit --cpu-quota=50` — these are not real docker run flags; the correct flags are `--memory` for the memory cap and `--cpus` for fractional core allocation",
+        "`--ram --cpu=half` — these are not real docker run flags; Docker does not accept descriptive names like \"half\" for core fractions",
+        "`--memory=256 --cpu-shares=0.5` — `--memory=256` without a unit means 256 bytes, not 256 MB; `--cpu-shares` is a relative weight, not an absolute core fraction cap"
       ],
       "correct": 0,
       "explanation": "--memory=256m sets a hard memory limit (container OOM-killed if exceeded). --cpus=0.5 limits to half a CPU (equivalent to --cpu-quota=50000 --cpu-period=100000). Other useful flags: --memory-swap (total memory+swap limit), --cpu-shares (relative weight, soft limit), --oom-kill-disable (don't OOM kill, but risky). Always set memory limits in production to prevent one container starving others.",
@@ -821,9 +822,9 @@
       "id": "dca-041",
       "question": "A `docker-compose.yml` lists a web service with `depends_on: [db]`. The team expects Compose to wait until the DB is READY (accepting connections) before starting `web`. They run `docker compose up` and `web` starts BEFORE the DB is ready — failing. What does `depends_on` actually do?",
       "options": [
-        "Waits for healthy — false by default; only with `condition: service_healthy` AND a HEALTHCHECK does this work",
-        "Network link — false; networks are separate",
-        "Copies config — false; wrong concept",
+        "Compose waits until the db service is healthy before starting web — false by default; this only works when condition: service_healthy is set AND a HEALTHCHECK is defined",
+        "Creates a dedicated network link between the web and db containers — false; network connectivity is configured separately through the `networks` key, not depends_on",
+        "Copies the db service configuration into the web container at startup — false; depends_on has no effect on configuration or environment variable sharing",
         "Controls startup ORDER only (`web` starts after the DB container starts)"
       ],
       "correct": 3,
@@ -841,10 +842,10 @@
       "id": "dca-042",
       "question": "A Dockerfile has `EXPOSE 80`. The admin runs `docker run myimage` and is surprised port 80 is NOT mapped to the host. They learn EXPOSE doesn't publish ports — it's only DOCUMENTATION. To actually map host:container ports you need `-p` or `-P`. Which describes EXPOSE?",
       "options": [
-        "Configures firewall — false",
-        "Opens + maps to host — false; EXPOSE alone doesn't map",
+        "Configures the host firewall to allow traffic through the specified container ports — false; EXPOSE does not interact with the host firewall or iptables rules",
+        "Opens and maps the specified ports from the container to random host ports — false; EXPOSE alone does not publish ports; -p or -P is required to create host-to-container port mappings",
         "Documents which ports the container",
-        "Exposes env vars — wrong concept"
+        "Exposes environment variables from the container to the host system on the listed ports — wrong concept; environment variables and container ports are separate concerns"
       ],
       "correct": 2,
       "explanation": "EXPOSE is documentation — it tells users and orchestration systems which ports the container application intends to listen on. It does NOT publish the port to the host. To actually publish: `docker run -p HOST_PORT:CONTAINER_PORT` (explicit) or `docker run -P` (auto-publish all EXPOSEd ports to random host ports). Kubernetes and Swarm use EXPOSE metadata for service mesh configuration. does not actually publish ports to the host",
@@ -861,9 +862,9 @@
       "id": "dca-043",
       "question": "A container running on a Linux host sees its OWN process IDs (PID 1 is the container's entrypoint), its OWN network interfaces, its OWN filesystem root, its OWN user IDs. The Linux kernel feature providing each of these ISOLATED VIEWS is namespaces (PID, NET, MNT, USER, UTS, IPC, CGROUP). Which feature?",
       "options": [
-        "cgroups — provide METERING / LIMITS, not isolation",
-        "AppArmor — MAC layer for syscall / file restriction, not namespace isolation",
-        "seccomp — syscall filter, not namespace isolation",
+        "cgroups (control groups) — the Linux kernel feature that meters and limits resource consumption (CPU, memory, block I/O) rather than providing isolated namespace views",
+        "AppArmor — a Linux mandatory access control framework that restricts file and syscall access rather than providing isolated namespace views",
+        "seccomp — a Linux kernel syscall filter that restricts which system calls a process can invoke rather than providing isolated namespace views per container",
         "Linux namespaces"
       ],
       "correct": 3,
@@ -921,10 +922,10 @@
       "id": "dca-046",
       "question": "An ops engineer wants a LIVE TOP-style view of every running container's CPU%, memory, mem-limit, network I/O, block I/O. Which Docker command provides this?",
       "options": [
-        "`docker container metrics` — not a real subcommand",
-        "`docker top --all` — `docker top` shows processes INSIDE a container, not resource stats across containers",
+        "`docker container metrics` — this is not a real docker subcommand; no native docker command has this name",
+        "`docker top <container>` — shows the process table inside a single container but does not display CPU%, memory usage, mem-limit, block I/O, or net I/O statistics",
         "`docker stats` — live CPU% / memory / mem-limit / net I/O / block I/O per container; press Ctrl-C to exit",
-        "`docker inspect --stats` — `inspect` dumps config, not live stats"
+        "`docker inspect <container>` — dumps configuration, networking metadata, and mount information but does not display live memory, block I/O, or CPU% resource stats"
       ],
       "correct": 2,
       "explanation": "`docker stats` shows a live-updating stream of resource metrics for all running containers: CPU%, memory usage/limit, net I/O, block I/O, PIDs. Specify a container name/ID to watch a single container: `docker stats mycontainer`. Add --no-stream for a one-shot snapshot (useful in scripts). `docker top CONTAINER` shows the processes running inside a specific container.",
@@ -961,9 +962,9 @@
       "id": "dca-048",
       "question": "An admin needs to copy `/var/log/app.log` from a running container `web` to their local `./logs/` directory. Which Docker CLI command does this directly?",
       "options": [
-        "`docker transfer` — not a real subcommand",
-        "`docker pull` — pulls images, not files from containers",
-        "`docker export` — exports container's full filesystem, not a single file",
+        "`docker transfer web:/var/log/app.log ./logs/` — not a real docker subcommand; there is no `docker transfer` command",
+        "`docker pull web:/var/log/app.log` — `docker pull` fetches images from a registry, not individual log files from running containers",
+        "`docker export web > ./logs/app.log` — `docker export` exports the entire container filesystem as a tar archive, not a single file from a container path",
         "`docker cp web:/var/log/app.log ./logs/`"
       ],
       "correct": 3,
@@ -981,10 +982,10 @@
       "id": "dca-049",
       "question": "Two ways to write the ENTRYPOINT instruction: (A) Exec form — JSON array `[\"python\", \"app.py\"]`. Runs the command DIRECTLY (no shell), so it's PID 1 (receives signals correctly for graceful shutdown). (B) Shell form — `ENTRYPOINT python app.py`. Wrapped in `/bin/sh -c`, so the shell becomes PID 1 and the app is a child — signals don't reach the app properly. Best practice: prefer exec form. Which describes the difference?",
       "options": [
-        "Identical — false",
+        "They are identical — false; exec form runs the command directly as a JSON array and becomes PID 1, while shell form wraps the command in /bin/sh -c as a child process",
         "Exec form = JSON array, runs as PID 1 directly",
-        "Shell form preferred — false; opposite of best practice",
-        "Path requirement difference — false; both can use full paths"
+        "Shell form (string form) is the preferred approach — false; best practice recommends exec form because it runs directly as PID 1 and receives signals without the shell wrapper",
+        "Exec form requires an absolute path while shell form resolves the command through PATH — false; both forms support PATH resolution; the real difference is the shell wrapper and PID 1 behaviour"
       ],
       "correct": 1,
       "explanation": "Exec form: `ENTRYPOINT [\"executable\", \"arg1\"]` — runs directly as PID 1. Signals (SIGTERM, SIGINT) are received directly by the process, enabling graceful shutdown. Shell form: `ENTRYPOINT command arg1` — runs as `/bin/sh -c 'command arg1'`. The shell becomes PID 1 and may not forward signals to the actual process. Best practice: use exec form for ENTRYPOINT and CMD to ensure proper signal handling. shell form wraps the command in /bin/sh -c, meaning signals may not be properly forwarded",
@@ -1003,9 +1004,9 @@
       "question": "In Docker Swarm, the default `ingress` overlay network enables the ROUTING MESH: any node in the Swarm can accept a published-port connection and route it (via the ingress overlay + IPVS) to a node running a task for that service. Clients can connect to ANY swarm IP and reach the service. Which describes ingress?",
       "options": [
         "Default overlay network that enables the routing mesh",
-        "Manager-Raft network — different (control-plane traffic, not ingress data-plane)",
-        "Monitoring network — wrong concept",
-        "External-LB network — wrong concept"
+        "Manager control-plane Raft network — the Raft consensus overlay carries internal manager-to-manager state sync but does not enable the routing mesh for published service ports",
+        "Monitoring network for Swarm health metrics — wrong concept; no such built-in network exists; health metrics use the manager API, not a dedicated overlay",
+        "External load-balancer integration network — wrong concept; external LB integration uses published ports and VIPs, not a separate default overlay that enables the routing mesh"
       ],
       "correct": 0,
       "explanation": "The ingress network (created automatically with `docker swarm init`) enables the Swarm routing mesh. When a service publishes port 8080, EVERY Swarm node listens on port 8080. Traffic arriving on any node is load-balanced to a healthy task, regardless of which node the task runs on. This means you can point a load balancer at any node IP. Created as an overlay network with IPVS-based load balancing. allowing any Swarm node to receive traffic for a published service port and route it to a healthy task, regardless of which node runs the task",
@@ -1042,9 +1043,9 @@
       "id": "dca-052",
       "question": "A Swarm admin runs `docker node update --availability drain <node>`. The node is marked DRAIN. What happens to the tasks currently scheduled there + to future tasks?",
       "options": [
-        "Tasks terminated, not rescheduled — false; they're rescheduled elsewhere",
-        "Node removed permanently — false; drain is a state, reversible",
-        "Tasks continue, new tasks blocked — partial; that's PAUSE, not DRAIN",
+        "Tasks currently running on the drained node are terminated and not rescheduled — false; Swarm reschedules evicted tasks onto other available nodes automatically",
+        "The node is permanently removed from the Swarm — false; drain is a reversible availability state; the node remains in the Swarm and can be restored to active",
+        "Existing tasks continue running on the node but new tasks are blocked — false; that describes the PAUSE availability state, not DRAIN",
         "Drain availability EVICTS the node's tasks (which Swarm RESCHEDULES on other"
       ],
       "correct": 3,
@@ -1063,10 +1064,10 @@
       "id": "dca-053",
       "question": "Docker applies a default seccomp profile to every container. The profile RESTRICTS which Linux SYSTEM CALLS a container's processes can make (blocks dangerous ones like `kexec_load`, `reboot`, etc.). Custom profiles can be loaded with `--security-opt seccomp=profile.json`. Which describes seccomp?",
       "options": [
-        "Encrypts inter-container traffic — wrong concept",
+        "Encrypts inter-container traffic on the overlay network — wrong concept; network encryption is separate (overlay networks with --opt encrypted) and does not involve Linux syscall filtering",
         "Restricts which Linux SYSCALLS a container process can make",
-        "Restricts which Docker CLI commands users can run — that's authorization plugins",
-        "Limits network bandwidth — that's `--network` QoS, not seccomp"
+        "Restricts which Docker CLI commands each user is authorized to run — that is handled by Docker authorization plugins, not seccomp Linux syscall profiles",
+        "Limits container network bandwidth and QoS shaping — that requires tc/cgroups network rate limiting; seccomp is a Linux syscall filter unrelated to network bandwidth"
       ],
       "correct": 1,
       "explanation": "seccomp (secure computing mode) is a Linux kernel feature that filters syscalls. Docker applies a default seccomp profile blocking ~44 dangerous syscalls (e.g., keyctl, add_key, reboot). Custom profiles allow you to restrict further (whitelist-based) or allow more (for specific use cases). To disable: `--security-opt seccomp=unconfined` (not recommended). Combined with namespaces, cgroups, capabilities, and AppArmor/SELinux for defense-in-depth.",
@@ -1083,10 +1084,10 @@
       "id": "dca-054",
       "question": "A Swarm service `webapp` is running 5 replicas of `myapp:1.4`. The team wants to ROLL OUT `myapp:1.5` with ZERO DOWNTIME (rolling update — replace one task at a time, wait for health, move to next). Which command?",
       "options": [
-        "`docker service restart` — not a real subcommand",
+        "`docker service restart webapp` — not a real docker service subcommand; use `docker service update --image` to trigger a rolling image update for a service like webapp",
         "`docker service update --image myapp:1.5 webapp`",
-        "`docker service redeploy` — not a real subcommand",
-        "`docker swarm update` — wrong namespace"
+        "`docker service redeploy webapp` — not a real docker service subcommand; there is no redeploy verb for updating a running Swarm service",
+        "`docker swarm update --image myapp:1.5` — wrong namespace; `docker swarm update` modifies Swarm-level settings, not individual service images"
       ],
       "correct": 1,
       "explanation": "`docker service update --image NEW_IMAGE:VERSION SERVICE` triggers a rolling update. Docker replaces tasks one by one (or in parallel batches based on --update-parallelism), waits for new tasks to start and pass health checks before proceeding. Configure update behavior: --update-parallelism (tasks updated simultaneously), --update-delay (time between batches), --update-failure-action (pause/continue/rollback on failure).",
@@ -1103,9 +1104,9 @@
       "id": "dca-055",
       "question": "Docker's newer build engine is BuildKit (set via `DOCKER_BUILDKIT=1` or default in modern Docker). Improvements over the classic builder: (a) parallel build steps within a Dockerfile, (b) better caching (per-stage), (c) build secrets via `--secret`, (d) SSH agent forwarding via `--ssh`, (e) cross-platform builds via `--platform`, (f) `RUN --mount=type=cache` to share between builds. Which describes BuildKit?",
       "options": [
-        "Replaces Compose — wrong concept",
-        "Windows-only — false; cross-platform",
-        "Commercial-only — false; open-source",
+        "BuildKit replaces Docker Compose as the modern container orchestration tool — wrong concept; BuildKit is a build engine, not an orchestration or compose replacement",
+        "BuildKit is available on Windows hosts only for Windows container builds — false; BuildKit is cross-platform and the default build backend for modern Docker on Linux, macOS, and Windows",
+        "BuildKit is a commercial-only add-on to Docker Enterprise requiring a paid license — false; BuildKit is open-source and included in Docker Engine at no cost",
         "Modern build subsystem"
       ],
       "correct": 3,
@@ -1124,9 +1125,9 @@
       "question": "A Dockerfile has `WORKDIR /app`. Subsequent `RUN cp foo bar`, `COPY index.js .`, `CMD [\"node\", \"index.js\"]` all execute with `/app` as the current directory. The directory is created if it doesn't exist. Which describes WORKDIR?",
       "options": [
         "Sets the WORKING DIRECTORY for subsequent `RUN` / `COPY` / `ADD`",
-        "Host working directory — false; container-internal",
-        "Where Docker stores image layers — wrong concept (that's `/var/lib/docker`)",
-        "Mounts host directory — wrong concept"
+        "Sets the working directory on the Docker host that subsequent COPY and ADD instructions read files from — false; WORKDIR sets the container-internal directory, not the host build context path",
+        "Specifies where Docker stores the image layer cache for subsequent build stages — wrong concept; Docker stores image layers in /var/lib/docker, not in the path set by WORKDIR",
+        "Mounts the specified host directory into the container at build time for COPY instructions — wrong concept; that is a bind-mount during RUN; WORKDIR only sets the current working directory for subsequent instructions"
       ],
       "correct": 0,
       "explanation": "WORKDIR sets the current directory context for all subsequent instructions and for the container's shell when running interactively. It creates the directory if it doesn't exist. Best practice: always set WORKDIR instead of `RUN cd /app`. Multiple WORKDIR instructions accumulate: WORKDIR /app followed by WORKDIR src resolves to /app/src. Use absolute paths for clarity. CMD, ENTRYPOINT, COPY, and ADD instructions — creating the directory if it doesn't exist",
@@ -1143,10 +1144,10 @@
       "id": "dca-057",
       "question": "A Docker host needs to use AWS EBS volumes (or Azure Disk, or S3, or NFS) as the BACKING STORE for Docker volumes — so `docker volume create --driver rexray/ebs` creates an EBS volume. The plugin TYPE that exposes external storage as Docker volumes is what?",
       "options": [
-        "Authorization plugins — gate `docker` CLI commands, not storage",
+        "Authorization plugins — gate Docker CLI commands based on user identity and request policies; they do not extend volume storage to external providers",
         "Volume plugins (volume drivers)",
-        "Logging plugins — capture container stdout/stderr, not storage",
-        "Network plugins — provide network drivers, not storage"
+        "Logging plugins — capture container stdout/stderr and forward logs to external sinks; they do not provide volume storage for persistent container data",
+        "Network plugins — provide custom network drivers for container connectivity; they do not act as volume drivers for mounting external storage"
       ],
       "correct": 1,
       "explanation": "Volume plugins (volume drivers) extend Docker's storage capabilities beyond the local filesystem. Popular drivers: REX-Ray (multi-cloud: AWS EBS, S3, Azure Disk, GCE PD), Portworx (cloud-native distributed storage), NFS driver, local-persist. Install a driver, then: `docker volume create --driver rexray/ebs --name myvol`. Swarm services can use volume drivers for persistent storage across nodes.",
