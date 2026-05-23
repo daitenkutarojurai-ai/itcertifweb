@@ -691,7 +691,9 @@
       '<span class="cq-combo-xp">+' + bonus + ' XP</span>';
     var rect = (targetEl || document.body).getBoundingClientRect();
     flash.style.left = (rect.left + rect.width / 2) + 'px';
-    flash.style.top = (rect.top + rect.height / 2 - 20) + 'px';
+    /* Clamp so the flash never starts inside the sticky header zone (~70px).
+       Pairs with z-index: 90 in path.css so the header always stays on top. */
+    flash.style.top = Math.max(80, rect.top + rect.height / 2 - 20) + 'px';
     document.body.appendChild(flash);
     setTimeout(function () { flash.remove(); }, 1100);
   }

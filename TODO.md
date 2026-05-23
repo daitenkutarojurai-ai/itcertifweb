@@ -215,7 +215,7 @@ courses URLs all resolve, no duplicate IDs on key pages.
 > item below should push the product toward a gamified,
 > competition-driven, community-driven experience — that is the moat.
 
-### UX-10 — Sticky top-bar escapes its box on scroll-up (phone, non-home pages)
+### UX-10 — Sticky top-bar escapes its box on scroll-up (phone, non-home pages) ✅ DONE 2026-05-23
 
 - **Symptom (owner, 2026-05-21):** the top bar is correct on the
   homepage but on other pages, on a phone, header items "go outside
@@ -246,7 +246,7 @@ courses URLs all resolve, no duplicate IDs on key pages.
 - **Supersedes UX-9** (profile-only NEEDS-REPRO note) — close UX-9
   when this lands.
 
-### UX-11 — Learning-path XP popup overlaps the header hamburger
+### UX-11 — Learning-path XP popup overlaps the header hamburger ✅ DONE 2026-05-23
 
 - **Symptom (owner, 2026-05-21):** on `/path.html` a popup showing an
   icon + XP overlaps the top-bar hamburger menu, blocking it.
@@ -327,7 +327,7 @@ courses URLs all resolve, no duplicate IDs on key pages.
 - **Depends on** the UX-12 Supabase aggregate work — do the data
   layer once, feed both features.
 
-### UX-14 — Site-wide text readability audit (contrast + size)
+### UX-14 — Site-wide text readability audit (contrast + size) ✅ DONE 2026-05-23
 
 - **Symptom (owner, 2026-05-21):** body text across sections is hard
   to read — either too small, or the white is too bright against the

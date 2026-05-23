@@ -110,7 +110,7 @@ function chunk(arr, size) {
   return out;
 }
 
-function buildChapter(chap, chapIndex) {
+function buildChapter(chap, chapIndex, qsByIdMap) {
   const title = tagToTitle(chap.tag);
   const nodes = [];
 
@@ -319,7 +319,9 @@ function buildPath(packId, pack) {
     return null;
   }
 
-  const builtChapters = chapters.map((c, i) => buildChapter(c, i));
+  const qsByIdMap = {};
+  for (const q of questions) qsByIdMap[q.id] = q;
+  const builtChapters = chapters.map((c, i) => buildChapter(c, i, qsByIdMap));
   const allQuestionIds = questions.map(q => q.id);
   // Final boss caps at FINAL_BOSS_MAX so it doesn't trivialize the pack —
   // the previous 50%/40-question target meant a 20-Q pack got a 20-Q final
