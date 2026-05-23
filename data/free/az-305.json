@@ -6,7 +6,7 @@
     "version": "1.0.4",
     "question_count": 61,
     "last_updated": "2026-05-23",
-    "notes": " [hardening pass: distractor rebalance on 32 questions — removed length tells (\".\", \",.\", \";.\"), padded short-correct options to within ~10% of distractors, trimmed long-correct options where dominant] [az305 keyword-balance batch 1 (2026-05-23): 15 questions — keyword-tell balanced by adding shared stem words to ≥1 distractor: az305-003/004/006/011/015/016/019/023/024/027/030/035/041/042/057/058/060]"
+    "notes": " [hardening pass: distractor rebalance on 32 questions — removed length tells (\".\", \",.\", \";.\"), padded short-correct options to within ~10% of distractors, trimmed long-correct options where dominant] [az305 keyword-balance batch 1 (2026-05-23): 15 questions — keyword-tell balanced by adding shared stem words to ≥1 distractor: az305-003/004/006/011/015/016/019/023/024/027/030/035/041/042/057/058/060] [az305 keyword-balance batch 2 (2026-05-23): 11 questions — remaining flagged Qs balanced: az305-013/017/018/025/026/029/034/036/038/039/043]"
   },
   "questions": [
     {
@@ -270,10 +270,10 @@
       "id": "az305-013",
       "question": "An architect is designing a BCDR solution for an on-premises application that must failover to Azure within 4 hours (RTO) and lose no more than 1 hour of data (RPO). The application runs on VMware VMs. Which Azure service meets these requirements?",
       "options": [
-        "Azure VMware Solution (AVS) with stretched clusters between the on-premises datacenter and the Azure environment for unified vSphere management",
-        "Azure Migrate Server Migration to convert the VMware VMs into Azure native VMs, then configure availability sets in the destination region",
-        "Azure Site Recovery (ASR) replicating the VMware VMs to Azure with continuous replication, recovery plans, and automated failover orchestration",
-        "Azure Backup with the MARS agent on each VMware VM scheduled for hourly backups and cross-region restore on disaster"
+        "Azure VMware Solution (AVS) with stretched clusters between the on-premises datacenter and Azure — AVS runs VMware natively but is for lift-and-shift migrations, not continuous replication for 4-hour failover",
+        "Azure Migrate Server Migration to convert on-premises VMware VMs into Azure native VMs, then configure manual failover procedures — migration creates new VMs; no continuous replication for sub-4-hour failover",
+        "Azure Site Recovery (ASR) replicating the VMware VMs to Azure with continuous replication, automated failover, and a 4-hour RTO target",
+        "Azure Backup with the MARS agent on each VMware VM scheduled for hourly backups with cross-region restore — backup restores are slow (hours to days); does not meet a 4-hour failover RTO for a running application"
       ],
       "correct": 2,
       "explanation": "Azure Site Recovery provides continuous replication of VMware VMs to Azure with RPO as low as 15 seconds for Hyper-V and 5 minutes for VMware VMs using agentless replication. Automated recovery plans can failover hundreds of VMs in sequence, meeting a 4-hour RTO. Azure Backup provides scheduled snapshots (not continuous replication) and cannot meet 1-hour RPO reliably. Azure Migrate is a one-time migration tool, not a BCDR solution. AVS is a full VMware environment in Azure, overengineered for this requirement.",
@@ -354,10 +354,10 @@
       "id": "az305-017",
       "question": "An architect needs to design a backup strategy for 200 Azure VMs across 5 subscriptions, ensuring all VMs are backed up daily with 30-day retention. A central team must be able to monitor backup compliance from a single dashboard. What is the recommended design?",
       "options": [
-        "Deploy a third-party backup solution from the Azure Marketplace that supports multi-subscription policy management and dashboards",
-        "Create a Recovery Services Vault in each of the 5 subscriptions and configure individual VM backup policies on each vault separately",
-        "Enable Azure Snapshot Manager in Azure Monitor to schedule managed-disk snapshots across the subscriptions on a daily cadence",
-        "Use Azure Backup Center with an Azure Policy assignment that enforces a daily backup policy with 30-day retention on all VMs across the vaults"
+        "Deploy a third-party backup solution from the Azure Marketplace that supports multi-subscription management and 30-day retention for VMs — valid but adds licensing cost and management overhead beyond native Azure Backup",
+        "Create a Recovery Services Vault in each of the 5 subscriptions and configure individual VM backup policies with 30-day retention — scales to 200 VMs but requires per-subscription management and lacks a unified compliance view",
+        "Enable Azure Snapshot Manager in Azure Monitor to schedule managed-disk snapshots across 200 VMs with 30-day retention — Azure Snapshot Manager does not exist; managed-disk snapshots lack lifecycle policies",
+        "Use Azure Backup Center with an Azure Policy assignment that enforces a daily backup policy and 30-day retention across all 200 VMs in the 5 subscriptions from a single management pane"
       ],
       "correct": 3,
       "explanation": "Azure Backup Center is the unified management portal for all Azure Backup workloads across subscriptions, regions, and vault types. Combined with Azure Policy (built-in 'Configure backup on VMs with a given tag' policy), you can automatically enroll new VMs into backup, enforce retention policies, and monitor compliance status from a single pane. Recovery Services Vaults are still per-region/subscription but managed centrally. Backup Center provides cross-subscription reporting, compliance, and job monitoring dashboards.",
@@ -375,10 +375,10 @@
       "id": "az305-018",
       "question": "A company is designing its Azure storage strategy. Large files (video content, 50-500 GB each) will be uploaded once and accessed frequently for the first 30 days, rarely for the next 60 days, then almost never after 90 days. What lifecycle management policy minimizes cost?",
       "options": [
-        "Store all files in the Hot tier permanently and have an operations team manually move them to Cool after 30 days each cycle",
-        "Store the videos in Premium block blob for the fastest initial access, then delete them after 90 days when access drops off",
-        "Use Azure Data Lake Storage Gen2 with auto-tiering enabled on the container holding the large video binary objects",
-        "Configure a Blob lifecycle management policy that transitions blobs to Cool at 30 days and to Archive at 90 days for cheap retention"
+        "Store all files in the Hot tier permanently and have an operations team manually move them to Cool or Archive based on access reports — lacks an automated lifecycle management policy; relies on manual effort",
+        "Store the videos in Premium block blob for fastest initial access and delete them after 365 days — Premium block blob has no built-in lifecycle management policy for automatic tier transitions",
+        "Use Azure Data Lake Storage Gen2 with auto-tiering enabled on the container — ADLS Gen2 does not have a native auto-tiering feature; lifecycle management policies are configured on the underlying Blob storage account",
+        "Configure a Blob lifecycle management policy that transitions blobs to Cool at 30 days and to Archive at 365 days based on last-modified date — automated, zero-management tier transitions with cost optimisation"
       ],
       "correct": 3,
       "explanation": "Azure Blob Storage lifecycle management policies automate tier transitions based on last-modified time. The cost tiers (Hot > Cool > Cold > Archive) allow optimizing cost vs access latency. For this pattern: Hot (30 days, frequent access), Cool (30-90 days, infrequent), Archive (90+ days, near-zero access). Archive is the cheapest tier (~$0.00099/GB/month) but has rehydration latency (hours). Lifecycle policies run daily and transition blobs automatically, eliminating manual operations.",
@@ -524,10 +524,10 @@
       "id": "az305-025",
       "question": "An architect must design a network topology for Azure where all traffic between spoke VNets must flow through a central hub that contains shared security appliances (next-gen firewall, IDS/IPS). New spoke VNets should connect with minimal configuration. What network topology achieves this?",
       "options": [
-        "Classic hub-and-spoke VNet peering with User Defined Routes on every spoke forcing inter-spoke traffic through the hub NVA",
-        "Azure Virtual WAN with a Secured Virtual Hub running Azure Firewall, with intent-based routing applied to all spoke connections",
-        "Site-to-site VPN connections from each spoke VNet to the hub VNet using a centralized VPN Gateway as the transit point",
-        "Full mesh VNet peering between all spoke VNets so traffic flows directly between spokes without any central transit"
+        "Classic hub-and-spoke VNet peering with User Defined Routes (UDRs) on every spoke forcing inter-spoke traffic through the hub — requires manual UDR management on every spoke; no built-in Azure Firewall integration",
+        "Azure Virtual WAN with a Secured Virtual Hub running Azure Firewall, and intent-based routing that automatically routes all spoke-to-spoke traffic through the hub firewall",
+        "Site-to-site VPN connections from each spoke VNet to the hub using a centralised VPN gateway — VPN gateways route encrypted traffic but are not designed for east-west spoke-to-spoke Azure Firewall inspection",
+        "Full mesh VNet peering between all spoke VNets so traffic flows directly between spokes without Azure Firewall inspection — bypasses the hub entirely; cannot enforce centralised Azure Firewall policy"
       ],
       "correct": 1,
       "explanation": "Azure Virtual WAN Secured Virtual Hub integrates Azure Firewall (or third-party NVAs via NVA infrastructure) directly into the hub and uses intent-based routing to automatically route all inter-spoke and branch traffic through the firewall. New spokes connect to the vWAN hub with minimal configuration and inherit routing automatically. Classic hub-and-spoke with UDRs works but requires manual UDR management on every spoke as new spokes are added. Full mesh doesn't route through a central security point. VPN for VNet-to-VNet adds unnecessary complexity.",
@@ -545,10 +545,10 @@
       "id": "az305-026",
       "question": "A solutions architect must design connectivity from an on-premises datacenter to Azure with guaranteed bandwidth, low latency, and consistent throughput for a financial services application transferring large data sets. Which connectivity option is most appropriate?",
       "options": [
-        "Site-to-site IPsec VPN over the public internet — cost-effective with AES-256 encryption and BGP route exchange",
-        "Azure Virtual WAN with point-to-site VPN gateways for all on-premises users connecting from the corporate network",
-        "Azure ExpressRoute Direct with Global Reach providing 100 Gbps datacenter-to-datacenter private connectivity",
-        "Azure ExpressRoute with a dedicated private circuit through a connectivity provider for SLA-backed bandwidth and latency"
+        "Site-to-site IPsec VPN over the public internet — cost-effective with AES-256 encryption but relies on the public internet with variable bandwidth and latency; no SLA for dedicated throughput",
+        "Azure Virtual WAN with point-to-site VPN gateways for on-premises users — designed for remote-user VPN access, not dedicated high-bandwidth low-latency datacenter connectivity",
+        "Azure ExpressRoute Direct providing 100 Gbps datacenter-to-datacenter private bandwidth with Global Reach — highest bandwidth option but only needed when 10+ Gbps dedicated bandwidth is required",
+        "Azure ExpressRoute with a dedicated private circuit through a connectivity provider — guaranteed bandwidth, consistent low latency, and SLA-backed private connectivity from on-premises to Azure"
       ],
       "correct": 3,
       "explanation": "ExpressRoute provides a private, dedicated connection from on-premises to Azure via a connectivity provider, avoiding the public internet entirely. It offers: SLA-backed bandwidth from 50 Mbps to 10 Gbps (100 Gbps with ExpressRoute Direct), consistent latency, and private peering to Azure VNets. Financial services applications with large data transfers need deterministic throughput — internet-based VPN has variable latency and bandwidth. ExpressRoute Direct is for organizations requiring 100 Gbps direct connectivity, which is over-specified here.",
@@ -609,10 +609,10 @@
       "id": "az305-029",
       "question": "An architect is designing a network security strategy for an Azure environment. The requirement is to block all internet egress traffic from VMs and only allow outbound traffic to specific service endpoints (Azure Storage and Azure SQL). How should this be implemented?",
       "options": [
-        "Configure Azure Firewall with application rules allowing outbound traffic only to Azure Storage and SQL public IP ranges",
-        "Deploy Private Endpoints for Storage and SQL with a UDR sending 0.0.0.0/0 to an NVA that blocks internet but permits the private IPs",
-        "Use NSG outbound rules denying internet traffic plus rules allowing the Storage and Sql service tags, with VNet Service Endpoints enabled",
-        "Deploy an Azure NAT Gateway on the subnet and configure route tables that drop 0.0.0.0/0 to block internet egress entirely"
+        "Configure Azure Firewall with application rules allowing outbound traffic only to Azure Storage and SQL FQDNs — valid but adds cost of Azure Firewall; NSG Service Tags are a simpler native solution",
+        "Deploy Private Endpoints for Storage and SQL with a UDR sending 0.0.0.0/0 to an NVA that blocks all other egress — Private Endpoints provide a private network path but require NVA for internet blocking",
+        "Use NSG outbound rules denying internet traffic (0.0.0.0/0) and add inbound/outbound rules allowing the 'Storage' and 'Sql' service tags on the VNet subnet — no internet egress, Azure PaaS service access via service tags",
+        "Deploy an Azure NAT Gateway on the subnet and configure route tables that drop 0.0.0.0/0 traffic to the internet — NAT Gateway enables outbound internet access, the opposite of the requirement"
       ],
       "correct": 2,
       "explanation": "NSG outbound rules with service tags allow traffic to 'Storage.EastUS' and 'Sql.EastUS' service tag ranges, then deny all internet traffic (0.0.0.0/0). VNet Service Endpoints for Storage and SQL ensure traffic from the VNet to these services routes through the Azure backbone (not the internet) and the Storage/SQL firewall can restrict access to the specific VNet subnet. This is simpler and cheaper than Azure Firewall for service-specific egress control. Private Endpoints also work but are more complex and costly.",
@@ -715,10 +715,10 @@
       "id": "az305-034",
       "question": "A solutions architect needs to design an API layer for a microservices application. The API must support rate limiting, request/response transformation, authentication (JWT validation), developer portal for API documentation, and monetization through subscription keys. Which Azure service provides all of these capabilities?",
       "options": [
-        "Azure API Management with inbound/outbound policies, JWT validation, a developer portal, and product subscription keys for monetization",
-        "Azure Application Gateway with the WAF SKU configured for API security, URL-based routing, and header rewrite rules",
-        "Azure Functions with custom middleware that implements rate limiting, JWT validation, and request transformation per endpoint",
-        "Azure Front Door with the Rules Engine for API routing, WAF protection, and edge-based authentication enforcement"
+        "Azure API Management — provides inbound/outbound policies for rate limiting and transformation, JWT validation, a developer portal for API subscription and key management, and monetisation tiers",
+        "Azure Application Gateway with WAF SKU — provides Layer-7 load balancing and WAF protection but lacks native API-specific rate limiting, JWT validation policies, or a developer portal for subscription key management",
+        "Azure Functions with custom middleware — can implement rate limiting and JWT validation in code but requires building and maintaining the developer portal, subscription management, and monetisation logic from scratch",
+        "Azure Front Door with Rules Engine — provides global edge routing and WAF but lacks native API subscription key management, JWT policy enforcement, and a built-in developer portal for API monetisation"
       ],
       "correct": 0,
       "explanation": "Azure API Management is specifically designed as a full-lifecycle API management platform. Key features: Inbound/outbound policies (rate limiting, IP filtering, JWT validation, header transformation), OAuth2/OpenID Connect integration, developer portal (auto-generated API documentation, subscription management), product tiers with subscription keys for monetization, built-in analytics, and backend load balancing. Application Gateway and Front Door are network-layer load balancers without API management capabilities. Azure Functions require building all cross-cutting concerns from scratch.",
@@ -757,10 +757,10 @@
       "id": "az305-036",
       "question": "A developer team wants to deploy a web application using containers to Azure with no Kubernetes management overhead, automatic HTTPS, built-in scale-to-zero, and support for sidecar containers. Which Azure service provides all of these?",
       "options": [
-        "Azure Container Apps — managed container PaaS with KEDA autoscale (including scale-to-zero), HTTPS ingress, and sidecar support",
-        "Azure Container Instances (ACI) — serverless containers with no cluster management and per-second billing on each container group",
-        "Azure App Service for Containers running a Docker image with built-in autoscaling and managed TLS via App Service plans",
-        "Azure Kubernetes Service (AKS) with a serverless node pool using Virtual Nodes for burst capacity into ACI underneath"
+        "Azure Container Apps — managed serverless container platform with KEDA autoscale including scale-to-zero on HTTPS traffic, Dapr sidecar support, and no Kubernetes management overhead",
+        "Azure Container Instances (ACI) — runs containers without a cluster or Kubernetes overhead, with per-second billing, but has no built-in HTTPS autoscaling, scale-to-zero triggers, or sidecar support",
+        "Azure App Service for Containers — managed PaaS with HTTPS autoscale and no Kubernetes management, but limited to single-container workloads without KEDA or Dapr sidecar support",
+        "Azure Kubernetes Service (AKS) with Virtual Nodes — provides KEDA scale-to-zero and full Kubernetes sidecar support but requires managing the Kubernetes control plane, cluster upgrades, and node configurations"
       ],
       "correct": 0,
       "explanation": "Azure Container Apps is the modern PaaS for microservices containers without Kubernetes management. It provides: KEDA-based autoscaling including scale-to-zero, built-in HTTPS ingress with auto-managed TLS certificates, sidecar container support (Dapr integration), revision management for blue-green deployments, and support for event-driven architectures. ACI is for single containers without built-in HTTP ingress or KEDA scaling. App Service supports containers but doesn't support sidecars natively. AKS requires cluster management.",
@@ -799,10 +799,10 @@
       "id": "az305-038",
       "question": "An organization must implement multi-region active-active deployment for a web application with shared state. Users must always be routed to the nearest healthy region, and sessions must be consistent across regions. Which Azure services form this architecture?",
       "options": [
-        "Azure Traffic Manager with Geographic routing; Azure SQL Database with Active Geo-Replication for read-only replicas in each region",
-        "Azure Front Door for global traffic routing with origin health probes; Azure Cosmos DB with multi-region writes for shared session state",
-        "Azure Load Balancer Standard (cross-region) with Azure Cache for Redis Premium geo-replication for cross-region session reads",
-        "Azure Application Gateway in each region behind Traffic Manager DNS; Azure SQL Database with Auto-Failover Groups for session data"
+        "Azure Traffic Manager with Geographic routing plus Azure SQL Database Active Geo-Replication — Traffic Manager provides DNS failover for multi-region, but SQL Geo-Replication is active-passive; shared state is not truly multi-region active-active",
+        "Azure Front Door for global traffic routing with health probes plus Azure Cosmos DB with multi-region writes — both components are designed for active-active; Front Door routes to the nearest healthy origin; Cosmos DB handles multi-region shared state",
+        "Azure Load Balancer Standard cross-region plus Azure Cache for Redis Premium geo-replication — cross-region Load Balancer is TCP/UDP-level; Redis geo-replication is active-passive; not designed for multi-region active-active shared state",
+        "Azure Application Gateway in each region behind Traffic Manager DNS plus Azure SQL Database with auto-failover — Application Gateway is regional; multi-region routing with Traffic Manager is active-passive for SQL; shared state is not truly active-active"
       ],
       "correct": 1,
       "explanation": "Azure Front Door provides global anycast routing to the nearest healthy region with sub-second health probe detection and automatic failover. For active-active with shared session state, Cosmos DB with multi-region write (also called multi-master) is the key: any region can write sessions, with automatic conflict resolution and replication to all regions. SQL Geo-Replication provides read-only secondaries — cannot write to secondaries in active-active. Redis geo-replication is asynchronous and doesn't support multi-master writes.",
@@ -821,10 +821,10 @@
       "id": "az305-039",
       "question": "A company's security team requires that all access to Azure Key Vault secrets from application VMs happens over private network paths — no public internet. The VMs are in an Azure VNet. Which network design achieves this?",
       "options": [
-        "Enable the Key Vault firewall and add the VNet subnet to the allowed Virtual Networks list using a Service Endpoint",
-        "Deploy Azure Firewall in the hub VNet and add the Key Vault FQDN to its allowed application rules collection",
-        "Configure NSG outbound rules on the application subnet to block all egress except traffic to Key Vault's public IPs",
-        "Deploy a Private Endpoint for the Key Vault in the application VNet, with a Private DNS Zone resolving the vault FQDN"
+        "Enable the Key Vault firewall and add the VNet subnet to the allowed Virtual Networks list — this restricts access to a private subnet but still uses the public Key Vault endpoint, not a fully private endpoint",
+        "Deploy Azure Firewall in the hub VNet and add the Key Vault FQDN to its allowed application rules — routes traffic through the firewall but does not eliminate the public endpoint exposure",
+        "Configure NSG outbound rules on the application subnet to block all egress except traffic to the Key Vault public IP — Key Vault public IP can change; NSG rules do not prevent private-network-only access",
+        "Deploy a Private Endpoint for the Key Vault in the application VNet with a Private DNS Zone so all Key Vault traffic stays on the private network without traversing the public internet"
       ],
       "correct": 3,
       "explanation": "Private Endpoints create a private network interface with a private IP address within your VNet for the Key Vault. Azure Private DNS Zones override public DNS resolution so 'vault.vault.azure.net' resolves to the private IP instead of the public endpoint. All traffic from VMs to Key Vault flows through the VNet/backbone, never traversing the internet. Service Endpoints keep traffic on the backbone but the Key Vault endpoint is still a public IP from the VM's perspective — it doesn't provide full private connectivity for all scenarios. Private Endpoint is the recommended approach for strict private access requirements.",
@@ -905,10 +905,10 @@
       "id": "az305-043",
       "question": "An architect needs to design a storage solution for a data science team. The team needs to store petabytes of raw CSV, Parquet, and JSON files in a hierarchical folder structure, with role-based access at both folder and file level. Query tools must be able to read files using standard tools. Which Azure storage service is most appropriate?",
       "options": [
-        "Azure Data Lake Storage Gen2 with hierarchical namespace enabled, POSIX ACLs at file and folder level, and analytics-optimized throughput",
-        "Azure Managed Disks attached to a Linux VM exposing the data over NFS v4.1 to the data science team for shared filesystem access",
-        "Azure Files (SMB) with directory-level Azure RBAC for hierarchical folder access and share snapshots for the analytics team",
-        "Azure Blob Storage (flat namespace) with container-level RBAC for access control and a shared SAS URL per analyst"
+        "Azure Data Lake Storage Gen2 with hierarchical namespace and POSIX ACLs at file and folder level — purpose-built for petabyte-scale analytics workloads with hierarchical access control and compatibility with analytics engines",
+        "Azure Managed Disks attached to a Linux VM and exposed over NFS v4.1 — provides file-level access at NFS protocol, but managed disks are per-VM block storage; petabyte scale requires cluster storage, not a single VM",
+        "Azure Files (SMB) with directory-level Azure RBAC — SMB-based file share supporting folder-level permissions, but optimised for lift-and-shift file shares, not petabyte analytics workloads",
+        "Azure Blob Storage (flat namespace) with container-level RBAC — petabyte-scale object storage but lacks hierarchical namespace, file-level ACLs, and POSIX permission model needed for analytics engine compatibility"
       ],
       "correct": 0,
       "explanation": "Azure Data Lake Storage Gen2 (ADLS Gen2) is Azure Blob Storage with hierarchical namespace (HNS) enabled. HNS provides: true directory operations (rename/delete are O(1) atomic operations, not O(n) copies), POSIX-compliant ACLs for file-and-folder-level access control (owner, group, other with rwx permissions), and 10x+ performance improvement for analytics operations. It supports Parquet/CSV/JSON natively and integrates with Azure Synapse, Databricks, and HDInsight. Flat-namespace Blob has no folder-level POSIX ACLs. Azure Files uses SMB, not optimized for analytics.",
