@@ -1,0 +1,181 @@
+{
+  "meta": {
+    "id": "pcnse",
+    "name": "Palo Alto Networks Certified Network Security Engineer (PCNSE)",
+    "vendor": "Palo Alto Networks",
+    "version": "1.0.0",
+    "question_count": 12,
+    "last_updated": "2026-05-24",
+    "notes": "Initial PCNSE pack — covers HA, decryption, Panorama, NAT, GlobalProtect, App-ID dependencies, virtual routers, content updates, zones, and WildFire."
+  },
+  "questions": [
+    {
+      "id": "pcnse-001",
+      "question": "Two PA-5250 firewalls are deployed in active/passive HA. After a planned failover test, sessions fail over but application traffic that requires content inspection is reclassified from scratch on the new active peer, which briefly elevates CPU. Which HA link or feature, when added, will pre-synchronize the App-ID state so reclassification is avoided?",
+      "options": [
+        "Adding a dedicated HA1 backup link over a management interface so heartbeats survive a control-plane fault",
+        "Enabling the HA3 link, which carries packet-forwarding traffic between peers in active/active deployments only",
+        "Enabling the HA2 data link with session synchronization, which mirrors session, ARP, and App-ID state to the passive peer",
+        "Enabling Layer 3 link monitoring on the data interfaces so the firewall pre-elects a master before failover begins"
+      ],
+      "correct": 2,
+      "explanation": "HA2 is the data-plane synchronization link. It mirrors the session table — including App-ID classification, decrypted state, and ARP/MAC tables — from the active to the passive firewall. With HA2 enabled, sessions on the new active peer keep their App-ID classification and do not need to be re-evaluated. HA1 carries only control-plane heartbeats and config sync; HA3 is for active/active packet forwarding; link monitoring detects faults but does not sync state.",
+      "tags": ["high-availability", "ha2", "session-sync", "pcnse"],
+      "difficulty": "medium"
+    },
+    {
+      "id": "pcnse-002",
+      "question": "A security team must inspect outbound HTTPS traffic going from internal users to arbitrary external sites for threats and data exfiltration. Internal clients trust an enterprise root CA. Which decryption mode is appropriate?",
+      "options": [
+        "SSL Inbound Inspection, which uses the destination server's private key to decrypt sessions terminating on an internal server",
+        "SSH Proxy, which intercepts SSH sessions and re-encrypts them with a firewall-generated host key",
+        "SSL Forward Proxy with a trusted enterprise CA certificate installed as Forward Trust on the firewall",
+        "Decryption broker mode, which forwards a copy of plaintext to a third-party tool but does not block threats inline"
+      ],
+      "correct": 2,
+      "explanation": "SSL Forward Proxy is used to decrypt traffic where the firewall sits between an internal client and an external server. The firewall acts as a man-in-the-middle, presenting a certificate signed by the Forward Trust CA (the enterprise root, pre-installed on clients) so the browser does not warn. Inbound Inspection is for traffic to an internal server whose private key the firewall holds. SSH Proxy only covers SSH. Decryption broker copies plaintext to another tool but does not block threats inline by itself.",
+      "tags": ["decryption", "ssl-forward-proxy", "pki", "pcnse"],
+      "difficulty": "medium"
+    },
+    {
+      "id": "pcnse-003",
+      "question": "An administrator wants to push different Security policies to branch firewalls than to data-center firewalls from Panorama, while reusing the same set of Interface, Zone, and Log Forwarding profiles across all sites. Which Panorama construct combination is correct?",
+      "options": [
+        "Use one Device Group containing all firewalls and rely on tag-based rule filtering to differentiate sites",
+        "Use separate Templates per site and a single global Device Group, since rules are defined inside Templates",
+        "Use separate Device Groups for branch and data-center firewalls, and a shared Template Stack for common network and device settings",
+        "Use a Collector Group per site so each firewall pulls only the policies relevant to its location"
+      ],
+      "correct": 2,
+      "explanation": "In Panorama, Device Groups carry policy and object configuration (Security, NAT, decryption rules, address objects), while Templates and Template Stacks carry network and device configuration (interfaces, zones, virtual routers, log forwarding, system settings). Splitting Device Groups by role separates policy sets; sharing a Template Stack reuses the network/device baseline. Collector Groups apply to log collection, not policy distribution.",
+      "tags": ["panorama", "device-groups", "templates", "pcnse"],
+      "difficulty": "medium"
+    },
+    {
+      "id": "pcnse-004",
+      "question": "An internal web server at 10.1.1.20 needs to be reachable from the internet at the public IP 203.0.113.50 on TCP/443. The firewall has a public-facing untrust zone and an internal dmz zone. Which NAT and Security policy configuration is correct?",
+      "options": [
+        "A destination NAT translating 203.0.113.50:443 → 10.1.1.20:443, and a Security rule from untrust to dmz with destination 203.0.113.50 (pre-NAT) and service service-https",
+        "A static source NAT translating 10.1.1.20 → 203.0.113.50, and a Security rule from dmz to untrust permitting service-https",
+        "A bidirectional source NAT on the dmz interface, and a Security rule from untrust to untrust with the pre-NAT public IP",
+        "A destination NAT translating 203.0.113.50:443 → 10.1.1.20:443, and a Security rule from untrust to untrust because the destination zone is evaluated pre-NAT"
+      ],
+      "correct": 0,
+      "explanation": "For inbound publishing of an internal server, you need a Destination NAT (DNAT) translating the public IP to the internal IP. For the Security rule, the Palo Alto firewall evaluates the source/destination ZONE post-NAT (because the route lookup happens before the security policy lookup), so the destination zone is dmz, but the destination IP ADDRESS in the security rule is the pre-NAT public address (203.0.113.50). This is one of the most tested PCNSE subtleties.",
+      "tags": ["nat", "destination-nat", "security-policy", "pcnse"],
+      "difficulty": "hard"
+    },
+    {
+      "id": "pcnse-005",
+      "question": "A GlobalProtect deployment must allow remote users to authenticate once, automatically discover the closest gateway, and tunnel traffic to it. Which component performs gateway selection and certificate distribution?",
+      "options": [
+        "The GlobalProtect Gateway, which authenticates users and brokers them to the appropriate Portal based on geographic proximity",
+        "The User-ID Agent, which maps the source IP to the user before any tunnel is established",
+        "Panorama, which assigns each GlobalProtect client to a tunnel based on the device group it belongs to",
+        "The GlobalProtect Portal, which authenticates the user, returns the client configuration with a list of gateways, and delivers the agent"
+      ],
+      "correct": 3,
+      "explanation": "The GlobalProtect Portal is the entry point: it authenticates the user, downloads the agent, and returns the client configuration including the list of gateways, certificates, and authentication methods. The agent then evaluates gateway priorities (often based on SSL response time) and connects. The Gateway handles the actual tunnel termination, traffic inspection, and policy enforcement. User-ID is a mapping function, not a connector. Panorama manages config but does not negotiate per-session client connections.",
+      "tags": ["globalprotect", "portal", "gateway", "pcnse"],
+      "difficulty": "easy"
+    },
+    {
+      "id": "pcnse-006",
+      "question": "A Security rule explicitly allows application web-browsing. After enabling App-ID for a SaaS application that runs over HTTP, the SaaS traffic is unexpectedly blocked. What is the most common cause and the correct fix?",
+      "options": [
+        "App-ID requires SSL decryption to identify any HTTP-based application; enable SSL Forward Proxy on the rule",
+        "Security policy rule order is processed bottom-up; move the SaaS rule below web-browsing so it is evaluated first",
+        "The HTTP application uses non-standard ports; replace service application-default with service service-http",
+        "The SaaS application has an App-ID dependency on web-browsing; add the parent application or use application-default service and let App-ID shift identification"
+      ],
+      "correct": 3,
+      "explanation": "Many App-IDs depend on a parent application (web-browsing or ssl) until enough payload is seen to refine identification. If a rule allows only the child SaaS App-ID but blocks web-browsing, the initial packets are dropped before App-ID can shift. The fix is to include the parent application(s) in the same rule, or use application-default and let App-ID identify and shift the session. Decryption is required only for HTTPS, not plain HTTP. Palo Alto evaluates security rules top-down, not bottom-up.",
+      "tags": ["app-id", "application-dependency", "policy", "pcnse"],
+      "difficulty": "hard"
+    },
+    {
+      "id": "pcnse-007",
+      "question": "A firewall has two virtual routers, VR-Trust and VR-Untrust, used to isolate routing tables for two tenants. A user in VR-Trust must reach a server reachable only via a route in VR-Untrust. Which configuration achieves this without merging the virtual routers?",
+      "options": [
+        "Add a policy-based forwarding rule on VR-Trust that bypasses the route lookup and forwards directly to VR-Untrust",
+        "Add a static route on VR-Trust whose next-hop is set to the VR-Untrust virtual router (Next VR), and a return route on VR-Untrust pointing back to VR-Trust",
+        "Enable BGP route reflector between VR-Trust and VR-Untrust so each router learns the other's prefixes automatically",
+        "Define a tunnel interface in VR-Trust and terminate it in VR-Untrust to bridge the routing tables transparently"
+      ],
+      "correct": 1,
+      "explanation": "To leak routes between two virtual routers on the same Palo Alto firewall, you create a static route whose next hop is set to the other virtual router (the 'Next VR' option). A return route is required so the reply traffic finds its way back. PBF can override routing but is not the cleanest tool for steady-state inter-VR reachability. BGP route reflection is for iBGP scaling, not inter-VR leaking. Tunnels are a workaround but unnecessary and add overhead.",
+      "tags": ["virtual-router", "next-vr", "routing", "pcnse"],
+      "difficulty": "hard"
+    },
+    {
+      "id": "pcnse-008",
+      "question": "A firewall in production needs WildFire signatures applied as quickly as possible to catch zero-day malware seen in the last few minutes. Which Dynamic Updates configuration achieves this?",
+      "options": [
+        "Set Antivirus updates to download and install every 24 hours, since WildFire signatures roll into Antivirus content within that window",
+        "Set WildFire updates to download and install every minute, with a threshold of 0 minutes so signatures apply as soon as published",
+        "Disable Dynamic Updates and rely on inline WildFire analysis to block files in real time without signatures",
+        "Set Applications and Threats updates to every 30 minutes; WildFire is included in the Threats content"
+      ],
+      "correct": 1,
+      "explanation": "PAN-OS supports near-real-time WildFire signatures with a download schedule as low as every 1 minute. Setting the WildFire content update interval to 1 minute with a recurrence threshold of 0 means new signatures install immediately upon publish. Antivirus content updates daily and incorporates WildFire signatures but with a longer lag. Inline WildFire analysis can supplement signatures but does not replace them. Applications and Threats is a separate content package.",
+      "tags": ["wildfire", "dynamic-updates", "content", "pcnse"],
+      "difficulty": "medium"
+    },
+    {
+      "id": "pcnse-009",
+      "question": "By default, what happens to traffic between two interfaces assigned to the SAME security zone, and what happens to traffic between interfaces in DIFFERENT zones, when no Security rule matches?",
+      "options": [
+        "Intrazone traffic is allowed by default; interzone traffic is denied by default",
+        "Intrazone traffic is denied by default; interzone traffic is allowed if both zones share a virtual router",
+        "Both intrazone and interzone traffic are allowed by default until an explicit deny rule is added",
+        "Both intrazone and interzone traffic are denied by default; the default rules must be cloned and enabled to log them"
+      ],
+      "correct": 0,
+      "explanation": "PAN-OS ships with two default rules at the bottom of the Security policy: intrazone-default (allow) and interzone-default (deny). Traffic between two interfaces in the same zone is allowed implicitly; traffic between different zones is dropped unless explicitly permitted. The default rules can be overridden (cloned and edited) to enable logging or change the action, but the underlying default behavior is allow-intrazone, deny-interzone.",
+      "tags": ["zones", "default-rules", "security-policy", "pcnse"],
+      "difficulty": "easy"
+    },
+    {
+      "id": "pcnse-010",
+      "question": "An administrator must trigger an immediate failover from the active firewall in an active/passive HA pair so they can perform maintenance on it. Which CLI command on the active peer initiates a controlled failover?",
+      "options": [
+        "request high-availability state suspend",
+        "debug ha-mgr reset",
+        "set deviceconfig system ha-state passive",
+        "request restart system"
+      ],
+      "correct": 0,
+      "explanation": "The PCNSE-standard command 'request high-availability state suspend' on the active firewall changes its HA state to suspended, which causes the passive peer to take over as active. The administrator can then perform maintenance and run 'request high-availability state functional' to restore it. 'debug ha-mgr reset' is troubleshooting only. 'set deviceconfig...' is not the supported way to flip HA state. A full system restart works but causes an unclean interruption rather than a graceful failover.",
+      "tags": ["high-availability", "cli", "failover", "pcnse"],
+      "difficulty": "medium"
+    },
+    {
+      "id": "pcnse-011",
+      "question": "After enabling SSL Forward Proxy, internal users browsing certain banking sites get a certificate error in the browser, while most other HTTPS sites work fine. The Forward Trust enterprise root CA is installed on all clients. What is the most likely cause and recommended action?",
+      "options": [
+        "The clients are missing the Forward Untrust CA; install it on every client to suppress the warning",
+        "The Forward Trust certificate has expired and must be regenerated; this affects only newly negotiated sessions to financial domains",
+        "The banking sites use HSTS or certificate pinning that rejects the firewall-generated certificate; exclude those sites from decryption via a Decryption policy No-Decrypt rule",
+        "The firewall is rate-limiting decryption capacity; license a higher decryption tier so all HTTPS sites can be decrypted simultaneously"
+      ],
+      "correct": 2,
+      "explanation": "Banking sites and many high-security applications use HSTS or certificate pinning, which means the client refuses any certificate that is not the pinned legitimate one — even if it chains to a trusted enterprise CA. The standard practice is to exclude these sites from decryption using a Decryption policy with action No-Decrypt (often using the URL category 'financial-services' and a custom exclude list). The Forward Untrust certificate is presented only when a server's certificate is untrusted — it is unrelated to pinning. License tiers do not gate decryption per-site.",
+      "tags": ["decryption", "certificate-pinning", "exceptions", "pcnse"],
+      "difficulty": "hard"
+    },
+    {
+      "id": "pcnse-012",
+      "question": "A Panorama administrator pushes a commit to a Device Group containing both a PA-3220 and a PA-5260. The PA-5260 commit succeeds, but the PA-3220 returns 'commit failed: rule references object not found'. Where is the most likely cause of the inconsistency?",
+      "options": [
+        "The PA-3220 is running an older PAN-OS version that does not support the new schema; upgrade the device before committing",
+        "An object was defined in a child Device Group that the PA-3220 does not belong to, while the rule is in the shared/parent Device Group and resolves on the PA-5260 only",
+        "Panorama randomly distributes objects per firewall in the same Device Group; toggle 'Force Template Values' to redistribute",
+        "Local rules on the PA-3220 take precedence over Panorama rules, blocking object inheritance until they are deleted"
+      ],
+      "correct": 1,
+      "explanation": "Panorama uses a hierarchy: objects defined in a child Device Group are visible only to firewalls that belong to that child group. If a rule in the shared or parent Device Group references an object defined only in a sibling/child group, firewalls outside that group will fail to resolve the object — exactly the 'object not found' error. The fix is to move the object up to a Device Group that includes both firewalls (or to Shared). Panorama does not randomly distribute objects; local rules do not block inheritance.",
+      "tags": ["panorama", "device-groups", "object-inheritance", "pcnse"],
+      "difficulty": "hard"
+    }
+  ]
+}
