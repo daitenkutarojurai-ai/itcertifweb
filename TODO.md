@@ -1277,6 +1277,25 @@ competition-driven, community-driven** layer. Highest-priority builds:
 
 ---
 
+## 📦 Content expansion R5 (2026-05-24)
+
+Scheduled-agent run targeting the "target 15+ comparison pages" content
+queue. One new high-search-volume comparison shipped this run:
+
+- **+1 Cert Comparator page** (cluster 11 → 12):
+  - `aws-dva-c02-vs-aws-saa-c03` — the classic AWS Associate decision
+    (Developer vs Solutions Architect). 8 verdict rows covering: default
+    pick, dev-backend rôle, architect/consulting rôle, salary maxing,
+    SAP-C02 pipeline, serverless-only teams, AWS partner staffing,
+    "passer les deux en 6 mois" sequence.
+  - Data + generator pattern matches `_schema.md` (no schema drift).
+  - `salaryAlias: "aws-saa"` resolves to the existing France salary band;
+    DVA has no salary file yet so the cell shows "—" gracefully.
+- `npm run gen-compare` regenerated 12 comparator pages + the
+  `/compare/` index. sitemap.xml +1 entry.
+- 120/120 tests still pass. No cache version bump (new HTML only, no
+  JS/CSS changes).
+
 ## 📦 Content expansion R4 (2026-05-15)
 
 After R3, +6 hand-authored content pages on the slower-to-write
