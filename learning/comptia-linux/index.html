@@ -81,6 +81,10 @@
 .module-quiz-text strong { color: #a5b4fc; font-weight: 700; }
 .module-quiz-cta { display: inline-flex; align-items: center; gap: 8px; padding: 9px 16px; border-radius: 8px; background: #6366f1; color: #fff !important; font-weight: 700; font-size: 13px; text-decoration: none !important; white-space: nowrap; }
 .module-quiz-cta:hover { background: #4f46e5; }
+.scenario-walkthrough { margin-top: 14px; padding: 14px 18px; background: rgba(56, 189, 248, 0.05); border-left: 3px solid #38bdf8; border-radius: 8px; font-size: 14.5px; line-height: 1.7; color: var(--text); }
+.scenario-walkthrough-head { font-family: var(--font-mono); font-size: 11px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: #38bdf8; margin: 0 0 8px; }
+.scenario-walkthrough strong { color: #7dd3fc; }
+.scenario-walkthrough code { font-family: var(--font-mono); font-size: 0.88em; padding: 1px 5px; background: rgba(255,255,255,0.05); border-radius: 4px; color: #bae6fd; }
 </style>
 </head>
 <body>
@@ -183,6 +187,10 @@
               <li><code>grub rescue&gt; insmod normal</code> then <code>grub rescue&gt; normal</code> — load normal GRUB mode</li>
             </ul>
             <div class="exam-tip">The exam tests the grub.cfg location — it is <code>/boot/grub2/grub.cfg</code> on RHEL/CentOS systems. Always regenerate with <code>grub2-mkconfig</code> after editing <code>/etc/default/grub</code>. Editing grub.cfg directly is wrong — changes are overwritten on update.</div>
+            <div class="scenario-walkthrough">
+              <div class="scenario-walkthrough-head">💻 Worked scenario — GRUB2 rescue recovery</div>
+              A disk swap leaves the server at a <code>grub rescue&gt;</code> prompt. <strong>Recovery sequence:</strong> (1) <code>ls</code> to list detected partitions — look for the one containing <code>/boot/grub2/</code> (e.g. <code>(hd0,gpt2)</code>); (2) <code>set root=(hd0,gpt2)</code>; (3) <code>set prefix=(hd0,gpt2)/boot/grub2</code>; (4) <code>insmod normal</code> then <code>normal</code> — GRUB loads its full menu; (5) boot into the OS, then fix permanently: edit <code>/etc/default/grub</code> as needed and run <code>grub2-mkconfig -o /boot/grub2/grub.cfg</code>. Verify: <code>grep menuentry /boot/grub2/grub.cfg</code> shows the boot entries.
+            </div>
           </div>
 
           <div class="lesson">
@@ -310,6 +318,10 @@
               <li><code>dnf config-manager --enable REPO_ID</code> / <code>--disable REPO_ID</code> — toggle repos</li>
             </ul>
             <div class="exam-tip">Know the difference: <code>dnf update</code> refreshes and installs newer package versions; <code>dnf upgrade</code> is an alias. <code>dnf check-update</code> lists available updates without installing them. Also: <code>yum</code> is the legacy name — on modern RHEL 8+ systems it is a symlink to <code>dnf</code>.</div>
+            <div class="scenario-walkthrough">
+              <div class="scenario-walkthrough-head">💻 Worked scenario — package lifecycle with history rollback</div>
+              Task: identify which package provides <code>/usr/bin/iostat</code>, install it, verify, then roll it back. <strong>Walk:</strong> (1) <code>dnf provides /usr/bin/iostat</code> → shows <code>sysstat</code>; (2) <code>dnf install sysstat</code>; (3) <code>rpm -ql sysstat | grep iostat</code> confirms the binary is installed; (4) <code>dnf history</code> → note the transaction ID (e.g. 47); (5) <code>dnf history info 47</code> to inspect what was changed; (6) <code>dnf history undo 47</code> removes the package cleanly. This sequence also tests repos: if <code>dnf provides</code> returns nothing, <code>dnf repolist</code> and check that the right repo is enabled.
+            </div>
           </div>
 
           <div class="lesson">
@@ -424,6 +436,10 @@
               <li><code>/etc/group</code> — format: <code>groupname:x:GID:member1,member2</code></li>
             </ul>
             <div class="exam-tip">The <code>-a</code> flag with <code>usermod -G</code> is critical. Running <code>usermod -G GROUP USER</code> without <code>-a</code> REPLACES all supplementary groups with only the specified group — this is a classic misconfiguration that locks users out of shared resources.</div>
+            <div class="scenario-walkthrough">
+              <div class="scenario-walkthrough-head">💻 Worked scenario — service account with exact UID and group</div>
+              Task: create <code>svc-monitor</code> with UID 3001, no interactive login, added to the <code>monitoring</code> group without disrupting other memberships. <strong>Walk:</strong> (1) <code>useradd -u 3001 -s /sbin/nologin svc-monitor</code>; (2) <code>groupadd monitoring</code> (if the group doesn't exist); (3) <code>usermod -aG monitoring svc-monitor</code> — the <code>-a</code> is mandatory, omitting it silently wipes all other supplementary groups; (4) verify: <code>id svc-monitor</code> shows UID=3001 and includes the monitoring GID; (5) <code>grep svc-monitor /etc/passwd</code> confirms the shell is <code>/sbin/nologin</code>. Attempting <code>su - svc-monitor</code> as root should say "This account is currently not available."
+            </div>
           </div>
 
           <div class="lesson">
@@ -589,6 +605,10 @@
               <li><code>lvcreate -L 5G -s -n snap /dev/myvg/mylv</code> — create a snapshot of an LV</li>
             </ul>
             <div class="exam-tip">To shrink an ext4 LV: unmount → <code>e2fsck -f</code> → <code>resize2fs</code> to new smaller size → <code>lvreduce</code>. XFS cannot be shrunk at all. The exam frequently tests this order-of-operations for both grow and shrink scenarios.</div>
+            <div class="scenario-walkthrough">
+              <div class="scenario-walkthrough-head">💻 Worked scenario — LVM build and online extend</div>
+              Task: create a 10G XFS volume from two raw disks, mount it persistently, then extend by 5G. <strong>Walk:</strong> (1) <code>pvcreate /dev/sdb /dev/sdc</code>; (2) <code>vgcreate datavg /dev/sdb /dev/sdc</code>; (3) <code>lvcreate -L 10G -n datalv datavg</code>; (4) <code>mkfs.xfs /dev/datavg/datalv</code>; (5) <code>mkdir /data &amp;&amp; mount /dev/datavg/datalv /data</code>; (6) get the UUID with <code>blkid /dev/datavg/datalv</code>, then add to <code>/etc/fstab</code>: <code>UUID=&lt;value&gt; /data xfs defaults 0 0</code>; (7) <code>mount -a</code> to test. To extend: <code>lvextend -r -L +5G /dev/datavg/datalv</code> — the <code>-r</code> flag grows the LV and the XFS filesystem in one step. Confirm with <code>df -h /data</code> showing ~15G total.
+            </div>
           </div>
 
           <div class="lesson">
@@ -709,6 +729,10 @@
               <li>Connection profiles: <code>/etc/NetworkManager/system-connections/</code> (keyfile format in RHEL 8+)</li>
               <li>Restart networking: <code>nmcli connection reload</code> then <code>nmcli connection up CONNECTION</code></li>
             </ul>
+            <div class="scenario-walkthrough">
+              <div class="scenario-walkthrough-head">💻 Worked scenario — persistent static IP with nmcli</div>
+              Task: configure <code>ens3</code> with static IP <code>10.0.1.50/24</code>, gateway <code>10.0.1.1</code>, DNS <code>1.1.1.1</code>, and set hostname to <code>server2.lab.local</code>. <strong>Walk:</strong> (1) <code>hostnamectl set-hostname server2.lab.local</code>; (2) <code>nmcli con mod ens3 ipv4.addresses 10.0.1.50/24 ipv4.gateway 10.0.1.1 ipv4.dns 1.1.1.1 ipv4.method manual</code>; (3) <code>nmcli con up ens3</code> to activate — the <code>mod</code> writes to disk but changes are only applied when the connection is brought up; (4) verify: <code>ip a show ens3</code> (IP assigned), <code>ip route show default</code> (gateway), <code>cat /etc/resolv.conf</code> (DNS), <code>hostname</code> (hostname). Critical: anything set via <code>ip addr add</code> instead of <code>nmcli</code> vanishes at the next reboot.
+            </div>
           </div>
 
           <div class="lesson">
@@ -845,6 +869,10 @@
               <li><code>semodule -i mypolicy.pp</code> — install a custom SELinux policy module</li>
             </ul>
             <div class="exam-tip">After using <code>chcon</code> to change a file context, the change is temporary. A subsequent <code>restorecon</code> will reset it back to the default policy label. The correct permanent approach is <code>semanage fcontext</code> followed by <code>restorecon</code>. The exam tests this two-step workflow.</div>
+            <div class="scenario-walkthrough">
+              <div class="scenario-walkthrough-head">💻 Worked scenario — SELinux deny-and-fix for nginx</div>
+              Symptom: nginx returns 403 on files in <code>/data/web/</code> even though the Unix permissions are correct. <strong>Walk:</strong> (1) <code>getenforce</code> → Enforcing; (2) <code>grep AVC /var/log/audit/audit.log | tail -5</code> → shows a denial for <code>httpd_t</code> trying to read <code>/data/web</code>; (3) <code>audit2why &lt; /var/log/audit/audit.log</code> explains the cause: wrong SELinux file context; (4) fix permanently: <code>semanage fcontext -a -t httpd_sys_content_t "/data/web(/.*)?"</code>; (5) <code>restorecon -Rv /data/web/</code> applies the rule; (6) reload nginx and confirm the 403 is gone. If you had used <code>chcon -t httpd_sys_content_t /data/web</code> instead, the next <code>restorecon</code> run would silently revert it — permanent fix requires <code>semanage fcontext</code>.
+            </div>
           </div>
 
           <div class="lesson">
@@ -985,6 +1013,10 @@
               <li>Integer comparison: <code>-eq</code>, <code>-ne</code>, <code>-lt</code>, <code>-le</code>, <code>-gt</code>, <code>-ge</code></li>
             </ul>
             <div class="exam-tip"><code>$?</code> must be checked immediately after the command it refers to — the very next command overwrites it. A common pattern: <code>command; RC=$?; if [ $RC -ne 0 ]; then ...</code>. Also: <code>set -e</code> at the top of a script causes it to exit immediately on any non-zero return code.</div>
+            <div class="scenario-walkthrough">
+              <div class="scenario-walkthrough-head">💻 Worked scenario — service health-check script</div>
+              Task: write a script that checks if <code>nginx</code> and <code>sshd</code> are running, starts any that aren't, and logs results. <strong>Walk:</strong> Start with <code>#!/bin/bash</code> and <code>set -e</code> removed (we want the loop to continue on failure). Declare an array: <code>SERVICES=(nginx sshd)</code>. Loop: <code>for SVC in "${SERVICES[@]}"; do</code> — always quote array expansions. Check status: <code>if ! systemctl is-active --quiet "$SVC"; then</code> — <code>is-active --quiet</code> exits 0 (active) or non-zero (not), so <code>!</code> triggers on failure. Inside: <code>systemctl start "$SVC" &amp;&amp; echo "$(date '+%Y-%m-%d %T'): started $SVC" &gt;&gt; /var/log/svc-check.log</code>. Close with <code>fi; done</code>. Schedule via cron: add <code>*/5 * * * * root /usr/local/bin/svc-check.sh</code> to <code>/etc/cron.d/svc-check</code>.
+            </div>
           </div>
 
           <div class="lesson">
