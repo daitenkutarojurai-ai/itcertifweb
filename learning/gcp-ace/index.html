@@ -81,6 +81,10 @@
 .module-quiz-text strong { color: #a5b4fc; font-weight: 700; }
 .module-quiz-cta { display: inline-flex; align-items: center; gap: 8px; padding: 9px 16px; border-radius: 8px; background: #6366f1; color: #fff !important; font-weight: 700; font-size: 13px; text-decoration: none !important; white-space: nowrap; }
 .module-quiz-cta:hover { background: #4f46e5; }
+.scenario-walkthrough { margin-top: 14px; padding: 14px 18px; background: rgba(66, 133, 244, 0.05); border-left: 3px solid #4285F4; border-radius: 8px; font-size: 14.5px; line-height: 1.7; color: var(--text); }
+.scenario-walkthrough-head { font-family: var(--font-mono); font-size: 11px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: #60a5fa; margin: 0 0 8px; }
+.scenario-walkthrough strong { color: #93c5fd; }
+.scenario-walkthrough code { font-family: var(--font-mono); font-size: 0.88em; padding: 1px 5px; background: rgba(255,255,255,0.05); border-radius: 4px; color: #bfdbfe; }
 </style>
 </head>
 <body>
@@ -212,6 +216,12 @@
             <div class="exam-tip">Know the difference between SUDs (automatic, no action), CUDs (commitment-based), and Spot VMs (interruptible). The exam tests when to recommend each pricing model.</div>
           </div>
 
+          <div class="scenario-walkthrough">
+            <p class="scenario-walkthrough-head">&#x2601; Scenario &mdash; structuring a GCP resource hierarchy for a startup</p>
+            <p><strong>Situation:</strong> A startup has 3 teams (frontend, backend, data). Each needs isolated billing and separate IAM boundaries, but all engineers share a single Google Workspace account.</p>
+            <p><strong>Design:</strong> One <strong>Organization</strong> node (tied to the Google Workspace domain). One <strong>Folder</strong> per team (frontend-folder, backend-folder, data-folder). One <strong>Project</strong> per environment per team (e.g., backend-dev, backend-prod). Resources (VMs, buckets, databases) live inside projects. IAM policies applied at the folder level propagate to all child projects automatically.</p>
+            <p><strong>Why projects matter on the ACE exam:</strong> Projects are the billing unit and IAM boundary. All GCP resources belong to exactly one project. The <code>gcloud config set project PROJECT_ID</code> command sets the default project for CLI commands — forgetting this is a common mistake on the real exam's lab tasks.</p>
+          </div>
           <div class="module-takeaways">
             <div class="module-takeaways-head">Key takeaways</div>
             <ul>
@@ -307,6 +317,12 @@
             <div class="exam-tip">For internet-facing web apps needing global routing and DDoS protection: Global External HTTP(S) LB. For internal microservices: Internal HTTP(S) LB. For UDP/non-HTTP external: Regional Network LB.</div>
           </div>
 
+          <div class="scenario-walkthrough">
+            <p class="scenario-walkthrough-head">&#x2601; Scenario &mdash; deploying a preemptible VM for batch processing</p>
+            <p><strong>Situation:</strong> A data pipeline needs to process 500 GB of logs nightly. The job takes ~2 hours and can restart from a checkpoint if interrupted. Cost matters — this job runs every night.</p>
+            <p><strong>Walk:</strong> <strong>1)</strong> <code>gcloud compute instances create batch-worker-1 --zone=us-central1-a --machine-type=n1-standard-4 --preemptible --image-family=debian-11 --image-project=debian-cloud</code>. Preemptible VMs cost ~80% less but can be reclaimed by GCP with 30 seconds notice. <strong>2)</strong> Script handles SIGTERM: saves a checkpoint to Cloud Storage before shutdown. <strong>3)</strong> A Cloud Scheduler job retriggers the pipeline each night; if the VM was preempted, the job resumes from the last checkpoint. <strong>4)</strong> After migration: cost drops from ~$150/night (standard) to ~$30/night (preemptible).</p>
+            <p><strong>ACE exam note:</strong> Preemptible VMs are ideal for fault-tolerant batch jobs. Spot VMs (the successor) offer the same discount with more flexible preemption. For long-running services, use standard or committed-use VMs instead.</p>
+          </div>
           <div class="module-takeaways">
             <div class="module-takeaways-head">Key takeaways</div>
             <ul>
@@ -402,6 +418,12 @@
             <div class="study-note">Workload Identity replaces the pattern of downloading a service account JSON key and mounting it as a Kubernetes Secret — which is a security risk if the Secret is misconfigured or exposed.</div>
           </div>
 
+          <div class="scenario-walkthrough">
+            <p class="scenario-walkthrough-head">&#x2601; Scenario &mdash; deploying a containerised API to GKE</p>
+            <p><strong>Situation:</strong> A REST API packaged as a Docker image needs to run on GKE, scale from 2 to 10 replicas based on CPU, and be reachable via a public load balancer.</p>
+            <p><strong>Walk:</strong> <strong>1)</strong> Push image: <code>docker tag api gcr.io/my-project/api:v1 && docker push gcr.io/my-project/api:v1</code>. <strong>2)</strong> Create cluster: <code>gcloud container clusters create api-cluster --zone=us-central1-a --num-nodes=3</code>. <strong>3)</strong> Deploy: <code>kubectl create deployment api --image=gcr.io/my-project/api:v1 --replicas=2</code>. <strong>4)</strong> Expose: <code>kubectl expose deployment api --type=LoadBalancer --port=80 --target-port=8080</code>. GKE provisions a GCP HTTP load balancer and assigns a public IP. <strong>5)</strong> Autoscale: <code>kubectl autoscale deployment api --cpu-percent=70 --min=2 --max=10</code>. When CPU &gt;70%, new pods spin up automatically.</p>
+            <p><strong>ACE exam note:</strong> <code>LoadBalancer</code> Service type creates an external L4 load balancer. For L7 (HTTP routing, path-based, TLS termination) use an Ingress with a GKE Ingress controller.</p>
+          </div>
           <div class="module-takeaways">
             <div class="module-takeaways-head">Key takeaways</div>
             <ul>
@@ -520,6 +542,12 @@
             <div class="exam-tip">Database choice questions: Firestore = mobile/web app document data. Bigtable = time-series/IoT at massive scale. Memorystore = in-memory caching/session. Cloud SQL/Spanner = relational/transactional.</div>
           </div>
 
+          <div class="scenario-walkthrough">
+            <p class="scenario-walkthrough-head">&#x2601; Scenario &mdash; event-driven thumbnail generation with Cloud Functions + Cloud Storage</p>
+            <p><strong>Situation:</strong> Users upload images to a Cloud Storage bucket. Every upload should trigger automatic thumbnail creation and save the thumbnail to a second bucket — no server should be provisioned or managed.</p>
+            <p><strong>Walk:</strong> <strong>1)</strong> Create two buckets: <code>gs://uploads-raw</code> and <code>gs://uploads-thumbs</code>. <strong>2)</strong> Write a Cloud Function (Python or Node.js): triggered by <code>google.storage.object.finalize</code> on <code>uploads-raw</code>. Function downloads the uploaded file, generates a 200×200 thumbnail using Pillow/Sharp, and writes it to <code>uploads-thumbs</code>. <strong>3)</strong> Deploy: <code>gcloud functions deploy generate-thumbnail --runtime=python311 --trigger-bucket=uploads-raw --entry-point=handler</code>. <strong>4)</strong> Test: upload a JPG to uploads-raw &rarr; Cloud Function triggers &rarr; thumbnail appears in uploads-thumbs within 2 seconds.</p>
+            <p><strong>ACE exam note:</strong> Cloud Functions = event-driven, serverless, per-invocation billing. Cloud Run = containerised, HTTP-triggered, also serverless. App Engine Standard = managed runtime, scales to zero. App Engine Flex = custom runtime (Docker), always warm instance.</p>
+          </div>
           <div class="module-takeaways">
             <div class="module-takeaways-head">Key takeaways</div>
             <ul>
@@ -629,6 +657,12 @@
             </ul>
           </div>
 
+          <div class="scenario-walkthrough">
+            <p class="scenario-walkthrough-head">&#x2601; Scenario &mdash; locking down a VM with IAM + firewall rules</p>
+            <p><strong>Situation:</strong> A backend VM should only be reachable on port 8080 from the frontend subnet (10.0.1.0/24) and only via SSH from a bastion host. No public IP. Only the deployment service account can write to the Cloud Storage bucket it reads from.</p>
+            <p><strong>Walk:</strong> <strong>1)</strong> <strong>No public IP:</strong> create VM with <code>--no-address</code> flag. <strong>2)</strong> <strong>Firewall rules:</strong> <code>gcloud compute firewall-rules create allow-frontend --allow=tcp:8080 --source-ranges=10.0.1.0/24 --target-tags=backend</code>. <code>gcloud compute firewall-rules create allow-bastion-ssh --allow=tcp:22 --source-tags=bastion --target-tags=backend</code>. <strong>3)</strong> Assign tag <code>backend</code> to the VM. <strong>4)</strong> <strong>IAM:</strong> create service account <code>deploy-sa@project.iam.gserviceaccount.com</code>. Grant it <code>roles/storage.objectViewer</code> on the specific bucket (not the project). Attach the SA to the VM. <strong>5)</strong> Verify: SSH from bastion works; direct SSH from internet fails; frontend can reach :8080; VM can read the bucket but not write to it.</p>
+            <p><strong>ACE exam note:</strong> Firewall rules are stateful. GCP uses deny-all implicit rules — you must explicitly allow traffic. Prefer service account-based IAM over user-based IAM for VM workloads.</p>
+          </div>
           <div class="module-takeaways">
             <div class="module-takeaways-head">Key takeaways</div>
             <ul>
@@ -722,6 +756,12 @@
             <div class="exam-tip">Cloud Build = CI (build/test). Cloud Deploy = CD (release management). Artifact Registry = image storage. Know how these three connect for a complete GCP-native pipeline.</div>
           </div>
 
+          <div class="scenario-walkthrough">
+            <p class="scenario-walkthrough-head">&#x2601; Scenario &mdash; setting up an uptime check alert with Cloud Monitoring</p>
+            <p><strong>Situation:</strong> A public-facing web app at <code>https://app.example.com</code> must page the on-call engineer within 2 minutes if the site goes down. Currently there is no alerting.</p>
+            <p><strong>Walk:</strong> <strong>1)</strong> Cloud Console &rarr; <strong>Monitoring &rarr; Uptime Checks &rarr; Create</strong>. Target: HTTPS, hostname <code>app.example.com</code>, path <code>/health</code>, check interval 1 min, timeout 10s. Checker regions: USA, Europe, Asia (multi-region validates it's not a regional blip). <strong>2)</strong> Create an <strong>Alerting Policy</strong>: condition = uptime check failure from &ge;2 out of 3 regions for &ge;1 min. Notification channel: PagerDuty webhook + email. <strong>3)</strong> Test: temporarily block the health endpoint &rarr; Monitoring flags failure after 1 min &rarr; alert fires &rarr; PagerDuty page sent. <strong>4)</strong> Review logs: <code>Cloud Logging &rarr; Logs Explorer &rarr; resource.type="https_lb_rule"</code> to see which requests errored.</p>
+            <p><strong>ACE exam note:</strong> Cloud Monitoring = metrics + uptime + alerting. Cloud Logging = structured logs, queryable with Logging Query Language. Error Reporting = aggregates application exceptions automatically. Cloud Trace = distributed request tracing for latency analysis.</p>
+          </div>
           <div class="module-takeaways">
             <div class="module-takeaways-head">Key takeaways</div>
             <ul>
