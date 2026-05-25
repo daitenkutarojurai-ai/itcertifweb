@@ -1277,6 +1277,28 @@ competition-driven, community-driven** layer. Highest-priority builds:
 
 ---
 
+## 📦 Content expansion R6 (2026-05-25)
+
+Scheduled-agent run, continuing the "target 15+ comparison pages" content
+push (now 13/15). One new high-search-volume comparison shipped this run:
+
+- **+1 Cert Comparator page** (cluster 12 → 13):
+  - `aws-soa-c02-vs-aws-saa-c03` — the classic AWS Associate decision on
+    the Ops side (SysOps Administrator vs Solutions Architect). 9 verdict
+    rows covering: default pick, Cloud Ops / SRE rôle, architect/consulting
+    rôle, salary maxing, SAP-C02 pipeline, MSP / FinOps shops, AWS partner
+    staffing, "fuir les labs notés", "passer les deux en 6 mois" sequence.
+  - `salaryAlias: "aws-saa"` resolves to the existing France salary band;
+    SOA has no salary file yet so the cell shows "—" gracefully.
+- **Generator de-staling**: `scripts/gen-compare-pages.js` `renderIndex`
+  was dropping the OG/Twitter meta tags on every regeneration (someone
+  had patched them in manually after the last gen). Added them to the
+  template so the regression doesn't recur. `CACHE_BUST` left at v=102
+  (no JS/CSS bump this run).
+- `npm run gen-compare` regenerated 13 comparator pages + the
+  `/compare/` index. sitemap.xml +1 entry.
+- 120/120 tests still pass.
+
 ## 📦 Content expansion R5 (2026-05-24)
 
 Scheduled-agent run targeting the "target 15+ comparison pages" content

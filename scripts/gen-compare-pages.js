@@ -335,6 +335,13 @@ function renderIndex(comparisons, legacyPages) {
   <meta name="description" content="Comparatifs sans bullshit : AWS vs Azure vs GCP, CCNA vs Network+, CISSP vs Security+. Verdict par profil, sources citées." />
   <meta name="robots" content="index, follow" />
   <link rel="canonical" href="https://certquests.com/compare/" />
+  <meta property="og:type" content="website" />
+  <meta property="og:url" content="https://certquests.com/compare/" />
+  <meta property="og:title" content="Comparateur de certifications IT — CertQuests" />
+  <meta property="og:description" content="Comparatifs sans bullshit : AWS vs Azure vs GCP, CCNA vs Network+, CISSP vs Security+. Verdict par profil, sources citées." />
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="Comparateur de certifications IT — CertQuests" />
+  <meta name="twitter:description" content="Comparatifs sans bullshit : AWS vs Azure vs GCP, CCNA vs Network+, CISSP vs Security+. Verdict par profil, sources citées." />
   <link rel="manifest" href="/manifest.json" />
   <link rel="icon" href="/favicon.ico?v=4" sizes="any" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
