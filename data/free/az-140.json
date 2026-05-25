@@ -1,0 +1,181 @@
+{
+  "meta": {
+    "id": "az-140",
+    "name": "Microsoft Azure Virtual Desktop Specialty (AZ-140)",
+    "vendor": "Microsoft",
+    "version": "1.0.0",
+    "question_count": 12,
+    "last_updated": "2026-05-25",
+    "notes": "Initial pack — covers host pool design, FSLogix profiles, MSIX app attach, autoscale, conditional access, monitoring, and image management."
+  },
+  "questions": [
+    {
+      "id": "az140-001",
+      "question": "A team plans an Azure Virtual Desktop deployment for 200 task workers who all need the same shared Windows 11 multi-session desktop with identical apps and policies. Users routinely sign in to whichever VM has the most free capacity. Which host pool type should you choose?",
+      "options": [
+        "Personal host pool with automatic assignment so each user keeps the same VM across sessions",
+        "Personal host pool with direct assignment to lock each user to a specific session host",
+        "Pooled host pool with breadth-first load balancing to distribute users across hosts evenly",
+        "Pooled host pool with depth-first load balancing to fill one host before moving to the next"
+      ],
+      "correct": 2,
+      "explanation": "Pooled host pools let multiple users share the same session hosts (typically Windows 11 multi-session). Breadth-first load balancing distributes new sessions across all available hosts to balance load — ideal for task workers with similar workloads. Depth-first packs one host until a session-limit threshold is reached and is better when you want to keep idle hosts available for autoscale to stop. Personal host pools dedicate a VM per user, which wastes capacity for shared task-worker scenarios.",
+      "tags": ["host-pool", "load-balancing", "az-140"],
+      "difficulty": "easy"
+    },
+    {
+      "id": "az140-002",
+      "question": "Users on a pooled Windows 11 multi-session host pool complain that their Outlook signatures, OneDrive sync state, and Teams cache are lost every time they sign in to a different session host. You need a Microsoft-supported profile solution that roams the full user profile and is included with the AVD license. What should you deploy?",
+      "options": [
+        "Mandatory profiles stored on each session host's local C: drive",
+        "Roaming user profiles synchronised through Active Directory Group Policy",
+        "FSLogix profile containers stored on an Azure Files share or Azure NetApp Files",
+        "Windows User State Virtualization with folder redirection only"
+      ],
+      "correct": 2,
+      "explanation": "FSLogix profile containers are the Microsoft-recommended profile solution for AVD and are entitled by the AVD license. Each user profile is stored as a VHD/VHDX on Azure Files (with Kerberos auth to AD DS or Microsoft Entra Domain Services) or Azure NetApp Files, and is dynamically mounted on whichever session host the user lands on, preserving Outlook OST, OneDrive cache, Teams data, and settings. Roaming profiles and folder redirection alone don't reliably handle modern apps like Teams or large OST files.",
+      "tags": ["fslogix", "profile-containers", "azure-files", "az-140"],
+      "difficulty": "easy"
+    },
+    {
+      "id": "az140-003",
+      "question": "You are sizing an Azure Files Premium share to host FSLogix profile containers for 500 AVD users. Microsoft's guidance gives a recommended IOPS target per user during steady state. Approximately what minimum IOPS should the share sustain to meet the standard recommendation?",
+      "options": [
+        "About 5 IOPS per user — roughly 2,500 IOPS provisioned for the share",
+        "About 50 IOPS per user — roughly 25,000 IOPS provisioned for the share",
+        "About 200 IOPS per user — roughly 100,000 IOPS provisioned for the share",
+        "About 10 IOPS per user — roughly 5,000 IOPS provisioned for the share"
+      ],
+      "correct": 3,
+      "explanation": "Microsoft's published FSLogix sizing guidance is roughly 10 IOPS per user at steady state, with bursts to 50+ IOPS at logon/logoff storms. For 500 users you should provision around 5,000 IOPS as a baseline and ensure burst capacity for boot storms. Premium file shares scale IOPS with provisioned size (1 IOPS per GiB + baseline), so size the share to meet both capacity and IOPS targets — whichever is higher.",
+      "tags": ["fslogix", "azure-files", "sizing", "performance", "az-140"],
+      "difficulty": "medium"
+    },
+    {
+      "id": "az140-004",
+      "question": "Your security team requires multi-factor authentication on every connection to Azure Virtual Desktop, including reconnects, with no MFA prompts skipped due to remember-device tokens. Which combination correctly enforces this?",
+      "options": [
+        "Enable Conditional Access targeting the Azure Virtual Desktop cloud app, require MFA, and set the sign-in frequency to every time",
+        "Enable security defaults in Microsoft Entra ID — they automatically force MFA on every AVD reconnect",
+        "Enable per-user MFA on each user account in Entra ID — this overrides Conditional Access sign-in frequency",
+        "Configure an Entra ID Identity Protection user risk policy set to High — it forces MFA on every session"
+      ],
+      "correct": 0,
+      "explanation": "The supported pattern is a Conditional Access policy that targets the Azure Virtual Desktop cloud app (and the Windows Cloud Login app for Entra-joined session hosts), requires MFA, and sets sign-in frequency to 'Every time' to defeat token caching. Security defaults enforce MFA but not on every reconnect. Per-user MFA is legacy and lacks granular controls. Identity Protection risk policies trigger MFA only when risk is detected, not on every session.",
+      "tags": ["conditional-access", "mfa", "security", "az-140"],
+      "difficulty": "medium"
+    },
+    {
+      "id": "az140-005",
+      "question": "You publish only Microsoft Edge and a finance line-of-business application from a pooled host pool, exposing them as RemoteApp programs rather than a full desktop. Which AVD object type should the app group be?",
+      "options": [
+        "Desktop application group — RemoteApp programs are added to it as published items",
+        "Workspace — RemoteApp programs are registered directly under the workspace without an app group",
+        "Host pool only — RemoteApp publishing is configured on the host pool, not on an application group",
+        "RemoteApp application group — separate from the desktop group on the same host pool"
+      ],
+      "correct": 3,
+      "explanation": "Each AVD host pool can have one Desktop application group (auto-created, publishes the full desktop) and one or more RemoteApp application groups for publishing individual apps. To expose only Edge and the finance app, create a RemoteApp app group, add those programs, and assign users or groups to it. Workspaces aggregate app groups for end-user discovery but don't host applications directly.",
+      "tags": ["app-group", "remoteapp", "az-140"],
+      "difficulty": "easy"
+    },
+    {
+      "id": "az140-006",
+      "question": "You need to deliver a Win32 application to AVD session hosts without baking it into the gold image and without installing it locally on each VM, so that updates can be rolled out by replacing a single package. Which AVD feature fits?",
+      "options": [
+        "FSLogix Office Container — designed to stream Win32 desktop applications on demand",
+        "MSIX app attach — attaches an MSIX package as a VHD/CIM at user logon",
+        "Azure App Service deployment slots — swap app versions without redeploying hosts",
+        "Windows Update for Business with Autopatch — pushes app installers via Intune to every host"
+      ],
+      "correct": 1,
+      "explanation": "MSIX app attach lets you stage a single MSIX package (in VHD, VHDX, or CIM format) on a file share, register it with the host pool, and dynamically attach it to user sessions at logon. Updating the package on the share replaces the app for everyone with no per-host reinstall. FSLogix Office Container is profile-related (Outlook/OneDrive data only). App Service is a PaaS web platform. Autopatch is for OS/app updates, not app delivery to AVD.",
+      "tags": ["msix-app-attach", "application-delivery", "az-140"],
+      "difficulty": "medium"
+    },
+    {
+      "id": "az140-007",
+      "question": "After business hours your pooled host pool sits mostly idle, but you still pay full VM compute. You want Azure to automatically start hosts in the morning, stop them after hours, and use depth-first load balancing during ramp-down to drain hosts before stopping. Which native AVD feature should you configure?",
+      "options": [
+        "Azure Automation runbook with a custom PowerShell schedule that calls Start-AzVM and Stop-AzVM",
+        "AVD scaling plan attached to the host pool, with ramp-up, peak, ramp-down, and off-peak schedules",
+        "VM Auto-shutdown configured in the Azure VM blade for each session host individually",
+        "Azure Monitor autoscale rules on a VM Scale Set hosting the session VMs"
+      ],
+      "correct": 1,
+      "explanation": "An AVD scaling plan is the first-party feature for time-based start/stop of session hosts in pooled and personal host pools. You define schedules (ramp-up, peak, ramp-down, off-peak) per day type, including the load-balancing algorithm to use during each phase. During ramp-down, AVD switches to depth-first to drain sessions onto fewer hosts so the rest can be deallocated, saving compute cost. Automation runbooks work but are not the recommended/supported approach; VM auto-shutdown ignores user sessions; VMSS-based autoscale is not how AVD host pools work.",
+      "tags": ["scaling-plan", "autoscale", "cost", "az-140"],
+      "difficulty": "medium"
+    },
+    {
+      "id": "az140-008",
+      "question": "You are deploying Windows 11 multi-session session hosts that must be joined directly to Microsoft Entra ID (no AD DS, no Entra Domain Services). Users authenticate with Entra ID accounts and FSLogix profiles are stored on Azure Files. Which storage authentication option must the file share use?",
+      "options": [
+        "On-premises Active Directory Domain Services authentication with Kerberos",
+        "Microsoft Entra Domain Services (Entra DS) Kerberos authentication",
+        "Microsoft Entra Kerberos authentication for hybrid user identities",
+        "Storage account key access only — Kerberos is not supported in this scenario"
+      ],
+      "correct": 2,
+      "explanation": "For Entra ID–joined session hosts using Azure Files for FSLogix profiles, the supported and recommended option is Microsoft Entra Kerberos authentication for hybrid identities (users must be synchronised from on-prem AD via Entra Connect, or cloud-only users with hybrid setup as documented). AD DS auth requires the storage account to be domain-joined to on-prem AD; Entra DS auth requires an Entra Domain Services managed domain. Storage account keys are not supported as a Kerberos alternative for FSLogix and would bypass per-user permissions.",
+      "tags": ["entra-id-join", "azure-files", "kerberos", "fslogix", "az-140"],
+      "difficulty": "hard"
+    },
+    {
+      "id": "az140-009",
+      "question": "You want a session host image that is patched monthly, has the AVD agent installed, FSLogix configured, Microsoft 365 Apps for Enterprise with shared computer activation enabled, and is versioned for staged rollout. Which Azure service provides the recommended pipeline?",
+      "options": [
+        "Azure Image Builder writing into an Azure Compute Gallery with versioned image definitions",
+        "Sysprep on a single VM with the resulting VHD uploaded to a storage account as a managed image",
+        "Azure Backup recovery points used as templates to deploy new session hosts",
+        "Azure DevTest Labs custom images attached directly to the host pool deployment"
+      ],
+      "correct": 0,
+      "explanation": "The recommended modern pipeline is Azure VM Image Builder (a managed Packer service) that produces customised images and publishes them as versioned image definitions in an Azure Compute Gallery. The Gallery handles replication across regions, version retention, and staged rollout, and it is directly consumable by host-pool deployment templates and scaling. Manual sysprep+VHD works but is not pipeline-friendly. Azure Backup is for recovery, not image distribution. DevTest Labs is for non-production lab scenarios.",
+      "tags": ["image-builder", "compute-gallery", "image-management", "az-140"],
+      "difficulty": "medium"
+    },
+    {
+      "id": "az140-010",
+      "question": "Support needs to investigate why a specific user takes 90+ seconds to sign in to AVD. You want to break down logon time by stages — connection, FSLogix profile load, group policy, user profile, shell load — using a Microsoft-provided workbook. Where should you look?",
+      "options": [
+        "Azure Service Health blade filtered to the Azure Virtual Desktop service",
+        "Azure Virtual Desktop Insights workbook in Azure Monitor, with the Connection Diagnostics section",
+        "Microsoft Defender for Cloud secure score recommendations for the host pool",
+        "Network Watcher Connection Monitor configured between the client and the session host"
+      ],
+      "correct": 1,
+      "explanation": "Azure Virtual Desktop Insights is a curated Azure Monitor workbook (per host pool / per session host) that ingests AVD diagnostic settings and agent data. It includes connection diagnostics, time-to-connect waterfalls, and FSLogix profile load timings, making it the standard tool for diagnosing slow logons per user. Service Health reports platform incidents, Defender for Cloud handles security posture, and Network Watcher inspects network paths — none of these break down logon stages.",
+      "tags": ["monitoring", "avd-insights", "azure-monitor", "diagnostics", "az-140"],
+      "difficulty": "medium"
+    },
+    {
+      "id": "az140-011",
+      "question": "A finance group must connect to AVD only from corporate-managed Windows devices and only from the corporate public IP ranges. They must still get the standard MFA prompt. Which Conditional Access configuration meets all three requirements?",
+      "options": [
+        "Block access from all locations except trusted IPs, and exclude finance users from MFA so they can connect faster",
+        "Grant access requiring MFA only — device compliance is checked automatically by the AVD client without a CA policy",
+        "Use a sign-in risk policy set to Medium and rely on Entra ID Protection to evaluate device and location signals",
+        "Grant access requiring MFA AND requiring a compliant device, with a location condition that includes only the corporate named locations"
+      ],
+      "correct": 3,
+      "explanation": "Conditional Access targeting the Azure Virtual Desktop cloud app should require MFA AND require a compliant (Intune-managed) device, with a Locations condition limiting access to the corporate named-IP location. Excluding users from MFA violates the requirement. The AVD client does not enforce device compliance by itself — that is a Conditional Access grant control. Sign-in risk policies trigger remediation only when risk is detected, so they do not deterministically enforce device or location requirements.",
+      "tags": ["conditional-access", "device-compliance", "named-locations", "az-140"],
+      "difficulty": "hard"
+    },
+    {
+      "id": "az140-012",
+      "question": "You are deploying a personal host pool for 50 developers, each needing a persistent VM. You want a new joiner to be auto-assigned to the first available host in the pool with no admin intervention. Which assignment type should the host pool use?",
+      "options": [
+        "Automatic assignment — the first time the user signs in, an unassigned host is bound to them permanently",
+        "Direct assignment — an administrator must pre-assign each user to a specific host before they can sign in",
+        "Pooled assignment — the user is balanced across hosts each session as in a shared desktop pool",
+        "Group assignment — every member of a security group shares a single host on a first-come basis"
+      ],
+      "correct": 0,
+      "explanation": "Personal host pools support two assignment types. Automatic assignment binds the user to whichever available host they land on at first sign-in, and that mapping persists for all future sessions — minimal admin overhead, ideal for new joiners. Direct assignment requires an admin to map each user to a host up front. 'Pooled' and 'group' are not assignment types on personal host pools; pooled is a separate host-pool type for shared desktops.",
+      "tags": ["host-pool", "personal", "assignment", "az-140"],
+      "difficulty": "easy"
+    }
+  ]
+}
