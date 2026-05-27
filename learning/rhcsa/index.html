@@ -106,6 +106,12 @@
 .module-card .lesson-quiz a { color: #c4b5fd; }
 .chapter-badge { display: inline-block; padding: 3px 8px; margin-left: 10px; font-family: var(--font-mono); font-size: 10px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: #34d399; background: rgba(16, 185, 129, 0.10); border: 1px solid rgba(16, 185, 129, 0.30); border-radius: 999px; }
 
+/* Worked-scenario block (UX-6 prose pass) */
+.scenario-walkthrough { margin-top: 14px; padding: 14px 18px; background: rgba(56, 189, 248, 0.05); border-left: 3px solid #38bdf8; border-radius: 8px; font-size: 14.5px; line-height: 1.7; color: var(--text); }
+.scenario-walkthrough-head { font-family: var(--font-mono); font-size: 11px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: #38bdf8; margin: 0 0 8px; }
+.scenario-walkthrough strong { color: #7dd3fc; }
+.scenario-walkthrough code { font-family: var(--font-mono); font-size: 0.88em; padding: 1px 5px; background: rgba(255,255,255,0.05); border-radius: 4px; color: #bae6fd; }
+
 /* P0 per-module wrappers (course-rework batch — rhcsa) */
 .module-card .module-intro { margin: 0 0 18px; padding: 14px 18px; background: rgba(251, 191, 36, 0.06); border-left: 3px solid #fbbf24; border-radius: 8px; color: var(--text-secondary); font-size: 14.5px; line-height: 1.7; }
 .module-card .module-intro strong { color: var(--text); }
@@ -366,6 +372,10 @@
               </div>
 
 
+              <div class="scenario-walkthrough">
+                <div class="scenario-walkthrough-head">💻 Worked scenario — Audit accounts and lock anomalies</div>
+                Task: list non-system accounts on a fresh server, find those with no real shell or no home, and disable them. <strong>Sequence:</strong> (1) <code>awk -F: '$3&gt;=1000 {print $1":"$6":"$7}' /etc/passwd</code> — list real users with their home + shell; (2) pipe through <code>awk -F: '$3=="" || $3=="/sbin/nologin" {print $1}'</code> to flag dead accounts; (3) for each flagged user, <code>usermod -L user</code> to lock the password and <code>chage -E 0 user</code> to expire the account. <strong>Verify:</strong> <code>passwd -S user</code> shows <code>L</code> (locked); <code>chage -l user</code> shows account expired.
+              </div>
               <div class="module-takeaways">
                 <div class="module-takeaways-head">Key takeaways</div>
                 <ul>
@@ -496,6 +506,10 @@
               </div>
 
 
+              <div class="scenario-walkthrough">
+                <div class="scenario-walkthrough-head">💻 Worked scenario — Extend an LVM logical volume online</div>
+                Task: <code>/var</code> on <code>vg_root/lv_var</code> is at 95% and a new 10 GB disk <code>/dev/sdb</code> has just been attached. Grow the FS without a reboot. <strong>Sequence:</strong> (1) <code>parted /dev/sdb mklabel gpt mkpart primary 0% 100%</code>, then <code>pvcreate /dev/sdb1</code>; (2) <code>vgextend vg_root /dev/sdb1</code>; (3) <code>lvextend -L +5G /dev/vg_root/lv_var</code>; (4) <code>xfs_growfs /var</code> (use <code>resize2fs</code> for ext4). <strong>Verify:</strong> <code>df -h /var</code> shows the new size; <code>lvs</code> confirms LV size; <code>pvs</code> shows the new PV in the VG.
+              </div>
               <div class="module-takeaways">
                 <div class="module-takeaways-head">Key takeaways</div>
                 <ul>
@@ -626,6 +640,10 @@
               </div>
 
 
+              <div class="scenario-walkthrough">
+                <div class="scenario-walkthrough-head">💻 Worked scenario — Create a sudo-restricted deploy account</div>
+                Task: deploy a <code>deploy</code> user that can only run <code>systemctl restart nginx</code> via sudo, has a locked password (key-only login), and an SSH key already provided in <code>/tmp/deploy.pub</code>. <strong>Sequence:</strong> (1) <code>useradd -m -s /bin/bash deploy</code>; (2) <code>passwd -l deploy</code> — locks the password (login by key only); (3) <code>install -d -m 700 -o deploy -g deploy /home/deploy/.ssh</code> then <code>install -m 600 -o deploy -g deploy /tmp/deploy.pub /home/deploy/.ssh/authorized_keys</code>; (4) <code>echo 'deploy ALL=(root) NOPASSWD: /usr/bin/systemctl restart nginx' &gt; /etc/sudoers.d/deploy</code> then <code>visudo -c</code> to validate. <strong>Verify:</strong> <code>sudo -l -U deploy</code> lists the one allowed command; <code>ssh -i key deploy@host sudo systemctl restart nginx</code> works; any other sudo invocation is denied.
+              </div>
               <div class="module-takeaways">
                 <div class="module-takeaways-head">Key takeaways</div>
                 <ul>
@@ -756,6 +774,10 @@
               </div>
 
 
+              <div class="scenario-walkthrough">
+                <div class="scenario-walkthrough-head">💻 Worked scenario — Fix a shared dev directory so new files inherit the group</div>
+                Task: members of group <code>devs</code> drop files into <code>/srv/team</code>, but new files keep being owned by each user's primary group. <strong>Sequence:</strong> (1) <code>chgrp devs /srv/team</code>; (2) <code>chmod 2775 /srv/team</code> — the leading <code>2</code> sets SGID, forcing new entries to inherit the directory's group; (3) <code>setfacl -d -m g:devs:rwx /srv/team</code> — default ACL guarantees rwx for the group regardless of the user's umask. <strong>Verify:</strong> <code>su - alice; touch /srv/team/x; ls -la /srv/team/x</code> — group should be <code>devs</code>; <code>getfacl /srv/team</code> shows the default mask carrying through.
+              </div>
               <div class="module-takeaways">
                 <div class="module-takeaways-head">Key takeaways</div>
                 <ul>
@@ -886,6 +908,10 @@
               </div>
 
 
+              <div class="scenario-walkthrough">
+                <div class="scenario-walkthrough-head">💻 Worked scenario — Persistent static IP via nmcli</div>
+                Task: assign <code>192.168.10.50/24</code> with gateway <code>192.168.10.1</code> and DNS <code>1.1.1.1</code> to interface <code>ens3</code>, surviving reboot. <strong>Sequence:</strong> (1) <code>nmcli con show</code> — find the active profile name (often <code>System ens3</code> or <code>Wired connection 1</code>); (2) <code>nmcli con mod 'System ens3' ipv4.addresses 192.168.10.50/24 ipv4.gateway 192.168.10.1 ipv4.dns 1.1.1.1 ipv4.method manual</code>; (3) <code>nmcli con down 'System ens3' &amp;&amp; nmcli con up 'System ens3'</code>. <strong>Verify:</strong> <code>ip -br addr show ens3</code> shows the new address; <code>ip route</code> shows the default via the gateway; <code>ping -c2 1.1.1.1</code> succeeds; <code>cat /etc/resolv.conf</code> lists the DNS.
+              </div>
               <div class="module-takeaways">
                 <div class="module-takeaways-head">Key takeaways</div>
                 <ul>
@@ -1016,6 +1042,10 @@
               </div>
 
 
+              <div class="scenario-walkthrough">
+                <div class="scenario-walkthrough-head">💻 Worked scenario — Open a non-standard Apache port through firewalld + SELinux</div>
+                Task: Apache must listen on <code>8443/tcp</code>. By default both <code>firewalld</code> and SELinux block the new port. <strong>Sequence:</strong> (1) <code>firewall-cmd --permanent --add-port=8443/tcp &amp;&amp; firewall-cmd --reload</code>; (2) <code>semanage port -a -t http_port_t -p tcp 8443</code> (if missing: <code>dnf -y install policycoreutils-python-utils</code>); (3) edit <code>/etc/httpd/conf/httpd.conf</code> to add <code>Listen 8443</code>; (4) <code>systemctl restart httpd</code>. <strong>Verify:</strong> <code>ss -lntp | grep 8443</code> shows httpd listening; <code>firewall-cmd --list-ports</code> includes <code>8443/tcp</code>; <code>semanage port -l | grep http_port_t</code> includes 8443. If a request 503s, <code>ausearch -m avc -ts recent</code> reveals the missing label.
+              </div>
               <div class="module-takeaways">
                 <div class="module-takeaways-head">Key takeaways</div>
                 <ul>
@@ -1146,6 +1176,10 @@
               </div>
 
 
+              <div class="scenario-walkthrough">
+                <div class="scenario-walkthrough-head">💻 Worked scenario — Tame a runaway CPU-hogging process</div>
+                Task: load average is 15 on a 2-core VM. Identify the culprit and stop the bleeding without a reboot. <strong>Sequence:</strong> (1) <code>top -b -n1 | head -20</code> — top of CPU% column; note the PID; (2) <code>ps -p PID -o pid,user,etime,cmd</code> for context (how long it has been running); (3) <code>strace -p PID -e trace=openat,read 2&gt;&amp;1 | head -50</code> — what it's looping on; (4) deprioritise rather than kill if the work is legitimate: <code>renice +15 -p PID</code>, or stop it cleanly with <code>kill -TERM PID</code>; (5) for a recurring offender, cap it via systemd drop-in: <code>systemctl edit unit-name</code> and add <code>[Service]\nCPUQuota=50%</code>. <strong>Verify:</strong> <code>uptime</code> load decays; <code>systemctl show unit-name -p CPUQuotaPerSecUSec</code> reflects the cap.
+              </div>
               <div class="module-takeaways">
                 <div class="module-takeaways-head">Key takeaways</div>
                 <ul>
@@ -1276,6 +1310,10 @@
               </div>
 
 
+              <div class="scenario-walkthrough">
+                <div class="scenario-walkthrough-head">💻 Worked scenario — Roll back a bad DNF transaction</div>
+                Task: a <code>dnf update</code> ran 30 minutes ago and broke a production service. Revert just that transaction. <strong>Sequence:</strong> (1) <code>dnf history list</code> — find the offending transaction ID (e.g. <code>42</code>); (2) <code>dnf history info 42</code> confirms the packages that were upgraded; (3) <code>dnf history undo 42</code> — restores the previous versions in one transaction; (4) <code>systemctl restart broken-service</code> and validate; (5) freeze the known-good versions: <code>dnf install python3-dnf-plugin-versionlock</code> then <code>dnf versionlock add package-name</code>. <strong>Verify:</strong> <code>rpm -q package-name</code> shows the rolled-back NVR; <code>dnf versionlock list</code> confirms the lock; <code>dnf history</code> shows the undo transaction.
+              </div>
               <div class="module-takeaways">
                 <div class="module-takeaways-head">Key takeaways</div>
                 <ul>
@@ -1406,6 +1444,10 @@
               </div>
 
 
+              <div class="scenario-walkthrough">
+                <div class="scenario-walkthrough-head">💻 Worked scenario — Cron job runs but produces nothing — investigate</div>
+                Task: <code>0 2 * * * /usr/local/bin/backup.sh</code> is in root's crontab; the journal shows it fires nightly, but no backup file is created. <strong>Sequence:</strong> (1) <code>grep CRON /var/log/cron | tail -20</code> — confirm the job is actually triggered; (2) <code>journalctl -u crond --since '24 hours ago'</code> for daemon errors; (3) <code>mail</code> or <code>cat /var/spool/mail/root</code> — cron mails stderr if there's no redirection; the error is almost always missing <code>$PATH</code>; (4) fix it once for the whole crontab: prepend <code>PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin</code> in <code>crontab -e</code>, and append <code>2&gt;&amp;1 | logger -t backup</code> to the job line so output lands in <code>journalctl -t backup</code>. <strong>Verify:</strong> next run produces output; <code>journalctl -t backup --since today</code> shows the trace; the backup file appears.
+              </div>
               <div class="module-takeaways">
                 <div class="module-takeaways-head">Key takeaways</div>
                 <ul>
@@ -1536,6 +1578,10 @@
               </div>
 
 
+              <div class="scenario-walkthrough">
+                <div class="scenario-walkthrough-head">💻 Worked scenario — Reset a forgotten root password with rd.break</div>
+                Task: locked out — no console root password, no working sudoer. <strong>Sequence:</strong> (1) reboot; at the GRUB menu press <code>e</code> on the kernel line; (2) append <code>rd.break enforcing=0</code> to the <code>linux</code> line and press <code>Ctrl-X</code> to boot; (3) at the <code>switch_root:/#</code> prompt: <code>mount -o remount,rw /sysroot &amp;&amp; chroot /sysroot</code>; (4) <code>passwd</code> — set a new password; (5) <code>touch /.autorelabel</code> — forces SELinux to relabel <code>/etc/shadow</code> on next boot, otherwise login still fails; (6) <code>exit; exit</code> — the system reboots, relabels, then reboots again. <strong>Verify:</strong> log in with the new password; <code>getenforce</code> is back to <code>Enforcing</code>; <code>ls -laZ /etc/shadow</code> shows the correct <code>shadow_t</code> context.
+              </div>
               <div class="module-takeaways">
                 <div class="module-takeaways-head">Key takeaways</div>
                 <ul>
@@ -1666,6 +1712,10 @@
               </div>
 
 
+              <div class="scenario-walkthrough">
+                <div class="scenario-walkthrough-head">💻 Worked scenario — Persist a rootless podman container across reboot</div>
+                Task: run a rootless <code>postgres:16</code> container as user <code>pgops</code>, with <code>/home/pgops/pgdata</code> persisted, auto-starting on boot even when nobody is logged in. <strong>Sequence:</strong> (1) as <code>pgops</code>: <code>podman run -d --name pg -v /home/pgops/pgdata:/var/lib/postgresql/data:Z -e POSTGRES_PASSWORD=secret postgres:16</code>; (2) <code>podman generate systemd --new --files --name pg</code> — produces <code>container-pg.service</code>; (3) install the unit: <code>mkdir -p ~/.config/systemd/user &amp;&amp; mv container-pg.service ~/.config/systemd/user/</code>; (4) <code>systemctl --user daemon-reload &amp;&amp; systemctl --user enable container-pg.service</code>; (5) as root: <code>loginctl enable-linger pgops</code> — required for user services to start without an active session. <strong>Verify:</strong> reboot; <code>machinectl shell pgops@</code> then <code>systemctl --user status container-pg</code> shows <code>active (running)</code>; <code>podman ps</code> shows the container; <code>psql</code> connects.
+              </div>
               <div class="module-takeaways">
                 <div class="module-takeaways-head">Key takeaways</div>
                 <ul>
