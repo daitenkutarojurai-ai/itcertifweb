@@ -1277,6 +1277,27 @@ competition-driven, community-driven** layer. Highest-priority builds:
 
 ---
 
+## 📦 Content expansion R7 (2026-05-27)
+
+Scheduled-agent run, continuing the "target 15+ comparison pages" content
+push (now 14/15). One new high-search-volume comparison shipped this run:
+
+- **+1 Cert Comparator page** (cluster 13 → 14):
+  - `az-104-vs-az-204` — the classic Microsoft Azure Associate decision
+    (Administrator vs Developer). 10 verdict rows covering: default pick,
+    dev .NET/Node/Python rôle, architect/Platform rôle, AZ-305 pipeline,
+    AZ-400 pipeline, salary maxing, ESN .NET shops, Microsoft Solutions
+    Partner staffing, sysadmin/VMware → Azure reconversion, "passer les
+    deux en 6 mois" sequence.
+  - `salaryAlias: "az-104"` resolves to the existing France salary band
+    (med 60k€ senior); AZ-204 has no salary file yet so the cell shows
+    "—" gracefully.
+  - Data + generator pattern matches `_schema.md` (no schema drift).
+- `npm run gen-compare` regenerated 14 comparator pages + the
+  `/compare/` index. sitemap.xml +1 entry.
+- 120/120 tests still pass. No cache version bump (new HTML only, no
+  JS/CSS changes).
+
 ## 📦 Content expansion R6 (2026-05-25)
 
 Scheduled-agent run, continuing the "target 15+ comparison pages" content
