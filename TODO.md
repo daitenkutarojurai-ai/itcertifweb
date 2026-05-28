@@ -1277,6 +1277,30 @@ competition-driven, community-driven** layer. Highest-priority builds:
 
 ---
 
+## 📦 Content expansion R8 (2026-05-28)
+
+Scheduled-agent run closing out the "target 15+ comparison pages" goal —
+the comparator cluster now hits **15/15**. One new high-search-volume
+comparison shipped this run:
+
+- **+1 Cert Comparator page** (cluster 14 → 15, target met):
+  - `comptia-a-plus-vs-comptia-network-plus-vs-comptia-security-plus` —
+    the canonical CompTIA-trifecta entry-level decision ("par laquelle
+    commencer / dans quel ordre"). 3-way (A+ vs Network+ vs Security+),
+    6 verdict rows covering: zéro-expérience débutant, socle réseau avant
+    spécialisation, objectif cyber direct, meilleur salaire d'entrée,
+    poste défense/DoD 8570, pipeline vers CCNA, et l'ordre canonique
+    A+ → Network+ → Security+.
+  - `salaryAlias: "comptia-security-plus"` resolves the Security+ France
+    median into the table; A+ and Network+ have no salary file yet so
+    those cells show "—" gracefully.
+  - Data + generator pattern matches `_schema.md` (no schema drift).
+- `npm run gen-compare` regenerated 15 comparator pages + the `/compare/`
+  index (idempotent — only the new page + index changed). sitemap.xml +1
+  entry (priority 0.85, monthly changefreq).
+- 120/120 tests still pass. No cache version bump (new HTML only, no
+  JS/CSS changes).
+
 ## 📦 Content expansion R7 (2026-05-27)
 
 Scheduled-agent run, continuing the "target 15+ comparison pages" content
