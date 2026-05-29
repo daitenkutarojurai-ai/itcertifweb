@@ -211,6 +211,26 @@
     confettiContainers.push(entry);
   }
 
+  /* Spaced repetition: show a "Review N due" CTA in the per-cert header when
+     the user has missed items whose cooldown has elapsed. Tapping launches a
+     focused review of the due questions in the quiz runtime (train.html),
+     which reports results back to window.cqSR and graduates/resets each item. */
+  function maybeRenderReviewCTA(packId) {
+    var header = document.getElementById('path-header');
+    var existing = document.getElementById('path-review-cta');
+    if (existing) existing.remove();
+    if (!header || !window.cqSR) return;
+    var due = window.cqSR.dueIds(packId);
+    if (!due.length) return;
+    var ids = due.slice(0, 20);
+    var a = document.createElement('a');
+    a.id = 'path-review-cta';
+    a.className = 'path-review-cta';
+    a.href = '/train.html?pack=' + encodeURIComponent(packId) + '&autostart=quick&qids=' + ids.join(',');
+    a.textContent = '🔁 Review ' + due.length + ' due';
+    header.appendChild(a);
+  }
+
   function renderMap(path) {
     var root = $('#path-map');
     root.innerHTML = '';
@@ -570,6 +590,9 @@
       locked = true;
       var q = questions[idx];
       var isCorrect = picked === q.correct;
+      if (window.cqSR && q && q.id != null) {
+        try { window.cqSR.report(sheetState.path.packId, q.id, isCorrect); } catch (_) {}
+      }
       Array.prototype.forEach.call(optsEl.querySelectorAll('.pquiz-opt'), function (b, i) {
         b.disabled = true;
         if (i === q.correct) b.classList.add('pquiz-opt--right');
@@ -1179,6 +1202,7 @@
         $('#path-eyebrow').textContent = (pathDoc.brandName || 'Certification') + ' · 🗺️ Cert Quest';
         $('#path-chapters').textContent = pathDoc.chapters.length + ' chapters';
         $('#path-nodes').textContent = pathDoc.meta.totalNodes + ' nodes';
+        maybeRenderReviewCTA(packId);
         document.title = pathDoc.title + ' — Cert Quest · CertQuests';
         hide('path-loading'); show('path-root');
         renderMap(pathDoc);

@@ -99,8 +99,15 @@ at sync time so the consuming app gets a self-contained node.
 - **Diagrams**: start with ASCII/text inside `<pre>` — universal and
   zero-dep. Real SVG diagrams arrive once we have a diagram authoring
   pipeline.
-- **Spaced repetition surface**: probably a new "Review (N due)" entry
-  on `path.html` that batches due items across the active cert.
+- **Spaced repetition surface**: SHIPPED (2026-05-29). `window.cqSR`
+  (`src/sr.js`, in the cq-core bundle; storage `cq-sr-<packId>`, SM-2-light)
+  tracks missed questions. The path inline quiz (`path.js`) and the SPA quiz
+  (`screens/quiz.js`) both report answers to it. A "🔁 Review N due" CTA in the
+  per-cert `path.html` header launches a focused review of the due items via
+  the quiz runtime, which graduates/resets each item. Only *missed* items are
+  enqueued (a first-sight correct answer is never queued), so the review list
+  stays signal. The older `learning/games/_spaced-repetition.js` (itcertif_*
+  namespace) remains a dormant games-runner-layer variant.
 
 ---
 

@@ -670,6 +670,15 @@ function finishQuiz() {
     timeMs: results.totalTime, quizCount, maxCombo, mode: quizMode,
   });
   schedulePostQuizReminder(packInfo.name, results.score, results.total);
+
+  // Feed spaced repetition: enqueue missed items, graduate reviewed-correct ones.
+  try {
+    if (window.cqSR && packInfo && packInfo.id) {
+      (results.answers || []).forEach((a) => {
+        if (a && a.questionId != null) window.cqSR.report(packInfo.id, a.questionId, !!a.isCorrect);
+      });
+    }
+  } catch (_) {}
   // Stub gates — logging removed; wire to real ads/popup when implemented
   shouldShowAd();
   shouldShowPopup();
