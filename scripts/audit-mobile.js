@@ -40,7 +40,7 @@ const MEDIA_QUERY_RE   = /@media[^{]*\(\s*max-width\s*:\s*(\d+)\s*px\s*\)/gi;
 const FIXED_WIDTH_RE   = /(?:^|\s|;)width\s*:\s*(\d{3,5})px/gi;       // CSS `width: NNNpx`
 const MIN_WIDTH_RE     = /(?:^|\s|;)min-width\s*:\s*(\d{3,5})px/gi;
 const HTML_WIDTH_ATTR  = /<(?:img|table|iframe|video|div)[^>]+\swidth=["']?(\d{3,4})/gi;
-const EXPECTED_VERSION = '103'; // current ?v=N for desktop.css / main.css (also profile/path/onboarding/cq-core — single source of truth)
+const EXPECTED_VERSION = '104'; // current ?v=N for desktop.css / main.css (also profile/path/onboarding/cq-core — single source of truth)
 
 const failures = [];
 
