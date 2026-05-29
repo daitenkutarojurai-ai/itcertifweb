@@ -80,10 +80,11 @@ at sync time so the consuming app gets a self-contained node.
       boss-fight fetches the cert pack via `opts.packId` and orders by
       `difficultyCurve`. CSS in `src/styles/path.css`. Still dormant in
       prod until path nodes opt in via `{ mode, data }` (next task).
-- [~] Author real content per cert — **20 certs live + 3 dormant** (2026-05-29): AWS CP
+- [~] Author real content per cert — **24 certs live + 3 dormant** (2026-05-29): AWS CP
       (all 7 modes incl. boss-fight), SAA-C03, DVA-C02, AZ-900, AZ-104, AZ-305,
       Security+, CySA+, PenTest+, Network+, A+, GCP-ACE, CCNA, CKA, CKAD, CKS,
-      Terraform, SOA-C02, AZ-204, GCP-PCA (+ aws-sap-c02 / sc-200 / dp-900
+      Terraform, SOA-C02, AZ-204, GCP-PCA, CISSP, AZ-500, SCS-C02, RHCSA
+      (+ aws-sap-c02 / sc-200 / dp-900
       authored but DORMANT — those packs are only 10 Q, below the 12-Q path
       threshold, so their games activate once the banks grow) — covering
       break-architecture,
