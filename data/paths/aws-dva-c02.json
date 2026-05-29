@@ -59,90 +59,90 @@
               {
                 "q": "A developer is building a Lambda function that processes S3 events. The function runs for 8 minutes and requires 3 GB of memory. After deployment, all invocations fail with a timeout error. What is the MOST likely cause?",
                 "choices": [
-                  "3 GB exceeds the maximum Lambda memory allocation",
-                  "Lambda functions cannot process S3 events directly",
-                  "S3 event notifications require an SQS queue as an intermediary",
-                  "Lambda has a maximum execution timeout of 15 minutes and the"
+                  "3 GB exceeds the maximum memory you can allocate to a single Lambda function, so it is rejected",
+                  "The default timeout is only 3 seconds, far below the 8-minute runtime, so it times out",
+                  "S3 event notifications must be buffered through an SQS queue before they are allowed to invoke Lambda",
+                  "Lambda cannot be triggered by S3 events unless the function runs inside the same VPC as the bucket"
                 ],
-                "correctIndex": 3,
-                "explanation": "Lambda's default timeout is 3 seconds, with a maximum of 15 minutes (900 seconds). Since the function runs 8 minutes but the default is only 3 seconds, it times out on every invocation. The fix is to set the timeout to at least 480 seconds. Lambda supports up to 10 GB of memory, so 3 GB is valid."
+                "correctIndex": 1,
+                "explanation": "Lambda's default timeout is only 3 seconds (max 900 seconds / 15 minutes), so an 8-minute function times out on every invocation until you raise the timeout to at least 480 seconds. 3 GB is well within the 128 MB-10,240 MB memory range, so the memory option is wrong. S3 can invoke Lambda directly without an SQS intermediary, and Lambda routinely reads S3 objects, so those options are incorrect."
               },
               {
                 "q": "A developer needs a Lambda function to access resources inside a private VPC (RDS, ElastiCache). After enabling VPC integration, the function can reach the VPC resources but can no longer call external AWS APIs like DynamoDB or S3. What is the MOST likely cause?",
                 "choices": [
-                  "The VPC has no NAT Gateway or VPC Endpoints.",
-                  "Lambda VPC functions cannot access AWS services; all calls must go through API Gateway",
-                  "IAM execution role permissions are overridden by VPC network ACLs",
-                  "The Lambda security group outbound rules block port 443"
+                  "Lambda functions inside a VPC cannot call AWS services; calls must be proxied through API Gateway",
+                  "VPC network ACLs override the IAM execution role and silently block the outbound API calls",
+                  "The function's security group is blocking all outbound traffic on TCP port 443 to AWS",
+                  "The subnet has no NAT gateway or VPC endpoints, so there is no route to public AWS endpoints"
                 ],
-                "correctIndex": 0,
-                "explanation": "When Lambda runs inside a VPC, it loses its default internet access. Without a NAT Gateway (for internet traffic) or VPC Endpoints (for private AWS service access), calls to public AWS API endpoints (DynamoDB, S3, etc.) fail. The fix is to add VPC Endpoints for the required services or route Lambda to a private subnet with a NAT Gateway. so traffic to AWS public endpoints has no route"
+                "correctIndex": 3,
+                "explanation": "A VPC-attached Lambda loses default internet access; without a NAT gateway (for internet routes) or VPC/Gateway endpoints (for private AWS access), traffic to public DynamoDB/S3 endpoints has no route. Lambda in a VPC can call AWS services once routing exists. NACLs and IAM are separate layers; NACLs don't 'override' IAM. A security group could block 443, but it allows all outbound by default, so the missing route is the likeliest cause."
               },
               {
                 "q": "A developer uses Lambda with a provisioned concurrency of 100. During a traffic spike, 200 concurrent requests arrive simultaneously. What happens to the excess 100 requests?",
                 "choices": [
-                  "They trigger new Lambda instances from the general on-demand",
-                  "They receive a 429 TooManyRequests error immediately",
-                  "They are queued and processed after the first 100 complete",
-                  "They are routed to the Lambda fallback region"
+                  "They immediately receive an HTTP 429 TooManyRequests error because the warm pool is full",
+                  "They are queued internally by Lambda and run only after the first 100 invocations finish",
+                  "They are automatically routed to the function's configured fallback Region to be processed there",
+                  "They spill over to standard on-demand concurrency, subject to the account concurrency limit"
                 ],
-                "correctIndex": 0,
-                "explanation": "Provisioned concurrency pre-warms a fixed number of Lambda instances to eliminate cold starts. When demand exceeds provisioned concurrency, Lambda scales additional instances from the standard on-demand pool (subject to account-level concurrency limits). Only if the account limit is also reached do requests get throttled with a 429 error."
+                "correctIndex": 3,
+                "explanation": "Provisioned concurrency pre-warms a fixed pool; demand above it is served by normal on-demand scaling, throttling with 429 only if the account concurrency limit is also reached. Requests aren't immediately throttled while headroom exists, Lambda doesn't transparently queue synchronous calls behind the warm pool, and there is no automatic cross-Region fallback."
               },
               {
                 "q": "A developer needs to call an AWS Lambda function in Account B from Account A. The calling role is in Account A. What is the MINIMUM required configuration?",
                 "choices": [
-                  "Enable AWS Organizations and apply a Service Control Policy allowing cross-account Lambda invocations",
-                  "Create VPC peering between both accounts' default VPCs",
-                  "Set up AWS PrivateLink between both accounts with a Lambda endpoint",
-                  "Add a resource-based policy on the Lambda function in Account B granting invoke"
+                  "Add a resource-based policy on the Account B function allowing the Account A role to invoke it",
+                  "Create VPC peering between the default VPCs of Account A and Account B to allow connectivity",
+                  "Set up an AWS PrivateLink interface endpoint for Lambda between the two accounts",
+                  "Enable AWS Organizations and attach a Service Control Policy permitting cross-account invocation"
                 ],
-                "correctIndex": 3,
-                "explanation": "Lambda supports resource-based policies (like S3 bucket policies). Adding a policy on the Lambda function that allows `lambda:InvokeFunction` for the calling role's ARN (in Account A) grants cross-account access. The calling role also needs `lambda:InvokeFunction` in its identity-based policy. No VPC or PrivateLink configuration is needed for standard cross-account invocation."
+                "correctIndex": 0,
+                "explanation": "Lambda supports resource-based policies; granting lambda:InvokeFunction to the Account A role's ARN (plus that role holding invoke permission in its identity policy) is the minimum for cross-account invocation. VPC peering and PrivateLink address network connectivity, not the IAM authorization needed here. SCPs only restrict permissions within an Organization; they can't grant a specific cross-account invoke permission."
               },
               {
                 "q": "An application uses Lambda and DynamoDB Streams. The Lambda function processes stream records and occasionally throws unhandled exceptions. The developer notices Lambda is stuck retrying the same failed batch indefinitely, blocking new records from being processed. What is the BEST fix?",
                 "choices": [
-                  "Wrap all DynamoDB write operations in try/catch blocks",
-                  "Disable DynamoDB Streams and switch to polling with an SQS FIFO queue",
-                  "Increase the Lambda timeout to allow more time to process each record",
-                  "Configure a bisect-on-error setting and a destination for failed records"
+                  "Wrap every DynamoDB write operation in try/catch blocks inside the Lambda handler function code",
+                  "Disable DynamoDB Streams and switch to polling an SQS FIFO queue from the function",
+                  "Increase the Lambda function timeout to give each record more time to be processed",
+                  "Enable BisectBatchOnFunctionError and configure an on-failure destination for bad records"
                 ],
                 "correctIndex": 3,
-                "explanation": "DynamoDB Streams with Lambda uses ordered, at-least-once delivery per shard. A failing batch blocks the shard until it succeeds or expires. The `BisectBatchOnFunctionError` setting splits a failing batch in half to isolate bad records. Combined with `DestinationConfig` pointing to SQS or EventBridge, failed individual records are preserved for debugging without blocking the stream."
+                "explanation": "Stream processing is ordered and at-least-once per shard, so one poison batch blocks the shard until it succeeds or expires. BisectBatchOnFunctionError splits the failing batch to isolate the bad record, and an on-failure DestinationConfig (SQS/EventBridge) captures it so the shard unblocks. A try/catch may swallow errors but doesn't route bad records out of the ordered batch. Re-architecting to SQS FIFO is unnecessary and loses Stream semantics. A longer timeout doesn't help when the record always fails."
               },
               {
                 "q": "A developer needs to pass configuration values (database name, feature flags) to a Lambda function without redeploying the code. The values are non-sensitive. Which is the SIMPLEST approach?",
                 "choices": [
-                  "Use Lambda environment variables that can be updated via the console or CLI",
-                  "Package a JSON config file inside the Lambda deployment package",
-                  "Hardcode the values in the function source code and version-control them",
-                  "Store values in a DynamoDB table and read them on every Lambda invocation"
+                  "Store them as Lambda environment variables that you update via the console or CLI",
+                  "Bundle a JSON configuration file inside the Lambda deployment package and read it",
+                  "Hardcode the values directly in the function source code and commit them to git",
+                  "Keep the values in a DynamoDB table and read them on every single Lambda invocation"
                 ],
                 "correctIndex": 0,
-                "explanation": "Lambda environment variables are key-value pairs configured at the function level. Updating them via the console or API doesn't require a code redeployment — just a function update. The new values take effect on the next cold start (or warm instances may reload them depending on the implementation). This is the simplest solution for non-sensitive configuration."
+                "explanation": "Environment variables are function-level key/value pairs you can change with a configuration update and no code redeploy, making them the simplest fit for non-sensitive config. A bundled JSON file or hardcoded values require a new deployment to change. A DynamoDB lookup works but adds latency, cost, and a dependency for what is simple static configuration."
               },
               {
                 "q": "A developer has multiple Lambda functions that all share the same custom logging library and a set of third-party dependencies totalling 45 MB. Each function's deployment package is 50 MB. Which approach reduces deployment package sizes?",
                 "choices": [
-                  "Combine all Lambda functions into a single monolithic function to share code",
-                  "Use Lambda Layers to package shared dependencies once and attach the layer to multiple functions",
-                  "Store the shared libraries in S3 and download them inside the Lambda handler function on each invocation",
-                  "Use Lambda@Edge to cache dependency files at CloudFront edge locations"
+                  "Combine all of the Lambda functions into a single monolithic function so they share the code",
+                  "Publish the shared dependencies as a Lambda Layer and attach that layer to each function",
+                  "Store the libraries in S3 and download them inside the handler on every invocation",
+                  "Use Lambda@Edge to cache the dependency files at CloudFront edge locations globally"
                 ],
                 "correctIndex": 1,
-                "explanation": "Lambda Layers are ZIP archives containing libraries, runtimes, or dependencies that you attach to functions. A layer can be shared across multiple functions and counts toward the 250 MB total unzipped size limit separately from the function code. This avoids bundling the same 45 MB of dependencies in every deployment package."
+                "explanation": "A Lambda Layer packages shared libraries once and attaches to many functions, so each deployment package no longer bundles the 45 MB. Merging into one function doesn't shrink the package; it still contains the same dependencies. Downloading from S3 per invocation adds latency and cost and complicates cold starts. Lambda@Edge runs code at edge locations and has nothing to do with sharing dependency archives."
               },
               {
                 "q": "A Lambda function occasionally receives a burst of 500 concurrent requests. The downstream RDS database can only handle 50 concurrent connections. How can a developer protect the database from connection exhaustion?",
                 "choices": [
-                  "Use RDS Proxy between Lambda and RDS.",
-                  "Switch from RDS to DynamoDB to eliminate the connection limit problem",
-                  "Set Lambda reserved concurrency to 50 to cap concurrent invocations",
-                  "Configure Lambda provisioned concurrency to 50 to limit simultaneous executions"
+                  "Put RDS Proxy between Lambda and RDS to pool and multiplex the database connections",
+                  "Migrate the workload from RDS to DynamoDB to remove the fixed connection limit entirely",
+                  "Set Lambda reserved concurrency to 50 so concurrent invocations are capped at the limit",
+                  "Set Lambda provisioned concurrency to 50 to limit the number of simultaneous executions"
                 ],
                 "correctIndex": 0,
-                "explanation": "RDS Proxy maintains a warm pool of database connections and multiplexes requests from many Lambda functions through a small set of connections. Hundreds of Lambda instances can share 50 or fewer actual database connections. Setting Lambda reserved concurrency to 50 would also work but would throttle your Lambda function, degrading performance. it pools and multiplexes connections from many Lambda instances"
+                "explanation": "RDS Proxy keeps a warm pool and multiplexes many Lambda connections onto a few database connections, protecting RDS during bursts without throttling the function. Reserved concurrency would cap invocations at 50 but throttles legitimate traffic and degrades latency. Provisioned concurrency pre-warms instances; it doesn't cap concurrency or pool DB connections. Migrating to DynamoDB is a major re-architecture, not a connection-protection fix."
               }
             ]
           },
@@ -226,79 +226,79 @@
               {
                 "q": "A company stores user session data in DynamoDB. The table has a partition key of `userId` and receives heavy read traffic from a small set of 'celebrity' users. The team observes hot partition throttling. What is the BEST solution?",
                 "choices": [
-                  "Switch the partition key to a timestamp-based UUID",
-                  "Increase the RCU provisioned capacity by 10x",
-                  "Enable DynamoDB Auto Scaling to increase throughput automatically",
-                  "Use DAX (DynamoDB Accelerator) to cache popular items and"
+                  "Switch the partition key to a randomly generated UUID so writes and reads spread evenly across partitions",
+                  "Increase the provisioned RCU by 10x to raise the per-table throughput ceiling for the hot keys",
+                  "Add DynamoDB Accelerator (DAX) to absorb repeated reads of the hot 'celebrity' items from memory",
+                  "Enable DynamoDB auto scaling so provisioned capacity grows automatically as traffic increases"
                 ],
-                "correctIndex": 3,
-                "explanation": "DAX is an in-memory cache purpose-built for DynamoDB that delivers microsecond read performance. For 'hot key' patterns where a few items get the vast majority of reads, DAX absorbs repeated reads for the same keys, effectively eliminating hot partition throttling. Simply increasing RCU doesn't fix hot partitions — it just raises the absolute throttle ceiling."
+                "correctIndex": 2,
+                "explanation": "DAX is an in-memory cache that absorbs repeated reads of the same hot keys, eliminating read throttling on a hot partition. Changing the partition key to a random UUID would break the userId lookup pattern entirely. Raising RCU 10x or enabling auto scaling only lifts the overall ceiling; a single partition is still capped (~3,000 RCU), so the hot key keeps throttling."
               },
               {
                 "q": "A developer is designing a DynamoDB schema for an e-commerce application. Each order has an `orderId` (unique) and a `customerId`. Queries must efficiently retrieve ALL orders for a given customer, sorted by order date. Which schema design BEST supports this?",
                 "choices": [
-                  "Partition key: customerId, Sort key: orderDate. Query using the partition key and sort key range",
-                  "Partition key: customerId. Store orders as a JSON list in a single item attribute",
-                  "Partition key: orderId. Scan the entire table with a FilterExpression for customerId",
-                  "Partition key: orderId, Sort key: customerId. Use a Query with KeyConditionExpression"
+                  "Partition key orderId; scan the whole table with a FilterExpression matching customerId",
+                  "Partition key customerId; store all of that customer's orders as a JSON list in one attribute",
+                  "Partition key orderId, sort key customerId; query with a KeyConditionExpression on both",
+                  "Partition key customerId, sort key orderDate; one Query returns the orders sorted by date"
                 ],
-                "correctIndex": 0,
-                "explanation": "Setting `customerId` as the partition key and `orderDate` as the sort key allows a single Query operation to return all orders for a customer, sorted by date, with efficient range expressions (e.g., begins_with, between). Scans are expensive and don't scale. Storing orders in a single item attribute has a 400 KB item size limit."
+                "correctIndex": 3,
+                "explanation": "Using customerId as the partition key and orderDate as the sort key lets one Query return all of a customer's orders in date order via range conditions. Scanning with a filter reads the entire table and doesn't scale. Storing orders in a single item hits the 400 KB item limit and can't be queried per order. With orderId as the partition key you can't query by customerId without a scan or a GSI."
               },
               {
                 "q": "A developer uses DynamoDB and needs to implement optimistic locking to prevent a lost-update problem where two processes read an item and then both write different updates. Which DynamoDB feature provides this?",
                 "choices": [
-                  "DynamoDB transactions with SERIALIZABLE isolation level",
-                  "DynamoDB Streams with deduplication logic in Lambda",
-                  "TransactWriteItems with a ConditionExpression checking the",
-                  "Strongly consistent reads followed by a standard PutItem"
+                  "Maintain a version attribute and write with a ConditionExpression like version = :expected",
+                  "Use DynamoDB transactions configured to run at the SERIALIZABLE isolation level for writes",
+                  "Use DynamoDB Streams with deduplication logic in a Lambda consumer to drop stale updates",
+                  "Perform a strongly consistent read and then an unconditional PutItem with the new values"
                 ],
-                "correctIndex": 2,
-                "explanation": "Optimistic locking in DynamoDB is implemented by adding a version number attribute to each item. When writing, use a ConditionExpression like `version = :expected_version`. If another process has already updated the item (incrementing the version), your write fails with ConditionalCheckFailedException, and you retry. TransactWriteItems lets you do this atomically across multiple items."
+                "correctIndex": 0,
+                "explanation": "Optimistic locking adds a version attribute and writes with a ConditionExpression; if another writer already bumped the version, your conditional write fails with ConditionalCheckFailedException and you retry. DynamoDB has no toggle for a 'SERIALIZABLE isolation level.' Streams plus dedup addresses downstream processing, not the lost-update on write. A strongly consistent read followed by an unconditional PutItem still races; two readers can both overwrite."
               },
               {
                 "q": "A developer needs to query items from a DynamoDB table where items may NOT have the attribute being filtered. For example, retrieving all orders with `status = 'PENDING'` where some items have no `status` attribute. Which operation is correct?",
                 "choices": [
-                  "Use a GetItem with status as the sort key",
-                  "Use a Scan with FilterExpression = 'attribute_exists(#s) AND #s",
-                  "Use a Query with KeyConditionExpression = 'status = :pending'",
-                  "Use a BatchGetItem with a list of all primary keys to check"
+                  "GetItem using status as the sort key to directly fetch only the records that are pending",
+                  "Scan with FilterExpression attribute_exists(#s) AND #s = :pending, mapping #s to status",
+                  "Query with a KeyConditionExpression of status = :pending against the base table",
+                  "BatchGetItem supplying a list of all of the table's primary keys to check each one"
                 ],
                 "correctIndex": 1,
-                "explanation": "A full-table Scan with a FilterExpression evaluates each item after retrieval. Using `attribute_exists(#s) AND #s = :pending` (where `#s` maps to `status` via ExpressionAttributeNames) correctly handles items missing the attribute. A Query requires `status` to be a partition or sort key — it can't filter on non-key attributes alone."
+                "explanation": "A Scan with a FilterExpression evaluates each item after retrieval; attribute_exists(#s) AND #s = :pending correctly skips items that lack the attribute. GetItem fetches a single item by full primary key and can't filter a set. Query's KeyConditionExpression only works on partition/sort keys, and status isn't a key here. BatchGetItem also needs exact keys and can't filter by an attribute value."
               },
               {
                 "q": "A developer uses DynamoDB and needs to update an item only if it currently exists (i.e., the item must NOT be inserted if the key doesn't exist). Which DynamoDB operation and condition achieves this?",
                 "choices": [
-                  "GetItem followed by PutItem in the same transaction",
-                  "PutItem with ConditionExpression = 'attribute_exists(pk)'",
-                  "BatchWriteItem with a conditional write flag",
-                  "UpdateItem with ConditionExpression = 'attribute_exists(pk)'."
+                  "GetItem to read the item first, then PutItem to write it back inside a single transaction",
+                  "UpdateItem with a ConditionExpression of attribute_exists(pk) on the partition key",
+                  "PutItem with a ConditionExpression of attribute_exists(pk) on the partition key",
+                  "BatchWriteItem with a per-item conditional-write flag enabled for the update"
                 ],
-                "correctIndex": 3,
-                "explanation": "UpdateItem with `ConditionExpression = 'attribute_exists(pk)'` (where `pk` is the partition key) ensures the item exists before applying the update. If the item doesn't exist, DynamoDB throws a ConditionalCheckFailedException and no write occurs. PutItem with `attribute_exists(pk)` would also work but PutItem overwrites the entire item, whereas UpdateItem only modifies specified attributes. updates only if the key already exists"
+                "correctIndex": 1,
+                "explanation": "UpdateItem with attribute_exists(pk) applies the change only when the key exists, otherwise raising ConditionalCheckFailedException and writing nothing, and it modifies only the named attributes. PutItem with the same condition also requires existence but overwrites the entire item, losing unspecified attributes. GetItem-then-PutItem isn't atomic the way a single conditional write is. BatchWriteItem doesn't support per-item ConditionExpressions."
               },
               {
                 "q": "A developer needs to retrieve the 10 most recently created items from a DynamoDB table. The table's partition key is `tenantId` and sort key is `createdAt` (ISO 8601 timestamp). Which DynamoDB operation returns the 10 most recent items MOST efficiently?",
                 "choices": [
-                  "Query with partition key = tenantId.",
-                  "GetItem 10 times with the 10 most recent known timestamps",
-                  "Query without ScanIndexForward and use client-side sorting on the results",
-                  "Scan the table with a Limit of 10 and a FilterExpression on createdAt"
+                  "Query with partition key = tenantId, ScanIndexForward = false, and Limit = 10",
+                  "Call GetItem ten times using the ten most recently known createdAt timestamps",
+                  "Query without setting ScanIndexForward and then sort the returned results client-side",
+                  "Scan the table with a Limit of 10 and a FilterExpression applied on createdAt"
                 ],
                 "correctIndex": 0,
-                "explanation": "DynamoDB stores items in sort key order. Setting `ScanIndexForward = false` reverses the sort order (descending by sort key). Combined with `Limit = 10`, DynamoDB returns the 10 items with the largest `createdAt` values — the most recent. This is a single efficient Query operation with no full-table scan. ScanIndexForward = false, Limit = 10 — returns the 10 most recent sorted items"
+                "explanation": "Items are stored in sort-key order, so ScanIndexForward=false plus Limit=10 returns the 10 highest createdAt values in one efficient Query. GetItem needs exact keys, and you don't know the recent timestamps in advance. Querying then sorting client-side fetches more than needed and wastes RCU. A Scan reads the whole table, and a Limit of 10 just caps scanned items rather than returning the most recent."
               },
               {
                 "q": "A developer receives a `TooManyRequestsException` from the DynamoDB API. CloudWatch shows the table's consumed Write Capacity Units are below the provisioned capacity. What is MOST likely causing this throttling?",
                 "choices": [
-                  "A hot partition",
-                  "DynamoDB is throttling due to cross-region replication overhead",
-                  "The Lambda function's IAM role has exceeded its API rate limit",
-                  "The table has reached its maximum item count limit"
+                  "DynamoDB is throttling because of the overhead generated by cross-region table replication",
+                  "The Lambda function's IAM execution role has exceeded its allowed API call rate",
+                  "The table has reached the maximum number of items that DynamoDB allows it to store",
+                  "A hot partition: writes concentrate on a few keys and exceed that partition's limit"
                 ],
-                "correctIndex": 0,
-                "explanation": "DynamoDB distributes data across partitions. Each partition has a maximum throughput (3,000 RCU / 1,000 WCU). Even if total table WCU is below provisioned capacity, if writes are concentrated on a few partition keys (hot partitions), those partitions get throttled individually. The solution is to design a better partition key with higher cardinality to distribute writes evenly. exceeding that partition's throughput limit"
+                "correctIndex": 3,
+                "explanation": "Each partition caps at ~1,000 WCU / 3,000 RCU, so concentrated writes on a few keys throttle even when total table capacity is underused; the fix is a higher-cardinality partition key. Replication overhead doesn't cause client-side TooManyRequests on writes here. IAM roles have no per-role DynamoDB API rate limit that surfaces this way. DynamoDB tables have no fixed maximum item count."
               }
             ]
           },
@@ -368,57 +368,57 @@
               {
                 "q": "A developer needs to expose a REST API that invokes Lambda functions. The API must cache responses for 5 minutes per unique query string parameter combination. Which feature enables this?",
                 "choices": [
-                  "ElastiCache for Memcached placed between API Gateway and Lambda",
-                  "Lambda reserved concurrency with response caching enabled",
-                  "API Gateway stage-level caching with cache key set to include query",
-                  "CloudFront in front of API Gateway with TTL set to 300 seconds"
+                  "Enable API Gateway stage-level caching and add the query-string parameters to the cache key",
+                  "Use Lambda reserved concurrency with response caching enabled to reuse identical query results",
+                  "Place ElastiCache for Memcached between API Gateway and Lambda to store recent responses",
+                  "Put CloudFront in front of API Gateway with a per-stage TTL of 300 seconds for each query"
                 ],
-                "correctIndex": 2,
-                "explanation": "API Gateway has a built-in response cache at the stage level. You enable it per stage, set a TTL (up to 3600s), and configure which request parameters (query strings, headers, path variables) are included in the cache key. This avoids invoking Lambda for identical repeated requests within the TTL window."
+                "correctIndex": 0,
+                "explanation": "API Gateway has built-in stage-level response caching: you set a TTL (up to 3600s) and choose which request parameters (query strings, headers, path) form the cache key, avoiding repeat Lambda calls. Reserved concurrency only limits parallelism and caches nothing. ElastiCache/Memcached requires custom code and doesn't hook into API Gateway's request lifecycle. CloudFront caches whole responses but isn't the native per-stage, per-query-string cache the question describes and adds another hop."
               },
               {
                 "q": "A developer implements a Cognito-protected REST API in API Gateway. The JWT from Cognito User Pools must be validated before routing to the backend. Which integration achieves this with the LEAST custom code?",
                 "choices": [
-                  "Use an API Gateway resource policy to allow only authenticated Cognito IP addresses",
-                  "Place CloudFront in front of API Gateway and configure a CloudFront function for token validation",
-                  "Write a Lambda authorizer that manually validates the JWT signature using the Cognito JWKS endpoint",
-                  "Configure a Cognito User Pool Authorizer directly in API Gateway — it validates the JWT natively"
+                  "Configure a native Cognito User Pool Authorizer on the API to validate the JWT automatically",
+                  "Write a Lambda authorizer that manually verifies the JWT signature against the Cognito JWKS endpoint",
+                  "Use an API Gateway resource policy that allows only authenticated Cognito IP ranges through",
+                  "Put CloudFront in front and run a CloudFront Function to validate the token at the edge"
                 ],
-                "correctIndex": 3,
-                "explanation": "API Gateway has a native Cognito User Pool Authorizer integration. You configure it with the User Pool ARN and it automatically validates the JWT (issuer, signature, expiry, audience) using Cognito's JWKS endpoint. No custom Lambda code is required. The validated claims are forwarded to the backend in `$context.authorizer.claims`."
+                "correctIndex": 0,
+                "explanation": "API Gateway's built-in Cognito User Pool Authorizer validates issuer, signature, expiry, and audience using Cognito's JWKS with no custom code and forwards the claims to the backend. A Lambda authorizer works but is custom code to build and maintain. A resource policy filters by IP/principal, not JWT validity. CloudFront Functions are tiny and short-lived and aren't suited to full JWT signature verification against JWKS."
               },
               {
                 "q": "A developer builds an API Gateway REST API with Lambda proxy integration. The frontend receives HTTP 502 errors for some requests. The Lambda function logs show it completed successfully. What is the MOST likely cause?",
                 "choices": [
-                  "API Gateway is unable to parse the Lambda function's CloudWatch logs",
-                  "API Gateway is throttling requests due to exceeding the burst limit",
-                  "The Lambda function is not returning a properly formatted response object",
-                  "The Lambda function exceeded its timeout before returning"
+                  "API Gateway is unable to parse the function's CloudWatch Logs output and so returns an error",
+                  "API Gateway is throttling the requests because the account burst limit was exceeded",
+                  "The function isn't returning the required proxy response object (statusCode, headers, body)",
+                  "The function exceeded its configured timeout before it could return any response"
                 ],
                 "correctIndex": 2,
-                "explanation": "With Lambda proxy integration, API Gateway expects the Lambda function to return a specific JSON structure: `{\"statusCode\": 200, \"headers\": {}, \"body\": \"...\"}`. If the Lambda returns an invalid format (wrong field names, missing statusCode, unserializable body), API Gateway returns a 502 Bad Gateway error. The function itself succeeds — the failure is in the response serialization. headers, and body"
+                "explanation": "With proxy integration, API Gateway requires a specific JSON shape (statusCode, headers, body); a malformed or unserializable response yields a 502 even though the function ran successfully. API Gateway never parses CloudWatch logs. Throttling returns 429, not 502. A timeout returns 504, and the logs wouldn't show a clean completion."
               },
               {
                 "q": "A developer is building a web application that needs to support thousands of concurrent WebSocket connections for real-time notifications. The backend is serverless. Which AWS service handles persistent WebSocket connections natively without managing servers?",
                 "choices": [
-                  "API Gateway HTTP API with long-polling Lambda functions",
-                  "Amazon Kinesis Data Streams with WebSocket SDK clients",
-                  "Application Load Balancer WebSocket listener with Lambda targets",
-                  "API Gateway WebSocket API with Lambda integration for connect."
+                  "An API Gateway HTTP API backed by long-polling Lambda functions to deliver near-real-time updates",
+                  "Amazon Kinesis Data Streams with clients connecting over the WebSocket SDK protocol",
+                  "An Application Load Balancer WebSocket listener that forwards to Lambda function targets",
+                  "API Gateway WebSocket API with Lambda handlers for $connect, $disconnect, and message routes"
                 ],
                 "correctIndex": 3,
-                "explanation": "API Gateway WebSocket APIs maintain persistent WebSocket connections on behalf of your backend. Lambda functions handle `$connect`, `$disconnect`, and custom message routes. The backend can push messages back to connected clients using the API Gateway Management API (`POST /@connections/{connectionId}`). This is fully serverless — no EC2 or WebSocket servers to manage. disconnect, and message routes"
+                "explanation": "API Gateway WebSocket APIs hold the persistent connections for you; Lambda handles the route keys and pushes messages back via the Management API, fully serverless. HTTP APIs don't keep WebSocket connections, so long polling is only a workaround. Kinesis is a streaming service with no WebSocket server. ALB can't use Lambda as a target for a WebSocket listener, so that doesn't fit the serverless model described."
               },
               {
                 "q": "A developer is implementing an API Gateway Lambda authorizer (custom authorizer). The Lambda function validates a custom token and returns an IAM policy. To avoid invoking the authorizer Lambda on every request, which feature should the developer enable?",
                 "choices": [
-                  "Lambda provisioned concurrency to keep the authorizer warm",
-                  "Lambda@Edge to cache authorization decisions at edge locations",
-                  "API Gateway authorizer result caching with a TTL.",
-                  "CloudFront caching in front of API Gateway to cache authorization headers"
+                  "Enable Lambda provisioned concurrency to keep the authorizer function warm at all times",
+                  "Use Lambda@Edge to cache the authorization decisions at the CloudFront edge locations",
+                  "Enable API Gateway authorizer result caching with a TTL keyed on the identity source",
+                  "Add CloudFront caching in front of API Gateway to cache the authorization header value"
                 ],
                 "correctIndex": 2,
-                "explanation": "API Gateway Lambda authorizers support result caching. When enabled, the IAM policy returned by the authorizer is cached by the identity source (e.g., the token value) for a configurable TTL (up to 3600 seconds). Subsequent requests with the same token reuse the cached policy without invoking the authorizer Lambda, reducing latency and cost. the IAM policy is cached per token/identity source"
+                "explanation": "API Gateway caches the policy a Lambda authorizer returns, keyed by the identity source (e.g., the token), for up to 3600s, so identical tokens skip re-invoking the authorizer. Provisioned concurrency reduces cold starts but still invokes the authorizer on every request. Lambda@Edge runs on CloudFront, not in the API Gateway authorizer flow. CloudFront caching of responses doesn't implement per-token authorization caching at the authorizer layer."
               }
             ]
           },
@@ -500,57 +500,57 @@
               {
                 "q": "A developer uses CloudFormation to manage infrastructure. A stack update causes an EC2 instance replacement, which is a disruptive change. The developer wants to preview exactly which resources will be replaced BEFORE applying the change. Which CloudFormation feature provides this?",
                 "choices": [
-                  "CloudFormation Change Sets.",
-                  "CloudTrail to log all API calls made by CloudFormation",
-                  "AWS Config to track infrastructure change history",
-                  "CloudFormation Drift Detection to compare current state with template"
+                  "CloudFormation Change Sets, which preview adds, modifications, and replacements first",
+                  "AWS CloudTrail, which logs all of the API calls that CloudFormation makes during the update",
+                  "AWS Config, which records the configuration change history for each resource",
+                  "CloudFormation drift detection, which compares the live resource state to the template"
                 ],
                 "correctIndex": 0,
-                "explanation": "CloudFormation Change Sets show you the exact changes (Add, Modify, Remove) and for modified resources whether they will be updated in-place or replaced (Replacement: True). You review the change set and execute it only when satisfied. This prevents surprise disruptions from stack updates. create a change set to preview modifications, replacements, and additions before execution"
+                "explanation": "A change set lists each resource action (Add/Modify/Remove) and flags Replacement: True for disruptive changes, so you review before executing. CloudTrail records API calls after the fact. AWS Config tracks historical configuration, not a pre-execution preview. Drift detection compares deployed resources to the template; it doesn't predict the effect of a pending update."
               },
               {
                 "q": "A developer deploys a CloudFormation stack but the stack creation fails. CloudFormation rolls back automatically. The developer needs to investigate the root cause. Where should they look FIRST?",
                 "choices": [
-                  "The CloudFormation stack's Events tab.",
-                  "AWS CloudTrail logs for all API calls made during deployment",
-                  "Amazon Inspector findings for the failed resources",
-                  "AWS Config timeline for each resource that failed"
+                  "AWS CloudTrail logs of every single API call that was made during the deployment attempt",
+                  "Amazon Inspector findings generated for each of the resources that failed to create",
+                  "The AWS Config timeline showing changes for each resource that failed during the rollback",
+                  "The CloudFormation stack's Events tab, which shows each action and the failure reason"
                 ],
-                "correctIndex": 0,
-                "explanation": "The CloudFormation stack Events tab is the first place to look. It shows a chronological list of resource creation/update events with status (CREATE_FAILED, etc.) and the reason message from the underlying service (e.g., 'IAM role does not have permission to...' or 'Value is not valid'). This pinpoints exactly which resource failed and why. it shows each resource action and the specific failure reason"
+                "correctIndex": 3,
+                "explanation": "The Events tab lists resource events chronologically with statuses like CREATE_FAILED and the underlying service's reason message, pinpointing what failed and why. CloudTrail can show API calls but is noisier and not the first stop for a resource failure reason. Inspector scans for security vulnerabilities, not stack failures. AWS Config tracks configuration history, not the cause of a stack operation failure."
               },
               {
                 "q": "A developer creates a CloudFormation template that includes a custom resource backed by a Lambda function. The Lambda function must respond to CloudFormation during stack creation or the stack will time out. What must the Lambda function do to signal CloudFormation?",
                 "choices": [
-                  "Return a CloudFormation-formatted JSON response from the Lambda handler function",
-                  "Send an HTTP PUT request to the pre-signed S3 URL provided in the CloudFormation event's",
-                  "Publish a success message to the SNS topic ARN included in the CloudFormation event",
-                  "Write a success file to the S3 bucket specified by the CloudFormation StackId"
+                  "Return a specially formatted CloudFormation JSON object directly from the function handler",
+                  "Send an HTTP PUT with the response JSON to the pre-signed ResponseURL in the event",
+                  "Publish a success message to the SNS topic ARN that is included in the event payload",
+                  "Write a success marker file into the S3 bucket named after the CloudFormation StackId"
                 ],
                 "correctIndex": 1,
-                "explanation": "CloudFormation custom resources work via a response URL pattern. CloudFormation sends an event to Lambda containing a `ResponseURL` (a pre-signed S3 URL). The Lambda function must PUT a JSON response object (with Status: SUCCESS/FAILED, PhysicalResourceId, and optional Data) to that URL. If it doesn't, the custom resource waits until it times out (up to 1 hour) and the stack fails."
+                "explanation": "Custom resources use a response-URL callback: CloudFormation passes a pre-signed S3 ResponseURL, and the function must PUT a JSON body (Status, PhysicalResourceId, optional Data) there, or the stack waits and times out. Simply returning JSON from the handler never reaches CloudFormation. There is no SNS topic in the custom-resource event for this signal. Writing an arbitrary S3 file isn't the protocol; the signed ResponseURL is required."
               },
               {
                 "q": "A developer writes a CloudFormation template that creates an S3 bucket and exports its name. A second stack imports that bucket name using `Fn::ImportValue`. After both stacks are deployed, the developer tries to update the first stack to change the bucket name but gets an error. Why?",
                 "choices": [
-                  "The `Fn::ImportValue` function creates a hard dependency that requires both stacks to be updated simultaneously",
-                  "Exported values in CloudFormation are immutable — you must delete and recreate the stack",
-                  "S3 bucket names cannot be changed after creation regardless of CloudFormation",
-                  "CloudFormation prevents deletion or modification of exports that are actively referenced by other stacks"
+                  "Fn::ImportValue forces both the producing and consuming stacks to be updated together",
+                  "Exported values are immutable, so you must delete and recreate the entire stack",
+                  "S3 bucket names can never be changed after creation, regardless of CloudFormation",
+                  "CloudFormation blocks changing or deleting an export while another stack imports it"
                 ],
                 "correctIndex": 3,
-                "explanation": "CloudFormation cross-stack references create a dependency lock. If Stack B imports an export from Stack A, CloudFormation prevents you from modifying or deleting that export (or the resource it references) in Stack A until Stack B is updated or deleted. This protects against breaking dependent stacks. To update, you must first remove the import from Stack B."
+                "explanation": "A cross-stack import creates a dependency lock: CloudFormation won't let you modify or delete the export (or the resource backing it) while the importing stack still references it. It doesn't require simultaneous updates. Exports aren't globally immutable; they're only locked while referenced. The bucket-name claim is false (names change via replacement); the block here is specifically the active import dependency."
               },
               {
                 "q": "A developer creates a CloudFormation stack with a DeletionPolicy of `Retain` on an RDS instance. When the developer deletes the stack, what happens to the RDS instance?",
                 "choices": [
-                  "The RDS instance is moved to a suspended state for 30 days before permanent deletion",
-                  "The RDS instance is removed from the CloudFormation stack but continues to exist in the AWS account",
-                  "CloudFormation deletes the RDS instance and creates a final snapshot before deletion",
-                  "CloudFormation refuses to delete the stack until the DeletionPolicy is removed"
+                  "The instance enters a suspended state for a 30-day grace period before it is permanently deleted",
+                  "The instance is removed from CloudFormation management but keeps existing in the account",
+                  "CloudFormation deletes the instance only after first taking a final database snapshot",
+                  "CloudFormation refuses to delete the stack until the DeletionPolicy is first removed"
                 ],
                 "correctIndex": 1,
-                "explanation": "The `DeletionPolicy: Retain` attribute tells CloudFormation to keep the resource when the stack is deleted. The resource is removed from CloudFormation management (no longer in the stack state) but continues to exist in your AWS account with all its data. You must delete it manually after stack deletion. This is commonly used for databases to prevent accidental data loss."
+                "explanation": "DeletionPolicy: Retain leaves the resource in place when the stack is deleted; it's dropped from stack state but persists with its data, and you delete it manually later. There's no 30-day suspended state. Taking a final snapshot is the behavior of the Snapshot policy value, not Retain. The stack deletes normally; Retain doesn't block deletion."
               }
             ]
           },
@@ -690,90 +690,90 @@
               {
                 "q": "An application uses Amazon SQS as a buffer between a producer service and Lambda consumers. After a deployment, you notice the same messages are being processed multiple times, causing duplicate charges. What setting should you check FIRST?",
                 "choices": [
-                  "Enable SQS FIFO queue to guarantee exactly-once processing",
-                  "Increase the Lambda concurrency limit to match SQS throughput",
-                  "Set the Lambda dead letter queue target to an S3 bucket",
-                  "Extend the SQS visibility timeout to be longer than the maximum"
+                  "Convert the queue to SQS FIFO, which guarantees exactly-once processing and removes duplicates",
+                  "Raise the Lambda reserved concurrency limit so it can match the SQS message throughput",
+                  "Increase the SQS visibility timeout so it exceeds the function's maximum processing time",
+                  "Point the Lambda dead-letter queue at an S3 bucket so duplicates are written there instead"
                 ],
-                "correctIndex": 3,
-                "explanation": "If the visibility timeout is shorter than the Lambda function's actual processing time, SQS makes the message visible again (assuming the consumer died) and another Lambda instance picks it up — causing duplicates. The fix is to set the visibility timeout to at least 6x the function's timeout. Making your Lambda idempotent is also best practice."
+                "correctIndex": 2,
+                "explanation": "If the visibility timeout is shorter than the function's processing time, SQS assumes the consumer died and re-delivers the message, causing duplicates; set it to at least 6x the function timeout. FIFO reduces duplicates but is a larger change and adds throughput limits without addressing the timeout root cause. Concurrency limits affect scaling, not re-delivery. A DLQ only captures messages after max retries and cannot target S3 directly."
               },
               {
                 "q": "A company processes financial transactions using Lambda and SQS. Occasionally Lambda fails to process a message after 3 retries. The team wants failed messages preserved for manual review without losing them. What is the CORRECT configuration?",
                 "choices": [
-                  "Enable SQS long polling with a 20-second wait time",
-                  "Configure a Dead Letter Queue (DLQ) on the SQS queue and",
-                  "Set the Lambda event source mapping batch size to 1",
-                  "Set the SQS queue retention period to 14 days"
+                  "Attach a Dead-Letter Queue to the SQS queue and set the redrive maxReceiveCount to 3",
+                  "Enable SQS long polling with a 20-second wait time so that failed messages are retained longer",
+                  "Set the Lambda event source mapping batch size to 1 so each message is isolated",
+                  "Raise the SQS message retention period to 14 days so nothing is lost during review"
                 ],
-                "correctIndex": 1,
-                "explanation": "A Dead Letter Queue receives messages that fail processing after `maxReceiveCount` delivery attempts. Setting maxReceiveCount to 3 means after 3 failed Lambda invocations, SQS moves the message to the DLQ where it stays for manual inspection and replay. This prevents message loss while isolating poison-pill messages."
+                "correctIndex": 0,
+                "explanation": "A redrive policy with a DLQ and maxReceiveCount=3 moves a message to the DLQ after 3 failed deliveries, preserving it for review without loss. Long polling only reduces empty receives. Batch size 1 changes how many messages each invocation gets, not failure handling. A 14-day retention just keeps messages longer in the main queue; they're still re-delivered and eventually dropped."
               },
               {
                 "q": "A Lambda function processes messages from an SQS queue. During testing, the developer notices all messages are processed twice. The Lambda function takes 45 seconds to process each message. The SQS visibility timeout is 30 seconds. What should the developer do?",
                 "choices": [
-                  "Increase the SQS visibility timeout to be greater than the Lambda function's",
-                  "Add deduplication logic inside the Lambda function using a DynamoDB table",
-                  "Reduce the Lambda batch size to 1 to prevent parallel processing",
-                  "Enable SQS FIFO queue to guarantee exactly-once processing"
+                  "Increase the SQS visibility timeout so it is greater than the 45-second processing time",
+                  "Add deduplication logic inside the function backed by a DynamoDB idempotency tracking table",
+                  "Reduce the Lambda batch size to 1 so messages cannot be processed in parallel",
+                  "Switch the queue to SQS FIFO to guarantee exactly-once processing of each message"
                 ],
                 "correctIndex": 0,
-                "explanation": "When the SQS visibility timeout (30s) is shorter than the Lambda processing time (45s), the message becomes visible again before Lambda finishes, causing SQS to deliver it to another consumer. Setting the visibility timeout to at least 6× the function timeout (AWS recommendation) — or at minimum longer than 45 seconds — prevents premature re-delivery."
+                "explanation": "With visibility (30s) shorter than processing (45s), the message reappears mid-processing and is delivered again; setting visibility to at least the processing time (AWS suggests ~6x the function timeout) stops the duplicate. A DynamoDB dedup table is a heavier idempotency workaround that doesn't fix the root timeout mismatch. Batch size 1 doesn't change the visibility problem. FIFO adds dedup on send but doesn't fix a visibility-timeout mismatch during processing."
               },
               {
                 "q": "A development team uses Elastic Beanstalk to deploy a Node.js application. During a new deployment, the team wants ZERO downtime and wants to test the new version before making it the primary version. Which deployment policy meets these requirements?",
                 "choices": [
-                  "Rolling with additional batch — adds new instances before removing old ones",
-                  "Blue/Green — deploy to a separate environment and swap CNAMEs after validation",
-                  "All at once — fastest but causes downtime",
-                  "Immutable — deploys to a fresh set of instances; swap to production only after health check passes"
+                  "Rolling with an additional batch, which adds new instances before removing the old ones",
+                  "Blue/Green: deploy to a separate environment and swap CNAMEs after validating it",
+                  "All at once, the fastest policy, which replaces every instance simultaneously",
+                  "Immutable: deploy to a fresh instance set and swap after the health checks pass"
                 ],
                 "correctIndex": 1,
-                "explanation": "Blue/Green deployment in Elastic Beanstalk creates a completely separate environment with the new version. After validating the green environment, you swap environment URLs (CNAME swap) to route production traffic to it. The old blue environment remains intact for instant rollback. Immutable is also zero-downtime but doesn't preserve the old environment for easy rollback as a fully separate testable stack."
+                "explanation": "Blue/Green creates a full separate environment you can validate, then swaps CNAMEs for a zero-downtime cutover, keeping the old environment for instant rollback. Rolling with an additional batch is zero-downtime but updates in place, with no separate environment to test as production-equivalent first. All at once causes downtime. Immutable is zero-downtime on fresh instances but, within the same environment, doesn't give a fully separate pre-swap environment the way Blue/Green does."
               },
               {
                 "q": "A developer uses Elastic Beanstalk and needs to install a custom package (e.g., ImageMagick) on the EC2 instances during deployment. The package is not in the standard yum repository. Which Elastic Beanstalk configuration mechanism handles this?",
                 "choices": [
-                  "Create a `.ebextensions` configuration file with a `commands` or `packages`",
-                  "Modify the Elastic Beanstalk platform configuration via the Elastic Beanstalk console",
-                  "Add a `packages` key to the Elastic Beanstalk environment variables",
-                  "Create a custom AMI with the package pre-installed and reference it in the launch configuration"
+                  "Add a .ebextensions configuration file that uses the packages or commands keys",
+                  "Change the platform configuration through the Elastic Beanstalk management console",
+                  "Add a packages key to the Elastic Beanstalk environment variables for the app",
+                  "Bake a custom AMI with the package preinstalled and reference it in the launch config"
                 ],
                 "correctIndex": 0,
-                "explanation": "`.ebextensions` YAML files (placed in a `.ebextensions/` directory in your deployment package) are Elastic Beanstalk's customization mechanism. The `commands` section runs shell commands, `packages` installs from yum/apt, and `files` creates configuration files. They run during instance provisioning before the application starts. Creating a custom AMI would also work but adds significant maintenance overhead."
+                "explanation": ".ebextensions YAML (packages, commands, files) customizes instance provisioning before the app starts, the standard way to install extra software. The console platform settings don't install arbitrary packages. Environment variables are key/value config, not a package installer. A custom AMI works but adds significant maintenance overhead versus .ebextensions."
               },
               {
                 "q": "An Elastic Beanstalk application uses an RDS database. The developer wants to ensure the database is NOT deleted when the Elastic Beanstalk environment is terminated. What is the BEST approach?",
                 "choices": [
-                  "Use an Elastic Beanstalk saved configuration to preserve the RDS settings after termination",
-                  "Enable RDS deletion protection in the Elastic Beanstalk environment configuration",
-                  "Create the RDS instance outside of Elastic Beanstalk (decoupled) and pass the connection",
-                  "Enable Elastic Beanstalk environment termination protection"
+                  "Use an Elastic Beanstalk saved configuration to preserve the RDS settings on termination",
+                  "Enable RDS deletion protection from within the Elastic Beanstalk environment configuration",
+                  "Create the RDS instance outside Beanstalk and pass its connection details as env variables",
+                  "Enable Elastic Beanstalk environment termination protection on the environment"
                 ],
                 "correctIndex": 2,
-                "explanation": "When RDS is created inside an Elastic Beanstalk environment, it's tied to the environment lifecycle — deleting the environment deletes the database. The best practice is to create RDS independently (outside Elastic Beanstalk) and inject the endpoint and credentials as environment variables. This decouples the database lifecycle from the application environment."
+                "explanation": "RDS created inside the environment shares its lifecycle and is deleted with it; creating RDS independently and injecting the endpoint and credentials decouples the database so terminating the app environment leaves it intact. A saved configuration stores settings, not the live database. Beanstalk's environment config doesn't expose RDS deletion protection that survives decoupling. Termination protection only stops you from terminating the environment; it doesn't separate the DB lifecycle."
               },
               {
                 "q": "A developer uses AWS X-Ray to trace requests through an application. The team wants to add business-specific metadata (like `userId` and `orderId`) to traces for filtering and grouping in the X-Ray console. Which X-Ray concept is used for indexed, searchable values?",
                 "choices": [
-                  "Subsegments — used to track downstream calls to databases or HTTP endpoints",
-                  "Sampling rules — configure which percentage of requests get traced",
-                  "Annotations",
-                  "Metadata — key-value pairs added to segments for any arbitrary data"
+                  "Subsegments, which are used to track downstream calls to databases or HTTP endpoints",
+                  "Sampling rules, which configure what percentage of incoming requests get traced",
+                  "Annotations, the indexed key/value pairs you can filter on in the X-Ray console",
+                  "Metadata, key/value pairs added to segments for arbitrary, non-indexed information"
                 ],
                 "correctIndex": 2,
-                "explanation": "X-Ray Annotations are key-value pairs (string, number, boolean) that X-Ray indexes. You can use them in filter expressions in the X-Ray console to find traces by specific annotation values (e.g., `annotation.userId = \"user-123\"`). Metadata is for non-indexed, non-searchable data — it's stored in traces but can't be used in filter expressions."
+                "explanation": "Annotations are indexed and usable in filter expressions (e.g., annotation.userId = \"user-123\"), exactly what's needed to filter and group traces. Subsegments measure downstream call timing, not searchable business keys. Sampling rules govern trace volume. Metadata stores arbitrary data but is not indexed or filterable."
               },
               {
                 "q": "A developer wants to trace Lambda function calls and all downstream AWS SDK calls (DynamoDB, S3) using AWS X-Ray. What is the MINIMUM change required in the Lambda function?",
                 "choices": [
-                  "Enable X-Ray active tracing on the Lambda function and instrument the AWS SDK using the X-Ray",
-                  "Enable CloudWatch ServiceLens — it automatically instruments Lambda functions",
-                  "Add a custom X-Ray segment in every handler function manually",
-                  "Install the AWS Distro for OpenTelemetry as a Lambda layer and add a OTEL_EXPORTER environment variable"
+                  "Enable CloudWatch ServiceLens, which automatically instruments the function's SDK calls",
+                  "Add a custom X-Ray segment manually inside every one of the handler functions",
+                  "Install the AWS Distro for OpenTelemetry as a layer and set an OTEL_EXPORTER variable",
+                  "Enable Active Tracing on the function and wrap the AWS SDK clients with the X-Ray SDK"
                 ],
-                "correctIndex": 0,
-                "explanation": "Enabling Active Tracing on the Lambda function makes Lambda send trace segments to X-Ray for the function itself. To also trace downstream AWS SDK calls (DynamoDB, S3, etc.), wrap the SDK client with the X-Ray SDK: `AWSXRay.captureAWSv3Client(new DynamoDBClient({}))`. This automatically creates subsegments for each downstream call with timing and response data."
+                "correctIndex": 3,
+                "explanation": "Active Tracing emits the function's own segment; to trace downstream DynamoDB/S3 calls you also wrap the SDK client with the X-Ray SDK (e.g., captureAWSv3Client), which creates subsegments automatically. ServiceLens visualizes data but doesn't instrument SDK calls for you. Adding manual segments is more work than wrapping the client. ADOT is a valid alternative but is more than the minimum change and isn't the X-Ray-native approach asked for."
               }
             ]
           },
@@ -808,7 +808,7 @@
     "timeMinutes": 27
   },
   "meta": {
-    "generatedAt": "2026-05-23T19:53:30.647Z",
+    "generatedAt": "2026-05-29T07:35:02.470Z",
     "totalNodes": 30,
     "totalQuestions": 61,
     "nodeTypes": [

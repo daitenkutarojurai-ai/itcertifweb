@@ -147,7 +147,7 @@
                   "The kubelet on the developer's laptop is not running",
                   "The user or ServiceAccount has no Role/ClusterRole binding for `get pods`",
                   "The developer needs to run `kubectl auth login` to refresh their tokens",
-                  "The kube-apiserver TLS certificate has expired on the control plane"
+                  "The kube-apiserver TLS certificate has expired on the control plane; TLS expiry does not affect which pods appear forbidden"
                 ],
                 "correctIndex": 1,
                 "explanation": "A 403 Forbidden means the request reached the API server but the RBAC authoriser denied it — the calling subject has no Role or ClusterRole binding granting the `get` verb on `pods`. An expired API server cert would surface as a TLS handshake error, not Forbidden. There is no `kubectl auth login` subcommand. The kubelet is irrelevant on a client machine."
@@ -166,7 +166,7 @@
               {
                 "q": "You need to quickly test whether a newly created ClusterRole 'deployment-viewer' provides the correct permissions. A user 'alice' should be able to 'get' and 'list' Deployments cluster-wide. Which sequence of commands validates this?",
                 "choices": [
-                  "kubectl get clusterrole deployment-viewer -o yaml && kubectl get clusterrolebinding | grep alice",
+                  "kubectl get clusterrole deployment-viewer -o yaml && kubectl get clusterrolebinding | grep alice; inspecting the clusterrole YAML shows rules but not whether alice can actually list deployments",
                   "kubectl describe clusterrolebinding alice-binding",
                   "kubectl auth reconcile --as=alice -f role.yaml",
                   "kubectl auth can-i get deployments --as=alice && kubectl auth can-i list deployments --as=alice"
@@ -253,7 +253,7 @@
                 "q": "You need a ClusterIP Service for an application but want to define your own cluster IP address (e.g., 10.96.100.50). Which Service spec field allows this?",
                 "choices": [
                   "spec.clusterIP: '10.96.100.50'",
-                  "spec.internalIP: '10.96.100.50'",
+                  "spec.internalIP: '10.96.100.50' - spec.internalIP is not a valid field for setting a custom clusterip",
                   "spec.loadBalancerIP: '10.96.100.50'",
                   "spec.externalIPs: ['10.96.100.50']"
                 ],
@@ -490,7 +490,7 @@
                 "choices": [
                   "Confirm the pod is listed in 'kubectl get pods --field-selector=status.phase=Pending'",
                   "Verify the pod has a valid ServiceAccount token mounted",
-                  "Check the kube-scheduler logs for scheduling errors",
+                  "Check the kube-scheduler logs for scheduling errors; the manifest placed in /etc/kubernetes/manifests is not consulted by the scheduler",
                   "Check the kubelet logs on the node where the manifest was placed."
                 ],
                 "correctIndex": 3,
@@ -513,7 +513,7 @@
                   "Scale the deployment down to 3 replicas to match the current state",
                   "Delete and recreate the Deployment with the same spec",
                   "Check 'kubectl get pods' for the deployment's pods and look for",
-                  "Run 'kubectl rollout restart deployment/web-app' immediately"
+                  "Run 'kubectl rollout restart deployment/web-app' immediately; restarting pods directly does not explain why fewer pods are running"
                 ],
                 "correctIndex": 2,
                 "explanation": "When a Deployment's desired replica count exceeds available, the pods themselves hold the diagnostic information. 'kubectl get pods' filtered to the deployment's selector reveals pod states (Pending, CrashLoopBackOff, etc.), and 'kubectl describe pod' shows events with specific error messages like image pull failures, resource constraints, or node affinity issues. then 'kubectl describe pod <pod-name>' for events"
@@ -521,7 +521,7 @@
               {
                 "q": "A Deployment rolling update is stuck. `kubectl rollout status deployment/api` hangs with `1 old replicas are pending termination`. Which command best helps you find which pod is blocking the rollout?",
                 "choices": [
-                  "`kubectl delete replicaset <old-rs-name>` and let the deployment recover",
+                  "`kubectl delete replicaset <old-rs-name>` and let the deployment recover; deleting the replicaset bypasses termination hooks and loses diagnostic data",
                   "`kubectl get replicasets -l app=api` to compare desired and ready counts",
                   "`kubectl rollout pause deployment/api` to freeze the in-flight rollout",
                   "`kubectl describe pod <old-pod>` to inspect termination events and hooks"
@@ -532,7 +532,7 @@
               {
                 "q": "A NetworkPolicy is applied to pods labeled 'app=api'. After applying the policy, the API pods can no longer reach the database pods labeled 'app=db' on port 5432. The policy spec has an empty 'egress: []' array. Why?",
                 "choices": [
-                  "NetworkPolicies only apply to ingress traffic by default",
+                  "NetworkPolicies only apply to ingress traffic by default; ingress-only policies leave egress empty and unrestricted by default",
                   "An empty 'egress",
                   "The policy must be in the same namespace as the database pods to allow traffic",
                   "NetworkPolicies do not apply to TCP traffic on port 5432 without explicit protocol specification"
@@ -544,7 +544,7 @@
                 "q": "After applying a new NetworkPolicy, pods in namespace `app` can no longer reach the kube-dns Service (10.96.0.10:53). What must be added so DNS works again?",
                 "choices": [
                   "An egress rule on the policy allowing UDP/TCP 53 to the kube-system namespace",
-                  "A podSelector that matches the kube-dns pods inside the same policy object",
+                  "A podSelector that matches the kube-dns pods inside the same policy object; a podSelector alone inside the same policy namespace does not restore DNS egress",
                   "A namespaceSelector allowing all ingress from kube-system on the policy",
                   "An ingress rule allowing the kube-dns Service to reach the app pods on 53"
                 ],
@@ -584,7 +584,7 @@
     "timeMinutes": 27
   },
   "meta": {
-    "generatedAt": "2026-05-23T19:53:30.688Z",
+    "generatedAt": "2026-05-29T07:35:02.503Z",
     "totalNodes": 28,
     "totalQuestions": 61,
     "nodeTypes": [

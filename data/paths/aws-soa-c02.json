@@ -68,7 +68,7 @@
               {
                 "q": "A SysOps engineer configures a CloudWatch alarm to notify the operations team when EC2 CPU utilization exceeds 80% for 5 consecutive minutes. The alarm is in ALARM state and sends an SNS notification, but the on-call engineer reports they received no email. What is the MOST likely cause?",
                 "choices": [
-                  "CloudWatch only sends one notification per alarm state transition, so repeated breaches are silently suppressed",
+                  "CloudWatch only sends one notification per alarm state transition — false; CloudWatch can re-send email alerts on every alarm state change, so repeated email notifications are expected behaviour",
                   "The EC2 instance does not have the CloudWatch agent installed, which is required to publish CPU utilization metrics",
                   "CloudWatch alarm actions support only Auto Scaling and EC2 actions for EC2 metrics, not SNS notifications",
                   "The SNS topic email subscription has not been confirmed by the recipient and is still in 'Pending Confirmation' state"
@@ -90,10 +90,10 @@
               {
                 "q": "A company wants to ensure that all newly created S3 buckets in their AWS account have server-side encryption enabled. The SysOps team needs to be automatically notified when a non-compliant bucket is found and see compliance history over time. Which solution meets these requirements?",
                 "choices": [
-                  "Attach a Service Control Policy (SCP) at the organization root that denies CreateBucket calls without server-side encryption",
-                  "Create a Lambda function triggered by an S3 event notification that inspects bucket encryption settings on each PutBucket call",
+                  "Attach a Service Control Policy (SCP) at the organization root that denies CreateBucket unless the bucket has server-side encryption enabled — this enforces the requirement but does not mark existing non-compliant buckets as compliant in Config",
+                  "Create a Lambda function triggered by an S3 event notification that inspects bucket policies and enables default encryption if missing — reactive remediation, but does not continuously evaluate compliant state across all buckets",
                   "Enable AWS Config with the managed rule 's3-bucket-server-side-encryption-enabled' and route NON_COMPLIANT change events to SNS",
-                  "Use CloudTrail to detect CreateBucket API calls and route the event through EventBridge to an SNS topic for review"
+                  "Use CloudTrail to detect CreateBucket API calls and route the event through EventBridge to a Lambda remediation function — ensures new buckets are enabled with encryption but leaves existing non-compliant buckets unaddressed"
                 ],
                 "correctIndex": 2,
                 "explanation": "AWS Config continuously evaluates resource configurations against managed or custom rules. The 's3-bucket-server-side-encryption-enabled' managed rule detects non-compliant S3 buckets, Config maintains compliance history, and SNS/EventBridge notifications can fire when compliance status changes. SCPs prevent creation but do not track existing buckets."
@@ -135,9 +135,9 @@
                 "q": "A SysOps engineer needs to query CloudWatch Logs to find the top 10 API Gateway endpoints by request count over the past 7 days. The logs are in a structured JSON format. Which tool provides this capability natively?",
                 "choices": [
                   "CloudWatch Logs Insights with a stats command that groups by endpoint field and sorts by count descending",
-                  "Athena querying a table created from a daily CloudWatch Logs export to S3 in the AWS Glue Data Catalog",
+                  "Athena querying a table created from a daily CloudWatch Logs export to S3 in the past 24 hours — adds latency of up to 24 hours and requires running a separate count query per endpoint rather than a real-time stats command",
                   "AWS Glue crawlers configured to crawl CloudWatch Logs directly and expose them to ad-hoc query engines",
-                  "CloudWatch Metrics Math expressions that calculate request counts derived from log group metric filters"
+                  "CloudWatch Metrics Math expressions that calculate request count derived from log metric filters per endpoint — metric filters must be pre-defined per endpoint and cannot dynamically group and count arbitrary field values"
                 ],
                 "correctIndex": 0,
                 "explanation": "CloudWatch Logs Insights supports an interactive query syntax such as 'stats count(*) by endpoint | sort count desc | limit 10' against any CloudWatch log group. It natively handles JSON-structured logs, automatically parses fields, and supports ad-hoc or scheduled queries. Results can be exported or added to dashboards."
@@ -279,9 +279,9 @@
                 "q": "An application uses an Aurora MySQL cluster. During a major incident, the primary writer instance fails. The application continues to throw connection errors 10 minutes after the incident. What is the MOST likely cause?",
                 "choices": [
                   "The application is caching the primary instance's IP address instead of resolving the cluster endpoint DNS name",
-                  "Aurora Global Database cross-region failover is taking longer than the expected sub-minute window for promotion",
-                  "The application's database connection pool exhausted all connections before the failover handover completed",
-                  "Aurora read replicas do not automatically promote to primary, so manual operator intervention is required"
+                  "Aurora Global Database cross-region failover is taking longer than the expected cluster endpoint propagation window — Global Database failover affects a secondary cluster in another region, not the primary instance promotion within the same cluster",
+                  "The application's database connection pool exhausted all connections before the new primary instance was fully promoted in the cluster — connection pool exhaustion is a symptom, not the root cause; the cluster endpoint should redirect connections to the new primary instance automatically",
+                  "Aurora read replicas do not automatically promote to the primary instance within the cluster, so manual operator intervention is required — false; Aurora does automatically promote a replica to primary during failover without manual steps"
                 ],
                 "correctIndex": 0,
                 "explanation": "Aurora automatic failover typically completes in under 30 seconds — an existing read replica is promoted to primary. If errors persist 10 minutes later, the application is most likely caching a hardcoded IP for the old primary rather than resolving the cluster endpoint (a DNS CNAME) on each new connection. Always use the cluster endpoint DNS name."
@@ -289,10 +289,10 @@
               {
                 "q": "A SysOps engineer needs to create an automated backup strategy for EC2 instances running a stateful application. Backups must occur daily, be retained for 30 days, and also be copied to a second AWS region. Which service provides this capability with the LEAST custom code?",
                 "choices": [
-                  "A CloudFormation scheduled task that triggers an SSM Automation document to create and copy the EBS snapshots",
+                  "A CloudFormation scheduled task that triggers an SSM Automation document to create EBS snapshots as a backup — this approach lacks centralised backup tracking, cross-region copy, and retention lifecycle management in a single backup plan",
                   "AWS Backup with a backup plan that defines daily frequency, 30-day retention, and a cross-region copy rule",
-                  "A Data Lifecycle Manager (DLM) policy that manages EBS snapshots with a cross-region copy rule attached",
-                  "A Lambda function triggered daily by EventBridge that creates EBS snapshots and copies them cross-region"
+                  "A Data Lifecycle Manager (DLM) policy that manages EBS snapshot backup schedules with a cross-region copy rule and a 30-day retention lifecycle — DLM handles EBS snapshots well but does not cover RDS, DynamoDB, or other services in a unified backup plan",
+                  "A Lambda function triggered daily by EventBridge that creates EBS snapshots and copies them cross-region, deleting older backup copies after 30 days — functional but requires custom code to manage retention and lacks the centralised audit and compliance reporting of a managed backup plan"
                 ],
                 "correctIndex": 1,
                 "explanation": "AWS Backup is a fully managed backup service that supports EC2, EBS, RDS, DynamoDB, EFS, and more. A backup plan specifies the backup frequency, retention window, and lifecycle rules (Warm→Cold). Backup plans support cross-region copy rules natively, eliminating the need for custom Lambda code or manual snapshot management."
@@ -301,9 +301,9 @@
                 "q": "A company requires that an EC2 Auto Scaling group maintains exactly 2 healthy instances at all times. When scale-out is triggered, a new instance must be verified with a custom health check before the old instance is terminated. How should the SysOps engineer implement this?",
                 "choices": [
                   "Configure lifecycle hooks on EC2_INSTANCE_LAUNCHING and EC2_INSTANCE_TERMINATING to gate the custom health check before scaling actions complete",
-                  "Set the ASG minimum to 2 and configure the ALB health check grace period so new instances are verified before old ones drop",
-                  "Set the ASG health check type to ELB and configure the target group health check settings to validate targets before draining",
-                  "Use an ASG launch template with a custom user-data script that registers the instance with the ALB after the health check passes"
+                  "Set the ASG minimum to 2 and configure the ALB health check grace period so new instances are not marked unhealthy during scaling warm-up — this prevents premature termination but does not guarantee scripts complete before traffic arrives or before termination proceeds",
+                  "Set the ASG health check type to ELB and configure the target group health check path to verify application readiness before the scaling event completes — health checks control traffic routing but do not pause the scaling lifecycle to allow scripts to finish",
+                  "Use an ASG launch template with a custom user-data script that registers the instance with the load balancer only after the scaling initialisation completes — user-data runs before the instance is marked InService but cannot pause the scaling lifecycle hook for external service registration"
                 ],
                 "correctIndex": 0,
                 "explanation": "Lifecycle hooks let you insert custom actions during ASG scale-out (LAUNCHING) and scale-in (TERMINATING). During a rolling replacement, the LAUNCHING hook pauses the new instance in 'Pending:Wait' while your custom check validates it. Only after CompleteLifecycleAction does the instance enter InService. You coordinate this with the TERMINATING hook so capacity never drops below 2."
@@ -312,9 +312,9 @@
                 "q": "A SysOps engineer notices that an ElastiCache Redis cluster is experiencing frequent cache misses during peak hours, causing high latency on the application. CloudWatch shows CPU at 40% and memory at 60%. What is the MOST likely issue?",
                 "choices": [
                   "The cache TTL values are set too short, so items expire before they can be reused during peak load and force refetch",
-                  "The ElastiCache node type is undersized for the working set — upgrade to a memory-optimized instance family",
-                  "The application is not using connection pooling, causing Redis connections to be exhausted during peak hours",
-                  "Redis eviction policy is set to allkeys-lru, which removes items aggressively as soon as memory is under pressure"
+                  "The ElastiCache node type is undersized for the working set — upgrade to a memory-optimized instance type to handle peak load during high-traffic periods — false; node type affects total memory, but if TTL is too short, items expire during peak even with adequate memory",
+                  "The application is not using connection pooling, causing Redis cache connections to be created and destroyed for every request — connection exhaustion degrades performance but is a connection issue, not a cache hit ratio problem caused by TTL",
+                  "Redis eviction policy is set to allkeys-lru, which removes cache items aggressively as memory fills, reducing the effective cache hit rate — eviction policy affects behaviour under memory pressure but does not explain low hit rate when cache TTL is too short"
                 ],
                 "correctIndex": 0,
                 "explanation": "When memory is at 60% and CPU is healthy, the most likely cause of cache misses at peak is excessive key eviction due to short TTL values. If keys expire quickly, data must be refetched from the database often. Review TTL settings on frequently accessed keys and inspect the 'Evictions' and 'CacheHits/CacheMisses' CloudWatch metrics for confirmation."
@@ -322,9 +322,9 @@
               {
                 "q": "A SysOps engineer deploys a CloudFormation stack but notices that the actual resources differ from the template definition — someone manually modified an EC2 security group directly in the console. Which CloudFormation feature detects this and what does it report?",
                 "choices": [
-                  "CloudFormation rollback triggers detect out-of-band changes and automatically revert them on the next operation",
-                  "CloudFormation Change Sets compare two template versions and highlight the differences between them before deployment",
-                  "An AWS Config CloudFormation-drift rule reports stack configuration changes whenever underlying resources are modified",
+                  "CloudFormation rollback triggers detect out-of-band changes and automatically revert the actual resource configuration to match the previous stack state — false; rollback triggers monitor CloudWatch alarms during deployments, not actual config drift between deployments",
+                  "CloudFormation Change Sets compare two template versions and highlight the actual differences before the change set is applied — Change Sets compare template A to template B, not the actual deployed resources against the template",
+                  "An AWS Config CloudFormation-drift rule reports actual stack configuration changes when any resource deviates from the template — no such managed rule exists; Config tracks individual resource configurations, not CloudFormation template drift directly",
                   "CloudFormation Stack Drift Detection, which compares actual resource configurations against the stack's expected template"
                 ],
                 "correctIndex": 3,
@@ -423,9 +423,9 @@
                 "q": "A Service Catalog product based on a CloudFormation template needs to be updated to use a newer AMI ID. The constraint is that developers using the product should not be able to modify the AMI ID parameter when provisioning. How should the SysOps engineer configure this?",
                 "choices": [
                   "Publish a new Service Catalog product version with the updated template, plus a Template Constraint pinning the AMI ID",
-                  "Use a Launch Constraint with an IAM role that only permits the product to launch with the approved AMI ID",
-                  "Add an AWS Config rule that terminates any EC2 instance launched with an unapproved AMI in the account",
-                  "Update the CloudFormation template directly so all provisioned products automatically switch to the new AMI"
+                  "Use a Launch Constraint with an IAM role that only permits the product to launch the original catalog template version — Launch Constraints restrict permissions but do not enforce a specific product version or notify existing provisioned-product owners about catalog updates",
+                  "Add an AWS Config rule that terminates any EC2 instance launched from an unapproved catalog AMI version — Config can detect non-compliant resources but cannot roll back existing provisioned products to an updated catalog version",
+                  "Update the CloudFormation template directly so all provisioned products automatically inherit the updated changes without re-provisioning — provisioned products are not automatically updated when the underlying template changes; a new catalog version must be published and applied"
                 ],
                 "correctIndex": 0,
                 "explanation": "Service Catalog Template Constraints let administrators restrict the values users can enter for CloudFormation parameters at provisioning time. By specifying allowed values or pinning the AMI ID parameter, you prevent users from overriding it with unapproved AMIs. Publishing a new product version with the updated template provides the upgrade path."
@@ -433,10 +433,10 @@
               {
                 "q": "A SysOps engineer needs to verify that all EC2 instances in a fleet are running the latest approved AMI from the organization's image catalog. Non-compliant instances should be reported and optionally replaced automatically. Which solution addresses this most effectively?",
                 "choices": [
-                  "Tag every EC2 instance with its AMI ID and use the Tag Editor to identify the instances still running on old AMIs",
+                  "Tag every EC2 instance with its AMI ID and use the Tag Editor to identify the instances that are not compliant with approved AMI IDs — tagging and Tag Editor provide visibility but do not evaluate compliance automatically or trigger remediation for non-compliant instances",
                   "AWS Config managed rule 'approved-amis-by-id' with auto-remediation through SSM Automation to replace non-compliant instances",
                   "Enable GuardDuty EC2 instance profiling, which detects instances launched from unapproved or untrusted AMIs in real time",
-                  "Write a Lambda function that describes all EC2 instances and compares their AMI ID against an approved list in Parameter Store"
+                  "Write a Lambda function that describes all EC2 instances and compares their AMI IDs against the compliant approved list, emailing a non-compliance report — a custom Lambda can detect non-compliant instances but requires manual scheduling and does not integrate with AWS Config's continuous evaluation and auto-remediation"
                 ],
                 "correctIndex": 1,
                 "explanation": "AWS Config managed rule 'approved-amis-by-id' (or 'approved-amis-by-tag') evaluates EC2 instances against an approved AMI list. Non-compliant instances are flagged in the Config compliance dashboard. Config auto-remediation can trigger an SSM Automation document that replaces the instance. This provides continuous compliance evaluation without custom Lambda code."
@@ -455,10 +455,10 @@
               {
                 "q": "A company uses AWS Organizations with 15 member accounts. The security team wants to prevent any account from disabling CloudTrail or modifying CloudTrail logs. Which control provides the strongest enforcement?",
                 "choices": [
-                  "Enable AWS Config managed rule 'cloud-trail-enabled' across every account with automatic remediation configured",
+                  "Enable AWS Config managed rule 'cloud-trail-enabled' across every account with a remediation action — Config can detect when CloudTrail is disabled but does not preventively control the ability to stop logging; an SCP is needed to deny the API call",
                   "Apply a Service Control Policy at the organization root that denies cloudtrail:StopLogging, DeleteTrail, and UpdateTrail",
-                  "Configure CloudTrail with S3 Object Lock in compliance mode on the destination bucket to make log objects undeletable",
-                  "Create an IAM permission boundary in each account that denies cloudtrail:StopLogging and cloudtrail:DeleteTrail"
+                  "Configure CloudTrail with S3 Object Lock in compliance mode on the destination bucket — Object Lock prevents deletion of log files already delivered but does not control or prevent stopping the CloudTrail trail itself",
+                  "Create an IAM permission boundary in each account that denies cloudtrail:StopLogging — permission boundaries constrain identity-based policies within an account but can be overridden by account administrators; an SCP provides organization-wide control that cannot be bypassed"
                 ],
                 "correctIndex": 1,
                 "explanation": "Service Control Policies applied at the Organizations root or OU level override IAM permissions in member accounts — even account administrators cannot perform denied actions. An SCP denying cloudtrail:StopLogging, cloudtrail:DeleteTrail, and cloudtrail:UpdateTrail prevents any identity in member accounts from disabling CloudTrail. IAM permission boundaries apply only to IAM entities, not the root user."
@@ -466,10 +466,10 @@
               {
                 "q": "A SysOps engineer needs to assess EC2 instances for known CVEs, CIS benchmark compliance, and network exposure findings. The findings should be prioritized by severity and associated with specific package versions. Which AWS service provides this?",
                 "choices": [
-                  "AWS GuardDuty EC2 instance profiling for vulnerability scanning of running instances against the CVE database",
+                  "AWS GuardDuty EC2 instance profiling for vulnerability scanning of running instances to surface CVEs — GuardDuty performs threat detection using logs and network traffic, not vulnerability scanning against CVEs; it does not scan OS packages for known vulnerabilities",
                   "AWS Inspector v2 with EC2 scanning enabled, which continuously surfaces CVEs and network reachability findings",
-                  "AWS Config with the CIS AWS Foundations Benchmark conformance pack evaluating instance compliance rules",
-                  "AWS Security Hub configured with a third-party vulnerability scanner integration that ingests scanner findings"
+                  "AWS Config with the CIS AWS Foundations Benchmark conformance pack evaluating instances against CVEs and patch compliance — Config checks configuration compliance, not software vulnerability CVEs; it does not perform OS-level package scanning",
+                  "AWS Security Hub configured with a third-party vulnerability scanner integration to surface CVEs across all EC2 instances — Security Hub aggregates findings from integrated tools but is not itself a vulnerability scanner; Inspector v2 natively surfaces CVEs"
                 ],
                 "correctIndex": 1,
                 "explanation": "AWS Inspector v2 provides automated vulnerability management for EC2 instances. It continuously scans for CVEs using the SSM Agent, reports findings with CVE identifiers, affected package versions, and CVSS severity scores. It also performs network reachability analysis to identify exposed ports. Inspector requires the SSM Agent and uses Systems Manager for scanning without deploying additional agents."
@@ -477,10 +477,10 @@
               {
                 "q": "A company stores sensitive customer data in S3 buckets across multiple accounts. The security team wants a single view of all security findings, compliance status, and Inspector results across all accounts. Which service provides this aggregated security posture view?",
                 "choices": [
-                  "AWS Organizations Trusted Advisor cross-account dashboard aggregating security and operational checks per account",
+                  "AWS Organizations Trusted Advisor cross-account dashboard aggregating security alerts from GuardDuty, Inspector, and Macie across all accounts — Trusted Advisor provides best-practice checks, not a unified cross-account security finding aggregator; Inspector findings are not surfaced in Trusted Advisor",
                   "AWS Security Hub with cross-account aggregation and the GuardDuty, Inspector, Macie, and Config integrations enabled",
-                  "An AWS Config aggregator showing compliance status across every account and region in the organization",
-                  "CloudTrail Lake configured for cross-account security event analysis with a federated event data store"
+                  "An AWS Config aggregator showing compliance status across every account and region — Config aggregators show resource compliance against Config rules; they do not aggregate GuardDuty threats, Inspector vulnerability findings, or Macie data-classification alerts in one view",
+                  "CloudTrail Lake configured for cross-account security event analysis with a federated query interface — CloudTrail Lake aggregates API activity logs; it does not surface GuardDuty alerts, Inspector findings, or Macie classifications"
                 ],
                 "correctIndex": 1,
                 "explanation": "AWS Security Hub aggregates findings from multiple AWS security services (GuardDuty, Inspector, Macie, Config, IAM Access Analyzer, Firewall Manager) across multiple accounts and regions into a single normalized view. It applies security standards (CIS AWS Foundations, AWS FSBP) and calculates a security score. Cross-account aggregation requires enabling Security Hub in a designated administrator account."
@@ -488,9 +488,9 @@
               {
                 "q": "A company's compliance requirement mandates that all KMS customer-managed keys must be rotated at least once per year. A SysOps engineer needs to enforce this automatically. What is the SIMPLEST method?",
                 "choices": [
-                  "Set up AWS Config rule 'cmk-backing-key-rotation-enabled' to detect non-compliant keys and trigger manual rotation",
-                  "Create an EventBridge scheduled rule that triggers a Lambda function to rotate all KMS keys on an annual basis",
-                  "Use the KMS API to create a new key version annually and update every application to use the new key ARN",
+                  "Set up AWS Config rule 'cmk-backing-key-rotation-enabled' to detect customer-managed KMS keys that have not been rotated within the past year and alert the security team — Config can detect non-compliance but does not automatically rotate customer keys; only the native automatic rotation setting does that",
+                  "Create an EventBridge scheduled rule that triggers a Lambda function to rotate all customer-managed KMS keys by creating a new key alias every year — Lambda can create new keys but cannot rotate the backing key material of an existing customer key; only the built-in KMS rotation does so transparently",
+                  "Use the KMS API to create a new key version for every customer-managed key annually and update every application's key reference — KMS does not support explicit key versions that applications can reference; re-encrypting all data with a new customer key annually is operationally complex and not necessary when automatic rotation handles backing-key material rotation each year",
                   "Enable automatic key rotation on each customer-managed KMS key, which rotates the backing key material every year"
                 ],
                 "correctIndex": 3,
@@ -499,10 +499,10 @@
               {
                 "q": "A SysOps engineer needs to identify all S3 buckets in a specific AWS account that may contain personally identifiable information (PII) such as social security numbers or credit card numbers. Which service should the engineer use?",
                 "choices": [
-                  "AWS GuardDuty S3 protection, which detects PII by analyzing S3 data access patterns and request behavior",
-                  "Amazon Comprehend medical or PII detection triggered by a Lambda function on each new S3 object upload event",
+                  "AWS GuardDuty S3 protection, which detects PII by analyzing S3 data access patterns and API calls across all buckets — GuardDuty S3 protection detects malicious access and policy anomalies, not PII classification within S3 buckets",
+                  "Amazon Comprehend medical or PII detection triggered by a Lambda function on each new S3 object upload across all buckets — Comprehend can detect PII in individual objects, but running it on every upload across all buckets requires custom Lambda orchestration and does not provide automatic discovery of existing objects",
                   "AWS Macie, which uses machine learning to automatically discover and classify sensitive data such as PII in S3 buckets",
-                  "AWS Config combined with S3 server access logging to detect PII appearing in the access log records over time"
+                  "AWS Config combined with S3 server access logging to detect PII appearing in the object key names stored in buckets — S3 access logs record API calls and object key names, not the object content; they cannot identify PII stored inside objects in buckets"
                 ],
                 "correctIndex": 2,
                 "explanation": "Amazon Macie is specifically designed for automated sensitive-data discovery and classification in S3. It uses machine learning to identify sensitive data types including PII (names, SSNs, credit card numbers, email addresses), financial information, and healthcare data. Macie generates findings that identify the affected S3 objects and data types. GuardDuty analyzes access patterns but does not inspect content."
@@ -610,9 +610,9 @@
               {
                 "q": "A company's website is distributed globally via CloudFront. The origin is an ALB in us-east-1. Users in Asia are experiencing slow first-byte times for dynamic content that cannot be cached. How can CloudFront reduce latency for these dynamic requests?",
                 "choices": [
-                  "Use a CloudFront Origin Request Policy that compresses dynamic responses returned from the edge before forwarding",
-                  "Configure the CloudFront distribution with a custom SSL certificate to reduce TLS handshake latency at the edge",
-                  "Create new CloudFront edge locations in Asia by purchasing dedicated CloudFront edge sites through AWS Support",
+                  "Use a CloudFront Origin Request Policy that compresses dynamic content responses returned for requests — compression reduces payload size but does not reduce the number of requests reaching the origin or the volume of redundant content fetched from the ALB",
+                  "Configure the CloudFront distribution with a custom SSL certificate to reduce TLS overhead for content requests — a custom certificate reduces certificate negotiation differences but does not reduce the number of origin content requests or cache consolidation for the ALB",
+                  "Create new CloudFront edge locations in Asia by purchasing dedicated CloudFront capacity reservations to serve content requests closer to users — dedicated edge capacity improves latency but does not reduce the number of redundant content requests forwarded to the ALB origin",
                   "Enable CloudFront Origin Shield in the AWS region closest to the ALB to consolidate origin requests for dynamic content"
                 ],
                 "correctIndex": 3,
@@ -632,10 +632,10 @@
               {
                 "q": "A company connects its on-premises data center to AWS using AWS Site-to-Site VPN. Users report intermittent connectivity failures to the VPN. The SysOps engineer checks and finds the VPN has only one tunnel active. What should the engineer do to improve availability?",
                 "choices": [
-                  "Add a second Internet Gateway to the VPC to provide additional redundancy for the VPN tunnel termination endpoints",
+                  "Add a second Internet Gateway to the VPC to provide additional active redundancy for the on-premises VPN connection — Internet Gateways provide internet connectivity, not VPN tunnel redundancy; AWS Site-to-Site VPN supports two tunnels per connection for active redundancy",
                   "Ensure both VPN tunnels are configured and active on the customer gateway, with BGP or static routes for both tunnel IPs",
-                  "Upgrade from static routing to BGP routing on the existing single-tunnel VPN connection to improve resilience",
-                  "Create an additional Site-to-Site VPN connection to a different Virtual Private Gateway for a parallel path"
+                  "Upgrade from static routing to BGP routing on the existing single-tunnel VPN connection to enable active failover — BGP improves routing flexibility but a single active tunnel still means no redundancy; both tunnels must be active for HA",
+                  "Create an additional Site-to-Site VPN connection to a different Virtual Private Gateway endpoint — creating a second VPN connection is more complex than enabling the already-available second tunnel on the existing connection to achieve active redundancy"
                 ],
                 "correctIndex": 1,
                 "explanation": "Each AWS Site-to-Site VPN connection provides two tunnels for redundancy — each tunnel connects to a different endpoint in a different AWS Availability Zone. Many customer gateway devices only bring up one tunnel. The correct fix is to configure both tunnel endpoints on the customer gateway device, enable both tunnels, and configure routing (BGP preferred) to use both. AWS then maintains HA within the VPN connection."
@@ -665,10 +665,10 @@
               {
                 "q": "An application uses AWS Direct Connect for production traffic. The company wants to ensure that if the Direct Connect connection fails, traffic automatically fails over to a Site-to-Site VPN. What is the AWS-recommended architecture for this?",
                 "choices": [
-                  "Use Route 53 health checks to detect Direct Connect failure and reroute traffic via the public internet path",
+                  "Use Route 53 health checks to detect Direct Connect failure and reroute traffic to another site — Route 53 health checks operate at the DNS level; they do not automatically switch the network path from Direct Connect to a backup Site-to-Site VPN",
                   "Configure a Site-to-Site VPN on the same Virtual Private Gateway as the Direct Connect, with BGP preferring DX over VPN",
-                  "Enable Direct Connect resilience recommendations in the Direct Connect console and follow the suggested setup",
-                  "Create two Direct Connect connections in an active-standby configuration for path redundancy between the sites"
+                  "Enable Direct Connect resilience recommendations in the Direct Connect console and add a second physical connection — a second Direct Connect connection is the highest resilience option but is expensive; a Site-to-Site VPN on the same Virtual Private Gateway is the standard cost-effective backup for a single site",
+                  "Create two Direct Connect connections in an active-standby configuration for the same site — dual Direct Connect connections are costly; a Site-to-Site VPN provides sufficient backup connectivity for a single on-premises site without the expense of a second leased line"
                 ],
                 "correctIndex": 1,
                 "explanation": "AWS recommends configuring a Site-to-Site VPN as a backup for Direct Connect using the same Virtual Private Gateway. With BGP, the Direct Connect route is preferred over the VPN route (lower MED / higher local preference). When Direct Connect fails, BGP withdraws those routes and traffic automatically flows over the VPN. This is the standard hybrid-connectivity resilience pattern."
@@ -721,7 +721,7 @@
     "timeMinutes": 27
   },
   "meta": {
-    "generatedAt": "2026-05-23T19:53:30.664Z",
+    "generatedAt": "2026-05-29T07:35:02.477Z",
     "totalNodes": 25,
     "totalQuestions": 60,
     "nodeTypes": [

@@ -60,23 +60,23 @@
                 "q": "An application stores user-uploaded files in S3. Files are frequently accessed for the first 30 days, rarely accessed for the next 60 days, then never needed again. Which S3 lifecycle configuration minimizes storage cost?",
                 "choices": [
                   "S3 Standard with no lifecycle policy, retaining objects for all 90+ days indefinitely",
-                  "Transition to S3 Standard-IA at day 30; expire at 90 days total",
                   "Store all objects in S3 Glacier Deep Archive from day 1 — including the first 30 days",
+                  "Transition to S3 Standard-IA at day 30; expire at 90 days total",
                   "Apply S3 Intelligent-Tiering across all 90 days to auto-manage storage class"
                 ],
-                "correctIndex": 1,
-                "explanation": "S3 Standard-IA charges lower per-GB storage rates than Standard but adds a per-GB retrieval fee — an ideal trade-off once objects transition from frequent to infrequent access after day 30. Expiring objects at day 90 (30 active + 60 infrequent = 90 total) eliminates any ongoing cost for data that will never be needed again. Option C (Glacier Deep Archive from day 1) imposes up to 12-hour retrieval delays during the first 30 days when files are frequently accessed, making retrieval fees and latency far worse than the storage savings during that initial window."
+                "correctIndex": 2,
+                "explanation": "S3 Standard-IA charges lower per-GB storage rates than Standard but adds a per-GB retrieval fee — an ideal trade-off once objects transition from frequent to infrequent access after day 30. Expiring objects at day 90 eliminates ongoing cost for data that will never be needed again. Keeping all 90+ days in S3 Standard pays the premium tier even after access frequency drops to near-zero. Glacier Deep Archive from day 1 imposes up to 12-hour retrieval delays during the first 30 days when files are frequently accessed — retrieval latency and fees during that window outweigh the storage savings. S3 Intelligent-Tiering adds a per-object monitoring fee that is wasted here because the access pattern is already known and a deterministic lifecycle transition is cheaper."
               },
               {
                 "q": "A global software vendor needs to publish product documentation, images, and downloadable PDFs for a product launch microsite. The 3 GB file set is updated roughly once per month and must load quickly for visitors across North America, Europe, and Asia-Pacific. The team has no dedicated server administrators and must minimize both cost and ongoing operational effort. Which architecture meets these requirements?",
                 "choices": [
+                  "Host the assets in S3 and distribute them through a CloudFront distribution with edge caching",
                   "Deploy file-serving EC2 instances in three regions behind Route 53 latency-based routing with Auto Scaling",
                   "Use Elastic Beanstalk to run a Node.js server that reads assets from an Amazon EFS volume",
-                  "Place files in S3 and expose them through an Application Load Balancer with cross-zone load balancing enabled",
-                  "Host the assets in S3 and distribute them through a CloudFront distribution with edge caching"
+                  "Place files in S3 and expose them through an Application Load Balancer with cross-zone load balancing enabled"
                 ],
-                "correctIndex": 3,
-                "explanation": "S3 provides durable, serverless object storage with no servers to patch or scale, and CloudFront distributes content from 400+ edge locations so visitors worldwide receive files from the nearest point of presence — achieving sub-100ms load times with no compute to operate. Multi-region EC2 in option A achieves geographic proximity but requires capacity planning, OS patching, Auto Scaling configuration, and 24/7 operations in each region, directly violating the 'no dedicated administrators' constraint. An Application Load Balancer (option D) cannot use S3 as a native origin, does not perform edge caching, and would still require backend compute to serve the files."
+                "correctIndex": 0,
+                "explanation": "S3 provides durable, serverless object storage with no servers to patch or scale, and CloudFront distributes content from hundreds of edge locations so visitors worldwide receive files from the nearest point of presence — achieving sub-100 ms load times with no compute to operate. Multi-region EC2 with latency-based DNS achieves geographic proximity but requires capacity planning, OS patching, Auto Scaling configuration, and 24/7 operations in each region — directly violating the 'no dedicated administrators' constraint. Elastic Beanstalk running a Node.js server in front of EFS introduces a single-region compute tier and per-server filesystem latency, neither of which gives global users edge proximity. An Application Load Balancer cannot use S3 as a native origin, performs no edge caching, and would still require backend compute to serve the files."
               },
               {
                 "q": "A company runs a compliance archival system where regulatory documents are uploaded once and retrieved at most once per year for audits. The compliance team's primary constraint is storage cost, not retrieval speed. Which S3 storage class is most appropriate?",
@@ -87,7 +87,7 @@
                   "S3 Standard — multi-AZ, immediate access, $0.023/GB-month"
                 ],
                 "correctIndex": 2,
-                "explanation": "S3 Glacier Deep Archive is the lowest-cost S3 storage class at approximately $0.00099 per GB-month, designed for data accessed at most once or twice per year with a retrieval time of up to 12 hours. For annual compliance audits where retrieval latency is irrelevant, this is the cost-optimal choice. S3 Standard-IA costs more per GB and charges a per-retrieval fee that makes it expensive for unpredictable audit requests; One Zone-IA is cheaper than Standard-IA but more expensive than Glacier and sacrifices multi-AZ durability without offering archival-level pricing."
+                "explanation": "S3 Glacier Deep Archive is the lowest-cost S3 storage class at roughly $0.00099 per GB-month, designed for data accessed at most once or twice per year with retrieval time up to 12 hours. For annual compliance audits where retrieval latency is irrelevant, this is the cost-optimal choice. S3 Standard costs roughly 23× more per GB and provides immediate retrieval that the workload does not need. Standard-IA still costs more per GB than Glacier and charges a per-retrieval fee that hurts when auditors pull large object sets at once. One Zone-IA is cheaper than Standard-IA but still far more expensive than Deep Archive and sacrifices multi-AZ durability without offering archival-tier pricing."
               },
               {
                 "q": "A media sharing platform lets users upload large video files from a browser. Currently all uploads pass through the application server tier before being written to S3, creating bandwidth bottlenecks and high EC2 costs during peak hours. The security team requires that upload credentials expire no more than 15 minutes after issuance. Which solution removes the application server from the upload data path while meeting the security requirement?",
@@ -98,29 +98,29 @@
                   "Have the application server generate a presigned S3 PUT URL (15-minute TTL) and return it to the browser"
                 ],
                 "correctIndex": 3,
-                "explanation": "A presigned PUT URL embeds the uploader's identity and an expiry timestamp into a cryptographically signed request URL. The application server generates the URL without touching any file data, then returns it to the browser; the browser PUTs the file directly to S3 — no upload data flows through EC2. Setting the expiry to 15 minutes satisfies the credential lifetime requirement. Option C (API Gateway proxy) replaces the EC2 bottleneck with an API Gateway bottleneck — the full file still transits a server, and API Gateway's 10 MB request body limit makes it unsuitable for large video files."
+                "explanation": "A presigned PUT URL embeds the uploader's identity and an expiry timestamp into a cryptographically signed request URL. The application server generates the URL without touching any file data, then returns it to the browser; the browser PUTs the file directly to S3 — no upload data flows through EC2 — and setting the expiry to 15 minutes satisfies the credential-lifetime requirement. AWS Transfer Family on the existing application fleet still terminates the upload on the same EC2 instances, so it does not remove them from the data path. An API Gateway proxy replaces the EC2 bottleneck with an API Gateway bottleneck — the full file still transits a server, and API Gateway's 10 MB request-body limit makes it unsuitable for large video. Public PUT access on the bucket violates least privilege and gives anyone with the URL the ability to overwrite any object."
               },
               {
                 "q": "A healthcare startup stores de-identified patient records in S3. A new compliance framework requires (1) a verifiable log of every encryption key use, and (2) the ability to immediately revoke read access to all stored records during a security incident. The startup uses AWS KMS for key management. Which S3 server-side encryption configuration satisfies both requirements?",
                 "choices": [
                   "SSE-S3 using the Amazon-managed S3 key (no KMS dependency)",
-                  "SSE-KMS with a dedicated company-owned KMS key and key policy",
                   "SSE-KMS with the aws/s3 AWS-managed KMS key for the account",
+                  "SSE-KMS with a dedicated company-owned KMS key and key policy",
                   "Client-side encryption using a key fetched from AWS Secrets Manager"
                 ],
-                "correctIndex": 1,
-                "explanation": "SSE-KMS with a company-owned KMS key records every GenerateDataKey and Decrypt call in CloudTrail, providing the verifiable key-usage log required by the compliance framework. Disabling the KMS key immediately prevents all future decrypts of every object encrypted with it, satisfying the instant-revoke requirement. Option B (aws/s3 key) also logs KMS events in CloudTrail but is fully managed by AWS — the company cannot disable it, so instant revocation of all read access is not possible."
+                "correctIndex": 2,
+                "explanation": "SSE-KMS with a customer-owned KMS key records every GenerateDataKey and Decrypt call in CloudTrail, providing the verifiable key-usage log required by the compliance framework. Disabling the company-owned key immediately prevents all future decrypts of every object encrypted with it, satisfying the instant-revoke requirement. SSE-S3 uses an Amazon-managed key with no per-call CloudTrail visibility and no customer-controlled lifecycle, so neither requirement is met. The aws/s3 AWS-managed KMS key logs KMS events but is owned by AWS — the company cannot disable it, so instant revocation of all read access is impossible. Client-side encryption with a Secrets Manager key shifts encryption out of S3 entirely and doesn't generate the same S3-side audit trail; revoking access also requires rotating the secret in every client process."
               },
               {
                 "q": "A financial services company stores sensitive compliance reports in an S3 bucket that is accessed from multiple AWS accounts within the same AWS Organization. After an internal audit, the security team needs a control that prevents any principal outside the organization from accessing the bucket — even if an IAM policy in a member account is later misconfigured. Which S3 feature most directly satisfies this requirement?",
                 "choices": [
                   "S3 Object Ownership set to Bucket Owner Enforced mode with no resource policy change",
+                  "S3 Block Public Access policy enabled at the AWS Organization's management account",
                   "S3 bucket policy with the aws:PrincipalOrgID condition key",
-                  "IAM permission boundary policy applied to every user across the AWS Organization",
-                  "S3 Block Public Access policy enabled at the AWS Organization's management account"
+                  "IAM permission boundary policy applied to every user across the AWS Organization"
                 ],
-                "correctIndex": 1,
-                "explanation": "A bucket policy using the aws:PrincipalOrgID global condition key restricts access so that only principals belonging to the specified AWS Organization can make requests, acting as an organization-wide perimeter regardless of individual IAM grants. IAM permission boundaries constrain what a single IAM entity can do but cannot enforce cross-account access restrictions for every account in an organization. S3 Block Public Access prevents anonymous (unauthenticated) access but does not block authenticated requests from principals outside the organization."
+                "correctIndex": 2,
+                "explanation": "A bucket policy that uses the aws:PrincipalOrgID global condition key restricts access so that only principals belonging to the specified AWS Organization can make requests, acting as an organization-wide perimeter regardless of individual IAM grants in member accounts. S3 Object Ownership in Bucket Owner Enforced mode disables ACLs and consolidates ownership but does not, by itself, prevent out-of-organization principals from accessing the bucket. IAM permission boundaries constrain what a single IAM entity can do but cannot enforce cross-account access restrictions for every account in an organization. S3 Block Public Access prevents anonymous (unauthenticated) access but does not block authenticated requests from principals outside the organization."
               }
             ]
           },
@@ -189,13 +189,13 @@
               {
                 "q": "A DevOps engineer discovers that an EC2 web application is calling S3 using access keys stored in a plaintext configuration file on the instance. The security team requires these long-lived credentials to be removed immediately while preserving S3 read access. What should the solutions architect recommend?",
                 "choices": [
-                  "Attach an IAM role to the instance and remove all hard-coded access keys",
                   "Create a dedicated IAM user, deploy its credentials to the instance via environment variables",
                   "Store the credentials as SecureString parameters in SSM and pull them on each instance boot",
-                  "Rotate the access keys and redeploy the instance image with updated credential values"
+                  "Rotate the access keys and redeploy the instance image with updated credential values",
+                  "Attach an IAM role to the instance and remove all hard-coded access keys"
                 ],
-                "correctIndex": 0,
-                "explanation": "Attaching an IAM role to an EC2 instance causes the instance metadata service (IMDS) to vend temporary, automatically-rotated credentials — no static keys exist to be stolen or leaked. The application calls S3 using the same SDK calls with no code changes required. Option D still uses long-lived IAM user credentials stored on disk, which carries the same fundamental risk as the original config file; it improves secret discoverability but does not eliminate the static-credential exposure."
+                "correctIndex": 3,
+                "explanation": "Attaching an IAM role to an EC2 instance causes the instance metadata service (IMDS) to vend temporary, automatically-rotated credentials — no static keys exist on the instance to be stolen or leaked, and the application calls S3 using the same SDK with no code change. Creating a dedicated IAM user and shipping its access keys via environment variables simply moves the same long-lived secret to a different filesystem location; the credential is still static and leakable. SSM SecureString parameters are KMS-encrypted at rest, but the long-lived IAM-user key inside the parameter is still a static credential that must be rotated manually. Rotating and redeploying the keys reduces the exposure window but does not eliminate the fundamental static-credential risk the security team flagged."
               },
               {
                 "q": "A company's security policy requires that IAM users cannot perform any AWS API action in the current session unless they authenticated with their MFA device — not just their password — during that session. An IAM user who logs in with only username and password must be blocked from all API calls. Which control enforces this at the API request level?",
@@ -206,7 +206,7 @@
                   "IAM password policy set to require MFA device registration"
                 ],
                 "correctIndex": 1,
-                "explanation": "An IAM policy with `Effect: Deny, Action: *` and condition `aws:MultiFactorAuthPresent: false` blocks all API calls in sessions where MFA was not used, regardless of what other policies allow. The user can authenticate but cannot take any action until they use their MFA device. A password policy can require MFA device registration during account setup, but it does not enforce per-request MFA at the API level after login."
+                "explanation": "An IAM policy with `Effect: Deny, Action: *` and condition `aws:MultiFactorAuthPresent: false` blocks all API calls in sessions where MFA was not used, regardless of what other policies allow. The user can authenticate but cannot take any action until they use their MFA device — enforcement happens at the API request level, not just at sign-in. A CloudTrail alarm is a detective control: it fires after the call has succeeded, not before, so it cannot block API actions. An AWS Config rule reports whether each user has an MFA device enabled but does not gate per-request access. An IAM password policy can require MFA device registration during account setup but does not enforce per-request MFA at the API level after login."
               },
               {
                 "q": "A fintech company's SOC 2 audit requires that third-party auditors, who operate their own separate AWS account, have read-only access to specific S3 buckets for a two-week review window. The security team's constraints are: no long-lived credentials may be created, and no bucket endpoint may be exposed to the public internet. What should they configure?",
@@ -217,18 +217,18 @@
                   "Create a new AWS account for auditors and assign root-level S3 access"
                 ],
                 "correctIndex": 1,
-                "explanation": "A cross-account IAM role with an S3 read-only policy and a trust policy scoped to the auditor's AWS account lets the auditors call sts:AssumeRole to obtain short-lived temporary credentials — no long-lived keys are created or shared. Deleting the role at the end of the review instantly revokes all access. Sharing IAM user access keys by email (option A) creates long-lived credentials that may be forwarded or cached, violating the no-permanent-credentials requirement. Presigned URLs (option C) are internet-accessible HTTPS endpoints — anyone who holds the URL can fetch the object — and cannot be scoped to another AWS account's identity, failing both security constraints."
+                "explanation": "A cross-account IAM role with an S3 read-only policy and a trust policy scoped to the auditor's AWS account lets the auditors call sts:AssumeRole to obtain short-lived temporary credentials — no long-lived keys are created or shared. Deleting the role at the end of the review instantly revokes all access. Creating an IAM user per auditor and emailing access keys produces long-lived credentials that may be forwarded or cached, violating the no-permanent-credentials requirement. Creating a new AWS account just for auditors with root-level S3 access grants far more privilege than required and creates a long-lived shared account. Presigned URLs are publicly accessible HTTPS endpoints — anyone who holds the URL can fetch the object — and cannot be scoped to a specific external AWS account, failing both security constraints."
               },
               {
                 "q": "A web application runs on an EC2 instance with an instance profile granting s3:* on all resources and ec2:* on all resources. A security review shows the application only ever performs object retrieval from a single S3 bucket named 'prod-assets'. The team wants to reduce the blast radius if the instance is compromised. Which IAM change should a solutions architect implement?",
                 "choices": [
+                  "Add an explicit Deny on s3:PutObject and s3:DeleteObject for prod-assets and remove ec2:* assets to limit scope",
                   "Remove ec2:* entirely and replace s3:* with s3:GetObject scoped to the 'prod-assets' bucket ARN",
-                  "Add an explicit Deny on s3:PutObject and s3:DeleteObject for the bucket plus ec2:Modify* actions",
                   "Attach a permissions boundary that limits the instance to S3 read-only on any bucket",
                   "Enable IAM Access Analyzer and archive bucket findings for the instance profile"
                 ],
-                "correctIndex": 0,
-                "explanation": "Least privilege requires granting only the exact permissions actually needed. Removing ec2:* entirely (the application makes no EC2 API calls) and replacing s3:* with s3:GetObject on the specific bucket ARN directly eliminates the excess permissions. Adding Deny statements is weaker because the broad Allow remains and implicit allow logic still grants everything not explicitly denied. A permissions boundary constrains the ceiling but does not grant or remove the underlying permissions—the role's policy still carries s3:* and ec2:*. IAM Access Analyzer flags findings but does not fix them."
+                "correctIndex": 1,
+                "explanation": "Least privilege requires granting only the exact permissions actually needed. Removing ec2:* entirely (the application makes no EC2 API calls) and replacing s3:* with s3:GetObject on the specific bucket ARN directly eliminates the excess permissions and shrinks the blast radius if the instance is compromised. Adding Deny statements for selected S3 writes is weaker — the broad s3:* Allow remains, so any new S3 API added by AWS in the future is automatically granted until someone updates the policy. A permissions boundary constrains the ceiling of what the role could be granted, but does not remove the existing broad Allow inside the role's policy. IAM Access Analyzer flags overly permissive findings but does not modify the underlying policy."
               }
             ]
           },
@@ -419,18 +419,18 @@
                   "Amazon ElastiCache for Memcached used as the authoritative data store"
                 ],
                 "correctIndex": 0,
-                "explanation": "DynamoDB is purpose-built for high-throughput, low-latency key lookups at any scale — on-demand capacity automatically adjusts to handle unpredictable peak volumes without manual provisioning, and single-digit millisecond performance is maintained regardless of table size. Aurora MySQL is a relational engine optimized for transactional workloads with complex queries; matching DynamoDB's sub-5ms key-lookup latency at 600k requests/minute requires significant tuning overhead and dedicated read replicas, making it a poor fit for this simple, high-volume access pattern. Memcached (option D) is an in-memory cache without durability — all data is lost on node restart or eviction, making it unsuitable as the authoritative store for a leaderboard that must persist through failures."
+                "explanation": "DynamoDB is purpose-built for high-throughput, low-latency key lookups at any scale — on-demand capacity automatically adjusts to handle unpredictable peak volumes without manual provisioning, and single-digit millisecond performance is maintained regardless of table size. Aurora MySQL is a relational engine optimized for transactional queries with joins; matching DynamoDB's sub-5ms key-lookup latency at 600k requests/minute requires significant tuning overhead and dedicated read replicas, making it a poor fit for this simple, high-volume access pattern. Redshift is an OLAP data warehouse designed for analytical scans across large datasets, not single-key point lookups at low latency. ElastiCache for Memcached is an in-memory cache without durability — data is lost on node restart or eviction, making it unsuitable as the authoritative store for a leaderboard that must persist through failures."
               },
               {
                 "q": "A financial reporting service writes an account balance to DynamoDB and immediately performs a read to return the updated value to the client. Testers consistently observe stale values — the read returns the pre-update balance. The development team wants to fix this in code without changing the table design or data model. What change should they make?",
                 "choices": [
-                  "Switch table reads to a Global Secondary Index scoped to the account partition",
                   "Set ConsistentRead=true on every GetItem and Query call against the table",
+                  "Switch table reads to a Global Secondary Index scoped to the account partition",
                   "Enable DynamoDB Accelerator (DAX) in front of the table for cached reads",
                   "Replace GetItem with a Query that uses a FilterExpression on the balance attribute of the same table"
                 ],
-                "correctIndex": 1,
-                "explanation": "Setting ConsistentRead=true forces DynamoDB to read from the partition's leader node and return data that reflects all writes acknowledged before the read, eliminating stale-read windows that exist under eventually consistent (default) mode. DAX caches reads in memory and would worsen the problem — it would serve the cached pre-update value until its TTL expires, not the freshly written value. Global Secondary Indexes do not support strongly consistent reads at all, regardless of the ConsistentRead flag."
+                "correctIndex": 0,
+                "explanation": "Setting ConsistentRead=true forces DynamoDB to read from the partition's leader node and return data that reflects all writes acknowledged before the read, eliminating the stale-read window that exists under eventually consistent (default) mode. Switching reads to a Global Secondary Index makes the situation worse — GSIs do not support strongly consistent reads at all, regardless of the ConsistentRead flag. DAX caches reads in memory and would also worsen the problem; it would serve the cached pre-update value until its TTL expires rather than the freshly written value. Replacing GetItem with a Query that uses a FilterExpression still reads the base table with the same default consistency, so stale results remain possible."
               },
               {
                 "q": "A fintech company stores payment transactions in DynamoDB. For regulatory compliance, every item modification must be captured in an immutable audit log showing both the old and new attribute values. The solution must not require changes to the existing application, which writes directly to DynamoDB. Which approach creates a complete item-level change history?",
@@ -441,7 +441,7 @@
                   "DynamoDB Global Tables replicating to an audit-only AWS region"
                 ],
                 "correctIndex": 1,
-                "explanation": "DynamoDB Streams records every INSERT, MODIFY, and REMOVE event at the item level, including both old and new attribute images, with no changes needed in the writing application. A Lambda function triggered by the stream writes each event record to S3, creating an immutable, time-ordered audit trail. Point-in-Time Recovery lets you restore the entire table to a past moment but does not expose a log of individual change events. On-demand backups capture full table snapshots rather than per-modification records, and Global Tables replicate data across regions without tracking what changed."
+                "explanation": "DynamoDB Streams records every INSERT, MODIFY, and REMOVE event at the item level, including both the old and new attribute images, with no changes needed in the writing application. A Lambda function triggered by the stream writes each event record to S3 (with a Glacier or Object Lock layer for immutability), creating a per-modification audit trail. Point-in-Time Recovery lets you restore the entire table to a past moment but does not expose a log of individual change events. Global Tables replicate data across regions for active-active access without tracking what changed. On-demand backups capture full table snapshots rather than per-modification records, so the team would have to diff entire tables to reconstruct change history."
               },
               {
                 "q": "A security audit finds that a Lambda function processing payment records connects to an RDS PostgreSQL database using the publicly accessible endpoint. The security team requires the database to be unreachable from the internet while Lambda retains the ability to execute queries. What configuration achieves this?",
@@ -452,7 +452,7 @@
                   "Keep RDS publicly accessible, harden the network security group, and rotate credentials hourly via Secrets Manager"
                 ],
                 "correctIndex": 2,
-                "explanation": "Configuring Lambda with VPC settings creates an ENI in the specified subnets, allowing Lambda to reach RDS over private IP addresses — no public endpoint required. Disabling RDS public accessibility ensures no internet-originating connection can reach the database. Option B is incorrect because RDS does not support resource-based policies that restrict TCP-level connectivity; network access is controlled by security groups, not by a role-scoped policy attached to the RDS resource itself."
+                "explanation": "Configuring Lambda with VPC settings creates an ENI in the specified subnets, allowing Lambda to reach RDS over private IP addresses — no public endpoint required. Disabling RDS public accessibility ensures no internet-originating connection can reach the database. Removing public access and relying on an execution-role 'security policy' does not work because RDS network access is governed by VPC security groups, not by IAM roles attached to the caller. VPC peering connects two VPCs at the network layer but cannot bridge a public-only Lambda to a private subnet — Lambda must still have an ENI in a routable VPC to use private addressing. Keeping RDS publicly accessible with a hardened security group and hourly credential rotation still leaves a reachable internet endpoint, violating the explicit requirement."
               },
               {
                 "q": "An image-processing service is triggered by S3 uploads and runs on AWS Lambda. High-resolution RAW camera files have started arriving that require 22 minutes of CPU-intensive processing — seven minutes beyond Lambda's hard 15-minute execution limit. The team wants to keep a serverless approach. What is the BEST architectural fix?",
@@ -463,40 +463,40 @@
                   "Step Functions orchestrating chunked Lambda invocations"
                 ],
                 "correctIndex": 3,
-                "explanation": "AWS Step Functions can split a large job into stages — each Lambda invocation processes a chunk of the image within the 15-minute window, and Step Functions manages sequencing, state, and retries. This preserves the serverless model while working around Lambda's hard timeout. Increasing Lambda memory speeds up CPU-bound work but cannot extend the maximum execution limit beyond 15 minutes, so a 22-minute job still fails."
+                "explanation": "AWS Step Functions can split a large job into stages — each Lambda invocation processes a chunk of the image within the 15-minute window, and Step Functions manages sequencing, state, and retries. This preserves the serverless model while working around Lambda's hard timeout. ECS Fargate would solve the timeout but is not Lambda; the team explicitly wants to keep a serverless approach without managing tasks. EC2 Auto Scaling replaces the Lambda function with managed VMs, again abandoning the serverless approach. Maxing out Lambda memory to 10 GB speeds up CPU-bound work but cannot extend the maximum execution limit beyond 15 minutes, so a 22-minute job still fails."
               },
               {
                 "q": "A team's serverless checkout API runs on API Gateway backed by Lambda. During a flash sale, multiple functions in the same AWS account exhaust the shared regional concurrency pool, leaving the checkout function throttled while lower-priority background functions remain active. The team wants to guarantee the checkout function always has a minimum concurrency allocation that other functions in the account cannot claim. Which Lambda feature addresses this?",
                 "choices": [
-                  "Provisioned concurrency for the checkout Lambda function",
                   "Reserved concurrency set on the checkout Lambda function",
+                  "Provisioned concurrency for the checkout Lambda function",
                   "AWS Lambda Power Tuning to reduce per-invocation duration",
                   "API Gateway usage plan throttling per customer API key"
                 ],
-                "correctIndex": 1,
-                "explanation": "Reserved concurrency carves out a dedicated slice of the account-level concurrency pool exclusively for the specified function. Other functions cannot consume that reserved portion, ensuring the checkout function is never starved by lower-priority workloads competing for the shared pool. Provisioned concurrency (option A) pre-initializes execution environments to eliminate cold starts and improve latency, but it does not prevent other functions from consuming the unreserved portion of the account-wide limit that applies to non-provisioned invocations. API Gateway usage plans throttle individual external callers but have no effect on how Lambda allocates its internal concurrency pool."
+                "correctIndex": 0,
+                "explanation": "Reserved concurrency carves out a dedicated slice of the account-level concurrency pool exclusively for the specified function. Other functions cannot consume that reserved portion, ensuring the checkout function is never starved by lower-priority workloads competing for the shared pool. Provisioned concurrency pre-initializes execution environments to eliminate cold starts but does not prevent other functions from consuming the unreserved portion of the account-wide limit, so checkout can still be throttled at peak. Lambda Power Tuning helps right-size memory for per-invocation cost/latency but does not guarantee minimum concurrent capacity. API Gateway usage plans throttle individual external API keys but have no effect on how Lambda allocates its internal concurrency pool across functions."
               },
               {
                 "q": "A financial application processes wire transfer instructions from an SQS queue using a Lambda function. After a code deployment, certain message formats cause the Lambda function to throw an unhandled exception. These messages are returned to the queue, immediately retried, and continue failing — consuming Lambda invocations while delaying valid messages. What should the solutions architect implement?",
                 "choices": [
-                  "Enable FIFO ordering so wire transfers are processed in strict first-in, first-out order",
+                  "Configure a Dead Letter Queue with maxReceiveCount=3 and a depth alarm",
+                  "Enable FIFO ordering so wire transfers are processed in strict sequence with a Dead Letter Queue retry policy",
                   "Increase the visibility timeout to 5 minutes so Lambda has sufficient time to process each message",
-                  "Extend the message retention period to 14 days so failed messages are not permanently deleted",
-                  "Configure a Dead Letter Queue with maxReceiveCount=3 and a depth alarm"
+                  "Extend the message retention period to 14 days so failed messages are not permanently deleted"
                 ],
-                "correctIndex": 3,
-                "explanation": "A Dead Letter Queue (DLQ) receives messages that have exceeded maxReceiveCount processing attempts, permanently removing them from the main queue so they stop consuming Lambda invocations and blocking valid messages. A CloudWatch alarm on DLQ depth alerts the team when failures accumulate, enabling rapid root-cause investigation. Option B (increasing visibility timeout) only delays retries — it does not prevent a 'poison pill' message from cycling through the queue indefinitely once the timeout expires."
+                "correctIndex": 0,
+                "explanation": "A Dead Letter Queue (DLQ) receives messages that have exceeded maxReceiveCount processing attempts, permanently removing them from the main queue so they stop consuming Lambda invocations and blocking valid messages. A CloudWatch alarm on DLQ depth alerts the team when failures accumulate, enabling rapid root-cause investigation. FIFO ordering preserves message sequence but does not stop a poison-pill message from cycling endlessly — strict ordering actually makes the blockage worse, because a single failing message halts every subsequent message in the same group. Increasing the visibility timeout only delays retries; the bad message still cycles back once the timeout expires. Extending message retention to 14 days lengthens the failure window rather than stopping it."
               },
               {
                 "q": "A company's analytics portal lets users request custom PDF reports that take 8–12 minutes to generate. The architecture must return an immediate acknowledgment to the browser, continue generating the report in the background, and notify the user via SNS when the report is ready. API Gateway has a hard 29-second integration timeout. Which pattern meets all three requirements?",
                 "choices": [
                   "HTTP long-poll connection held open until report finishes; user sees a spinner the whole time",
-                  "Extend API Gateway integration timeout past 29 s; user request blocks until report is done",
                   "Async SQS queue with worker plus an SNS completion topic that emails the user",
+                  "Extend API Gateway integration timeout past 29 s; user request blocks until report is done",
                   "Browser polls a Lambda status endpoint every 10 s and shows status to the user"
                 ],
-                "correctIndex": 2,
-                "explanation": "An SQS-backed async pattern decouples the browser request from the long-running job: the frontend enqueues the request and immediately receives a job ID, a background worker processes the PDF, and SNS sends a notification on completion. API Gateway's 29-second integration timeout makes options B and D impossible for a task that takes 8–12 minutes — the connection would be terminated before the job finishes. Polling every 10 seconds works but wastes compute and still requires a separate notification mechanism."
+                "correctIndex": 1,
+                "explanation": "An SQS-backed async pattern decouples the browser request from the long-running job: the frontend enqueues the request and immediately receives a job ID, a background worker processes the PDF, and SNS sends a notification when the report is ready. API Gateway's 29-second integration timeout makes a long-poll connection impossible — the proxy will close the connection long before the 8–12 minute job finishes. The integration timeout cannot be raised past 29 s, so 'extending' it is not actually a configuration option. Polling every 10 seconds works for status but wastes compute on the user's device and still requires a separate completion notification mechanism — it doesn't satisfy the immediate-acknowledgment + push-notify pattern as cleanly."
               }
             ]
           },
@@ -531,7 +531,7 @@
     "timeMinutes": 27
   },
   "meta": {
-    "generatedAt": "2026-05-23T19:53:30.650Z",
+    "generatedAt": "2026-05-29T07:35:02.473Z",
     "totalNodes": 24,
     "totalQuestions": 60,
     "nodeTypes": [

@@ -58,46 +58,46 @@
               {
                 "q": "A security engineer needs to ensure all data stored in an S3 bucket is encrypted with a specific CMK, and any PutObject request without SSE-KMS using that key is rejected. How should the bucket policy be written?",
                 "choices": [
-                  "Enable default bucket encryption with SSE-KMS and the CMK — this automatically rejects non-KMS uploads",
-                  "Create a KMS key policy that only allows encryption for objects uploaded to the specific S3 bucket",
-                  "Create a bucket policy allowing all s3:PutObject actions and trust KMS to enforce encryption",
-                  "Create a bucket policy with a Deny on s3:PutObject where s3:x-amz-server-side-encryption is not 'aws:kms' AND"
+                  "Enable default bucket encryption with SSE-KMS and the CMK and rely on it to reject any non-KMS uploads automatically",
+                  "Write a KMS key policy that allows the Encrypt action only when the request originates from that specific S3 bucket",
+                  "Write a bucket policy that allows all s3:PutObject calls and let KMS enforce that the data was encrypted properly",
+                  "Write a bucket policy that Denies s3:PutObject when s3:x-amz-server-side-encryption is not 'aws:kms' OR the kms-key-id header is not the specific CMK ARN"
                 ],
                 "correctIndex": 3,
-                "explanation": "A bucket policy with a Deny condition checks the PutObject request headers. The condition 'StringNotEquals: s3:x-amz-server-side-encryption: aws:kms' denies uploads not using SSE-KMS. Adding 'StringNotEquals: s3:x-amz-server-side-encryption-aws-kms-key-id: <key-ARN>' further enforces that only the specific CMK is used. Default encryption applies KMS if no header is provided but doesn't reject non-compliant requests — the bucket policy Deny is needed for strict enforcement."
+                "explanation": "Default encryption applies SSE-KMS if no header is provided but does not reject a PutObject that explicitly specifies a different algorithm or key, so an explicit-Deny bucket policy on the two relevant request headers is required for strict enforcement. KMS key policies authorise key use but don't reject S3 uploads that bypass KMS. Allowing all PutObject and 'trusting KMS' doesn't enforce the algorithm header at all. The bucket policy is the right control because that's where the request headers can be evaluated."
               },
               {
                 "q": "A developer needs read access to an S3 bucket in Account B from an EC2 instance in Account A. The bucket policy in Account B already grants s3:GetObject to Account A's EC2 role ARN. However, the GetObject calls are still failing. What is the MOST likely missing configuration?",
                 "choices": [
-                  "The bucket in Account B must have versioning enabled for cross-account access",
-                  "The EC2 instance's IAM role in Account A must also have an identity-based policy granting",
-                  "Account A must create a VPC endpoint for S3 to enable cross-account bucket access",
-                  "Account B must have VPC peering with Account A for S3 cross-account access"
+                  "Versioning must be enabled on the bucket in Account B because cross-account reads require object versioning to expose object metadata",
+                  "The EC2 instance's IAM role in Account A must have an identity-based policy allowing s3:GetObject on the specific bucket ARN in Account B",
+                  "Account A must create a VPC endpoint for S3 to enable any cross-account bucket access from instances inside the VPC",
+                  "Account B must accept a VPC peering connection from Account A's VPC before S3 cross-account requests will succeed"
                 ],
                 "correctIndex": 1,
-                "explanation": "Cross-account S3 access requires BOTH policies to allow: (1) The bucket policy in Account B must grant access to Account A's IAM role, AND (2) The IAM role in Account A must have an identity-based policy allowing s3:GetObject on the specific bucket ARN in Account B. This is different from same-account access where a bucket policy alone can grant access. If either policy denies or doesn't allow, the access fails."
+                "explanation": "Cross-account S3 access requires Allow from BOTH sides — the bucket policy in Account B AND an identity-based policy on the IAM role in Account A; granting only the bucket policy is the most common mistake. S3 has no dependency on versioning for cross-account reads. A VPC endpoint changes the network path but isn't required for cross-account access. VPC peering is irrelevant — S3 traffic doesn't traverse VPC peering."
               },
               {
                 "q": "A company needs to enforce that all S3 buckets created in their accounts use SSE-KMS encryption and have public access blocked. New accounts joining the organization must automatically comply. Which combination achieves this with ZERO manual per-account configuration?",
                 "choices": [
-                  "Create Lambda functions in each account triggered by S3 bucket creation events to enforce the settings",
-                  "Apply an SCP denying s3:CreateBucket without SSE-KMS headers;.",
-                  "Create a CloudFormation StackSet that deploys S3 bucket policies to all accounts on creation",
-                  "Use AWS Control Tower to set detective guardrails checking S3 encryption and Block Public Access settings"
+                  "Deploy Lambda functions per account triggered by S3 bucket creation events to enforce the encryption and public-access settings after the fact across the organisation",
+                  "Use an SCP denying s3:CreateBucket without SSE-KMS, plus organisation-level S3 Block Public Access, plus a Config conformance pack via StackSets with auto-deployment",
+                  "Create a CloudFormation StackSet that deploys a baseline S3 bucket policy template to every existing account and re-applies the template whenever a new bucket is created",
+                  "Use AWS Control Tower detective guardrails to flag S3 buckets without encryption or with public access enabled and rely on the SecOps team to remediate each finding manually"
                 ],
                 "correctIndex": 1,
-                "explanation": "S3 Block Public Access can now be enabled at the AWS Organizations level, automatically applying to all existing and new accounts. An SCP can deny S3 bucket creation without the SSE-KMS header, preventing creation of unencrypted buckets. Config conformance packs deployed via StackSets with automatic deployment cover new accounts automatically. Together these create a zero-touch enforcement layer for all current and future accounts. enable S3 Block Public Access at the organization level via Amazon S3 account settings in Organizations; configure AWS Config conformance packs via StackSets with automatic deployment"
+                "explanation": "The zero-touch enforcement combination is: an SCP that denies bucket creation without SSE-KMS headers, organisation-level S3 Block Public Access for all accounts (current and future), and a conformance pack deployed via StackSets with auto-deployment for new accounts. Per-account Lambda after the fact is reactive. A StackSet that 'deploys bucket policies on creation' isn't natively triggered by bucket events. Detective guardrails report after the fact and require manual remediation."
               },
               {
                 "q": "A bucket policy denies all requests where aws:SecureTransport is false. Which TWO additional controls would you add to BLOCK accidental public exposure of objects in this bucket?",
                 "choices": [
-                  "Enable S3 Block Public Access at the bucket level",
-                  "Enable default S3 server-side encryption with SSE-S3",
-                  "Enable S3 Object Ownership set to \"Bucket owner enforced\" (disables ACLs)",
-                  "Enable versioning with MFA Delete"
+                  "Enable S3 Block Public Access at the bucket level to override any policy or ACL that would grant public read",
+                  "Enable default S3 server-side encryption with SSE-S3 so newly uploaded objects are encrypted at rest by default",
+                  "Enable S3 Object Ownership set to 'Bucket owner enforced' so ACLs are disabled and uploaders cannot grant public access on individual objects",
+                  "Enable versioning with MFA Delete so deletion of object versions requires an MFA-authenticated root call"
                 ],
                 "correctIndex": 0,
-                "explanation": "Block Public Access overrides any policy/ACL that would grant Public access. \"Bucket owner enforced\" disables ACLs entirely so an uploader can't accidentally make an individual object public. SSE-S3 protects data at rest but not against public exposure. MFA Delete protects against accidental deletion of versions, not against public reads."
+                "explanation": "Block Public Access overrides any bucket policy or ACL that would grant public access, and 'Bucket owner enforced' Object Ownership disables ACLs entirely so per-object ACL grants can no longer make individual objects public. SSE-S3 protects data at rest but doesn't gate access — public reads of encrypted objects are still served decrypted to authorised callers. MFA Delete protects against accidental version deletion, not against public reads."
               }
             ]
           },
@@ -287,25 +287,103 @@
         {
           "id": "c2-game",
           "type": "minigame",
-          "gameType": "match-pair",
-          "mode": "match-pair",
+          "gameType": "lightning",
+          "mode": "lightning-round",
           "data": {
-            "pairs": [
+            "secondsPerQuestion": 7,
+            "livesAllowed": 3,
+            "questions": [
               {
-                "left": "A security engineer is designing attribute-based access control (ABAC) in AWS. T",
-                "right": "ec2:ResourceTag/Department"
+                "q": "A CloudTrail data event is required to log all S3 GetObject API calls on a specific bucket containing PII data. The security team also wants to detect when someone downloads more than 1,000 objects in a 5-minute window. Which combination achieves both requirements?",
+                "choices": [
+                  "Configure Amazon Macie to monitor GetObject API calls and alert on high-volume download patterns from a single principal",
+                  "Enable S3 Event Notifications for GetObject events into SNS, then use CloudWatch Metric Math to count the messages",
+                  "Enable S3 server access logging to a target bucket and have a Lambda function parse the log files to count GetObject calls",
+                  "Enable CloudTrail data events for the S3 bucket sending to CloudWatch Logs, create a metric filter on GetObject and alarm when the count exceeds 1,000 in 5 minutes"
+                ],
+                "correctIndex": 3,
+                "explanation": "S3 object-level operations (GetObject/PutObject) are CloudTrail data events, off by default; enabling them for the bucket, streaming to CloudWatch Logs and adding a metric filter + alarm gives you a managed, near-real-time counter for the threshold. Macie detects sensitive data and unusual S3 access patterns but isn't a configurable per-bucket GetObject counter. S3 Event Notifications fire on object events but not on GetObject and can't be sized into 5-minute windows trivially. S3 server access logs have delivery delay and gaps and aren't suitable for real-time threshold alarms."
               },
               {
-                "left": "A company has multiple AWS accounts managed under AWS Organizations. The securit",
-                "right": "Preventive guardrail"
+                "q": "A company uses AWS Organizations with 20 accounts. Each account must have CloudTrail enabled with logs sent to a central S3 bucket in the security account. Account administrators should NOT be able to disable CloudTrail or modify the trail. Which configuration achieves this?",
+                "choices": [
+                  "Deploy an EventBridge rule per account that detects CloudTrail StopLogging events and automatically re-enables the trail via a Lambda",
+                  "Create an organization trail from the management account so it applies to all current and future member accounts and cannot be disabled by them",
+                  "Use CloudFormation StackSets to deploy per-account trails and add an SCP that denies cloudtrail:StopLogging and cloudtrail:DeleteTrail",
+                  "Enable the AWS Config managed rule 'cloud-trail-enabled' in every account with auto-remediation that recreates the trail if it gets disabled"
+                ],
+                "correctIndex": 1,
+                "explanation": "An organisation trail created from the management account propagates to every member account, AWS prevents member admins from disabling, modifying or deleting it, and all events are centralised in one S3 bucket — the simplest authoritative control. EventBridge-and-Lambda is reactive (a window of disabled logging always exists). StackSets + SCP works but is more moving parts than the single organisation-trail mechanism. A Config managed rule with auto-remediation is also reactive and per-account."
               },
               {
-                "left": "A permission boundary is attached to an IAM role. The role's identity-based poli",
-                "right": "s3:GetObject and s3:PutObject."
+                "q": "A company is implementing a data lake on S3. The data governance team requires that all data queries and who accessed which datasets be audited for HIPAA compliance. Which S3 logging mechanism provides the most detailed per-request audit trail including the requester's identity?",
+                "choices": [
+                  "Amazon Macie running on the data lake buckets to classify sensitive data and surface access patterns by user activity",
+                  "S3 server access logging delivered to a target bucket, capturing requester, bucket, key, action and status code for each request",
+                  "CloudTrail S3 data events, recording every GetObject/PutObject/DeleteObject with the IAM principal ARN, account ID, source IP and object key",
+                  "VPC Flow Logs on the subnets that host workloads, capturing network traffic to/from the S3 VPC endpoint for after-the-fact correlation"
+                ],
+                "correctIndex": 2,
+                "explanation": "CloudTrail S3 data events give the strongest audit trail for HIPAA: the IAM principal ARN, account, source IP, object key, action and timestamp for every object-level request, with log file integrity validation and centralised aggregation across accounts. Macie classifies data but isn't a per-request audit log. S3 server access logs can have delivery delay and don't always include the full IAM principal ARN. VPC Flow Logs see network 5-tuples, not the IAM identity or object key."
+              },
+              {
+                "q": "A company wants to restrict all AWS API calls to originate only from the company's corporate IP range (203.0.113.0/24). All other API calls from any source should be denied. Where should this restriction be applied for the STRONGEST enforcement?",
+                "choices": [
+                  "Add an IAM permission boundary to all IAM users requiring an aws:SourceIp condition on every API call",
+                  "Enable AWS CloudTrail and have EventBridge real-time rules detect API calls from unknown IPs and trigger Lambda revocation",
+                  "Configure an identity-based IAM policy on each IAM user and role that denies access when aws:SourceIp is outside the corporate range",
+                  "Create a Service Control Policy at the organization root with Deny on all actions when aws:SourceIp is not in 203.0.113.0/24 (with an aws:ViaAWSService exception)"
+                ],
+                "correctIndex": 3,
+                "explanation": "An SCP at the organisation root is the strongest control because it applies to every principal in every member account — including account-level admins and root users — and cannot be overridden by lower-level IAM policies. Permission boundaries only constrain individual IAM entities and don't apply to root users. EventBridge-on-CloudTrail is detective and reactive, not preventive. Per-identity policies must be replicated to every principal and can be undone by any account admin."
+              },
+              {
+                "q": "A company requires that all API calls to AWS are made only through approved network paths (corporate network or VPN). An SCP should deny any API call not originating from the approved IP ranges (203.0.113.0/24 and 198.51.100.0/24). Which SCP condition correctly implements this?",
+                "choices": [
+                  "Deny '*' with NotIpAddress on aws:SourceIp = [the two approved ranges] plus a Null check on aws:ViaAWSService to skip AWS service calls",
+                  "Allow '*' with IpAddress on aws:SourceIp restricted to [203.0.113.0/24, 198.51.100.0/24] so only those source addresses are ever permitted by the policy",
+                  "Deny '*' with IpAddress on aws:SourceIp = [203.0.113.0/24, 198.51.100.0/24] so calls from inside the listed corporate ranges are blocked instead",
+                  "Deny '*' with StringNotEquals on aws:SourceVpc set to a specific VPC ID to restrict the entire organisation to traffic from that single VPC"
+                ],
+                "correctIndex": 0,
+                "explanation": "The right pattern uses NotIpAddress (deny when source IP is NOT in the approved set) combined with a Null check on aws:ViaAWSService so AWS-internal service-to-service calls (CloudFormation→EC2, Lambda→S3) aren't blocked by the user-IP check. An Allow-only SCP is wrong because SCPs control deny semantics on top of identity Allows. IpAddress (option C) would deny the approved ranges — the opposite of intent. aws:SourceVpc restricts by VPC, not by corporate IP range."
+              },
+              {
+                "q": "A company wants to prevent developers from disabling GuardDuty, Security Hub, or Config in any account in their AWS Organization. What is the MOST effective way to enforce this?",
+                "choices": [
+                  "Enable AWS Config managed rules that detect when these services are disabled and trigger an SNS notification to the security team for manual response",
+                  "Apply SCPs at the organization root or OU level that deny guardduty:DeleteDetector, securityhub:DisableSecurityHub and config:StopConfigurationRecorder for all accounts",
+                  "Attach IAM permission boundaries to every IAM user in member accounts that deny the disable-actions for those three services across the organisation",
+                  "Configure EventBridge rules in each account to detect disable events and trigger Lambda functions that re-enable the services automatically"
+                ],
+                "correctIndex": 1,
+                "explanation": "Only an SCP at the organisation root or OU level is a true preventive control across every principal in every member account — including account-level admins and root users — so the disable APIs simply fail. Config-rule notifications and EventBridge-driven re-enabling are detective and reactive (a window of disabled state always exists). Permission boundaries only constrain individual IAM entities they are attached to and don't apply to root users; they're not an organisation-wide control."
+              },
+              {
+                "q": "An application's Lambda function needs to call an external SaaS API that requires basic authentication. The API credentials should be securely stored, automatically rotated every 30 days, and NOT appear in environment variables or code. Which service provides this with the LEAST operational overhead?",
+                "choices": [
+                  "KMS-encrypt the credentials and bake the ciphertext into the Lambda deployment package, decrypting at runtime",
+                  "Store the credentials in an S3 object encrypted with KMS and have Lambda fetch and decrypt them on every invocation",
+                  "Store the credentials in AWS Secrets Manager with a rotation Lambda configured for a 30-day schedule, calling GetSecretValue at runtime",
+                  "Store the credentials in SSM Parameter Store SecureString and retrieve them via the SSM GetParameter API at runtime"
+                ],
+                "correctIndex": 2,
+                "explanation": "Secrets Manager natively supports scheduled rotation via a Lambda rotation function — for a SaaS credential you write a small rotator that creates the new credential at the SaaS side and updates the secret on the configured cadence; the function calls GetSecretValue without env vars. Baking ciphertext into the deployment package or fetching from S3 each call works but adds custom code and isn't natively rotatable. SSM Parameter Store SecureString lacks native automatic rotation — you'd have to build it yourself."
+              },
+              {
+                "q": "A company has a Lambda function that needs to access a Secrets Manager secret. The function is deployed in multiple accounts. What is the MOST efficient way to share the secret across accounts while maintaining encryption?",
+                "choices": [
+                  "Store the secret in SSM Parameter Store with a cross-account resource policy and have each Lambda fetch it from the central account",
+                  "Create an IAM role in the secret's account that each remote Lambda execution role can assume, then call GetSecretValue once assumed",
+                  "Export the secret value via a deployment pipeline and store a copy in each account's own Secrets Manager",
+                  "Add a Secrets Manager resource policy to the secret allowing the other accounts' Lambda execution roles to call GetSecretValue, and grant kms:Decrypt on the CMK to those same roles"
+                ],
+                "correctIndex": 3,
+                "explanation": "Secrets Manager supports a resource-based policy on the secret; granting cross-account Lambda execution roles GetSecretValue plus kms:Decrypt on the encrypting CMK lets the remote Lambdas read directly without role assumption hops. SSM Parameter Store can do cross-account but lacks Secrets Manager rotation features. Role assumption works but adds latency and is more code than the direct resource-policy approach. Copying secrets per account multiplies the surface area and rotation problem."
               }
             ]
           },
-          "title": "Mixed Topics — Match the Pair"
+          "title": "Mixed Topics — Lightning Round"
         },
         {
           "id": "c2-boss",
@@ -336,7 +414,7 @@
     "timeMinutes": 27
   },
   "meta": {
-    "generatedAt": "2026-05-23T19:53:30.652Z",
+    "generatedAt": "2026-05-29T07:35:02.475Z",
     "totalNodes": 21,
     "totalQuestions": 61,
     "nodeTypes": [

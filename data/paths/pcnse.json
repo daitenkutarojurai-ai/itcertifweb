@@ -1,0 +1,384 @@
+{
+  "packId": "pcnse",
+  "title": "Palo Alto Networks Certified Network Security Engineer (PCNSE)",
+  "brandName": "Palo Alto Networks",
+  "brandColor": "#FA582D",
+  "chapters": [
+    {
+      "id": "ch1",
+      "title": "Part 1",
+      "tag": "part-1",
+      "nodes": [
+        {
+          "id": "c1-concept",
+          "type": "concept",
+          "title": "Network Address Translation: Key Ideas",
+          "content": "NAT translates private IPs (10.0.0.0/8, 192.168.0.0/16) to public IPs at the network edge — the trick that lets billions of devices share the 4 billion IPv4 address space. Knowing the three NAT flavors is a CCNA / Network+ staple.",
+          "flashcards": [
+            {
+              "front": "Static NAT vs Dynamic NAT vs PAT — pick the right one.",
+              "back": "Static NAT: 1:1 fixed mapping (one private IP ↔ one public IP). Use for inbound services (web server gets a dedicated public). Dynamic NAT: pool of public IPs assigned on-demand, no port translation. PAT (Port Address Translation, a.k.a. NAT Overload): many private IPs share one public IP, distinguished by source port. PAT is what 'NAT' usually means in home routers."
+            },
+            {
+              "front": "How does PAT distinguish two clients hitting the same server?",
+              "back": "By the source port. Client A from 10.0.0.5:50000 → translated to 1.2.3.4:32145. Client B from 10.0.0.6:50000 → translated to 1.2.3.4:32146. The router keeps a translation table mapping (private IP, port) ↔ (public IP, port). When reply comes back, look up the port, send to the right private host."
+            },
+            {
+              "front": "Why does NAT break some protocols (FTP, SIP)?",
+              "back": "Protocols that embed IP addresses or port numbers INSIDE the payload (FTP PORT command, SIP INVITE) break when NAT rewrites only the IP header. The payload still contains the private IP, the remote end gets confused. Mitigation: an Application Layer Gateway (ALG) on the router rewrites the embedded addresses too. Many ALGs are buggy — vendors recommend disabling SIP ALG for VoIP."
+            },
+            {
+              "front": "What's the difference between source NAT and destination NAT?",
+              "back": "Source NAT (SNAT): rewrites the source address of outbound traffic — what PAT/dynamic NAT do for internet access. Destination NAT (DNAT): rewrites the destination address of inbound traffic — used to publish internal servers, also called 'port forwarding' on home routers. Most NAT devices do both, in different directions."
+            }
+          ],
+          "source": "concept-library",
+          "sourceTag": "nat"
+        },
+        {
+          "id": "c1-quiz1",
+          "type": "quiz",
+          "title": "Part 1 — Drill 1",
+          "questionIds": [
+            "pcnse-001",
+            "pcnse-002",
+            "pcnse-003",
+            "pcnse-004"
+          ]
+        },
+        {
+          "id": "c1-game",
+          "type": "minigame",
+          "gameType": "lightning",
+          "mode": "lightning-round",
+          "data": {
+            "secondsPerQuestion": 7,
+            "livesAllowed": 3,
+            "questions": [
+              {
+                "q": "Two PA-5250 firewalls are deployed in active/passive HA. After a planned failover test, sessions fail over but application traffic that requires content inspection is reclassified from scratch on the new active peer, which briefly elevates CPU. Which HA link or feature, when added, will pre-synchronize the App-ID state so reclassification is avoided?",
+                "choices": [
+                  "Adding a dedicated HA1 backup link over a management interface so heartbeats survive a control-plane fault",
+                  "Enabling the HA3 link, which carries packet-forwarding traffic between peers in active/active deployments only",
+                  "Enabling the HA2 data link with session synchronization, which mirrors session, ARP, and App-ID state to the passive peer",
+                  "Enabling Layer 3 link monitoring on the data interfaces so the firewall pre-elects a master before failover begins"
+                ],
+                "correctIndex": 2,
+                "explanation": "HA2 is the data-plane synchronization link. It mirrors the session table — including App-ID classification, decrypted state, and ARP/MAC tables — from the active to the passive firewall. With HA2 enabled, sessions on the new active peer keep their App-ID classification and do not need to be re-evaluated. HA1 carries only control-plane heartbeats and config sync; HA3 is for active/active packet forwarding; link monitoring detects faults but does not sync state."
+              },
+              {
+                "q": "A security team must inspect outbound HTTPS traffic going from internal users to arbitrary external sites for threats and data exfiltration. Internal clients trust an enterprise root CA. Which decryption mode is appropriate?",
+                "choices": [
+                  "SSL Inbound Inspection, which uses the destination server's private key to decrypt sessions terminating on an internal server",
+                  "SSH Proxy, which intercepts SSH sessions and re-encrypts them with a firewall-generated host key",
+                  "SSL Forward Proxy with a trusted enterprise CA certificate installed as Forward Trust on the firewall",
+                  "Decryption broker mode, which forwards a copy of plaintext to a third-party tool but does not block threats inline"
+                ],
+                "correctIndex": 2,
+                "explanation": "SSL Forward Proxy is used to decrypt traffic where the firewall sits between an internal client and an external server. The firewall acts as a man-in-the-middle, presenting a certificate signed by the Forward Trust CA (the enterprise root, pre-installed on clients) so the browser does not warn. Inbound Inspection is for traffic to an internal server whose private key the firewall holds. SSH Proxy only covers SSH. Decryption broker copies plaintext to another tool but does not block threats inline by itself."
+              },
+              {
+                "q": "An administrator wants to push different Security policies to branch firewalls than to data-center firewalls from Panorama, while reusing the same set of Interface, Zone, and Log Forwarding profiles across all sites. Which Panorama construct combination is correct?",
+                "choices": [
+                  "Use one Device Group containing all firewalls and rely on tag-based rule filtering to differentiate sites",
+                  "Use separate Templates per site and a single global Device Group, since rules are defined inside Templates",
+                  "Use separate Device Groups for branch and data-center firewalls, and a shared Template Stack for common network and device settings",
+                  "Use a Collector Group per site so each firewall pulls only the policies relevant to its location"
+                ],
+                "correctIndex": 2,
+                "explanation": "In Panorama, Device Groups carry policy and object configuration (Security, NAT, decryption rules, address objects), while Templates and Template Stacks carry network and device configuration (interfaces, zones, virtual routers, log forwarding, system settings). Splitting Device Groups by role separates policy sets; sharing a Template Stack reuses the network/device baseline. Collector Groups apply to log collection, not policy distribution."
+              },
+              {
+                "q": "An internal web server at 10.1.1.20 needs to be reachable from the internet at the public IP 203.0.113.50 on TCP/443. The firewall has a public-facing untrust zone and an internal dmz zone. Which NAT and Security policy configuration is correct?",
+                "choices": [
+                  "A destination NAT translating 203.0.113.50:443 → 10.1.1.20:443, and a Security rule from untrust to dmz with destination 203.0.113.50 (pre-NAT) and service service-https",
+                  "A static source NAT translating 10.1.1.20 → 203.0.113.50, and a Security rule from dmz to untrust permitting service-https",
+                  "A bidirectional source NAT on the dmz interface, and a Security rule from untrust to untrust with the pre-NAT public IP",
+                  "A destination NAT translating 203.0.113.50:443 → 10.1.1.20:443, and a Security rule from untrust to untrust because the destination zone is evaluated pre-NAT"
+                ],
+                "correctIndex": 0,
+                "explanation": "For inbound publishing of an internal server, you need a Destination NAT (DNAT) translating the public IP to the internal IP. For the Security rule, the Palo Alto firewall evaluates the source/destination ZONE post-NAT (because the route lookup happens before the security policy lookup), so the destination zone is dmz, but the destination IP ADDRESS in the security rule is the pre-NAT public address (203.0.113.50). This is one of the most tested PCNSE subtleties."
+              }
+            ]
+          },
+          "title": "Part 1 — Lightning Round"
+        },
+        {
+          "id": "c1-boss",
+          "type": "subboss",
+          "title": "Boss: Part 1",
+          "questionIds": [
+            "pcnse-001",
+            "pcnse-002",
+            "pcnse-003",
+            "pcnse-004"
+          ]
+        },
+        {
+          "id": "c1-chest",
+          "type": "chest",
+          "title": "Treasure Chest",
+          "rewardXp": 30,
+          "cosmeticKey": "chapter-1"
+        }
+      ]
+    },
+    {
+      "id": "ch2",
+      "title": "Part 2",
+      "tag": "part-2",
+      "nodes": [
+        {
+          "id": "c2-concept",
+          "type": "concept",
+          "title": "IP routing: Key Ideas",
+          "content": "Routing is how packets find their way through a multi-network internet. Every router runs a forwarding table; routing protocols (OSPF, EIGRP, BGP) are the mechanisms by which routers exchange information and build that table.",
+          "flashcards": [
+            {
+              "front": "What's the longest-prefix-match rule?",
+              "back": "When multiple routes match a destination, the router picks the one with the most-specific (longest) prefix. So `10.0.0.0/24` beats `10.0.0.0/16` for a packet to `10.0.0.5`. This is how more-specific routes can override defaults."
+            },
+            {
+              "front": "Default route — what does `0.0.0.0/0` mean?",
+              "back": "It matches every destination, so it's used only when no more-specific route exists. Typically points to the internet gateway. On a stub network, the default route is often the ONLY route — everything not local goes 'up' to a smarter router."
+            },
+            {
+              "front": "Static vs dynamic routing — when do you use each?",
+              "back": "Static routes are hand-configured, easy to understand, perfect for small or stub networks. Dynamic routing (OSPF, BGP, EIGRP) auto-discovers topology, reacts to link failures, scales to thousands of routers. Use dynamic the moment the topology is non-trivial or expected to change."
+            },
+            {
+              "front": "Administrative distance — what is it?",
+              "back": "When the same destination is learned from multiple sources (static + OSPF + BGP), the router prefers the one with the lowest administrative distance. Defaults (Cisco): connected=0, static=1, EIGRP=90, OSPF=110, BGP=200. It's the tie-breaker before the routing-protocol metric."
+            }
+          ],
+          "source": "concept-library",
+          "sourceTag": "routing"
+        },
+        {
+          "id": "c2-quiz1",
+          "type": "quiz",
+          "title": "Part 2 — Drill 1",
+          "questionIds": [
+            "pcnse-005",
+            "pcnse-008",
+            "pcnse-006",
+            "pcnse-007"
+          ]
+        },
+        {
+          "id": "c2-game",
+          "type": "minigame",
+          "gameType": "lightning",
+          "mode": "lightning-round",
+          "data": {
+            "secondsPerQuestion": 7,
+            "livesAllowed": 3,
+            "questions": [
+              {
+                "q": "A GlobalProtect deployment must allow remote users to authenticate once, automatically discover the closest gateway, and tunnel traffic to it. Which component performs gateway selection and certificate distribution?",
+                "choices": [
+                  "The GlobalProtect Gateway, which authenticates users and brokers them to the appropriate Portal based on geographic proximity",
+                  "The User-ID Agent, which maps the source IP to the user before any tunnel is established",
+                  "Panorama, which assigns each GlobalProtect client to a tunnel based on the device group it belongs to",
+                  "The GlobalProtect Portal, which authenticates the user, returns the client configuration with a list of gateways, and delivers the agent"
+                ],
+                "correctIndex": 3,
+                "explanation": "The GlobalProtect Portal is the entry point: it authenticates the user, downloads the agent, and returns the client configuration including the list of gateways, certificates, and authentication methods. The agent then evaluates gateway priorities (often based on SSL response time) and connects. The Gateway handles the actual tunnel termination, traffic inspection, and policy enforcement. User-ID is a mapping function, not a connector. Panorama manages config but does not negotiate per-session client connections."
+              },
+              {
+                "q": "A Security rule explicitly allows application web-browsing. After enabling App-ID for a SaaS application that runs over HTTP, the SaaS traffic is unexpectedly blocked. What is the most common cause and the correct fix?",
+                "choices": [
+                  "App-ID requires SSL decryption to identify any HTTP-based application; enable SSL Forward Proxy on the rule",
+                  "Security policy rule order is processed bottom-up; move the SaaS rule below web-browsing so it is evaluated first",
+                  "The HTTP application uses non-standard ports; replace service application-default with service service-http",
+                  "The SaaS application has an App-ID dependency on web-browsing; add the parent application or use application-default service and let App-ID shift identification"
+                ],
+                "correctIndex": 3,
+                "explanation": "Many App-IDs depend on a parent application (web-browsing or ssl) until enough payload is seen to refine identification. If a rule allows only the child SaaS App-ID but blocks web-browsing, the initial packets are dropped before App-ID can shift. The fix is to include the parent application(s) in the same rule, or use application-default and let App-ID identify and shift the session. Decryption is required only for HTTPS, not plain HTTP. Palo Alto evaluates security rules top-down, not bottom-up."
+              },
+              {
+                "q": "A firewall has two virtual routers, VR-Trust and VR-Untrust, used to isolate routing tables for two tenants. A user in VR-Trust must reach a server reachable only via a route in VR-Untrust. Which configuration achieves this without merging the virtual routers?",
+                "choices": [
+                  "Add a policy-based forwarding rule on VR-Trust that bypasses the route lookup and forwards directly to VR-Untrust",
+                  "Add a static route on VR-Trust whose next-hop is set to the VR-Untrust virtual router (Next VR), and a return route on VR-Untrust pointing back to VR-Trust",
+                  "Enable BGP route reflector between VR-Trust and VR-Untrust so each router learns the other's prefixes automatically",
+                  "Define a tunnel interface in VR-Trust and terminate it in VR-Untrust to bridge the routing tables transparently"
+                ],
+                "correctIndex": 1,
+                "explanation": "To leak routes between two virtual routers on the same Palo Alto firewall, you create a static route whose next hop is set to the other virtual router (the 'Next VR' option). A return route is required so the reply traffic finds its way back. PBF can override routing but is not the cleanest tool for steady-state inter-VR reachability. BGP route reflection is for iBGP scaling, not inter-VR leaking. Tunnels are a workaround but unnecessary and add overhead."
+              },
+              {
+                "q": "A firewall in production needs WildFire signatures applied as quickly as possible to catch zero-day malware seen in the last few minutes. Which Dynamic Updates configuration achieves this?",
+                "choices": [
+                  "Set Antivirus updates to download and install every 24 hours, since WildFire signatures roll into Antivirus content within that window",
+                  "Set WildFire updates to download and install every minute, with a threshold of 0 minutes so signatures apply as soon as published",
+                  "Disable Dynamic Updates and rely on inline WildFire analysis to block files in real time without signatures",
+                  "Set Applications and Threats updates to every 30 minutes; WildFire is included in the Threats content"
+                ],
+                "correctIndex": 1,
+                "explanation": "PAN-OS supports near-real-time WildFire signatures with a download schedule as low as every 1 minute. Setting the WildFire content update interval to 1 minute with a recurrence threshold of 0 means new signatures install immediately upon publish. Antivirus content updates daily and incorporates WildFire signatures but with a longer lag. Inline WildFire analysis can supplement signatures but does not replace them. Applications and Threats is a separate content package."
+              }
+            ]
+          },
+          "title": "Part 2 — Lightning Round"
+        },
+        {
+          "id": "c2-boss",
+          "type": "subboss",
+          "title": "Boss: Part 2",
+          "questionIds": [
+            "pcnse-005",
+            "pcnse-008",
+            "pcnse-006",
+            "pcnse-007"
+          ]
+        },
+        {
+          "id": "c2-chest",
+          "type": "chest",
+          "title": "Treasure Chest",
+          "rewardXp": 30,
+          "cosmeticKey": "chapter-2"
+        }
+      ]
+    },
+    {
+      "id": "ch3",
+      "title": "Part 3",
+      "tag": "part-3",
+      "nodes": [
+        {
+          "id": "c3-concept",
+          "type": "concept",
+          "title": "Command-line tooling: Key Ideas",
+          "content": "Most exam workflows involve `aws`, `az`, `gcloud`, or `kubectl`. Knowing the structure of each (resource → command → flags) saves you in the lab portion and in real life. They're all roughly the same shape with different naming conventions.",
+          "flashcards": [
+            {
+              "front": "How do you authenticate the AWS CLI?",
+              "back": "`aws configure` writes credentials to `~/.aws/credentials` (access key + secret) and `~/.aws/config` (region, output format). Use named profiles for multi-account: `aws s3 ls --profile prod`. Prefer `aws configure sso` or temporary STS credentials over long-lived access keys."
+            },
+            {
+              "front": "What does `kubectl get` do, and what flags are essential?",
+              "back": "Lists resources of a kind: `kubectl get pods`, `kubectl get nodes`. Key flags: `-n <namespace>` (default is `default`), `-o wide` (more columns), `-o yaml` (full manifest), `--watch` (live updates), `-l label=value` (filter by label)."
+            },
+            {
+              "front": "Output formatting — JSON, table, text?",
+              "back": "AWS / Azure / gcloud all support `--output json|text|table|yaml`. JSON is for piping into `jq` for scripts. Table is for humans browsing in the terminal. Always set a default in your config so you don't squint at JSON when browsing."
+            },
+            {
+              "front": "How do you find a command's options without leaving the terminal?",
+              "back": "`aws <service> <command> help` (or `--help`), `kubectl <verb> --help`, `az <group> <command> --help`. These open built-in docs with every flag listed. Searching the official web docs is for concepts; for syntax, the local help is always current."
+            }
+          ],
+          "source": "concept-library",
+          "sourceTag": "cli"
+        },
+        {
+          "id": "c3-quiz1",
+          "type": "quiz",
+          "title": "Part 3 — Drill 1",
+          "questionIds": [
+            "pcnse-009",
+            "pcnse-010",
+            "pcnse-011",
+            "pcnse-012"
+          ]
+        },
+        {
+          "id": "c3-game",
+          "type": "minigame",
+          "gameType": "lightning",
+          "mode": "lightning-round",
+          "data": {
+            "secondsPerQuestion": 7,
+            "livesAllowed": 3,
+            "questions": [
+              {
+                "q": "By default, what happens to traffic between two interfaces assigned to the SAME security zone, and what happens to traffic between interfaces in DIFFERENT zones, when no Security rule matches?",
+                "choices": [
+                  "Intrazone traffic is allowed by default; interzone traffic is denied by default",
+                  "Intrazone traffic is denied by default; interzone traffic is allowed if both zones share a virtual router",
+                  "Both intrazone and interzone traffic are allowed by default until an explicit deny rule is added",
+                  "Both intrazone and interzone traffic are denied by default; the default rules must be cloned and enabled to log them"
+                ],
+                "correctIndex": 0,
+                "explanation": "PAN-OS ships with two default rules at the bottom of the Security policy: intrazone-default (allow) and interzone-default (deny). Traffic between two interfaces in the same zone is allowed implicitly; traffic between different zones is dropped unless explicitly permitted. The default rules can be overridden (cloned and edited) to enable logging or change the action, but the underlying default behavior is allow-intrazone, deny-interzone."
+              },
+              {
+                "q": "An administrator must trigger an immediate failover from the active firewall in an active/passive HA pair so they can perform maintenance on it. Which CLI command on the active peer initiates a controlled failover?",
+                "choices": [
+                  "request high-availability state suspend",
+                  "debug ha-mgr reset",
+                  "set deviceconfig system ha-state passive",
+                  "request restart system"
+                ],
+                "correctIndex": 0,
+                "explanation": "The PCNSE-standard command 'request high-availability state suspend' on the active firewall changes its HA state to suspended, which causes the passive peer to take over as active. The administrator can then perform maintenance and run 'request high-availability state functional' to restore it. 'debug ha-mgr reset' is troubleshooting only. 'set deviceconfig...' is not the supported way to flip HA state. A full system restart works but causes an unclean interruption rather than a graceful failover."
+              },
+              {
+                "q": "After enabling SSL Forward Proxy, internal users browsing certain banking sites get a certificate error in the browser, while most other HTTPS sites work fine. The Forward Trust enterprise root CA is installed on all clients. What is the most likely cause and recommended action?",
+                "choices": [
+                  "The clients are missing the Forward Untrust CA; install it on every client to suppress the warning",
+                  "The Forward Trust certificate has expired and must be regenerated; this affects only newly negotiated sessions to financial domains",
+                  "The banking sites use HSTS or certificate pinning that rejects the firewall-generated certificate; exclude those sites from decryption via a Decryption policy No-Decrypt rule",
+                  "The firewall is rate-limiting decryption capacity; license a higher decryption tier so all HTTPS sites can be decrypted simultaneously"
+                ],
+                "correctIndex": 2,
+                "explanation": "Banking sites and many high-security applications use HSTS or certificate pinning, which means the client refuses any certificate that is not the pinned legitimate one — even if it chains to a trusted enterprise CA. The standard practice is to exclude these sites from decryption using a Decryption policy with action No-Decrypt (often using the URL category 'financial-services' and a custom exclude list). The Forward Untrust certificate is presented only when a server's certificate is untrusted — it is unrelated to pinning. License tiers do not gate decryption per-site."
+              },
+              {
+                "q": "A Panorama administrator pushes a commit to a Device Group containing both a PA-3220 and a PA-5260. The PA-5260 commit succeeds, but the PA-3220 returns 'commit failed: rule references object not found'. Where is the most likely cause of the inconsistency?",
+                "choices": [
+                  "The PA-3220 is running an older PAN-OS version that does not support the new schema; upgrade the device before committing",
+                  "An object was defined in a child Device Group that the PA-3220 does not belong to, while the rule is in the shared/parent Device Group and resolves on the PA-5260 only",
+                  "Panorama randomly distributes objects per firewall in the same Device Group; toggle 'Force Template Values' to redistribute",
+                  "Local rules on the PA-3220 take precedence over Panorama rules, blocking object inheritance until they are deleted"
+                ],
+                "correctIndex": 1,
+                "explanation": "Panorama uses a hierarchy: objects defined in a child Device Group are visible only to firewalls that belong to that child group. If a rule in the shared or parent Device Group references an object defined only in a sibling/child group, firewalls outside that group will fail to resolve the object — exactly the 'object not found' error. The fix is to move the object up to a Device Group that includes both firewalls (or to Shared). Panorama does not randomly distribute objects; local rules do not block inheritance."
+              }
+            ]
+          },
+          "title": "Part 3 — Lightning Round"
+        },
+        {
+          "id": "c3-boss",
+          "type": "subboss",
+          "title": "Boss: Part 3",
+          "questionIds": [
+            "pcnse-009",
+            "pcnse-010",
+            "pcnse-011",
+            "pcnse-012"
+          ]
+        },
+        {
+          "id": "c3-chest",
+          "type": "chest",
+          "title": "Treasure Chest",
+          "rewardXp": 30,
+          "cosmeticKey": "chapter-3"
+        }
+      ]
+    }
+  ],
+  "finalBoss": {
+    "id": "final-boss",
+    "type": "finalboss",
+    "title": "Final Exam: Palo Alto Networks Certified Network Security Engineer (PCNSE)",
+    "questionCount": 15,
+    "timeMinutes": 23
+  },
+  "meta": {
+    "generatedAt": "2026-05-29T07:35:02.543Z",
+    "totalNodes": 16,
+    "totalQuestions": 12,
+    "nodeTypes": [
+      "concept",
+      "quiz",
+      "minigame",
+      "subboss",
+      "finalboss"
+    ]
+  }
+}

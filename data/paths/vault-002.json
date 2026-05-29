@@ -70,7 +70,7 @@
               {
                 "q": "A policy attached to a token reads: `path \"secret/data/app/*\" { capabilities = [\"read\"] }`. The token attempts `vault kv get secret/data/app/db`. Vault allows it. The same token then tries `vault kv put secret/data/app/db @creds.json`. What happens to the write?",
                 "choices": [
-                  "Allowed — the wildcard glob covers all verbs against any path matching the prefix, including writes, until an explicit deny rule fires",
+                  "Allowed — the wildcard glob covers all verbs including read and write against any path matching the prefix, until an explicit deny rule fires",
                   "Allowed but degraded — the write succeeds and is stored under a quarantine flag pending out-of-band approval by a policy reviewer",
                   "Denied — the policy grants only the read capability on that prefix, and a write requires explicit create or update capability",
                   "Denied with a token revocation — Vault treats the attempted write as a privilege escalation and invalidates the token immediately"
@@ -94,7 +94,7 @@
                 "choices": [
                   "The `root` policy, attached as a fallback when no other policy is specified at token creation, granting unrestricted access until tuned",
                   "The `default` policy, automatically attached to every non-root token unless explicitly excluded, granting self-renew, self-lookup, cubbyhole, and a few other",
-                  "The `admin` policy, attached for the first hour of a token's life so that the application can complete bootstrap before being demoted",
+                  "The `admin` policy, automatically attached so the application can renew its token during the first hour of its life before being demoted to a lower-privilege role",
                   "The `audit` policy, attached so that the token can write its own audit records to the configured audit devices for forensic replay"
                 ],
                 "correctIndex": 1,
@@ -103,7 +103,7 @@
               {
                 "q": "A team stores secrets at secret/data/team-a/db. They want to enforce that only tokens with entity metadata 'team=team-a' can access this path. Which Vault ACL template feature enables this?",
                 "choices": [
-                  "Vault cannot use token metadata for policy decisions",
+                  "Vault cannot use entity metadata from a team's token for dynamic policy decisions — only static path prefixes are supported",
                   "ACL templating with {{identity.entity.metadata.team}",
                   "AWS IAM condition keys in Vault policies",
                   "LDAP group binding to the secret path"
@@ -193,7 +193,7 @@
                 "choices": [
                   "Orphan tokens — they don't need parent token management",
                   "Batch tokens — they're lightweight, not stored in Vault,.",
-                  "Root tokens — they bypass storage overhead",
+                  "Root tokens — they bypass Vault storage overhead but are restricted to bootstrap operations",
                   "Service tokens — they're more secure for high-volume workloads"
                 ],
                 "correctIndex": 1,
@@ -214,7 +214,7 @@
                 "q": "A workload requests a token whose lifetime should NOT depend on the lifetime of any other token. When the token that issued the credential expires or is revoked, the new token must survive. To achieve this, the issuing token uses a specific flag at create time. What does that flag set?",
                 "choices": [
                   "Creates a token with no parent in Vault's token hierarchy — it is not revoked when its issuer is revoked, only by its own TTL, max_ttl, or explicit revocation",
-                  "Marks the token as exempt from any audit log for the duration of its validity, so that high-throughput batch jobs do not flood downstream SIEMs",
+                  "Marks the token as exempt from any audit log for the duration of its validity, though it is still revoked if its parent token expires, so high-throughput batch jobs do not flood downstream SIEMs",
                   "Allows the token to bypass policy checks on a configurable subset of paths to support break-glass operations during an incident",
                   "Causes the token's TTL to be refreshed every time a child token is created beneath it, effectively pinning the parent's lifetime to the child's"
                 ],
@@ -336,7 +336,7 @@
                   "The newer flavour persists data on Raft while the older flavour writes to the file backend, the only choice for production deployments",
                   "The newer flavour adds per-key versioning with configurable max-versions, soft-delete + undelete, and per-key metadata",
                   "The older flavour returns secrets in JSON only, while the newer flavour adds a Protobuf wire format negotiated at request time for compactness",
-                  "Audit logging is only available on the newer flavour, with the older flavour requiring an external syslog forwarder for compliance"
+                  "Audit logging uses the same metadata versioning and soft-delete event format in both flavours; the older flavour simply requires an external syslog forwarder for compliance"
                 ],
                 "correctIndex": 1,
                 "explanation": "KV v2 is versioned: writing a new value keeps the old versions (configurable max). Soft-delete marks a version deleted but allows recovery. Destroy permanently removes a version. KV v1 silently overwrites data with no way to recover previous values. Use KV v2 for production. v1 overwrites data with no recovery"
@@ -355,7 +355,7 @@
               {
                 "q": "An infrastructure team wants to grant engineers SSH access to ephemeral VMs without distributing long-lived SSH keys. Instead they want Vault to mint a one-time password per host that the host's PAM module validates against Vault. Which secrets engine fits?",
                 "choices": [
-                  "The PKI engine — Vault signs short-lived X.509 certificates that openssh-server can validate via TrustedUserCAKeys, no per-host secret needed",
+                  "The PKI engine — Vault signs short-lived X.509 certificates that openssh-server validates against the CA public key via TrustedUserCAKeys, no per-host secret needed",
                   "The SSH engine in OTP mode — Vault generates a one-time password per session that the target host validates against Vault via the vault-ssh-helper PAM plugin",
                   "The TOTP engine — Vault stores per-host shared TOTP secrets and engineers compute a 6-digit code locally using their authenticator app",
                   "The KV engine combined with a sidecar — a daemon on each host polls Vault every 60 seconds for the rotating password and updates /etc/shadow"
@@ -454,7 +454,7 @@
                 "choices": [
                   "`vault operator raft snapshot save backup.snap`",
                   "`vault audit enable file file_path=backup.snap` — exports an append-only log of every operation, which can be replayed against a new cluster to reconstruct state",
-                  "`vault operator rekey -backup file=backup.snap` — exports the current unseal key shares so that a quorum can be reconstituted by a new operator team",
+                  "`vault operator rekey -backup snapshot=backup.snap` — exports the current unseal key shares so that a quorum can be reconstituted by a new operator team",
                   "`vault operator generate-root -dr backup.snap` — produces a recovery bundle containing the root token + policies that bootstraps a replacement node"
                 ],
                 "correctIndex": 0,
@@ -464,7 +464,7 @@
                 "q": "An operator wants to force a controlled leader election on a Vault HA cluster — perhaps to drain the active node before an OS upgrade. They run a CLI command on the active node that causes it to relinquish leadership; another standby is then promoted. Which command does this?",
                 "choices": [
                   "Forces the current active Vault node to relinquish leadership, sealing itself and triggering an election among the standbys to promote a new active node",
-                  "Drains in-flight requests on the active node and queues new ones until the operator manually promotes a standby with a `force-promote` call",
+                  "Drains in-flight requests on the active Vault node, causing it to relinquish a leadership lease and queue new requests until the election completes and a standby is manually promoted via a force-promote call",
                   "Pauses replication to performance-secondary clusters so that the active node can complete maintenance without affecting downstream replicas",
                   "Disables the read-replica role on the local node and promotes it to perform an out-of-cluster restore from the latest Raft snapshot"
                 ],
@@ -475,7 +475,7 @@
                 "q": "A new operator on a fresh Vault server wants to enable the database secrets engine at a custom path so the team can mint dynamic Postgres credentials. They have access to the host but have not interacted with the API yet. What MUST happen first?",
                 "choices": [
                   "The server must be initialised AND unsealed, and the operator must be authenticated with a token whose policy grants the required capabilities on `sys/mounts/<path>`",
-                  "The host must have a working Postgres driver installed locally, because mounts call out to the database plugin during the enable handshake",
+                  "The host must have a working Postgres driver installed locally; the operator cannot enable the engine until the driver handshake succeeds during the mount operation",
                   "An audit device must be enabled, because mount operations are rejected on clusters where no audit device has been configured for any path",
                   "The license file must declare the database engine in the entitlements bundle, because the engine is gated behind a premium tier even in non-prod"
                 ],
@@ -695,7 +695,7 @@
     "timeMinutes": 23
   },
   "meta": {
-    "generatedAt": "2026-05-23T19:53:30.740Z",
+    "generatedAt": "2026-05-29T07:35:02.557Z",
     "totalNodes": 31,
     "totalQuestions": 51,
     "nodeTypes": [
