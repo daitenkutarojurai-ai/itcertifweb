@@ -80,9 +80,10 @@ at sync time so the consuming app gets a self-contained node.
       boss-fight fetches the cert pack via `opts.packId` and orders by
       `difficultyCurve`. CSS in `src/styles/path.css`. Still dormant in
       prod until path nodes opt in via `{ mode, data }` (next task).
-- [~] Author real content per cert — **11 certs done** (2026-05-29): AWS CP
-      (all 7 modes incl. boss-fight), SAA-C03, DVA-C02, AZ-900, AZ-104,
-      Security+, Network+, A+, GCP-ACE, CCNA, CKAD — covering break-architecture,
+- [~] Author real content per cert — **15 certs done** (2026-05-29): AWS CP
+      (all 7 modes incl. boss-fight), SAA-C03, DVA-C02, AZ-900, AZ-104, AZ-305,
+      Security+, CySA+, Network+, A+, GCP-ACE, CCNA, CKA, CKAD, Terraform —
+      covering break-architecture,
       scenario-builder (DORA, OSI, IR lifecycle, A+ troubleshooting, cloud
       hierarchies, VM/CI-CD chains), acronym-decoder, and one boss-fight.
       `gen-paths.js` injects hand-authored payloads from
