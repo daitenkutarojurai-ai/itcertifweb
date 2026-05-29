@@ -777,6 +777,13 @@ competition-driven, community-driven** layer. Highest-priority builds:
   profiles, salary medians wired from `aws-clf-c02`/`aws-saa`). Also
   re-de-staled the generator's `CACHE_BUST` v100 → v101 so regeneration
   no longer downgrades the 10 sibling pages' cache-bust. sitemap.xml +1.
+- **2026-05-29:** +1 comparison dataset (comparator 15 → 16) —
+  `az-900-vs-az-104` (the Azure mirror of the flagship CLF→SAA page:
+  "Azure Fundamentals d'abord, ou directement Administrator ?" 2-way,
+  6 verdict profiles, salary medians wired from `az-900`/`az-104`).
+  Generator `CACHE_BUST` already at v=102 (matches global) so
+  regeneration left all 15 sibling pages byte-stable — no cache
+  regression. 120/120 tests green. sitemap.xml +1. [scheduled-agent]
 
 ### 6.3 — Fail Analysis (per certification) ✅ SHIPPED 2026-05-15
 
