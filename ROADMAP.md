@@ -70,10 +70,16 @@ at sync time so the consuming app gets a self-contained node.
       `_runner.js`, mounts the right mode into the bottom-sheet, and
       wraps completion in the same Continue summary the Yes/No drill
       uses. Falls back to `renderYesNoInline` for legacy paths.
-- [ ] **Modes 2-7: real implementations.** Replace the remaining stubs
-      under `learning/games/`. Easiest to hardest: true-false-blitz,
+- [x] **Modes 2-7: real implementations** (2026-05-29). All six stubs
+      under `learning/games/` are now real: true-false-blitz,
       lightning-round, acronym-decoder, scenario-builder,
-      break-architecture, boss-fight.
+      break-architecture, boss-fight. Shared lifecycle (init/render/
+      handleAnswer/showResult → `opts.onComplete`), countdown bars
+      (tf/lightning), per-question option-shuffle with correct-index
+      remap, combo bonus + heart loss on wrong, reveal + explanation.
+      boss-fight fetches the cert pack via `opts.packId` and orders by
+      `difficultyCurve`. CSS in `src/styles/path.css`. Still dormant in
+      prod until path nodes opt in via `{ mode, data }` (next task).
 - [ ] Author real content per cert (start with AWS Cloud Practitioner
       since it's the most popular pack).
 - [ ] Wire `certquestapp/scripts/sync-from-web.sh` to mirror `data/games/`.
