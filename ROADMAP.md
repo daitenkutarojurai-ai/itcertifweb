@@ -80,10 +80,11 @@ at sync time so the consuming app gets a self-contained node.
       boss-fight fetches the cert pack via `opts.packId` and orders by
       `difficultyCurve`. CSS in `src/styles/path.css`. Still dormant in
       prod until path nodes opt in via `{ mode, data }` (next task).
-- [~] Author real content per cert — **AWS CP, SAA-C03, AZ-900, Security+
-      done** (2026-05-29). aws-saa-c03 (SQS decoupling / serverless API / EBS),
-      az-900 (AKS / Azure scope hierarchy), comptia-security-plus (SIEM /
-      incident-response lifecycle). `gen-paths.js` injects hand-authored
+- [~] Author real content per cert — **8 certs done** (2026-05-29): AWS CP,
+      SAA-C03 (SQS decoupling / serverless API / EBS), DVA-C02 (CI/CD / SAM),
+      AZ-900 (AKS / Azure scope hierarchy), Security+ (SIEM / incident-response
+      lifecycle), Network+ (OSI order / DHCP / router), GCP-ACE (GKE / GCP
+      hierarchy), CKAD (HPA / expose-app). `gen-paths.js` injects hand-authored
       payloads from
       `data/games/<mode>/<packId>.json` as bonus mini-game nodes (regen-safe,
       one per chapter before the chest). Authored for AWS CP the modes that
