@@ -3,7 +3,9 @@
  */
 
 import { playComplete } from '../engine/sounds.js';
-import { getCurrentLevel, getNextLevel, getLevelProgress } from '../engine/gamification.js';
+// Level/XP shown here comes from window.cqStats (canonical 30-level egg→phoenix
+// system, set by cq-core.js + synced to Supabase) — not the SPA's local
+// gamification store, which stays as ephemeral in-session combo/XP flair.
 import { submitReport, submitNewsletter, isApiConfigured } from '../engine/emailReport.js';
 
 const CIRCUMFERENCE = 2 * Math.PI * 52;
@@ -280,11 +282,11 @@ function buildEmailCardHTML(results) {
   // For perfect scores, the newsletter IS the action — pre-check & hide the
   // checkbox so submitting the form means "subscribe me". For mistakes, the
   // checkbox is the upsell (default checked, smart-nudge copy).
-  const subscribePreChecked = 'checked';
+  const subscribePreChecked = ''; // GDPR: marketing opt-in must be unchecked by default
   const checkboxBlock = hasWrong ? `
         <label class="email-report-checkbox">
           <input type="checkbox" id="email-report-subscribe" ${subscribePreChecked} ${disabled} />
-          <span><strong>Free weekly cheatsheet</strong> · 1 cert tip + 1 tricky question every Sunday. Unsubscribe in one click.</span>
+          <span><strong>Also send me the free weekly cheatsheet</strong> · 1 cert tip + 1 tricky question every Sunday. Unsubscribe in one click.</span>
         </label>` : `
         <input type="hidden" id="email-report-subscribe-hidden" value="1" />`;
 
@@ -385,9 +387,13 @@ function buildHTML(pack, results, mode, newAchievements) {
     [1,2,3].map(i => `<span class="star-item" style="opacity:${i <= stars ? 1 : 0.2}">${i <= stars ? '⭐' : '☆'}</span>`).join('')
   }</div>`;
 
-  const level    = getCurrentLevel();
-  const nextLevel = getNextLevel();
-  const levelPct = getLevelProgress();
+  const cs = (typeof window !== 'undefined' && window.cqStats) || null;
+  const cqs = cs ? cs.get() : null;
+  const lvl = cqs ? cqs.level : 1;
+  const levelIcon = cs ? cs.stageEmojiForLevel(lvl) : '🌱';
+  const levelTitle = (cs && cs.stageNameForLevel) ? cs.stageNameForLevel(lvl) : `Level ${lvl}`;
+  const atMaxLevel = cs ? lvl >= cs.MAX_LEVEL : false;
+  const nextTitle = (cs && cs.stageNameForLevel && !atMaxLevel) ? cs.stageNameForLevel(lvl + 1) : null;
 
   return `
     <div class="screen results-screen">
@@ -399,7 +405,7 @@ function buildHTML(pack, results, mode, newAchievements) {
           </svg>
         </button>
         <div style="display:flex;flex-direction:column;align-items:center;flex:1">
-          <span class="results-pack-label">${pack.name}</span>
+          <span class="results-pack-label">${escapeTag(pack.name)}</span>
           <span class="quiz-mode-tag">${isQuick ? '⚡ Quick Quiz' : isStudy ? '📖 Study' : '📋 Full Exam'}</span>
         </div>
         <div style="width:40px"></div>
@@ -452,8 +458,8 @@ function buildHTML(pack, results, mode, newAchievements) {
       <!-- XP / Level bar -->
       <div class="level-bar-section">
         <div class="level-bar-header">
-          <span class="level-info">${level.icon} Lv.${level.level} ${level.title}</span>
-          ${nextLevel ? `<span class="level-next">Next: ${nextLevel.title}</span>` : '<span class="level-next">MAX LEVEL</span>'}
+          <span class="level-info">${levelIcon} Lv.${lvl} ${levelTitle}</span>
+          ${nextTitle ? `<span class="level-next">Next: ${nextTitle}</span>` : '<span class="level-next">MAX LEVEL</span>'}
         </div>
         <div class="level-track">
           <div class="level-fill" id="level-fill" style="width:0%"></div>
@@ -521,7 +527,9 @@ function animateScore(targetPct) {
   const ring  = document.getElementById('ring-fill');
   const pctEl = document.getElementById('score-pct');
   const lvlFill = document.getElementById('level-fill');
-  const levelPct = getLevelProgress();
+  const _cs = (typeof window !== 'undefined' && window.cqStats) || null;
+  const _st = _cs ? _cs.get() : null;
+  const levelPct = (_cs && _st) ? Math.round(_cs.xpProgressForLevel(_st.xp, _st.level) * 100) : 0;
   if (!ring || !pctEl) return;
 
   const duration = 1200;

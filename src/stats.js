@@ -174,7 +174,7 @@
     } else if (s.lastSessionDate === yesterdayKey()) {
       s.streakDays += 1;
     } else {
-      s.streakDays = s.lastSessionDate ? 1 : 1;
+      s.streakDays = 1;
     }
     s.lastSessionDate = today;
     s.sessionsCount += 1;

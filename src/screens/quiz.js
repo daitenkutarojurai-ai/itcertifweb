@@ -83,6 +83,61 @@ const TIMEOUT_MSG = [
   { title: 'Too slow! ⏰',        sub: 'Try to answer faster next time.' },
 ];
 
+// ─── Resume snapshot ───────────────────────────────────────────────────────
+// An in-progress SPA quiz lives only in memory; a background-kill or accidental
+// exit used to lose it. We snapshot at each clean question boundary so the home
+// screen can offer "Resume". The snapshot is taken with the current question NOT
+// yet answered (quiz.answers holds only prior questions) so resume can't
+// double-count an answer.
+const RESUME_KEY    = 'cq-quiz-resume-v1';
+const RESUME_TTL_MS = 2 * 60 * 60 * 1000; // 2h
+
+function saveSnapshot() {
+  try {
+    if (!quiz || !packInfo || isComplete(quiz)) return;
+    localStorage.setItem(RESUME_KEY, JSON.stringify({
+      at: Date.now(),
+      packInfo,
+      quizMode,
+      sessionHearts,
+      quiz: {
+        questions: quiz.questions,
+        current: quiz.current,
+        answers: quiz.answers,
+        startTime: quiz.startTime,
+        questionStartTime: quiz.questionStartTime,
+      },
+    }));
+  } catch (_) { /* private mode / quota — non-fatal */ }
+}
+
+function clearSnapshot() {
+  try { localStorage.removeItem(RESUME_KEY); } catch (_) {}
+}
+
+function loadSnapshotRaw() {
+  try {
+    const snap = JSON.parse(localStorage.getItem(RESUME_KEY) || 'null');
+    if (!snap || !snap.quiz || !snap.packInfo) return null;
+    if (Date.now() - (snap.at || 0) > RESUME_TTL_MS) { clearSnapshot(); return null; }
+    const total = (snap.quiz.questions || []).length;
+    if (!total || (snap.quiz.current || 0) >= total) { clearSnapshot(); return null; }
+    return snap;
+  } catch (_) { return null; }
+}
+
+/** Home screen calls this to decide whether to show a "Resume" banner. */
+export function getResumable() {
+  const snap = loadSnapshotRaw();
+  if (!snap) return null;
+  return {
+    packName: (snap.packInfo && snap.packInfo.name) || 'your quiz',
+    done: snap.quiz.current || 0,
+    total: (snap.quiz.questions || []).length,
+    mode: snap.quizMode || 'full',
+  };
+}
+
 /** Clean up all quiz state — call when leaving quiz screen */
 export function cleanup() {
   clearInterval(timerInterval);
@@ -104,6 +159,24 @@ export function cleanup() {
 export function render(container, navigate, params) {
   cleanup(); // ensure no leftover timer, listeners, and overlays from previous quiz
   navigateFn      = navigate;
+
+  // ─── Resume an interrupted quiz from a saved snapshot ───
+  if (params && params.resume) {
+    const snap = loadSnapshotRaw();
+    if (snap) {
+      packInfo      = snap.packInfo;
+      quizMode      = snap.quizMode || 'full';
+      quiz          = snap.quiz;
+      originalQs    = snap.quiz.questions;
+      sessionHearts = (typeof snap.sessionHearts === 'number') ? snap.sessionHearts : getHearts();
+      maxCombo = 0; milestoneTimeouts = []; resetSessionCombo(); MILESTONES_SHOWN.clear();
+      quiz.questionStartTime = Date.now(); // restart the per-question clock
+      renderQuestion(container);
+      return;
+    }
+    if (!params.questions) { navigate('home'); return; } // stale/absent snapshot
+  }
+
   packInfo        = params.pack;
   quizMode        = params.mode || 'full';
   originalQs      = params.questions;
@@ -124,6 +197,11 @@ function renderQuestion(container) {
   answered = false;
   timeLeft  = TIMER_MAX;
   multiSelected = new Set();
+
+  // Persist a resumable snapshot at this clean question boundary (current
+  // question not yet answered) so a background-kill or accidental exit is
+  // recoverable from the home screen.
+  saveSnapshot();
 
   const q     = quiz.questions[quiz.current];
   const total = quiz.questions.length;
@@ -531,6 +609,7 @@ function showNoHeartsOverlay() {
     el.remove();
     clearInterval(timerInterval);
     MILESTONES_SHOWN.clear();
+    clearSnapshot();
     navigateFn('home');
   });
 }
@@ -578,6 +657,7 @@ function goNext(container) {
 function finishQuiz() {
   clearInterval(timerInterval);
   MILESTONES_SHOWN.clear();
+  clearSnapshot();
   incrementQuizCount();
   const results = getResults(quiz);
   saveQuizResult(packInfo.id, { score: results.score, total: results.total, totalTime: results.totalTime });
@@ -637,6 +717,7 @@ function attachQuizListeners(container) {
     }
     clearInterval(timerInterval);
     MILESTONES_SHOWN.clear();
+    clearSnapshot();
     navigateFn('home');
   });
   container.querySelector('#btn-sound-quiz')?.addEventListener('click', (e) => {

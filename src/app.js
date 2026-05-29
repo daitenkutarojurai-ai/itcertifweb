@@ -203,8 +203,19 @@ function showDiagnosticIntro(modal, pack, onConfirm) {
  *     This gives broad coverage when a pack has many tags/difficulties.
  *  2. Pass B: backfill any remaining slots from leftovers.
  */
+function isValidQuestion(q) {
+  if (!q.options || q.options.length !== 4) return false;
+  if (Array.isArray(q.correct)) {
+    return q.correct.length >= 1 &&
+           q.correct.every(i => Number.isInteger(i) && i >= 0 && i < 4);
+  }
+  return Number.isInteger(q.correct) && q.correct >= 0 && q.correct < 4;
+}
+
 function stratifiedSample(questions, count) {
-  const valid = questions.filter(q => q.options?.length === 4 && q.correct >= 0 && q.correct < 4);
+  // Use the shared validity check so multi-select questions (correct is an
+  // array) are no longer silently excluded from the diagnostic sample.
+  const valid = questions.filter(isValidQuestion);
   if (valid.length <= count) return shuffle(valid);
 
   // Bucket by composite key "<primaryTag>::<difficulty>"

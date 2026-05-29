@@ -505,7 +505,23 @@
       });
   }
 
+  /* Shuffle a single-select question's 4 options and remap `correct`, so a
+     biased "always B" bank can't be pattern-matched in path mode too. Returns
+     a copy — the cached pack questions are never mutated. Multi-select was
+     already filtered out upstream, so `correct` is always a number here. */
+  function shuffleQuestionOptions(q) {
+    if (!q || !Array.isArray(q.options) || q.options.length < 2 || typeof q.correct !== 'number') return q;
+    var order = q.options.map(function (_unused, i) { return i; });
+    for (var i = order.length - 1; i > 0; i--) {
+      var j = Math.floor(Math.random() * (i + 1));
+      var t = order[i]; order[i] = order[j]; order[j] = t;
+    }
+    var opts = order.map(function (oi) { return q.options[oi]; });
+    return Object.assign({}, q, { options: opts, correct: order.indexOf(q.correct) });
+  }
+
   function runQuiz(node, questions) {
+    questions = questions.map(shuffleQuestionOptions);
     var panel = $('.node-sheet-panel');
     var idx = 0;
     var correct = 0;

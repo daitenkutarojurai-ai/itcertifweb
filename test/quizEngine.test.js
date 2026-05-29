@@ -200,3 +200,44 @@ test('timeoutQuestion: records -1 selected, isCorrect:false', () => {
   assert.strictEqual(quiz.answers[0].selected, -1);
   assert.strictEqual(quiz.answers[0].isCorrect, false);
 });
+
+/* ───── createQuiz — single-element-array correct normalization ──────────── */
+
+test('createQuiz: single-element correct array is coerced to a scalar', () => {
+  const pool = [{ id: 'se', question: 'se', options: ['A','B','C','D'], correct: [3] }];
+  const quiz = q.createQuiz(pool, { count: 1, shuffle: false });
+  assert.strictEqual(quiz.questions[0].correct, 3);
+  assert.strictEqual(q.isMultiSelect(quiz.questions[0]), false);
+  assert.strictEqual(q.answerQuestion(quiz, 3), true); // was always-wrong before the fix
+});
+
+/* ───── createQuiz — deterministic when shuffle:false ────────────────────── */
+
+test('createQuiz: shuffle:false leaves options + correct untouched', () => {
+  const quiz = q.createQuiz([Q_SINGLE], { count: 1, shuffle: false });
+  assert.deepStrictEqual(quiz.questions[0].options, ['A','B','C','D']);
+  assert.strictEqual(quiz.questions[0].correct, 2);
+});
+
+/* ───── createQuiz — option shuffling keeps correct pointing at right text ─ */
+
+test('createQuiz: shuffled options still point correct at the original answer', () => {
+  for (let n = 0; n < 50; n++) {
+    const quiz = q.createQuiz([Q_SINGLE], { count: 1, shuffle: true });
+    const got = quiz.questions[0];
+    // correct index must resolve to the original correct option text ('C')
+    assert.strictEqual(got.options[got.correct], 'C');
+    // and the option set is preserved (no loss / duplication)
+    assert.deepStrictEqual([...got.options].sort(), ['A','B','C','D']);
+  }
+});
+
+test('createQuiz: multi-select correct indices remap to the right options', () => {
+  for (let n = 0; n < 50; n++) {
+    const quiz = q.createQuiz([Q_MULTI], { count: 1, shuffle: true }); // correct [0,2] = A,C
+    const got = quiz.questions[0];
+    const correctTexts = got.correct.map(i => got.options[i]).sort();
+    assert.deepStrictEqual(correctTexts, ['A','C']);
+    assert.deepStrictEqual([...got.options].sort(), ['A','B','C','D']);
+  }
+});

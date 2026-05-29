@@ -6,6 +6,7 @@ import { loadIndex, loadPack }      from '../engine/dataLoader.js';
 import { isSoundEnabled, toggleSound } from '../engine/sounds.js';
 import { getProgress, getStreak, hasQuizzedToday } from '../engine/progress.js';
 import { showModePicker, navigate as appNavigate } from '../app.js';
+import { getResumable } from './quiz.js';
 import { isEnabled, requestPermission, scheduleNextReminder } from '../engine/notifications.js';
 import { getDailyXP, getDailyGoal, getHearts, getMaxHearts, getMasteryPct, getNextHeartRegenMs } from '../engine/gamification.js';
 import { submitNewsletter, isApiConfigured } from '../engine/emailReport.js';
@@ -23,7 +24,33 @@ export async function render(container, navigate) {
 
   const streak = getStreak();
   container.innerHTML = buildHTML(index.brands || [], progress, streak);
+  maybeInjectResumeBanner(container, navigate);
   attachListeners(container, navigate, index.brands || []);
+}
+
+// Show a "Resume your quiz" banner when an interrupted SPA quiz snapshot exists.
+function maybeInjectResumeBanner(container, navigate) {
+  let snap = null;
+  try { snap = getResumable(); } catch (_) { snap = null; }
+  if (!snap) return;
+  const screen = container.querySelector('.home-screen');
+  if (!screen) return;
+  const banner = document.createElement('div');
+  banner.className = 'resume-quiz-card';
+  banner.innerHTML = `
+    <div class="resume-quiz-info">
+      <div class="resume-quiz-title">▶ Resume your quiz</div>
+      <div class="resume-quiz-sub"></div>
+    </div>
+    <button class="cta-primary resume-quiz-btn" id="btn-resume-quiz">Resume →</button>`;
+  banner.querySelector('.resume-quiz-sub').textContent =
+    `${snap.packName} · question ${snap.done + 1} of ${snap.total}`;
+  const header = screen.querySelector('.home-header');
+  if (header && header.nextSibling) screen.insertBefore(banner, header.nextSibling);
+  else screen.insertBefore(banner, screen.firstChild);
+  banner.querySelector('#btn-resume-quiz')?.addEventListener('click', () => {
+    navigate('quiz', { resume: true });
+  });
 }
 
 // ─── HTML ──────────────────────────────────────────────────────────────────────

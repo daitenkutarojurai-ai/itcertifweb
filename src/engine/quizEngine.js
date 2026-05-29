@@ -25,6 +25,11 @@ export function createQuiz(questions, options = {}) {
   });
   pool = pool.slice(0, Math.min(count, pool.length));
 
+  // Normalize single-element multi-answers to scalars, and (when shuffling is
+  // on) randomize option order per question so a fixed "correct slot" in the
+  // bank can't be pattern-matched. correct indices are remapped to follow.
+  pool = pool.map((qq) => prepareQuestion(qq, shuffle));
+
   return {
     questions: pool,
     current:   0,
@@ -134,6 +139,30 @@ function shuffleArray(arr) {
     [arr[i], arr[j]] = [arr[j], arr[i]];
   }
   return arr;
+}
+
+/**
+ * Return a session-ready copy of a question:
+ *  - a single-element multi-answer (`correct: [2]`) is coerced to the scalar
+ *    `2` so it renders + scores as single-select (was always marked wrong);
+ *  - when `shuffleOpts` is true, options are shuffled and `correct` is remapped
+ *    to follow, so a biased "always B" bank can't be guessed.
+ * The source question object is never mutated (callers reuse it for retry).
+ */
+function prepareQuestion(q, shuffleOpts) {
+  let correct = (Array.isArray(q.correct) && q.correct.length === 1) ? q.correct[0] : q.correct;
+  if (!shuffleOpts) {
+    return correct === q.correct ? q : { ...q, correct };
+  }
+  const order = q.options.map((_, i) => i);
+  for (let i = order.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [order[i], order[j]] = [order[j], order[i]];
+  }
+  const options = order.map((i) => q.options[i]);
+  const remap = (c) => order.indexOf(c);
+  correct = Array.isArray(correct) ? correct.map(remap) : remap(correct);
+  return { ...q, options, correct };
 }
 
 // ─── Node test bridge ──────────────────────────────────────────────────────────

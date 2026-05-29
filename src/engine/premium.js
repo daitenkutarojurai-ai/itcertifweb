@@ -59,6 +59,8 @@ export function shouldShowPopup() {
 
 /** Should explanations ("Why you got it wrong") be shown? */
 export function canSeeExplanations() {
-  if (isPremium()) return true;
-  return getQuizCount() < ADS_THRESHOLD; // Free for first N quizzes
+  // Always free until in-app purchases actually ship. A locked explanation with
+  // no working purchase path is a dead end, not a paywall. Re-gate here when IAP
+  // lands (e.g. `return isPremium() || getQuizCount() < ADS_THRESHOLD;`).
+  return true;
 }

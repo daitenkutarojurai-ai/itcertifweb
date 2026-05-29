@@ -1,4 +1,4 @@
-/* CertQuests core bundle — generated 2026-05-23T19:19:48.304Z
+/* CertQuests core bundle — generated 2026-05-29T06:23:21.992Z
  *
  * This file is concatenated by scripts/build-core.js. Do not edit by hand;
  * edit the source modules in src/*.js and re-run `npm run build-core`.
@@ -462,7 +462,7 @@ if (typeof module !== 'undefined' && module.exports) {
     } else if (s.lastSessionDate === yesterdayKey()) {
       s.streakDays += 1;
     } else {
-      s.streakDays = s.lastSessionDate ? 1 : 1;
+      s.streakDays = 1;
     }
     s.lastSessionDate = today;
     s.sessionsCount += 1;
