@@ -80,8 +80,16 @@ at sync time so the consuming app gets a self-contained node.
       boss-fight fetches the cert pack via `opts.packId` and orders by
       `difficultyCurve`. CSS in `src/styles/path.css`. Still dormant in
       prod until path nodes opt in via `{ mode, data }` (next task).
-- [ ] Author real content per cert (start with AWS Cloud Practitioner
-      since it's the most popular pack).
+- [~] Author real content per cert — **AWS Cloud Practitioner done**
+      (2026-05-29). `gen-paths.js` now injects hand-authored payloads from
+      `data/games/<mode>/<packId>.json` as bonus mini-game nodes (regen-safe,
+      one per chapter before the chest). Authored for AWS CP the modes that
+      can't be auto-derived from an MCQ bank: break-architecture (ALB),
+      acronym-decoder (IAM), scenario-builder (static-site hosting). Drop a
+      `<packId>.json` under any mode dir to add more certs.
+      NOTE: committed `data/paths/*.json` have drifted from their packs and
+      several new packs (okta, pccse, cyberops, az-140/800/801, …) have no
+      path yet — a full `npm run gen-paths` + commit pass is a good follow-up.
 - [ ] Wire `certquestapp/scripts/sync-from-web.sh` to mirror `data/games/`.
 
 ### Open questions

@@ -26,6 +26,7 @@ const { buildYesNoPrompt, canYesNoify } = require('../src/yesno-prompt.js');
 
 const PACKS_DIR = path.join(__dirname, '..', 'data', 'free');
 const OUT_DIR = path.join(__dirname, '..', 'data', 'paths');
+const GAMES_DIR = path.join(__dirname, '..', 'data', 'games');
 const CONCEPT_LIB_PATH = path.join(__dirname, '..', 'data', 'concept-library.json');
 
 /* Hand-authored teaching content keyed by primary chapter tag.
@@ -464,6 +465,35 @@ function buildChapter(chap, chapIndex, qsByIdMap) {
   return { id: `ch${chapIndex + 1}`, title, tag: chap.tag, nodes };
 }
 
+// Hand-authored game payloads live in data/games/<mode>/<packId>.json (or
+// <packId>-*.json). They cover modes that can't be auto-derived from an MCQ
+// bank (scenario-builder, break-architecture, boss-fight) and curated versions
+// of the auto modes. Found files are injected as extra minigame nodes so the
+// authoring survives a regen.
+const AUTHORED_MODES = [
+  'match-pair', 'lightning-round', 'break-architecture',
+  'acronym-decoder', 'true-false-blitz', 'scenario-builder', 'boss-fight',
+];
+function loadAuthoredGames(packId) {
+  const out = [];
+  for (const mode of AUTHORED_MODES) {
+    const dir = path.join(GAMES_DIR, mode);
+    if (!fs.existsSync(dir)) continue;
+    for (const f of fs.readdirSync(dir).sort()) {
+      if (!f.endsWith('.json') || f === 'example.json') continue;
+      if (f !== `${packId}.json` && !f.startsWith(`${packId}-`)) continue;
+      try {
+        const payload = JSON.parse(fs.readFileSync(path.join(dir, f), 'utf8'));
+        if (payload && payload.mode && payload.data) out.push(payload);
+        else console.warn(`  ⚠ authored game ${mode}/${f} missing mode/data — skipped`);
+      } catch (e) {
+        console.warn(`  ⚠ authored game ${mode}/${f} invalid JSON — skipped`);
+      }
+    }
+  }
+  return out;
+}
+
 function buildPath(packId, pack) {
   const questions = pack.questions || [];
   if (questions.length < 12) {
@@ -481,6 +511,26 @@ function buildPath(packId, pack) {
   const qsByIdMap = {};
   for (const q of questions) qsByIdMap[q.id] = q;
   const builtChapters = chapters.map((c, i) => buildChapter(c, i, qsByIdMap));
+
+  // Inject hand-authored bonus mini-games (regen-safe), distributed across
+  // chapters and placed just before each chapter's treasure chest.
+  const authored = loadAuthoredGames(packId);
+  authored.forEach((g, k) => {
+    const ch = builtChapters[k % builtChapters.length];
+    const node = {
+      id: `${ch.id}-bonus${k + 1}`,
+      type: 'minigame',
+      mode: g.mode,
+      title: g.title || 'Bonus mini-game',
+      data: g.data,
+    };
+    if (g.explanation) node.explanation = g.explanation;
+    const chestIdx = ch.nodes.findIndex(n => n.type === 'chest');
+    if (chestIdx >= 0) ch.nodes.splice(chestIdx, 0, node);
+    else ch.nodes.push(node);
+  });
+  if (authored.length) console.log(`    + ${authored.length} authored game(s)`);
+
   const allQuestionIds = questions.map(q => q.id);
   const finalMockSize = Math.min(
     FINAL_BOSS_MAX,
