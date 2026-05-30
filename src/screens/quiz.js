@@ -187,6 +187,27 @@ export function render(container, navigate, params) {
   MILESTONES_SHOWN.clear(); // reset milestone tracker for every new quiz
 
   quiz = createQuiz(params.questions, { count: params.count || params.questions.length });
+  if (!quiz.questions.length) {
+    // createQuiz drops malformed questions; an empty pool (404 fallback or a bad
+    // user-contributed pack) would otherwise throw in renderQuestion → white screen.
+    clearSnapshot();
+    container.innerHTML = `
+      <div class="screen quiz-screen" id="quiz-screen-root">
+        <div class="quiz-topbar">
+          <button class="btn-icon" id="btn-quit" title="Back">
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M10 12L6 8l4-4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </button>
+        </div>
+        <div class="question-area" style="text-align:center;padding:32px 20px">
+          <div class="question-text">This pack has no usable questions yet.</div>
+          <button class="cta-primary" id="btn-empty-home" style="margin-top:20px">Back to home</button>
+        </div>
+      </div>`;
+    const back = () => navigate('home');
+    container.querySelector('#btn-quit')?.addEventListener('click', back);
+    container.querySelector('#btn-empty-home')?.addEventListener('click', back);
+    return;
+  }
   renderQuestion(container);
 }
 
@@ -357,11 +378,14 @@ function handleAnswer(container, selected) {
   const repIndex = Array.isArray(selected) ? (selected[0] ?? -1) : selected;
 
   if (isCorrect) {
-    const { xpEarned, combo, multiplier, levelUp, newLevel } = onCorrectAnswer(q.difficulty);
+    // Per-answer XP float + combo flair only. The 10-level table onCorrectAnswer
+    // returns is NOT the canonical ladder — the 30-level cq-stats system owns
+    // level-up and is celebrated at session end (see completeQuiz), so the
+    // mid-quiz popup can never disagree with the results/header level.
+    const { xpEarned, combo, multiplier } = onCorrectAnswer(q.difficulty);
     if (combo > maxCombo) maxCombo = combo;
     playCorrect();
     if (combo >= 2) setTimeout(() => playCombo(combo), 200);
-    if (levelUp)    setTimeout(() => { playLevelUp(); showLevelUpOverlay(container, newLevel); }, 500);
     spawnXpFloat(container, xpEarned, multiplier);
     if (repIndex >= 0) spawnParticles(container, repIndex);
     updateComboBadge(container, combo);
@@ -688,6 +712,15 @@ function finishQuiz() {
   // not be loaded (e.g. embedded contexts), so we just dispatch — the DOM
   // event has no harmful side-effect if nothing listens.
   try {
+    // Celebrate the canonical 30-level level-up stats.js computes from this
+    // session — it dispatches cq:level-up synchronously inside the handler below.
+    // One-shot so it never leaks across sessions.
+    const onLvl = (ev) => {
+      const d = (ev && ev.detail) || {};
+      playLevelUp();
+      showLevelUpOverlay(container, { icon: d.newStageEmoji || '⭐', title: d.newStageName || `Level ${d.newLevel || ''}` });
+    };
+    window.addEventListener('cq:level-up', onLvl, { once: true });
     window.dispatchEvent(new CustomEvent('cq:session-complete', {
       detail: {
         packId: packInfo.id,
@@ -697,6 +730,7 @@ function finishQuiz() {
         mode: quizMode
       }
     }));
+    window.removeEventListener('cq:level-up', onLvl);
   } catch (_) { /* CustomEvent not supported in very old browsers — ignore */ }
 
   const doNavigate = () => navigateFn('results', {
@@ -753,6 +787,11 @@ function attachQuizListeners(container) {
   // Keyboard support: Enter / Space to submit, arrow keys to navigate options
   // Uses AbortController signal so this listener is removed before the next question renders
   container.addEventListener('keydown', e => {
+    if (e.key === 'Escape') {
+      e.preventDefault();
+      container.querySelector('#btn-quit')?.click();
+      return;
+    }
     if (answered) {
       if (e.key === 'Enter' || e.key === ' ') {
         e.preventDefault();

@@ -1,4 +1,4 @@
-/* CertQuests core bundle — generated 2026-05-29T07:55:19.378Z
+/* CertQuests core bundle — generated 2026-05-30T08:03:09.798Z
  *
  * This file is concatenated by scripts/build-core.js. Do not edit by hand;
  * edit the source modules in src/*.js and re-run `npm run build-core`.
@@ -919,7 +919,11 @@ if (typeof module !== 'undefined' && module.exports) {
 
   ready(function () {
     var header = document.querySelector('.web-header');
-    if (!header || document.getElementById('cq-hearts-chip')) return;
+    // train.html runs the SPA's own (itcertif_hearts) hearts system, which is the
+    // authoritative quiz-gating counter there. Suppress this decorative cq-hearts
+    // chip on that page so the user never sees two contradictory heart counts.
+    var onTrain = /\/train\.html$/.test(location.pathname);
+    if (!header || onTrain || document.getElementById('cq-hearts-chip')) return;
     var chip = document.createElement('button');
     chip.id = 'cq-hearts-chip';
     chip.type = 'button';

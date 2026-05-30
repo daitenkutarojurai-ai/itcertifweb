@@ -21,7 +21,7 @@ const SALARY_DIR = path.join(ROOT, 'data', 'salary');
 const INDEX_JSON = path.join(ROOT, 'data', 'index.json');
 const OUT_DIR  = path.join(ROOT, 'compare');
 
-const CACHE_BUST = 'v=104';
+const CACHE_BUST = 'v=105';
 
 /* ── data lookups ─────────────────────────────────────────────── */
 const certPacks = (function () {
@@ -237,19 +237,24 @@ function renderPage(d) {
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
   <meta name="theme-color" content="#06080f" />
-  <title>${esc(capDesc(`${d.title} — ${d.subtitle}`, 62))} · CertQuests</title>
-  <meta name="description" content="${esc(capDesc(`${d.title}. ${d.tldr} Comparatif 2026 : prix, salaires, difficulté, profils gagnants.`))}" />
+  <title>${esc(capDesc(d.title, 50))} · CertQuests</title>
+  <meta name="description" content="${esc(capDesc(`${d.title.replace(/[\s?!.]+$/, '')}. ${d.tldr} Comparatif 2026 : prix, salaires, difficulté, profils gagnants.`))}" />
   <meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large" />
   <link rel="canonical" href="https://certquests.com/compare/${esc(d.slug)}/" />
   <meta property="og:type" content="article" />
   <meta property="og:url" content="https://certquests.com/compare/${esc(d.slug)}/" />
   <meta property="og:title" content="${esc(d.title)} — CertQuests" />
   <meta property="og:description" content="${esc(d.tldr)}" />
+  <meta property="og:site_name" content="CertQuests" />
+  <meta property="og:locale" content="fr_FR" />
   <meta property="og:image" content="https://certquests.com/src/assets/og/og-default.png?v=1" />
   <meta property="og:image:width" content="1200" />
   <meta property="og:image:height" content="630" />
   <meta property="og:image:type" content="image/png" />
   <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="${esc(d.title)} — CertQuests" />
+  <meta name="twitter:description" content="${esc(capDesc(d.tldr))}" />
+  <meta name="twitter:image" content="https://certquests.com/src/assets/og/og-default.png?v=1" />
   <link rel="manifest" href="/manifest.json" />
   <link rel="icon" href="/favicon.ico?v=4" sizes="any" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />

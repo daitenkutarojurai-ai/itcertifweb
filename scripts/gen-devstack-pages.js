@@ -17,7 +17,7 @@ const ROOT = path.resolve(__dirname, '..');
 const DATA_DIR = path.join(ROOT, 'data', 'devstack');
 const OUT_DIR  = path.join(ROOT, 'devstack');
 
-const CACHE_BUST = 'v=100';
+const CACHE_BUST = 'v=105';
 
 function esc(s) {
   return String(s == null ? '' : s)

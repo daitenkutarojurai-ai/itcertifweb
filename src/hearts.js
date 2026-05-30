@@ -201,7 +201,11 @@
 
   ready(function () {
     var header = document.querySelector('.web-header');
-    if (!header || document.getElementById('cq-hearts-chip')) return;
+    // train.html runs the SPA's own (itcertif_hearts) hearts system, which is the
+    // authoritative quiz-gating counter there. Suppress this decorative cq-hearts
+    // chip on that page so the user never sees two contradictory heart counts.
+    var onTrain = /\/train\.html$/.test(location.pathname);
+    if (!header || onTrain || document.getElementById('cq-hearts-chip')) return;
     var chip = document.createElement('button');
     chip.id = 'cq-hearts-chip';
     chip.type = 'button';

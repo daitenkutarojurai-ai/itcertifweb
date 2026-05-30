@@ -446,7 +446,7 @@ function attachListeners(container, navigate, brands) {
 // only the "scroll to pack and click Start" step on the home screen.
 async function autostartPicker(brand, pack) {
   const data = await loadPack(pack.file);
-  if (!data?.questions?.length) return;
+  if (!data?.questions?.length) { showLoadError('Couldn’t load this pack. Check your connection and try again.'); return; }
   showModePicker({ ...pack, brandName: brand.name }, data.questions);
 }
 
@@ -465,6 +465,28 @@ function showLoadingOverlay(label) {
 function hideLoadingOverlay() {
   document.getElementById('cq-loading-overlay')?.remove();
 }
+// Replaces the spinner with a dismissible error card when a pack fails to load
+// (offline, 404, bad JSON) so autostart deep links never dead-end on a blank page.
+function showLoadError(msg) {
+  hideLoadingOverlay();
+  const el = document.createElement('div');
+  el.id = 'cq-loading-overlay';
+  const card = document.createElement('div');
+  card.className = 'cq-loading-card';
+  const label = document.createElement('div');
+  label.className = 'cq-loading-label';
+  label.textContent = msg;
+  const btn = document.createElement('button');
+  btn.type = 'button';
+  btn.className = 'cta-secondary';
+  btn.textContent = 'Dismiss';
+  card.append(label, btn);
+  el.appendChild(card);
+  const close = () => el.remove();
+  btn.addEventListener('click', close);
+  el.addEventListener('click', e => { if (e.target === el) close(); });
+  document.body.appendChild(el);
+}
 async function autostartDirect(brand, pack, mode) {
   const modeLabel = mode === 'diagnostic' ? 'Preparing your diagnostic…'
     : mode === 'full' ? 'Loading exam…'
@@ -474,7 +496,7 @@ async function autostartDirect(brand, pack, mode) {
   const data = await loadPack(pack.file);
   const questions = data?.questions || [];
   if (!questions.length) {
-    hideLoadingOverlay();
+    showLoadError('Couldn’t load this pack. Check your connection and try again.');
     return;
   }
 
@@ -563,7 +585,7 @@ function shuffle(arr) {
 // in the URL so the sub-boss / quiz node behaves deterministically.
 async function autostartFocused(brand, pack, qids, mode) {
   const data = await loadPack(pack.file);
-  if (!data?.questions?.length) return;
+  if (!data?.questions?.length) { showLoadError('Couldn’t load this pack. Check your connection and try again.'); return; }
   const byId = new Map(data.questions.map(q => [String(q.id), q]));
   const focused = qids.map(id => byId.get(String(id))).filter(Boolean);
   if (!focused.length) {
