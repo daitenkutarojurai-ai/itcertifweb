@@ -1277,6 +1277,28 @@ competition-driven, community-driven** layer. Highest-priority builds:
 
 ---
 
+## 📦 Content expansion R9 (2026-05-30)
+
+Scheduled-agent run, extending the comparator cluster past the 15-page target
+(now **16/15**) with a high-search-volume Kubernetes decision page:
+
+- **+1 Cert Comparator page** (cluster 15 → 16):
+  - `cka-vs-cks` — the classic Kubernetes admin → security progression
+    decision. 7 verdict rows covering: débutants k8s (CKA d'abord, point),
+    seniors CKA cherchant un boost TJM (CKS), Platform/SRE généraliste
+    (CKA suffit), Cloud Security / DevSecOps (CKS), boîte ISO 27001 / SOC 2
+    sur k8s (CKS), trifecta CKA + CKAD + CKS (CKA en premier), budget
+    serré 395$ (CKA — la CKS l'exige administrativement).
+  - `salaryAlias: "cka"` résout la médiane France (72k€ senior) ; la CKS
+    n'a pas encore de fiche salaire donc la cellule affiche "—" proprement.
+  - Data + generator pattern matches `_schema.md` (no schema drift).
+- `scripts/gen-compare-pages.js` `CACHE_BUST` bumped v=102 → v=104 to align
+  with the current global `?v=` key — regeneration no longer downgrades the
+  15 sibling pages' cache-bust (the same drift recorded in 6.x cross-cutting).
+- `npm run gen-compare` regenerated 16 comparator pages + the `/compare/`
+  index. sitemap.xml +1 entry (priority 0.85, monthly changefreq).
+- 199/199 tests still pass. No CSS/JS cache version bump (new HTML only).
+
 ## 📦 Content expansion R8 (2026-05-28)
 
 Scheduled-agent run closing out the "target 15+ comparison pages" goal —
