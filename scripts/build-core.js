@@ -25,6 +25,7 @@ const ORDER = [
   'avatar.js',
   'hearts.js',
   'cosmetics.js',
+  'roadmap.js',
   'daily.js',
   'menu.js',
   'hud.js',

@@ -427,17 +427,26 @@ journey. It must help a user:
 The differentiation over "just ask an AI" is a **gamified,
 competition-driven, community-driven** layer. Highest-priority builds:
 
-#### 7.1 — Personal roadmap (the spine of Career OS)
+#### 7.1 — Personal roadmap (the spine of Career OS) ✅ v1 SHIPPED 2026-05-30 (localStorage-first)
 
-- One owned, persistent plan per user: chosen target role + the cert
-  sequence + skills to acquire, with progress rolled up from stats /
-  path / laurels. Persisted to Supabase, synced via `sync.js`.
-- Unifies the today-scattered `/career-path/` + `/study-planner/` +
-  `/career-quiz/` outputs into a single editable artifact the user
-  returns to. Surfaced on `/profile.html` and as a dashboard.
-- Steps: design `roadmap` table (Supabase) → builder UI (pick role,
-  auto-suggest cert order from `/career-path/` data) → progress
-  rollup → entry points from career-quiz and cert pages.
+- **Shipped:** `/roadmap/` — one owned, persistent plan per user. Pick a
+  target role (15 archetypes from `data/career-paths/_index.json`) →
+  auto-suggested ordered cert sequence (sourced live from the archetype's
+  `steps[].cert`) → reorder / add / remove / mark done. Progress rolled up
+  per cert from `cq-laurels-v1` (done) → `cq-path-progress-v1` via
+  `window.cqPathProgress.packPercent` (path %) → `cq-stats-v1` perPack
+  ("en cours"); overall progress bar. Each cert deep-links to
+  `/train.html?pack=`, `/path.html?pack=`, `/study-planner/#{c:id}`.
+- **Store:** `src/roadmap.js` (in cq-core bundle) → `cq-roadmap-v1`,
+  `window.cqRoadmap`, dispatches `cq:roadmap-changed`. Ids validated
+  `^[a-z0-9-]{1,64}$`, all interpolation escaped.
+- **Unifies** career-path/study-planner/career-quiz: the quiz result CTA
+  and the career-path output now seed `/roadmap/#{...}`; summarised in a
+  `/profile.html` section (renderRoadmap).
+- **Deferred:** Supabase `user_roadmap` table + `sync.js` mirror (needs
+  cross-repo coordination with the native app — store/events already
+  follow the cq-* pattern so wiring is mechanical). Per-tile "+ Roadmap"
+  button on cert pages (would clutter the core Start/Path CTAs).
 
 #### 7.2 — Leaderboards / classements
 

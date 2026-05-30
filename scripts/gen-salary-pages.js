@@ -20,7 +20,7 @@ const ROOT = path.resolve(__dirname, '..');
 const DATA_DIR = path.join(ROOT, 'data', 'salary');
 const OUT_DIR  = path.join(ROOT, 'salaire');
 
-const CACHE_BUST = 'v=105';
+const CACHE_BUST = 'v=106';
 
 function esc(s) {
   return String(s == null ? '' : s)

@@ -80,6 +80,27 @@
     }
   }
 
+  function renderRoadmap() {
+    var host = $('profile-roadmap');
+    if (!host) return;
+    var sub = $('roadmap-sub');
+    var state = window.cqRoadmap ? window.cqRoadmap.get() : { certs: [] };
+    var certs = state.certs || [];
+    if (!certs.length) {
+      if (sub) sub.textContent = '';
+      host.innerHTML = '<p class="profile-laurels-empty">Pas encore de roadmap. <a href="/roadmap/" style="color:#60a5fa;text-decoration:none">Crée la tienne →</a></p>';
+      return;
+    }
+    var laurels = {};
+    try { (JSON.parse(localStorage.getItem('cq-laurels-v1') || '[]') || []).forEach(function (x) { if (x && x.packId) laurels[x.packId] = 1; }); } catch (_) {}
+    var done = certs.filter(function (c) { return laurels[c.id] || c.done; }).length;
+    var pct = Math.round(done / certs.length * 100);
+    if (sub) sub.textContent = done + ' / ' + certs.length + ' terminées';
+    host.innerHTML =
+      '<div class="profile-milestone-bar" style="margin:4px 0 12px"><div class="profile-milestone-bar-fill" style="width:' + pct + '%"></div></div>' +
+      '<a href="/roadmap/" style="display:inline-block;font-family:\'Space Grotesk\',sans-serif;font-weight:700;font-size:13.5px;color:#34d399;text-decoration:none">Ouvrir ma roadmap →</a>';
+  }
+
   function renderMilestones(stats) {
     var host = $('profile-milestones');
     if (!host) return;
@@ -547,6 +568,7 @@
     renderStats(stats);
     renderHeatmap(stats);
     renderMilestones(stats);
+    renderRoadmap();
     renderHats();
     renderLaurels();
     renderAccount();
@@ -608,6 +630,7 @@
   window.addEventListener('cq:stats-changed', renderAll);
   window.addEventListener('cq:cosmetic-changed', renderAll);
   window.addEventListener('cq:laurel-earned', renderAll);
+  window.addEventListener('cq:roadmap-changed', renderAll);
   /* Auth state changes redraw the account section + hide/show the
      anonymous empty-state banner; sync events redraw stats hydrated
      from cloud. Both end up in the same renderAll path. */
