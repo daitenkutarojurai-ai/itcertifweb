@@ -609,17 +609,22 @@ competition-driven, community-driven** layer. Highest-priority builds:
 - **Action:** build the solo voice drill as **Phase 7.6** (interview
   prep) v1; treat AI-questioning as the v2 upgrade.
 
-### 8.5 — Tech War Map ✅ doable
+### 8.5 — Tech War Map ✅ SHIPPED 2026-05-30
 
 - World map of the tech landscape: cloud-provider dominance by
-  region, jobs, salaries, AI-growth, most-demanded certs. Built to
-  be shared on LinkedIn.
-- **Feasibility:** a pure static data-viz page — SVG world map +
-  curated dataset, exactly the shape of the existing `/salaire/` and
-  `/compare/` content surfaces. Fully doable; great viral/SEO asset.
-- **Steps:** dataset schema (`data/techmap/*`) → SVG map + choropleth
-  + region tooltips → cert-demand layer → OG image for sharing →
-  generator script per existing `gen-*` convention.
+  region, salaries, AI-growth, most-demanded certs. Built to be
+  shared on LinkedIn.
+- **Shipped:** `/tech-war-map/` — pure client-side regional choropleth
+  board over `data/techmap/regions.json` (11 world regions, curated).
+  Metric switcher (cloud dominance / salary / demand / AI growth):
+  tiles recolor as a heatmap (cloud = leader brand color × share
+  intensity; scale metrics = single-hue intensity). Click a region →
+  detail panel (provider share bars, salary, demand/AI dots, top
+  certs); live ranking; shareable `#metric.region` hash URL; honest
+  "indicative" disclaimer + sources.
+- **Deferred:** true geographic SVG world map (needs a map-path
+  pipeline — the repo's standing call is schematic-first); per-view OG
+  image (needs an image pipeline). Registered in sitemap + llms.txt.
 
 ### 8.6 — AI Mentor Personality System ✅ doable (merge into Phase 7.5)
 
@@ -674,9 +679,9 @@ competition-driven, community-driven** layer. Highest-priority builds:
 
 ### Suggested build order (P2)
 
-1. **8.5 Tech War Map** + **8.8 Salary Predictor** — fastest, viral,
-   pure static, immediate LinkedIn/SEO payoff.
-2. **8.1 3D Infra (v1 SVG)** — high-impact visual moat, no toolchain.
+1. ✅ **8.5 Tech War Map** + **8.8 Salary Predictor** — SHIPPED 2026-05-30
+   (`/tech-war-map/`, `/salary-predictor/`). Pure static, viral/SEO.
+2. **8.1 3D Infra (v1 SVG)** — high-impact visual moat, no toolchain. ← next
 3. **8.6 Mentor personas** + **8.2 Career RPG framing** — cheap, fold
    into Phase 7.
 4. **8.3 AI Labs (build-time bank)** + **8.4 Interview Arena (solo
