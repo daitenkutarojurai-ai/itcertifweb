@@ -547,20 +547,21 @@ competition-driven, community-driven** layer. Highest-priority builds:
 > Priority is P2: ship Phase 7's career/community spine first; these
 > are the differentiators layered on top.
 
-### 8.1 — 3D Interactive Cloud Infrastructure ✅ doable
+### 8.1 — 3D Interactive Cloud Infrastructure ✅ v1 SHIPPED 2026-05-30
 
 - Interactive, animated cloud-architecture explorer (AWS first):
   animated network/packet flows, an attack scenario, live
   autoscaling, visible error states — learn visually.
-- **Feasibility:** fully client-side. v1 = a 2.5-D animated SVG/canvas
-  diagram (VPC → subnets → instances → ALB), packet-flow animation, a
-  toggleable "attack" and "scale-up" state. v2 = true 3D with
-  Three.js/WebGL (bundle is heavier but static-hostable). Claude Code
-  can build both; start at v1 SVG — high impact, no 3D toolchain.
-- **Steps:** data model for a topology JSON → SVG renderer + flow
-  animation → scenario toggles (normal / attack / scaling / failure)
-  → annotations → per-service deep-link into the question bank.
-- Strong SEO + shareable page; hard for competitors to copy fast.
+- **Shipped (v1 SVG):** `/cloud-explorer/` — data-driven SVG of a
+  3-tier AWS VPC (IGW → ALB → Auto Scaling EC2 → RDS multi-AZ + WAF/NAT)
+  from `data/cloud-explorer/aws-vpc.json`. CSS animated flow edges;
+  four scenario toggles (normal / attack / scaling / failure) recolor
+  edges, drop a failed instance, spin up extra EC2s, surface the
+  attacker + WAF; click any service → role annotation + deep-link to
+  `/train.html?pack=…` (aws-saa-c03 / aws-scs-c02). Shareable `#scenario`
+  hash; prefers-reduced-motion respected.
+- **Deferred (v2):** true 3D (Three.js/WebGL); per-view OG image.
+  Registered in sitemap + llms.txt.
 
 ### 8.2 — Career RPG ✅ doable (merge into Phase 7)
 
@@ -681,7 +682,7 @@ competition-driven, community-driven** layer. Highest-priority builds:
 
 1. ✅ **8.5 Tech War Map** + **8.8 Salary Predictor** — SHIPPED 2026-05-30
    (`/tech-war-map/`, `/salary-predictor/`). Pure static, viral/SEO.
-2. **8.1 3D Infra (v1 SVG)** — high-impact visual moat, no toolchain. ← next
+2. ✅ **8.1 3D Infra (v1 SVG)** — SHIPPED 2026-05-30 (`/cloud-explorer/`).
 3. **8.6 Mentor personas** + **8.2 Career RPG framing** — cheap, fold
    into Phase 7.
 4. **8.3 AI Labs (build-time bank)** + **8.4 Interview Arena (solo

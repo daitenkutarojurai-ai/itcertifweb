@@ -1,0 +1,70 @@
+{
+  "version": "1.0.0",
+  "title": "Architecture web AWS — VPC, ALB, Auto Scaling, RDS multi-AZ",
+  "viewBox": "0 0 940 600",
+  "note": "Schéma illustratif d'une architecture web 3-tiers classique sur AWS. Clique un service pour comprendre son rôle et t'entraîner. Bascule les scénarios pour voir le trafic, une attaque, la montée en charge et une panne.",
+  "groups": [
+    { "id": "vpc", "label": "VPC — 10.0.0.0/16", "x": 50, "y": 150, "w": 840, "h": 430, "kind": "vpc" },
+    { "id": "sn-public", "label": "Subnet public — 10.0.1.0/24", "x": 80, "y": 182, "w": 780, "h": 104, "kind": "subnet-public" },
+    { "id": "sn-app", "label": "Subnet privé — Auto Scaling Group", "x": 80, "y": 310, "w": 780, "h": 118, "kind": "subnet-private" },
+    { "id": "sn-db", "label": "Subnet base de données — multi-AZ", "x": 80, "y": 452, "w": 780, "h": 104, "kind": "subnet-db" }
+  ],
+  "nodes": [
+    { "id": "internet", "label": "Internet", "emoji": "🌐", "x": 390, "y": 14, "w": 160, "h": 42, "type": "external", "desc": "Le monde extérieur : tes utilisateurs (et les attaquants)." },
+    { "id": "attacker", "label": "Attaquant (DDoS)", "emoji": "🦹", "x": 40, "y": 14, "w": 180, "h": 42, "type": "threat", "desc": "Trafic hostile simulé. L'enjeu : l'absorber au bord, loin de tes instances et de ta base de données.", "pack": "aws-scs-c02" },
+    { "id": "igw", "label": "Internet Gateway", "emoji": "🚪", "x": 400, "y": 88, "w": 140, "h": 42, "type": "edge", "desc": "Point d'entrée/sortie Internet du VPC. Sans lui, rien n'est joignable depuis l'extérieur.", "pack": "aws-saa-c03" },
+    { "id": "waf", "label": "WAF / Shield", "emoji": "🛡️", "x": 110, "y": 210, "w": 140, "h": 48, "type": "security", "desc": "Filtre les requêtes malveillantes (SQLi, XSS, flood applicatif) avant qu'elles n'atteignent l'app. AWS Shield gère le DDoS réseau (L3/L4).", "pack": "aws-scs-c02" },
+    { "id": "alb", "label": "Application Load Balancer", "emoji": "⚖️", "x": 386, "y": 208, "w": 168, "h": 52, "type": "lb", "desc": "Répartiteur de charge L7. Health checks, routage par règles, terminaison HTTPS. Seul point d'entrée public de l'app.", "pack": "aws-saa-c03" },
+    { "id": "nat", "label": "NAT Gateway", "emoji": "🔁", "x": 690, "y": 212, "w": 140, "h": 44, "type": "edge", "desc": "Laisse les instances privées sortir vers Internet (mises à jour, appels d'API) sans être joignables en entrée.", "pack": "aws-saa-c03" },
+    { "id": "ec2-1", "label": "EC2 #1", "emoji": "🖥️", "x": 120, "y": 340, "w": 124, "h": 58, "type": "compute", "desc": "Instance de calcul dans un subnet privé. Membre de l'Auto Scaling Group — interchangeable, jamais exposée directement à Internet.", "pack": "aws-saa-c03" },
+    { "id": "ec2-2", "label": "EC2 #2", "emoji": "🖥️", "x": 280, "y": 340, "w": 124, "h": 58, "type": "compute", "desc": "Instance de calcul dans un subnet privé. Membre de l'Auto Scaling Group — interchangeable, jamais exposée directement à Internet.", "pack": "aws-saa-c03" },
+    { "id": "ec2-3", "label": "EC2 #3", "emoji": "🖥️", "x": 440, "y": 340, "w": 124, "h": 58, "type": "compute", "extra": true, "desc": "Instance ajoutée par l'Auto Scaling Group lors d'un pic de charge.", "pack": "aws-saa-c03" },
+    { "id": "ec2-4", "label": "EC2 #4", "emoji": "🖥️", "x": 600, "y": 340, "w": 124, "h": 58, "type": "compute", "extra": true, "desc": "Instance ajoutée par l'Auto Scaling Group lors d'un pic de charge.", "pack": "aws-saa-c03" },
+    { "id": "rds-primary", "label": "RDS primary", "emoji": "🗄️", "x": 290, "y": 480, "w": 168, "h": 50, "type": "db", "desc": "Base de données managée. Toutes les écritures arrivent ici ; sauvegardes automatiques + bascule multi-AZ.", "pack": "aws-saa-c03" },
+    { "id": "rds-standby", "label": "RDS standby", "emoji": "🗄️", "x": 510, "y": 480, "w": 168, "h": 50, "type": "db", "desc": "Réplique synchrone dans une autre zone de disponibilité. Promue automatiquement primary si celle-ci tombe.", "pack": "aws-saa-c03" }
+  ],
+  "edges": [
+    { "id": "e-int-igw", "from": "internet", "to": "igw", "kind": "flow" },
+    { "id": "e-igw-alb", "from": "igw", "to": "alb", "kind": "flow" },
+    { "id": "e-alb-ec1", "from": "alb", "to": "ec2-1", "kind": "flow" },
+    { "id": "e-alb-ec2", "from": "alb", "to": "ec2-2", "kind": "flow" },
+    { "id": "e-alb-ec3", "from": "alb", "to": "ec2-3", "kind": "flow" },
+    { "id": "e-alb-ec4", "from": "alb", "to": "ec2-4", "kind": "flow" },
+    { "id": "e-ec1-db", "from": "ec2-1", "to": "rds-primary", "kind": "flow" },
+    { "id": "e-ec2-db", "from": "ec2-2", "to": "rds-primary", "kind": "flow" },
+    { "id": "e-ec3-db", "from": "ec2-3", "to": "rds-primary", "kind": "flow" },
+    { "id": "e-ec4-db", "from": "ec2-4", "to": "rds-primary", "kind": "flow" },
+    { "id": "e-db-repl", "from": "rds-primary", "to": "rds-standby", "kind": "repl" },
+    { "id": "e-atk-waf", "from": "attacker", "to": "waf", "kind": "threat" }
+  ],
+  "scenarios": [
+    {
+      "id": "normal",
+      "label": "Trafic normal",
+      "desc": "Trafic nominal : la requête entre par l'Internet Gateway, l'ALB répartit sur les 2 instances de l'Auto Scaling Group, qui lisent/écrivent sur RDS. La primary réplique en continu vers le standby multi-AZ.",
+      "flowEdges": ["e-int-igw", "e-igw-alb", "e-alb-ec1", "e-alb-ec2", "e-ec1-db", "e-ec2-db", "e-db-repl"],
+      "downNodes": [], "extraVisible": false, "threat": false
+    },
+    {
+      "id": "attack",
+      "label": "Attaque (DDoS)",
+      "desc": "Attaque volumétrique : le flux malveillant frappe le bord. AWS Shield + WAF l'absorbent et le filtrent AVANT l'ALB — le trafic légitime continue. C'est pour ça que seuls l'ALB et le WAF sont publics ; tes instances et ta base restent privées.",
+      "flowEdges": ["e-int-igw", "e-igw-alb", "e-alb-ec1", "e-alb-ec2", "e-ec1-db", "e-ec2-db", "e-db-repl"],
+      "downNodes": [], "extraVisible": false, "threat": true, "highlight": ["waf"]
+    },
+    {
+      "id": "scaling",
+      "label": "Montée en charge",
+      "desc": "Pic de trafic : l'Auto Scaling Group ajoute EC2 #3 et #4 quand le CPU / la latence dépasse le seuil CloudWatch. L'ALB les enregistre automatiquement et répartit la charge dessus — sans intervention humaine.",
+      "flowEdges": ["e-int-igw", "e-igw-alb", "e-alb-ec1", "e-alb-ec2", "e-alb-ec3", "e-alb-ec4", "e-ec1-db", "e-ec2-db", "e-ec3-db", "e-ec4-db", "e-db-repl"],
+      "downNodes": [], "extraVisible": true, "threat": false, "highlight": ["ec2-3", "ec2-4"]
+    },
+    {
+      "id": "failure",
+      "label": "Panne d'instance",
+      "desc": "EC2 #2 échoue au health check de l'ALB. L'ALB le retire de la rotation et route tout le trafic vers les instances saines ; l'Auto Scaling Group en relance une derrière. Côté utilisateur : zéro downtime visible.",
+      "flowEdges": ["e-int-igw", "e-igw-alb", "e-alb-ec1", "e-ec1-db", "e-db-repl"],
+      "downNodes": ["ec2-2"], "extraVisible": false, "threat": false, "highlight": ["alb"]
+    }
+  ]
+}
