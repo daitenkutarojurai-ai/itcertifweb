@@ -388,6 +388,9 @@ ${HEADER}
       <span class="pill fresh">${items.length} pages publiées</span>
       <span class="pill">Mis à jour trimestriellement</span>
     </div>
+    <div class="cta-row">
+      <a class="primary" href="/salary-predictor/">📈 Estime ton salaire après la certif →</a>
+    </div>
   </section>
 
   <section class="salary-section">

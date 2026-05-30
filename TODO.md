@@ -646,16 +646,19 @@ competition-driven, community-driven** layer. Highest-priority builds:
   - v2 — fully real-time simultaneous actions.
 - Depends on Phase 7.3 guilds (teams) for the lobby. Later ticket.
 
-### 8.8 — Future Salary Predictor ✅ doable
+### 8.8 — Future Salary Predictor ✅ SHIPPED 2026-05-30
 
-- Input stack + experience + certs + country → projection: salary
-  bands, hiring probability, automation-risk estimate.
-- **Feasibility:** a client-side calculator over a curated dataset/
-  model — identical in shape to the shipped InfraCost and Study
-  Planner calculators. Fully doable; highly viral.
-- **Steps:** extend `data/salary/*` with the model inputs → calculator
-  UI → projection chart → shareable result card (OG image). Keep an
-  honest "indicative estimate" disclaimer — never fake precision.
+- Input cert + country + experience (+ optional current salary) →
+  projection: salary band (median + range), 5-year trajectory chart,
+  cert ROI/payback, market demand meter, automation-resilience badge.
+- **Shipped:** `/salary-predictor/` — pure client-side calculator over
+  `data/salary-predictor/model.json` (manifest + curated demand /
+  automation-risk per cert, 12 certs × FR/LU/BE) + the existing
+  `data/salary/<cert>.<country>.json` bands/progression/roi. Shareable
+  hash URL, prominent "estimation indicative" disclaimer (no fake
+  precision). Registered in sitemap + llms.txt; CTA from `/salaire/`.
+  Modeled on the InfraCost page. Result-card OG image is the default
+  (custom per-result OG deferred — needs an image pipeline).
 
 ### 8.9 — AI-generated Tech Universe 🌟 north-star
 
