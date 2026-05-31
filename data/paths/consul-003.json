@@ -12,27 +12,28 @@
         {
           "id": "c1-concept",
           "type": "concept",
-          "title": "Part 1: Key Ideas",
-          "content": "Quick primer on Part 1. Tap to flip cards covering the most-asked exam ideas in this domain.",
+          "title": "Service registration and discovery: Key Ideas",
+          "content": "Consul keeps a live catalog of which service instances exist and where. Services register themselves (or are registered by an agent/orchestrator), health checks decide who is healthy, and other services discover them by name via DNS or HTTP.",
           "flashcards": [
             {
-              "front": "You are deploying a new Consul datacenter for production and want the control plane to tolerate the loss of one server while preserving Raft quorum. What is the minimum number of Consul server agents that HashiCorp recommends for this datacenter?",
-              "back": "Consul servers participate in a Raft cluster, which requires a strict majority (quorum) to commit writes and elect a leader. With 3 servers, quorum is 2, so the cluster tolerates the failure of any 1 server — the documented recommended minimum for production. A single server has no fault tolerance and is dev-only; 5 servers (quorum 3) is the recommended size when you need to survive 2 simultaneous failures; and 7 servers is generally the practical upper bound because adding members beyond that slows Raft replication without adding meaningful fault tolerance."
+              "front": "How does a service get into the Consul catalog?",
+              "back": "By registration with the local Consul agent — through a service definition file, the HTTP API, or an orchestrator integration. Each registration includes the service name, address/port, optional tags, and one or more health checks."
             },
             {
-              "front": "Which protocol does the Consul server cluster use to elect a leader and keep the service catalog, KV store, and ACL state strongly consistent across the servers in a datacenter?",
-              "back": "Consul servers use the Raft consensus protocol to elect a single leader and replicate a strongly consistent log of state changes for the catalog, KV store, sessions and ACLs. Serf gossip handles membership and failure detection between all agents but is eventually consistent, not strongly consistent. Paxos is a different consensus family that Consul does not use, and BGP is an Internet routing protocol unrelated to Consul replication."
+              "front": "Why are health checks essential to discovery?",
+              "back": "Discovery should only return instances that can actually serve traffic. Consul runs checks (HTTP, TCP, script, TTL) and removes failing instances from DNS/API results, so callers never get routed to a dead node — discovery and health are inseparable."
             },
             {
-              "front": "What is the primary purpose of the LAN gossip pool in a Consul datacenter?",
-              "back": "Consul's LAN gossip pool, built on Serf, lets every server and client agent in a datacenter learn which peers are alive, detect failures quickly and propagate basic membership events. KV replication and other strongly consistent state changes ride on Raft between servers, not on gossip; DNS queries are answered locally by the agent rather than gossiped; and cross-datacenter ACL token replication uses ACL replication over the WAN, not the LAN gossip pool."
+              "front": "How do clients discover a service?",
+              "back": "Two interfaces over the same catalog: DNS (e.g. web.service.consul resolves to healthy instances) for zero-code integration, or the HTTP API for richer queries and tag filtering. Prepared queries add failover and load-balancing policy."
             },
             {
-              "front": "A platform team wants applications running as systemd units on bare-metal hosts to be registered with Consul without modifying application code. Which is the most idiomatic registration method?",
-              "back": "On non-orchestrated hosts, the standard pattern is to drop a service definition file (for example `web.json` or `web.hcl`) into the agent's configuration directory; the local Consul agent reads it at startup or on a reload and registers the service in the catalog. Calling the HTTP API from the application requires code changes and re-registration logic that the team explicitly wants to avoid; the KV store does not auto-register services; and Kubernetes Service objects apply only inside a Kubernetes cluster, not to systemd workloads on bare metal."
+              "front": "What does an agent vs a server do in Consul?",
+              "back": "Every node runs a Consul agent; client agents forward registrations and checks to the servers. Servers (a Raft quorum, typically 3 or 5) hold the authoritative catalog and KV state. Keeping an odd number of servers preserves quorum during failures."
             }
           ],
-          "source": "auto-derived"
+          "source": "concept-library",
+          "sourceTag": "service-registration"
         },
         {
           "id": "c1-quiz1",
@@ -249,28 +250,28 @@
         {
           "id": "c3-concept",
           "type": "concept",
-          "title": "Network operations (CompTIA Network+): Key Ideas",
-          "content": "Network+ tests operational fundamentals: how SNMP works for device monitoring, why baseline documentation matters, the change-management process that prevents accidental outages, and syslog severity levels that tell you how serious a message is. These appear in scenario questions where you're asked which tool to use or which process was skipped.",
+          "title": "Service mesh: Key Ideas",
+          "content": "A service mesh handles service-to-service communication — discovery, secure connections, traffic control, and observability — outside your application code, usually via a sidecar proxy next to each service. Consul Connect is HashiCorp's implementation.",
           "flashcards": [
             {
-              "front": "SNMP — OID, MIB, community string, v2c vs v3.",
-              "back": "OID (Object Identifier): a dotted-number path in the MIB tree that uniquely identifies one piece of device data (e.g., `1.3.6.1.2.1.2.2.1.10` = ifInOctets). MIB (Management Information Base): the schema/dictionary that maps OIDs to human-readable names. Community string: a plain-text password used for SNMP v1/v2c authentication — typically 'public' (read) and 'private' (write); a well-known security weakness. SNMPv3 replaces community strings with proper user-based auth (MD5/SHA) and encryption (AES/DES)."
+              "front": "What problem does a service mesh solve?",
+              "back": "As services multiply, every app would otherwise re-implement discovery, retries, encryption, and metrics. The mesh moves that into a uniform data plane (sidecar proxies) controlled by a central control plane, so developers get mTLS, routing, and telemetry for free."
             },
             {
-              "front": "Why is network baseline documentation critical?",
-              "back": "A baseline records normal traffic volumes, CPU/memory levels, error rates, and routing tables — captured during a known-good period. When something goes wrong, you compare current readings to the baseline to spot the anomaly (utilization spiked 300%, a new route appeared, error rate tripled). Without a baseline, 'high CPU' is meaningless because you don't know what 'normal' was. Network+ expects you to identify baselining as a best practice before troubleshooting."
+              "front": "What is the sidecar (data plane) vs the control plane?",
+              "back": "The data plane is the proxy (e.g. Envoy) deployed beside each service instance — it actually carries the traffic. The control plane (Consul servers) distributes configuration, certificates, and intentions to those proxies. Apps talk to localhost; the proxy does the rest."
             },
             {
-              "front": "Change management process — what are the key steps?",
-              "back": "Request change → assess risk and impact → obtain approval (CAB or manager) → schedule a maintenance window → implement → test and verify → document outcome → close. The exam distinguishes emergency changes (faster approval path for critical incidents) from standard changes (pre-approved, low-risk, routine). Skipping change management is the most common cause of self-inflicted outages."
+              "front": "How does Consul secure service-to-service traffic?",
+              "back": "Consul Connect issues short-lived TLS certificates to each service identity and the sidecars establish mutual TLS (mTLS) automatically. 'Intentions' are the allow/deny rules that say which service identities may talk to which — authorization by identity, not IP."
             },
             {
-              "front": "Syslog severity levels 0–7 — name them.",
-              "back": "0 Emergency, 1 Alert, 2 Critical, 3 Error, 4 Warning, 5 Notice, 6 Informational, 7 Debug. Lower number = more severe. Most organizations alert on 0–3 and log 0–6. Debug (7) produces enormous volume and is usually enabled only during active troubleshooting. The mnemonic: Every Awful Crisis Erodes Wisdom, No Debate."
+              "front": "Service mesh vs API gateway?",
+              "back": "A gateway sits at the edge for north-south (client-to-cluster) traffic. A mesh governs east-west (service-to-service) traffic inside the cluster. They complement each other; Consul can do both with mesh gateways for cross-datacentre traffic."
             }
           ],
           "source": "concept-library",
-          "sourceTag": "operations"
+          "sourceTag": "service-mesh"
         },
         {
           "id": "c3-quiz1",
@@ -369,7 +370,7 @@
     "timeMinutes": 23
   },
   "meta": {
-    "generatedAt": "2026-05-29T07:35:02.519Z",
+    "generatedAt": "2026-05-31T14:28:07.688Z",
     "totalNodes": 16,
     "totalQuestions": 12,
     "nodeTypes": [

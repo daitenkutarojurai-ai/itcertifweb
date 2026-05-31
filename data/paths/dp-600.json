@@ -12,28 +12,28 @@
         {
           "id": "c1-concept",
           "type": "concept",
-          "title": "Security fundamentals: Key Ideas",
-          "content": "Security is about layering defenses so no single failure compromises a system. Most exams test the same core ideas: least privilege, defense in depth, the CIA triad, and the shared-responsibility line between you and your cloud provider.",
+          "title": "Semantic models (Power BI / Fabric): Key Ideas",
+          "content": "A semantic model is the analytics layer that sits over your data — tables, relationships, measures, and hierarchies — that reports query. In Microsoft Fabric it's central to DP-600: how it stores and refreshes data drives performance.",
           "flashcards": [
             {
-              "front": "What is the CIA triad?",
-              "back": "Confidentiality (only the right people see the data), Integrity (data isn't tampered with), Availability (the system is reachable when needed). Every security control maps to at least one of these three pillars."
+              "front": "What lives in a semantic model?",
+              "back": "Tables and their relationships, calculated columns, measures written in DAX, hierarchies, and formatting/security (row-level security). Reports don't query the raw source directly — they query the semantic model, which is the single source of business logic."
             },
             {
-              "front": "What does 'least privilege' mean?",
-              "back": "Grant each identity (user, role, service account) the minimum permissions needed to do its job — no more. The opposite is wildcard access, which makes a single credential leak catastrophic."
+              "front": "Import vs DirectQuery vs Direct Lake storage modes?",
+              "back": "Import copies data into the model (fastest queries, data is a snapshot until refresh). DirectQuery leaves data at source (always current, slower, pushes load to the source). Direct Lake reads Delta/Parquet in OneLake directly — near-Import speed with near-live freshness."
             },
             {
-              "front": "What is defense in depth?",
-              "back": "Stack multiple, independent controls so an attacker has to defeat all of them. Example: WAF in front of an app, network ACL on the subnet, IAM on the workload, encryption at rest in the database."
+              "front": "What is a measure and why use DAX?",
+              "back": "A measure is a calculation evaluated at query time in the current filter context (e.g. Total Sales, YoY %). DAX is the expression language for measures and calculated columns; understanding filter and row context is the key to correct results."
             },
             {
-              "front": "Shared responsibility model — who does what?",
-              "back": "The cloud provider secures the cloud (physical hardware, hypervisor, region facilities). You secure what's IN the cloud (your data, IAM config, OS patching on EC2, application code). The exact line shifts by service: serverless is more on the provider, IaaS is more on you."
+              "front": "How is row-level security applied?",
+              "back": "RLS is defined in the semantic model with roles and DAX filter expressions that restrict which rows a user can see. It's enforced at the model layer, so every report and dashboard built on the model inherits the same access rules."
             }
           ],
           "source": "concept-library",
-          "sourceTag": "security"
+          "sourceTag": "semantic-model"
         },
         {
           "id": "c1-quiz1",
@@ -131,27 +131,28 @@
         {
           "id": "c2-concept",
           "type": "concept",
-          "title": "Part 2: Key Ideas",
-          "content": "Quick primer on Part 2. Tap to flip cards covering the most-asked exam ideas in this domain.",
+          "title": "Direct Lake mode (Microsoft Fabric): Key Ideas",
+          "content": "Direct Lake is a Fabric storage mode for semantic models that reads Delta/Parquet files in OneLake directly, with no import step and no per-query translation to the source. It targets DP-600's recurring theme: Import-like speed with DirectQuery-like freshness.",
           "flashcards": [
             {
-              "front": "A measure must return year-to-date Sales for the currently selected period in a report based on the date dimension marked as a date table. The model contains 'Sales'[Amount] and 'Date'[Date]. Which DAX expression is correct?",
-              "back": "CALCULATE with the DATESYTD time-intelligence function modifies the date filter context to all dates from January 1 up to and including the last date in the current filter context, producing year-to-date totals. TOTALYTD requires a date column as its second argument, so the syntax shown is incomplete and will error. SUMX without CALCULATE ignores time context, and CALCULATE with ALL('Date') removes all date filters, returning the grand total — not YTD."
+              "front": "How does Direct Lake differ from Import and DirectQuery?",
+              "back": "Import duplicates data and goes stale until refresh; DirectQuery is live but translates each query to the source. Direct Lake loads columns from OneLake Delta tables into memory on demand (paging) — no copy to maintain, and it reflects the latest committed Delta data."
             },
             {
-              "front": "A Dataflow Gen2 cleans and joins multiple CSV files in ADLS Gen2, then publishes to a lakehouse table. Downstream queries that consume merged intermediate steps re-evaluate the source files on every refresh and the run is much slower than expected. Which change addresses the redundant work?",
-              "back": "When staging is enabled, Dataflow Gen2 materializes a query result to the hidden Fabric staging lakehouse / warehouse so downstream queries can read the staged data instead of re-evaluating the source. Disabling staging forces in-memory re-evaluation and makes the symptom worse. Moving logic to a notebook is a larger rewrite and not required. A Pipeline copy activity is a flat copy, not a Power Query transformation engine."
+              "front": "What backing storage does Direct Lake require?",
+              "back": "Delta/Parquet tables in OneLake — produced by a Fabric Lakehouse or Warehouse. Because it reads those files directly, the data must be in Delta format; non-Delta sources need to be loaded into a Lakehouse first."
             },
             {
-              "front": "An analytics engineer needs to query a Fabric semantic model from a Python notebook to validate measure results and pull table data into a pandas DataFrame for ad-hoc analysis, without exporting to CSV. Which Fabric capability should they use?",
-              "back": "Semantic Link (sempy) is the Fabric Python library that lets notebooks list workspace models, evaluate DAX measures, and materialize semantic-model tables as pandas DataFrames over the XMLA endpoint. The REST API does not return tabular query results in a DataFrame-friendly way, an on-prem gateway is for on-prem sources, and .pbix files are not designed to be parsed as Parquet by PyArrow."
+              "front": "What is fallback to DirectQuery?",
+              "back": "If a query uses something Direct Lake can't serve from the Delta files (certain features or capacity limits), the engine can fall back to DirectQuery against the SQL endpoint. Minimising fallback keeps the speed advantage — a common tuning point."
             },
             {
-              "front": "A semantic model in Direct Lake mode is consumed by a high-concurrency Power BI report. During peak hours users see queries fall back to DirectQuery, slowing visuals. Which two factors most commonly trigger this fallback? (Choose the option that lists both correctly.)",
-              "back": "Direct Lake falls back to DirectQuery on the lakehouse SQL endpoint when the model exceeds the capacity SKU guardrails (rows per table, columns per table, model size) or when the Delta table is being written to (framing in progress). Time-intelligence DAX, bookmarks, RLS, and calculated columns do not by themselves trigger fallback. A composite Import table is supported alongside Direct Lake without forcing fallback for the Direct Lake tables."
+              "front": "Why does Direct Lake matter for large models?",
+              "back": "It avoids the refresh window and memory cost of importing huge tables while still delivering interactive performance, because only the columns and rows a query touches are paged into memory from OneLake."
             }
           ],
-          "source": "auto-derived"
+          "source": "concept-library",
+          "sourceTag": "direct-lake"
         },
         {
           "id": "c2-quiz1",
@@ -249,28 +250,28 @@
         {
           "id": "c3-concept",
           "type": "concept",
-          "title": "Cloud governance: Key Ideas",
-          "content": "Governance is the set of policies and guardrails that keep a cloud account safe and on-budget as it scales from one engineer to a hundred. Think tagging standards, budget alerts, organizational policies, and the multi-account strategy.",
+          "title": "Semantic models (Power BI / Fabric): Key Ideas",
+          "content": "A semantic model is the analytics layer that sits over your data — tables, relationships, measures, and hierarchies — that reports query. In Microsoft Fabric it's central to DP-600: how it stores and refreshes data drives performance.",
           "flashcards": [
             {
-              "front": "Why use multiple accounts (an Organization) instead of one big account?",
-              "back": "Blast-radius isolation: a compromised prod account doesn't leak into dev. Billing clarity: per-team or per-environment cost reports. Quota independence: prod doesn't share API limits with sandbox. Service Control Policies (AWS) / management groups (Azure) enforce 'no one can disable CloudTrail' across the whole org."
+              "front": "What lives in a semantic model?",
+              "back": "Tables and their relationships, calculated columns, measures written in DAX, hierarchies, and formatting/security (row-level security). Reports don't query the raw source directly — they query the semantic model, which is the single source of business logic."
             },
             {
-              "front": "What is a Service Control Policy (SCP)?",
-              "back": "An AWS Organizations policy that sets the maximum permissions any IAM identity in a member account can have. Even if a user's IAM policy grants `s3:*`, an SCP denying `s3:DeleteBucket` overrides it. SCPs are guardrails, not grants — they only restrict."
+              "front": "Import vs DirectQuery vs Direct Lake storage modes?",
+              "back": "Import copies data into the model (fastest queries, data is a snapshot until refresh). DirectQuery leaves data at source (always current, slower, pushes load to the source). Direct Lake reads Delta/Parquet in OneLake directly — near-Import speed with near-live freshness."
             },
             {
-              "front": "Tagging strategy — name three high-leverage tags.",
-              "back": "(1) Owner / team — who pays and who to page. (2) Environment (prod/staging/dev) — drives access controls and lifecycle. (3) Cost-center / project — for chargeback. Tags are free and infinitely valuable for cost allocation and automation; enforce them with policies."
+              "front": "What is a measure and why use DAX?",
+              "back": "A measure is a calculation evaluated at query time in the current filter context (e.g. Total Sales, YoY %). DAX is the expression language for measures and calculated columns; understanding filter and row context is the key to correct results."
             },
             {
-              "front": "What is a landing zone?",
-              "back": "A pre-baked multi-account setup with security baselines: org with master + audit + log-archive + workload accounts, CloudTrail / Config enabled everywhere, SSO wired up, network templates ready. AWS Control Tower / Azure Landing Zones / GCP setup automate this so you start on a safe foundation, not bare cloud."
+              "front": "How is row-level security applied?",
+              "back": "RLS is defined in the semantic model with roles and DAX filter expressions that restrict which rows a user can see. It's enforced at the model layer, so every report and dashboard built on the model inherits the same access rules."
             }
           ],
           "source": "concept-library",
-          "sourceTag": "governance"
+          "sourceTag": "semantic-model"
         },
         {
           "id": "c3-quiz1",
@@ -369,7 +370,7 @@
     "timeMinutes": 23
   },
   "meta": {
-    "generatedAt": "2026-05-31T06:33:13.597Z",
+    "generatedAt": "2026-05-31T14:28:07.691Z",
     "totalNodes": 16,
     "totalQuestions": 12,
     "nodeTypes": [
