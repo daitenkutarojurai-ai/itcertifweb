@@ -53,6 +53,17 @@ const report = (label, items) => {
     .filter(p => p.available !== false && !fs.existsSync(r(`data/${p.file}`)))
     .map(p => `${p.id} -> ${p.file}`);
   report('Available packs whose question bank file is missing', missingBank);
+
+  // reverse: a bank file on disk that no index.json entry registers is invisible.
+  // KNOWN_UNREGISTERED holds superseded banks intentionally kept on disk but no
+  // longer surfaced — each MUST carry a reason so the exemption stays auditable.
+  const KNOWN_UNREGISTERED = {
+    'ccnp-encor.json': 'superseded 50q placeholder for ENCOR 350-401; ccnp.json (101q) is now the live bank — safe to delete',
+  };
+  const registered = new Set(packs.map(p => p.file.replace('free/', '')));
+  const unregistered = fs.readdirSync(r('data/free'))
+    .filter(f => f.endsWith('.json') && !registered.has(f) && !KNOWN_UNREGISTERED[f]);
+  report('Question banks in data/free/ not registered in data/index.json', unregistered);
 }
 
 // 1b. every question bank is structurally valid for the quiz runtime
