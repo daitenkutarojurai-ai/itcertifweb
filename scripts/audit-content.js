@@ -1,10 +1,13 @@
 #!/usr/bin/env node
 // Catches the recurring "page created but never wired into its index" gap that
-// scheduled content agents leave behind. Checks four linkages:
-//   1. Every available pack in data/index.json has a path file or a _skipped entry.
-//   2. Every careers/<slug>/ dir is referenced in careers/index.html.
-//   3. Every news/<slug>/ dir is present in data/news.json.
-//   4. Every careers/ + news/ page is listed in sitemap.xml.
+// scheduled content agents leave behind. Checks:
+//   1.  Every available pack in data/index.json has a path file or a _skipped entry.
+//   1a. Every available pack's question bank file exists.
+//   1b. Every question bank is structurally valid for the quiz runtime.
+//   2.  Every careers/<slug>/ page is linked from careers/index.html.
+//   3.  Every news/<slug>/ page is present in the data/news.json feed.
+//   4.  Every learning/<slug>/ page is present in data/courses.json.
+//   5.  Every public <dir>/index.html page is listed in sitemap.xml (site-wide).
 // Exit 1 on any gap so it can gate a deploy. Run: node scripts/audit-content.js
 
 const fs = require('fs');
@@ -95,15 +98,28 @@ const report = (label, items) => {
   report('news/ pages not present in data/news.json feed', gap);
 }
 
-// 4. careers + news pages → sitemap.xml
+// 4. learning dirs → data/courses.json
+{
+  const courses = read('data/courses.json');
+  const gap = dirsWithIndex('learning').filter(d => !courses.includes(d));
+  report('learning/ pages not present in data/courses.json', gap);
+}
+
+// 5. every public <dir>/index.html page → sitemap.xml (site-wide)
 {
   const sitemap = read('sitemap.xml');
+  const SKIP = new Set(['node_modules', 'test', 'scripts', 'src', 'functions', '.git', 'data', '.github']);
   const gap = [];
-  for (const base of ['careers', 'news']) {
-    for (const d of dirsWithIndex(base)) {
-      if (!sitemap.includes(`/${base}/${d}/`)) gap.push(`${base}/${d}`);
+  const walk = dir => {
+    for (const e of fs.readdirSync(r(dir), { withFileTypes: true })) {
+      if (!e.isDirectory()) continue;
+      const rel = dir === '.' ? e.name : `${dir}/${e.name}`;
+      if (SKIP.has(e.name) || e.name.startsWith('.')) continue;
+      if (fs.existsSync(r(`${rel}/index.html`)) && !sitemap.includes(`/${rel}/`)) gap.push(rel);
+      walk(rel);
     }
-  }
+  };
+  walk('.');
   report('Pages missing from sitemap.xml', gap);
 }
 
@@ -111,4 +127,4 @@ if (problems.length) {
   console.error('Content wiring audit FAILED:\n\n' + problems.join('\n\n'));
   process.exit(1);
 }
-console.log('Content audit passed — packs, careers, news, sitemap are in sync and all question banks are valid.');
+console.log('Content audit passed — packs, careers, news, learning, and sitemap are in sync; all question banks valid.');
