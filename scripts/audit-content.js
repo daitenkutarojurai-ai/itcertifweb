@@ -52,6 +52,34 @@ const report = (label, items) => {
   report('Available packs whose question bank file is missing', missingBank);
 }
 
+// 1b. every question bank is structurally valid for the quiz runtime
+{
+  const banks = fs.readdirSync(r('data/free')).filter(f => f.endsWith('.json'));
+  const broken = [];
+  for (const b of banks) {
+    let d;
+    try { d = JSON.parse(read(`data/free/${b}`)); }
+    catch (e) { broken.push(`${b}: invalid JSON — ${e.message}`); continue; }
+    const arr = Array.isArray(d) ? d : (d.questions || d.items || []);
+    if (!arr.length) { broken.push(`${b}: no questions`); continue; }
+    const errs = [];
+    arr.forEach((q, i) => {
+      const id = q.id || `#${i}`;
+      const n = Array.isArray(q.options) ? q.options.length : 0;
+      const inRange = c => Number.isInteger(c) && c >= 0 && c < n;
+      if (typeof q.question !== 'string' || !q.question.trim()) errs.push(`${id}: empty question`);
+      if (n < 2) errs.push(`${id}: <2 options`);
+      if (Array.isArray(q.correct)) {
+        if (!q.correct.length || !q.correct.every(inRange)) errs.push(`${id}: correct[] out of range`);
+      } else if (!inRange(q.correct)) {
+        errs.push(`${id}: correct out of range (opts=${n}, correct=${JSON.stringify(q.correct)})`);
+      }
+    });
+    if (errs.length) broken.push(`${b}: ${errs.slice(0, 5).join('; ')}${errs.length > 5 ? ` (+${errs.length - 5})` : ''}`);
+  }
+  report('Question banks with structural errors', broken);
+}
+
 // 2. careers dirs → careers/index.html
 {
   const html = read('careers/index.html');
@@ -83,4 +111,4 @@ if (problems.length) {
   console.error('Content wiring audit FAILED:\n\n' + problems.join('\n\n'));
   process.exit(1);
 }
-console.log('Content wiring audit passed — packs, careers, news, and sitemap are all in sync.');
+console.log('Content audit passed — packs, careers, news, sitemap are in sync and all question banks are valid.');
