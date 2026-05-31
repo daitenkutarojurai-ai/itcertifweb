@@ -101,6 +101,27 @@ const report = (label, items) => {
   report('careers/ pages not linked from careers/index.html', gap);
 }
 
+// 2b. homepage headline counts must not OVERSTATE the catalog (false advertising).
+// Understatement is fine (catalog grew); overstatement is a real claim defect.
+{
+  const idx = JSON.parse(read('data/index.json'));
+  let packs = 0;
+  idx.brands.forEach(b => (b.packs || []).forEach(p => { if (p.available !== false) packs++; }));
+  let questions = 0;
+  for (const f of fs.readdirSync(r('data/free')).filter(n => n.endsWith('.json'))) {
+    const d = JSON.parse(read(`data/free/${f}`));
+    questions += (Array.isArray(d) ? d : (d.questions || d.items || [])).length;
+  }
+  const home = read('index.html');
+  const num = re => { const m = home.match(re); return m ? parseInt(m[1].replace(/,/g, ''), 10) : null; };
+  const statedPacks = num(/data-target="(\d+)">[\d,]*<\/strong><span>Exam packs covered/);
+  const statedQ = num(/data-target="(\d+)">[\d,]*<\/strong><span>Questions in the bank/);
+  const over = [];
+  if (statedPacks != null && statedPacks > packs) over.push(`homepage claims ${statedPacks} exam packs but only ${packs} are available`);
+  if (statedQ != null && statedQ > questions) over.push(`homepage claims ${statedQ} questions but only ${questions} exist`);
+  report('Homepage overstates the catalog', over);
+}
+
 // 3. news dirs → data/news.json
 {
   const feed = JSON.parse(read('data/news.json'));
