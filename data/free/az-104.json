@@ -3,23 +3,23 @@
     "id": "az-104",
     "name": "Azure Administrator (AZ-104)",
     "vendor": "Microsoft",
-    "version": "2.1.1",
+    "version": "2.2.0",
     "question_count": 56,
-    "last_updated": "2026-05-23",
-    "notes": " [az-104 batch 1: 11 rewrites + 3 FACTUAL FIXES: az104-010, az104-020, az104-050] [az-104 batch 2: 11 rewrites + length/keyword cleanup on batch-1 stragglers] [az-104 batch 3: 11 rewrites + 6 CRITICAL FACTUAL FIXES on az104-002/003/004/005/006/011] [az-104 batch 4: 9 rewrites + 8 MORE CRITICAL FACTUAL FIXES — az104-013/016/019/021/022/024/025/026/028. Pack heavily corrupted.] [az-104 batch 5: 17 rewrites + EIGHT MORE FACTUAL FIXES: az104-029/036/038/040/042/043/045/051/054/056. Total AZ-104 factual repairs: 17.] [az-104 batch 6: 6 rewrites + 2 MORE FACTUAL FIXES: az104-014 (DSC vs Policy), az104-059 (FIDO2 vs Authenticator). AZ-104 factual repairs total: 19.] [az-104 batch 1 (2026-05-16): 15 rewrites — az104-005/008/011/026/028/029/032/035/040/041/043/046/052/059/060. Option lengths equalised, rationale moved into explanations.] [az-104 batch 1b (2026-05-16): 5 fixable single-flag residuals (other leaks are intrinsic to the answer wording).] | 2026-05-23 keyword-balance pass: 31 questions fixed"
+    "last_updated": "2026-05-31",
+    "notes": " [az-104 batch 1: 11 rewrites + 3 FACTUAL FIXES: az104-010, az104-020, az104-050] [az-104 batch 2: 11 rewrites + length/keyword cleanup on batch-1 stragglers] [az-104 batch 3: 11 rewrites + 6 CRITICAL FACTUAL FIXES on az104-002/003/004/005/006/011] [az-104 batch 4: 9 rewrites + 8 MORE CRITICAL FACTUAL FIXES — az104-013/016/019/021/022/024/025/026/028. Pack heavily corrupted.] [az-104 batch 5: 17 rewrites + EIGHT MORE FACTUAL FIXES: az104-029/036/038/040/042/043/045/051/054/056. Total AZ-104 factual repairs: 17.] [az-104 batch 6: 6 rewrites + 2 MORE FACTUAL FIXES: az104-014 (DSC vs Policy), az104-059 (FIDO2 vs Authenticator). AZ-104 factual repairs total: 19.] [az-104 batch 1 (2026-05-16): 15 rewrites — az104-005/008/011/026/028/029/032/035/040/041/043/046/052/059/060. Option lengths equalised, rationale moved into explanations.] [az-104 batch 1b (2026-05-16): 5 fixable single-flag residuals (other leaks are intrinsic to the answer wording).] | 2026-05-23 keyword-balance pass: 31 questions fixed | 2026-05-31 hardening pass [scheduled-agent]: stripped inline distractor giveaway tails (option text no longer self-discloses why it is wrong); rebalanced correct-answer positions to 14/14/14/14 (was heavily biased to index 1); normalised option lengths to remove length tells; rewrote every explanation with explicit per-distractor reasoning."
   },
   "questions": [
     {
       "id": "az104-002",
       "question": "Two Azure VNets are in the SAME REGION. Workloads in VNet-A need LOW-LATENCY (≤ 1 ms), high-bandwidth PRIVATE connectivity to a shared database in VNet-B. The link must use the Microsoft backbone, NOT IPsec encapsulation. Operating overhead must be minimal. Which connectivity option fits all three constraints?",
       "options": [
-        "Site-to-site VPN tunnel over the backbone — IPsec overhead and vnet gateway latency, opposite of the low-latency requirement",
-        "VNet peering in the same region — direct on-backbone routing, sub-millisecond latency, no gateway in the path",
-        "VPN Gateway with BGP over the backbone — IPsec + vnet gateway hop adds latency and cost; not the right fit for same-region",
-        "Azure Virtual WAN hub with backbone transit — designed for global multi-region routing, overkill and adds hub-hop latency"
+        "VNet peering between the two VNets in the same region",
+        "A site-to-site VPN gateway pair, one in each VNet, tunnelling traffic between them",
+        "An ExpressRoute private peering circuit terminated into both VNet gateways",
+        "An Azure Virtual WAN hub with both VNets connected as spokes"
       ],
-      "correct": 1,
-      "explanation": "Same-region VNet peering is the canonical low-latency, high-bandwidth private connection — traffic stays on the Microsoft backbone with no gateway between VNets. VPN/ExpressRoute add a gateway hop. Virtual WAN is for global transit. NOTE: prior version had wrong correct-answer index (marked VPN-GW-with-BGP as the same-region low-latency answer) — fixed 2026-05-13.",
+      "correct": 0,
+      "explanation": "Same-region VNet peering routes traffic directly over the Microsoft backbone with sub-millisecond latency and no gateway hop in the data path — exactly the low-latency, low-overhead private link the scenario requires. A site-to-site VPN gateway pair adds IPsec encryption overhead and a VPN gateway hop on each side, raising latency. ExpressRoute is designed for on-prem-to-Azure private connectivity, not VNet-to-VNet inside the same region. Virtual WAN routes through a managed hub, which adds at least one extra hop and is intended for global multi-region transit.",
       "tags": [
         "networking",
         "vnet-peering",
@@ -32,13 +32,13 @@
       "id": "az104-003",
       "question": "A VM has both a SUBNET NSG and a NIC NSG attached. An INBOUND packet to port 443 arrives at the VM. In what order are the two NSGs evaluated for the inbound direction?",
       "options": [
-        "NIC NSG first then subnet NSG — that is the OUTBOUND order, not inbound",
-        "Subnet NSG first then NIC NSG — the documented INBOUND evaluation order",
-        "Most specific NSG (NIC) is evaluated and the other ignored — both are always evaluated",
-        "Both NSGs in parallel, most permissive wins — both must allow; either deny blocks"
+        "NIC NSG first, then Subnet NSG",
+        "Subnet NSG first, then NIC NSG",
+        "Whichever NSG has more specific rules is evaluated first",
+        "Both NSGs are evaluated in parallel and the more permissive rule wins"
       ],
       "correct": 1,
-      "explanation": "Inbound: Subnet NSG → NIC NSG. Outbound: NIC NSG → Subnet NSG. Both must allow; either deny drops the packet. NOTE: prior version had wrong correct-answer index for the inbound direction — fixed 2026-05-13.",
+      "explanation": "For inbound traffic to a VM, the Subnet NSG is evaluated first, then the NIC NSG; the order reverses for outbound. Both NSGs must allow the packet — a deny in either one drops it. 'NIC first then subnet' is the outbound order, not inbound. Specificity does not change evaluation order — both NSGs always run, in a deterministic direction-dependent order. NSGs are not evaluated in parallel, and the engine uses 'either deny blocks' semantics, not 'most permissive wins'.",
       "tags": [
         "networking",
         "nsg",
@@ -51,13 +51,13 @@
       "id": "az104-004",
       "question": "A team needs browser-based, SSH/RDP access to Azure VMs WITHOUT (a) opening port 22/3389 to the internet, (b) deploying or operating any additional VMs (jump-boxes), and (c) installing client software. Which Azure service meets all three?",
       "options": [
-        "Deploy a jump-box VM with public IP and RDP open — violates (a) open port and (b) extra VM; no azure bastion browser proxy",
-        "Enable Just-in-Time VM access via Defender for Cloud — still requires public RDP/SSH listeners and the user's azure client software",
-        "Azure Bastion",
-        "NSG rule allowing RDP from the corporate IP range — still exposes RDP port, just narrower; no azure bastion proxy involved"
+        "Deploy a jump-box VM with a public IP and open RDP/SSH on it",
+        "Enable Just-in-Time VM access through Microsoft Defender for Cloud",
+        "Provision Azure Bastion as a managed PaaS jump host",
+        "Add an NSG rule allowing RDP only from the corporate IP range"
       ],
       "correct": 2,
-      "explanation": "Azure Bastion is a managed PaaS bastion host: the user opens the VM in the Azure portal, Bastion proxies RDP/SSH through TLS from the browser, ports 22/3389 are NEVER public, and no jump-box is required. NOTE: prior version had wrong correct-answer index (marked jump-box deployment, which violates the requirements) — fixed 2026-05-13.",
+      "explanation": "Azure Bastion is a managed PaaS jump host: users open the VM in the Azure portal, Bastion proxies RDP/SSH over TLS from the browser, ports 22/3389 stay closed to the internet, and no client software or jump-box VM is needed. A self-managed jump-box VM violates the 'no extra VM' constraint and still exposes RDP/SSH publicly. Just-in-Time VM access opens management ports for a short window from the user's IP — it still requires public listeners and a local RDP/SSH client. An NSG rule limiting source IPs narrows exposure but leaves RDP/SSH open and still requires a client.",
       "tags": [
         "networking",
         "bastion",
@@ -70,13 +70,13 @@
       "id": "az104-005",
       "question": "Two Windows VMs host a web tier in a single region and must meet Microsoft's 99.95% VM SLA. The agreement requires protection against both planned host maintenance and unplanned hardware failures within the region. What is the MINIMUM configuration that meets 99.95%?",
       "options": [
-        "Both VMs in a single Availability Zone, with Premium SSD disks",
-        "Both VMs in an Availability Set spanning fault and update domains",
+        "Both VMs on Premium SSD managed disks with read-cache enabled",
         "Both VMs in two regions fronted by Azure Traffic Manager DNS",
-        "Both VMs on Premium SSD managed disks with read-cache enabled"
+        "Both VMs in a single Availability Zone with Premium SSD disks",
+        "Both VMs in an Availability Set across fault and update domains"
       ],
-      "correct": 1,
-      "explanation": "Two or more VMs deployed into an Availability Set are spread across distinct fault and update domains, satisfying the 99.95% in-region VM SLA. Availability Zones give 99.99% (one VM per zone, ≥2 zones) — overkill for the minimum. Multi-region Traffic Manager is a DR pattern, not the in-region SLA primitive. Premium SSD is the disk SLA, not the compute SLA.",
+      "correct": 3,
+      "explanation": "Two or more VMs in an Availability Set are spread across distinct fault and update domains, hitting Microsoft's 99.95% in-region VM SLA — that is the minimum SLA configuration. Premium SSD covers a separate disk SLA and does not affect the compute SLA. Multi-region Traffic Manager is a disaster-recovery pattern that exceeds the in-region requirement at far higher cost. A single Availability Zone exposes the workload to a zone-wide failure and does not meet 99.95% on its own — you need at least two zones (which lands at the 99.99% zonal SLA, overkill for the minimum).",
       "tags": [
         "compute",
         "availability",
@@ -89,13 +89,13 @@
       "id": "az104-006",
       "question": "A latency-sensitive workload needs (a) consistent sub-millisecond disk latency, (b) up to 160 000 IOPS and 4 000 MB/s throughput, (c) the ability to ADJUST IOPS and throughput AT RUNTIME WITHOUT restarting the VM or detaching the disk. Which Azure managed disk SKU supports ALL three?",
       "options": [
-        "Premium SSD v2 — supports independent IOPS/throughput dimensions and sub-ms latency, very close fit",
-        "Standard SSD — performance class too low for sub-ms / 160k IOPS",
-        "Ultra Disk",
-        "Premium SSD v1 — IOPS is FIXED by disk size tier (P1, P10, P30...); cannot tune at runtime independently"
+        "Ultra Disk with provisioned IOPS and throughput",
+        "Premium SSD v2 at its largest size tier",
+        "Premium SSD v1 (P80) with read caching enabled",
+        "Standard SSD at its largest size tier"
       ],
-      "correct": 2,
-      "explanation": "Ultra Disk is the original SKU supporting fully independent and online-adjustable IOPS + throughput, sub-ms latency, and the highest performance ceiling. Premium SSD v2 is similar and is the modern competitor, but Premium SSD v1 has fixed IOPS per size tier and cannot be tuned online. NOTE: prior version had wrong correct-answer index (marked Premium SSD v1 as the online-tunable IOPS SKU) — fixed 2026-05-13.",
+      "correct": 0,
+      "explanation": "Ultra Disk supports up to 160,000 IOPS and 4,000 MB/s per disk, offers sub-millisecond latency, and lets you adjust IOPS and throughput independently while the VM keeps running. Premium SSD v2 also exposes online-tunable IOPS and throughput, but its current per-disk ceilings sit below Ultra's top-end values the scenario calls out. Premium SSD v1 ties IOPS and throughput to fixed size tiers (P30, P50, P80…), so retuning requires resizing the disk. Standard SSD targets light workloads and cannot reach sub-millisecond latency or the IOPS the scenario requires.",
       "tags": [
         "storage",
         "disks",
@@ -108,13 +108,13 @@
       "id": "az104-007",
       "question": "An organisation runs on-prem Active Directory and wants employees to sign in to Microsoft 365 with their on-prem credentials, with PASSWORD VALIDATION HAPPENING AGAINST THE ON-PREM AD DOMAIN CONTROLLER (no password hashes synced to Azure AD). Which Azure AD Connect sign-in method fits this constraint?",
       "options": [
-        "Password Hash Synchronization (PHS) — Azure AD validates against the SYNCED HASH, not against the on-prem DC",
-        "Pass-through Authentication (PTA)",
-        "Federation with AD FS — also validates on-prem but requires running AD FS farm; PTA is the lightweight alternative",
-        "Azure AD Connect cloud sync only — sync agent, but PHS is the actual sign-in method behind cloud sync"
+        "Password Hash Synchronization (PHS) as the sign-in method",
+        "Pass-through Authentication (PTA) with on-prem agents",
+        "Federation with an on-prem AD FS farm",
+        "Azure AD Connect cloud sync with PHS as the sign-in method"
       ],
       "correct": 1,
-      "explanation": "Pass-through Authentication (PTA) validates passwords directly against on-premises AD in real time without storing any password hash in Azure AD. An on-premises agent receives the authentication request from Azure AD, validates it locally, and returns the result. This satisfies the requirement that password hashes never leave the corporate network. PHS stores a hash of the hash in Azure AD, which fails the requirement. AD FS also keeps authentication on-premises but requires additional infrastructure.",
+      "explanation": "Pass-through Authentication runs a lightweight agent on-premises that receives each Azure AD sign-in request, validates the password against the local domain controller, and returns the result — no password hash is ever stored in Azure AD. PHS synchronises a hash of the password hash to Azure AD and validates against that copy, which violates the 'no hashes synced' requirement. AD FS also keeps authentication on-prem but requires a dedicated federation farm, which the scenario rules out as heavyweight. Cloud sync uses the cloud provisioning agent, but the actual sign-in method behind it is still PHS, so it fails the same 'no hash sync' constraint.",
       "tags": [
         "identity",
         "aad-connect",
@@ -128,12 +128,12 @@
       "question": "An application subnet must force ALL outbound internet-bound traffic through a third-party firewall NVA at 10.0.1.4 before it leaves Azure. The NVA must intercept, inspect, and then forward. Which configuration achieves this?",
       "options": [
         "An outbound NSG rule denying 0.0.0.0/0 on the application subnet",
-        "User-Defined Route 0.0.0.0/0 → Virtual Appliance 10.0.1.4 on the subnet",
-        "Enable IP forwarding on the application VM network interfaces",
-        "VNet peering with gateway transit between the source and inspection subnets"
+        "Enable IP forwarding on the application VMs' network interfaces",
+        "A User-Defined Route 0.0.0.0/0 → Virtual Appliance 10.0.1.4 on the subnet",
+        "VNet peering with gateway transit between the application and NVA VNets"
       ],
-      "correct": 1,
-      "explanation": "A UDR with next hop type 'Virtual Appliance' overrides Azure's system routes and forwards traffic through the NVA. The route table must be associated with the application subnet, and IP forwarding must be enabled on the NVA's NIC (not the app VMs'). NSG rules filter — they do not redirect. VNet peering provides connectivity, not egress steering.",
+      "correct": 2,
+      "explanation": "A User-Defined Route with next-hop 'Virtual Appliance' and the NVA's private IP overrides Azure's default system routes and steers traffic to the firewall. The route table is attached to the application subnet, and IP forwarding must be enabled on the NVA's NIC (not the application VMs'). An NSG rule filters traffic but cannot redirect it. Enabling IP forwarding on the app VMs lets them forward traffic for other hosts but does not change their outbound next hop. Peering with gateway transit provides connectivity between VNets but does not change the default route to the internet.",
       "tags": [
         "networking",
         "udr",
@@ -146,13 +146,13 @@
       "id": "az104-009",
       "question": "An app behind a STANDARD-tier Application Gateway is being SQL-injected. The team wants to block injection patterns at the load-balancer tier (no app-code change). The Standard SKU does NOT include WAF. Which upgrade enables a managed OWASP rule set in front of the app?",
       "options": [
-        "Switch WAF policy mode from Detection to Prevention on the current Standard_v2 Application Gateway — the WAF feature is absent on Standard_v2; a WAF_v2 SKU upgrade is required first",
-        "Upgrade the Application Gateway SKU from Standard_v2 to WAF_v2",
-        "Enable Azure DDoS Network Protection on the Application Gateway VNet — L3/L4 volume protection only; the WAF_v2 SKU upgrade is still needed to block SQLi at the request layer",
-        "Add NSG rules to the Application Gateway subnet blocking attacker source IPs — reactive IP blocks, not a WAF_v2 SKU upgrade that inspects and blocks SQLi payload patterns"
+        "Add NSG rules to the Application Gateway subnet blocking attacker source IPs",
+        "Switch the WAF policy mode from Detection to Prevention on the existing Standard_v2 SKU",
+        "Enable Azure DDoS Network Protection on the Application Gateway's VNet",
+        "Upgrade the Application Gateway SKU from Standard_v2 to WAF_v2"
       ],
-      "correct": 1,
-      "explanation": "Azure Application Gateway WAF operates in two modes: Detection (logs threats but does not block) and Prevention (actively blocks requests matching OWASP rules, including SQL injection). Switching to Prevention mode causes the WAF to block and log requests matching managed rule sets like OWASP 3.2. The WAF_v2 SKU already supports WAF policies; upgrading SKU is not the issue. DDoS Standard protects against volumetric attacks, not application-layer injection. NSG rules cannot inspect HTTP payload content.",
+      "correct": 3,
+      "explanation": "The Standard_v2 Application Gateway does not include the Web Application Firewall — you upgrade to the WAF_v2 SKU to enable managed OWASP rule sets that match and block SQL injection payloads. Switching policy modes is moot because the Standard_v2 SKU has no WAF policy to switch. Azure DDoS Network Protection guards against volumetric L3/L4 floods, not application-layer injection. NSG rules operate on IP/port, so they can block known attacker IPs but cannot inspect HTTP request bodies for SQLi patterns.",
       "tags": [
         "security",
         "waf",
@@ -165,13 +165,13 @@
       "id": "az104-010",
       "question": "An admin needs a SINGLE service that ingests Azure VM perf counters, Azure Activity Log entries, AKS container logs, and Application Insights traces, then lets them join across those tables with KQL queries. Which Azure component fits?",
       "options": [
-        "Azure Monitor Metrics Explorer — chart metrics, no KQL log-join across diverse sources",
-        "Azure Application Insights component — app-only telemetry, narrower scope, not the multi-service unified log store",
-        "Azure Log Analytics workspace — the unified log store for multiple Azure services, queried with KQL",
-        "Azure Event Hubs namespace — high-throughput ingestion, not a queryable log store"
+        "An Azure Log Analytics workspace",
+        "An Azure Monitor Metrics Explorer view",
+        "An Azure Application Insights resource",
+        "An Azure Event Hubs namespace"
       ],
-      "correct": 2,
-      "explanation": "Log Analytics workspaces are the unified KQL-queryable log store. Activity Log, VM diagnostic logs, AKS container logs, Application Insights, and resource logs can all be routed to a single workspace. Metrics Explorer is metrics-only; App Insights is app-only telemetry; Event Hubs is a pipeline, not a queryable store. NOTE: prior version had wrong correct-answer index (marked Application Insights as the multi-service log store) — fixed 2026-05-13.",
+      "correct": 0,
+      "explanation": "A Log Analytics workspace is the unified log store: Activity Log, VM diagnostic logs, AKS container logs, and Application Insights telemetry can all be routed into one workspace and joined across tables with KQL. Metrics Explorer charts numeric metrics — it has no log tables and no KQL log-join. Application Insights is application telemetry only and is narrower than the multi-source unified log store the scenario asks for. Event Hubs is a high-throughput ingestion pipeline and a streaming target, not a queryable log store.",
       "tags": [
         "monitoring",
         "log-analytics",
@@ -185,12 +185,12 @@
       "question": "A company keeps 7-year compliance archives in Azure Blob Storage. Access frequency is near zero (occasional audit retrieval; hours of restore latency is acceptable). Minimum storage cost is the priority. Which blob access tier should they use?",
       "options": [
         "Hot",
+        "Archive",
         "Cool",
-        "Cold",
-        "Arch"
+        "Cold"
       ],
-      "correct": 3,
-      "explanation": "Archive is the offline blob tier with the lowest per-GB cost; rehydration takes up to several hours, which is acceptable here. Cold (≥90 days) and Cool (≥30 days) are cheaper than Hot but stay online. Hot is for frequent access. The 7-year compliance retention with rare reads is the textbook Archive scenario.",
+      "correct": 1,
+      "explanation": "Archive is the offline blob tier with the lowest per-GB storage cost; rehydration takes up to several hours, which fits the 'occasional audit, hours of latency acceptable' brief. Hot is for frequently accessed data and has the highest storage cost. Cool sits between Hot and Archive — cheaper storage with a 30-day minimum and quick retrieval — but still costs more than Archive on cold data. Cold is cheaper than Cool with a 90-day minimum but remains online and is still more expensive than Archive when access is near zero.",
       "tags": [
         "storage",
         "blob-tiers",
@@ -203,13 +203,13 @@
       "id": "az104-012",
       "question": "VMs in a VNet must access an Azure Storage account so that (a) traffic travels via the Azure backbone with a PRIVATE IP, (b) the storage account is reachable on a private DNS name from within the VNet, and (c) public storage endpoints can be blocked entirely. Which feature satisfies all three?",
       "options": [
-        "Storage Service Endpoint with VNet rule — keeps traffic on backbone but the storage account still has a public DNS, no private IP into the VNet",
-        "Private Endpoint for the storage account",
-        "Storage firewall with `trusted Azure services` exception — exception only for select Microsoft services, not the VM scenario",
-        "VPN Gateway with forced tunneling — VPN feature, irrelevant to PaaS-storage private access"
+        "A Storage Service Endpoint with a VNet rule on the storage account",
+        "A storage firewall rule with 'Allow trusted Azure services'",
+        "A Private Endpoint for the storage account in the VNet",
+        "A VPN Gateway with forced tunneling enabled on the VNet"
       ],
-      "correct": 1,
-      "explanation": "A Private Endpoint creates a private IP address inside your VNet that maps to the storage account. DNS resolves the storage account FQDN to this private IP, so all traffic (including from on-premises via ExpressRoute) stays on private networks. A Service Endpoint keeps traffic on the Azure backbone but the storage account still has a public endpoint and the private IP is not accessible from on-premises without additional DNS configuration. Private Endpoints support on-premises access natively when DNS is configured correctly.",
+      "correct": 2,
+      "explanation": "A Private Endpoint deploys a NIC with a private IP into the VNet that maps to the storage account; DNS resolves the storage FQDN to that private IP, and the storage firewall can be set to deny all public traffic. A Service Endpoint keeps traffic on the backbone but leaves a public endpoint on the storage account and assigns no private IP into the VNet. The 'Allow trusted Azure services' exception lets specific Microsoft services bypass the firewall — it does nothing for VM-originated traffic. Forced tunneling sends VPN traffic over a custom egress and has no role in reaching PaaS storage privately.",
       "tags": [
         "storage",
         "private-endpoint",
@@ -222,13 +222,13 @@
       "id": "az104-013",
       "question": "Regulation requires Azure VM disks to be encrypted at TWO LAYERS: (a) at the storage platform layer, and (b) inside the guest OS itself. Which combination meets both layers?",
       "options": [
-        "Server-Side Encryption (SSE) with platform-managed keys ALONE — covers the storage layers only; no inside-the-guest OS encryption",
-        "Azure Disk Encryption (ADE) using BitLocker / dm-crypt ALONE — encrypts inside the guest OS only; no independent storage-platform layers",
-        "SSE-with-PMK PLUS Azure Disk Encryption — two distinct layers: SSE at the storage platform + ADE inside the guest OS",
-        "A customer-managed storage account with manual key-based encryption — adds storage layers but does not encrypt inside the guest OS; not the documented two-layer combo"
+        "Server-Side Encryption with platform-managed keys only",
+        "A customer-managed storage account using manual key-based encryption",
+        "Azure Disk Encryption using BitLocker or dm-crypt on its own",
+        "SSE with platform-managed keys plus Azure Disk Encryption inside the guest"
       ],
-      "correct": 2,
-      "explanation": "SSE protects the disk at the Azure storage platform; ADE protects the OS-resident filesystem with BitLocker (Windows) or dm-crypt (Linux). Both layers together gives defence-in-depth. PRIOR VERSION HAD WRONG CORRECT-ANSWER INDEX — fixed 2026-05-13.",
+      "correct": 3,
+      "explanation": "Server-Side Encryption protects the disk at the Azure storage platform, and Azure Disk Encryption (BitLocker on Windows, dm-crypt on Linux) protects the OS-resident filesystem inside the guest — running both gives defence-in-depth across the two distinct layers the regulation requires. SSE alone only covers the storage platform layer. ADE alone only covers the guest layer. A manual key-based storage account does not encrypt inside the guest OS and is not the documented two-layer pattern.",
       "tags": [
         "security",
         "disk-encryption",
@@ -241,13 +241,13 @@
       "id": "az104-014",
       "question": "Windows VMs in Azure must AUTOMATICALLY have a specific set of Windows features installed + services running. When a VM drifts from this in-OS configuration (someone disables a service, uninstalls a feature), the platform must AUTOMATICALLY restore it. Which Azure service runs the drift-detection-and-correction agent INSIDE the guest OS?",
       "options": [
-        "Azure Policy with DeployIfNotExists effect — deploys missing RESOURCES at the Azure-RM layer; no guest OS agent runs drift correction inside the VM",
-        "Azure Automation Desired State Configuration (DSC) / Guest Configuration",
-        "Azure Update Manager maintenance configurations — patches the guest OS on schedule but does not run continuous drift correction inside the VM",
-        "Custom Script Extension assigned per VM — runs ONCE at deploy inside the guest OS, no continuous drift correction thereafter"
+        "Azure Automation Desired State Configuration / Guest Configuration",
+        "Azure Policy with the DeployIfNotExists effect",
+        "Azure Update Manager maintenance configurations",
+        "Custom Script Extension assigned per VM at deploy time"
       ],
-      "correct": 1,
-      "explanation": "Desired State Configuration / Guest Configuration runs an agent INSIDE the guest OS that continuously evaluates the declared configuration and remediates drift. Azure Policy DeployIfNotExists is for missing Azure-RM resources, not for OS-side config. Custom Script Extension runs once. PRIOR VERSION HAD WRONG CORRECT-ANSWER INDEX — fixed 2026-05-13.",
+      "correct": 0,
+      "explanation": "Desired State Configuration (now part of Guest Configuration) runs an agent inside the guest OS that continuously evaluates the declared configuration and remediates drift — services restarted, features re-added, registry keys reset. DeployIfNotExists creates missing Azure-RM resources; it operates at the management plane and does not run inside the VM. Update Manager patches the OS on a schedule but does not enforce service or feature state. Custom Script Extension runs once at deploy time and has no continuous remediation loop.",
       "tags": [
         "operations",
         "dsc",
@@ -260,13 +260,13 @@
       "id": "az104-015",
       "question": "A compliance team needs to apply 30 related Azure Policy definitions (CIS benchmark) to a management group AS A SINGLE GROUPED UNIT — one assignment, one set of parameters, one compliance report. Re-assigning the 30 individually means 30 assignments to maintain. Which feature provides 'package of definitions' semantics?",
       "options": [
-        "Assign each of the 30 definitions individually to the management group — defeats the single-unit grouped-set requirement",
-        "Azure Policy Initiative (Policy Set definition) — groups multiple definitions and is assigned + reported as a single set/unit",
-        "Custom policy definition with all 30 rules in JSON — combines definitions into one set technically but is brittle, not the management-group unit pattern",
-        "Azure Blueprints — bundles definitions + ARM templates + RBAC as a unit; broader than a Policy Set/Initiative grouping (retired July 2026)"
+        "Assign each of the 30 definitions individually to the management group",
+        "An Azure Policy initiative (policy set definition)",
+        "A custom Azure Policy definition with all 30 rules in one JSON file",
+        "An Azure Blueprint that pins each definition as an artifact"
       ],
       "correct": 1,
-      "explanation": "An Azure Policy initiative (also called a policy set) groups multiple policy definitions into a single assignable unit. This allows assigning all 30 CIS controls with one initiative assignment and tracking combined compliance as a single percentage score. Built-in initiatives include CIS, NIST 800-53, PCI DSS, and ISO 27001. Azure Blueprints can include policy assignments as artifacts but are not required for this scenario. Embedding 30 rules into a single policy definition is not supported by the policy schema.",
+      "explanation": "An Azure Policy initiative — also called a policy set — bundles many definitions into a single assignable unit and reports compliance as one combined score; built-in CIS, NIST 800-53, PCI-DSS, and ISO 27001 initiatives ship the same way. Assigning each definition individually creates 30 separate assignments to manage and matches the anti-pattern the scenario rejects. A custom definition cannot embed 30 independent rule logics in one JSON schema. Azure Blueprints bundles policy assignments alongside RBAC and templates and is being deprecated in favour of Deployment Stacks — the initiative is the right primitive for the 'package of definitions' requirement.",
       "tags": [
         "governance",
         "azure-policy",
@@ -279,13 +279,13 @@
       "id": "az104-016",
       "question": "An admin needs a single backup target supporting (a) Azure VM backup, (b) SQL Server in Azure VM backup, (c) on-prem Windows file servers via the MARS agent. Which Azure resource is the target for all three?",
       "options": [
-        "Backup vault (newer) — the target for Postgres, Disks, Blobs, Files; does NOT cover VM/MARS as a backup target today",
-        "Recovery Services vault — canonical target for VM, SQL-in-VM, MARS, and ASR",
-        "Azure Storage account — not a valid backup target; the Backup service writes to a vault, not a raw storage account target",
-        "Site Recovery vault — same resource type as Recovery Services but the target is configured for replication, not backup workloads"
+        "A Backup vault (the newer SKU)",
+        "An Azure Storage account configured as the backup destination",
+        "A Recovery Services vault",
+        "A Site Recovery vault configured for VM replication"
       ],
-      "correct": 1,
-      "explanation": "Recovery Services vault is the long-standing target for Azure VM, SQL-in-VM, MARS-agent, and ASR replication. Newer Backup vault SKU does not yet cover MARS/VM at parity. PRIOR VERSION HAD WRONG CORRECT-ANSWER INDEX — fixed 2026-05-13.",
+      "correct": 2,
+      "explanation": "A Recovery Services vault is the long-standing target for Azure VM backup, SQL-in-VM backup, MARS-agent backup of on-prem file servers, and ASR replication — one resource type covers all three workloads in the question. The newer Backup vault targets blob, disk, files, and PostgreSQL backups; it does not cover VM or MARS today. A raw storage account is not a valid backup destination — the Backup service writes through a vault that owns the underlying storage. 'Site Recovery vault' is the same resource type as Recovery Services vault but configured for replication; the question asks for the backup target.",
       "tags": [
         "backup",
         "recovery-services-vault",
@@ -298,13 +298,13 @@
       "id": "az104-017",
       "question": "A Conditional Access policy requires MFA when users sign in from OUTSIDE the corporate network (corporate IP range added as a Trusted Named Location with MFA exclusion). A user signs in from the office (within the trusted IP range) and is NOT challenged for MFA. The admin confirms this is expected behaviour. Why?",
       "options": [
-        "MFA is required regardless of location and corporate network — would be true if the trusted Named Location were not configured as an exclusion from the sign-in condition",
-        "The policy excludes the trusted Named Location from the MFA condition, so corporate-network sign-ins skip MFA",
-        "MFA is bypassed because the corporate sign-in session is fresh — CA does not auto-bypass based on session age alone",
-        "MFA was completed within 24 h on the corporate network elsewhere — CA's 'remember MFA' feature would still log a satisfied sign-in claim, not silently bypass"
+        "MFA is mandatory regardless of location; the bypass must be a configuration mistake",
+        "MFA was completed within the past 24 hours on another corporate device",
+        "The user's session was deemed fresh enough to skip the MFA challenge",
+        "The policy excludes the trusted Named Location from the MFA condition"
       ],
-      "correct": 1,
-      "explanation": "Conditional Access policies evaluate signals at sign-in time. If the Named Location (corporate office IP range) is marked as trusted and the policy condition requires MFA only when signing in from outside trusted locations, the policy's condition is not met for corporate office sign-ins, so MFA is not triggered. This is the intended behavior: Named Locations let organizations define trusted network ranges that are excluded from certain CA requirements, reducing friction for on-site employees.",
+      "correct": 3,
+      "explanation": "The Conditional Access policy condition uses a Trusted Named Location to exclude the corporate IP range, so sign-ins from that range never meet the MFA condition — the documented, expected behaviour. CA conditions evaluate signals at sign-in; if the location does not match, the control simply does not apply. There is no automatic 'fresh session' bypass that ignores MFA. Conditional Access can remember MFA for a sign-in frequency window, but that records a satisfied MFA claim rather than silently skipping the prompt and would not be tied to the corporate IP range.",
       "tags": [
         "identity",
         "conditional-access",
@@ -317,13 +317,13 @@
       "id": "az104-018",
       "question": "An autoscale rule must launch 50 new D4s_v3 VMs (4 vCPUs each) in East US within minutes. The subscription's regional compute-quota for the new D-series VMs in East US currently allows only 100 vCPUs. The deployment fails on the 26th new VM. What's the right fix?",
       "options": [
-        "Submit a new Azure quota-increase request for D-series vCPUs in East US (per-family per-region) — the new ceiling resolves the failure",
-        "Move the new VMs to a different Azure resource group — RGs do not have vCPUs quota; the same subscription-level limits still apply",
-        "Switch to spot VMs for the new fleet — different priority class but spot instances still consume the same D-series vCPUs quota in East US",
-        "Recreate the new VM scale set in a different Azure region — quota is per-region; the new region may have its own vCPUs limit causing an identical failure"
+        "Submit a quota-increase request for the D-series vCPU family in East US",
+        "Move the new VMs into a different resource group in the same subscription",
+        "Switch the new fleet to Azure Spot VMs to avoid the standard quota",
+        "Recreate the scale set in a different Azure region with the same workload"
       ],
       "correct": 0,
-      "explanation": "Azure enforces per-region, per-VM-family vCPU quotas (soft limits). The default is often 20 vCPUs per family per region. To deploy 50 D4s_v3 VMs (200 vCPUs) you need to request a quota increase. This is done in the Azure Portal under Subscriptions > Usage + quotas, where you can submit a support request for a specific VM family in a specific region. Moving to a different resource group does not change the subscription-level quota. Creating a new subscription is a workaround, not a recommended practice.",
+      "explanation": "Azure enforces vCPU quotas per VM family per region per subscription. Going from 100 to 200 vCPUs of D-series in East US requires a quota-increase request through Subscriptions → Usage + quotas. Resource groups are logical containers with no quota of their own — moving the VMs keeps the same subscription-level limit. Spot VMs draw from the same regional vCPU family quota, so they hit the same ceiling. Choosing a different region introduces its own (possibly equally low) regional quota and changes the workload's latency and data-residency posture rather than fixing the root cause.",
       "tags": [
         "compute",
         "quotas",
@@ -336,13 +336,13 @@
       "id": "az104-019",
       "question": "An organisation wants security administrators to hold Global Administrator only when actively needed, with: explicit activation request, just-in-time elevation, optional approval workflow, and full audit trail of every activation. Which Azure AD feature fits all four?",
       "options": [
-        "Azure AD Conditional Access session controls — gates EXISTING sessions, no JIT role activation",
-        "Azure RBAC time-bound assignments — gives the role for a time window, no activation workflow",
+        "Azure AD Conditional Access session controls",
         "Azure AD Privileged Identity Management (PIM)",
-        "Azure AD custom role definitions — defines permissions, no JIT/activation"
+        "Azure RBAC time-bound role assignments via JSON definitions",
+        "Azure AD custom role definitions scoped through administrative units"
       ],
-      "correct": 2,
-      "explanation": "PIM makes a role ELIGIBLE rather than ACTIVE. Activation requires the user to request it; PIM enforces MFA, time-bound expiry, and logs every activation. PRIOR VERSION HAD WRONG CORRECT-ANSWER INDEX — fixed 2026-05-13.",
+      "correct": 1,
+      "explanation": "Privileged Identity Management makes a role 'eligible' rather than 'active' — users request activation, optionally pass an approval workflow, satisfy MFA, and the role expires automatically; every activation is audited. Conditional Access session controls gate existing sessions but do not surface a role activation workflow. Time-bound RBAC assignments expire a role after a fixed window but do not require an explicit activation request or approval. Custom role definitions shape the permission set only; they do not provide just-in-time activation.",
       "tags": [
         "identity",
         "pim",
@@ -355,13 +355,13 @@
       "id": "az104-020",
       "question": "A team is choosing between Basic and Standard Load Balancer SKUs for a zone-redundant, multi-AZ deployment. They need: (a) frontends and backend pools that survive an AZ outage, (b) HA Ports for active/standby NVAs. Which statement about the SKUs is correct?",
       "options": [
-        "Standard SKU supports internal-only with zone-redundant frontends; Basic supports both — false, opposite",
-        "Standard SKU supports zone-redundant frontends and backends across AZs; Basic SKU is not zone-aware (no zone-redundant frontends)",
-        "Standard SKU requires VPN GW for zone-redundant failover; Basic does not — false, neither requires VPN GW for zone-redundant frontends",
-        "Standard SKU is capped at 100 backends; Basic supports unlimited zone-redundant backend frontends — false, Standard scales higher"
+        "Standard SKU supports internal-only frontends with zone redundancy; Basic supports both internal and external",
+        "Standard SKU requires a VPN gateway for zone-redundant failover; Basic does not",
+        "Standard SKU supports zone-redundant frontends and backends across availability zones; Basic is not zone-aware",
+        "Standard SKU is capped at 100 backends; Basic supports unlimited zone-redundant backends"
       ],
-      "correct": 1,
-      "explanation": "Standard Load Balancer is the production SKU: zone-redundant + zonal frontends, multi-AZ backend pools, HA Ports, secure-by-default (deny unless allowed), 1000-instance pools. Basic is the legacy SKU, no zone awareness, slated for retirement Sept 2025. NOTE: prior version had wrong correct-answer index — fixed 2026-05-13.",
+      "correct": 2,
+      "explanation": "Standard Load Balancer is the zone-aware production SKU: zone-redundant and zonal frontends, multi-AZ backend pools, HA Ports, secure-by-default, and pools up to 1000 instances. Basic Load Balancer is not zone-aware — its frontends and backend pool live in a single zone — and is being retired in 2025. The 'internal only' framing inverts the actual support matrix. Neither SKU requires a VPN gateway for redundancy. Standard scales much higher than Basic, not the other way around.",
       "tags": [
         "networking",
         "load-balancer",
@@ -374,13 +374,13 @@
       "id": "az104-021",
       "question": "An admin accidentally deleted a critical RG. The team wants to prevent any future deletion of that RG without revoking any user's RBAC role and without writing custom policy. Which Azure feature is purpose-built for this?",
       "options": [
-        "A ReadOnly lock on the RG — prevents UPDATES too, which is more than needed and breaks RBAC-permitted write operations",
-        "A CanNotDelete lock at the RG scope — blocks every delete (even by Owners), still allows reads + updates, no RBAC change",
-        "A ReadOnly lock on each resource individually — fragile, blocks all RBAC-permitted write operations on each resource",
-        "A deny assignment at the subscription level — used internally by Blueprints / Managed Apps; not the same as an RBAC-independent lock feature"
+        "A ReadOnly lock applied at the resource group scope",
+        "A ReadOnly lock applied to each resource individually",
+        "A deny assignment at the subscription level",
+        "A CanNotDelete lock at the resource group scope"
       ],
-      "correct": 1,
-      "explanation": "Resource Manager locks live ABOVE RBAC. CanNotDelete blocks deletes for everyone (including Owners) until removed. ReadOnly is heavier (also blocks updates). Deny-assignments are an internal mechanism. PRIOR VERSION HAD WRONG CORRECT-ANSWER INDEX — fixed 2026-05-13.",
+      "correct": 3,
+      "explanation": "A CanNotDelete lock at the resource group blocks every delete operation across the RG and its resources — even Owners cannot delete until the lock is removed — while still allowing reads and updates. Resource Manager locks sit above RBAC, so no role changes are needed. A ReadOnly lock on the RG would also block writes, which is heavier than required. ReadOnly locks per resource are even more fragile and still block legitimate updates. Deny assignments are an internal mechanism used by Blueprints and Managed Apps; customers cannot author them directly the way they configure locks.",
       "tags": [
         "governance",
         "resource-locks",
@@ -393,13 +393,13 @@
       "id": "az104-022",
       "question": "VMs in a VNet must resolve internal hostnames like `appserver.internal.contoso.com` to private IPs WITHOUT operating any DNS server VM. The zone must be authoritative for `internal.contoso.com` and visible only inside linked VNets, with VMs auto-registering their A records. Which feature?",
       "options": [
-        "Azure-provided DNS only — provides the default resolver linked to the vnet automatically; not authoritative for a custom zone and no auto-registration for custom names",
-        "Azure Private DNS zone with auto-registration enabled, linked to the VNet",
-        "Public Azure DNS zone linked to your subscription — answers on the public internet, not scoped to a private vnet; no auto-registration inside the vnet",
-        "Windows Server DNS VM linked to the vnet via custom DNS settings — works but requires an extra VM (excluded) and manual auto-registration scripts"
+        "An Azure Private DNS zone linked to the VNet with auto-registration enabled",
+        "Azure-provided DNS using the default *.internal.cloudapp.net suffix",
+        "A public Azure DNS zone linked to the subscription",
+        "A Windows Server DNS VM with the VNet's custom DNS pointed at it"
       ],
-      "correct": 1,
-      "explanation": "Azure Private DNS zones provide DNS name resolution within VNets without needing a custom DNS server. Linking a private zone to a VNet with auto-registration enabled causes Azure to automatically create and update DNS records (A records with the VM's hostname and private IP) when VMs are created, updated, or deleted. Multiple VNets can be linked to the same private zone for cross-VNet name resolution. Azure-provided DNS uses a fixed suffix (*.internal.cloudapp.net) and cannot be customized to use your own domain.",
+      "correct": 0,
+      "explanation": "An Azure Private DNS zone is authoritative for a custom domain, scoped to linked VNets, and with auto-registration enabled Azure adds A records for each VM automatically — no DNS VM, no manual record management. Azure-provided DNS uses the fixed *.internal.cloudapp.net suffix and is not authoritative for a custom zone. A public Azure DNS zone answers on the internet rather than being scoped to a VNet and offers no auto-registration. A Windows Server DNS VM works in principle but violates the 'no DNS server VM' constraint and requires custom scripting to mimic auto-registration.",
       "tags": [
         "networking",
         "private-dns",
@@ -412,13 +412,13 @@
       "id": "az104-024",
       "question": "A team needs to run a SHORT-LIVED containerised data-processing job that completes in <10 minutes. Requirements: no cluster/infra to manage, per-second billing for the runtime, just submit the image and run. Which Azure service fits all three?",
       "options": [
-        "Azure Kubernetes Service — requires running node-pool VMs for the second job and every other job; billing continues even when no runtime jobs are active",
-        "Azure Container Instances (ACI) — serverless, per-second billing for runtime, no cluster",
-        "App Service Web App for Containers — long-running web hosting with monthly billing; not per-second runtime billing for a short-lived job",
-        "Service Fabric — cluster-based with always-on node billing; no per-second runtime billing; fails the no-infra requirement"
+        "Azure Kubernetes Service running the job in an existing node pool",
+        "Azure Container Instances with per-second billing",
+        "App Service Web App for Containers running the image",
+        "Azure Service Fabric scheduled task on the cluster"
       ],
       "correct": 1,
-      "explanation": "ACI is the serverless container runtime: submit an image, the container runs, billing is per second, no cluster ops. PRIOR VERSION HAD WRONG CORRECT-ANSWER INDEX — fixed 2026-05-13.",
+      "explanation": "Azure Container Instances runs a container without a cluster, bills per-second for the runtime, and starts in seconds — a precise fit for a sub-10-minute job. AKS requires a node pool whose VMs keep billing whether or not the job runs, and adds cluster operations. App Service for Containers is designed for long-running web workloads with monthly compute plans, not per-second runtime billing. Service Fabric is a cluster runtime — always-on node billing and significant operational footprint.",
       "tags": [
         "compute",
         "containers",
@@ -431,13 +431,13 @@
       "id": "az104-025",
       "question": "An admin must stream Azure VM resource logs + platform metrics to BOTH (a) a 3rd-party SIEM via Event Hub in real time AND (b) an Azure Storage account for long-term archive. The mechanism is configured per-resource, natively. Which feature?",
       "options": [
-        "Azure Monitor Agent with data collection rules — collects guest-OS data INTO the agent stream; does not fan-out to an Event Hub siem or long-term storage account simultaneously",
-        "Azure Diagnostic Settings — native per-resource fan-out to Log Analytics + Storage + Event Hub + partner SIEM destinations",
-        "Azure Automation runbook — automation script; not a real-time event stream to a storage account or siem",
-        "Logic App triggered by an alert — alert-driven action; not a continuous diagnostic event stream to storage and a siem hub"
+        "Azure Monitor Agent with data collection rules",
+        "An Azure Automation runbook on a recurring schedule",
+        "Azure Diagnostic Settings on the resource",
+        "A Logic App triggered by Azure Monitor alerts"
       ],
-      "correct": 1,
-      "explanation": "Diagnostic Settings on a resource route platform logs + metrics natively to any combination of Log Analytics, Storage, Event Hub (for SIEM ingestion), and partner solutions. PRIOR VERSION HAD WRONG CORRECT-ANSWER INDEX — fixed 2026-05-13.",
+      "correct": 2,
+      "explanation": "Diagnostic Settings on a resource are the native fan-out: each setting can stream platform logs and metrics into any combination of Log Analytics, Storage, Event Hub (the SIEM ingestion point), and partner solutions — configured per resource. Azure Monitor Agent collects guest-OS telemetry; it does not fan-out platform diagnostic events to multiple sinks. An Automation runbook would have to script and schedule the export, which is not the native real-time mechanism. A Logic App on an alert handles event-driven workflows, not a continuous diagnostic stream.",
       "tags": [
         "monitoring",
         "diagnostic-settings",
@@ -451,12 +451,12 @@
       "question": "Employees of a partner company (a different Azure AD tenant) need access to SharePoint and Azure resources in our tenant, signing in with their own corporate credentials. We will not create local accounts and we will not merge tenants. Which Azure AD feature meets the requirement?",
       "options": [
         "Azure AD B2C with a custom user-flow policy",
-        "Azure AD B2B Collaboration with Guest accounts",
-        "Azure AD Connect cloud sync to mirror partner users",
-        "Local Azure AD accounts provisioned per partner user"
+        "Azure AD Connect cloud sync mirroring the partner directory",
+        "Local Azure AD accounts provisioned per partner user",
+        "Azure AD B2B Collaboration with Guest accounts"
       ],
-      "correct": 1,
-      "explanation": "B2B Collaboration invites users from another Azure AD tenant (or any supported IdP) as Guests in our tenant. They authenticate in their home tenant and are authorised in ours — no local accounts, no tenant merge. B2C is the consumer-identity product. Connect cloud sync handles on-prem AD, not cross-tenant invites.",
+      "correct": 3,
+      "explanation": "B2B Collaboration invites users from another Azure AD tenant (or other supported identity providers) into our tenant as Guests; they authenticate in their home tenant and our tenant authorises them through standard RBAC. No local accounts are created and the tenants stay separate. B2C is the consumer-identity product for customer-facing apps with custom branded sign-in. Cloud sync mirrors on-premises Active Directory into Azure AD — it cannot mirror another Azure AD tenant. Provisioning local accounts is exactly what the scenario excludes.",
       "tags": [
         "identity",
         "b2b",
@@ -469,13 +469,13 @@
       "id": "az104-028",
       "question": "A VM Scale Set autoscale-in event is triggered. One VMSS instance is halfway through a 3-hour batch job and must NOT be terminated. Other instances must remain eligible for scale-in. Which feature protects only that single instance?",
       "options": [
-        "Switch the entire VMSS to manual scaling mode",
-        "Apply ProtectFromScaleIn Instance Protection to the instance",
-        "Enable Scheduled Events with a 15-minute notification delay",
-        "Pin a static private IP on that instance's NIC"
+        "Apply ProtectFromScaleIn Instance Protection to the running instance",
+        "Switch the entire VMSS to manual scaling mode for the job's duration",
+        "Enable VMSS Scheduled Events with a 15-minute notification delay",
+        "Pin a static private IP to that instance's network interface"
       ],
-      "correct": 1,
-      "explanation": "VMSS Instance Protection exposes two flags — `ProtectFromScaleIn` (autoscale-in skips this instance) and `ProtectFromScaleSetActions` (skips VMSS-wide ops). Apply per-instance, so the other VMs can still be scaled-in. Manual scaling freezes everything. Scheduled Events only delays termination. Static IPs do not affect scale-in selection.",
+      "correct": 0,
+      "explanation": "Instance Protection has two flags. ProtectFromScaleIn excludes a single instance from autoscale-in decisions while letting the rest of the scale set scale normally — the precise scope the scenario needs. Switching the whole VMSS to manual scaling freezes scaling for every instance, which is over-broad. Scheduled Events only notifies the VM that a maintenance or eviction event is imminent so the workload can drain; it does not prevent the autoscale-in selection. A static IP affects networking, not scale-in eligibility.",
       "tags": [
         "compute",
         "vmss",
@@ -488,13 +488,13 @@
       "id": "az104-029",
       "question": "An ARM template deploys a Windows VM from a Marketplace image. After deployment the VM must automatically — with no user action — (a) join the corporate AD domain and (b) install an MSI package. The automation must fire on first boot, declaratively, from the template itself. Which option achieves this?",
       "options": [
-        "RDP in after deployment and run the join-domain and install scripts manually — no template automation; requires operator action every time",
-        "Connect via Azure Bastion and run the domain join and install scripts interactively — no template-driven automation; not repeatable on first boot",
-        "Add Script and Domain Join VM extensions to the ARM template",
-        "Bake a Windows scheduled task into the source VM image to run the domain join scripts on first boot — image-time trick, not declarative ARM template extensions"
+        "RDP in after deployment and run the domain-join and install scripts manually",
+        "Add the Domain Join and Custom Script Extension VM extensions to the ARM template",
+        "Connect through Azure Bastion and run the join and install scripts interactively",
+        "Bake a Windows scheduled task into the source image that runs on first boot"
       ],
-      "correct": 2,
-      "explanation": "VM extensions declared in an ARM/Bicep template run automatically on first boot — Custom Script Extension installs the MSI, Domain Join Extension joins the domain. Both are declarative and idempotent. Manual RDP/Bastion is not automation, and a baked-in scheduled task is image-time customisation, not template-driven.",
+      "correct": 1,
+      "explanation": "VM extensions declared in an ARM or Bicep template run automatically on first boot. The Domain Join Extension joins the AD domain, and Custom Script Extension downloads and installs the MSI — both are declarative, idempotent, and template-driven. Manual RDP or Bastion sessions are operator actions, not automation, and break repeatability. A scheduled task baked into the image is image-time customisation rather than template-driven automation, so the ARM template no longer controls the configuration.",
       "tags": [
         "compute",
         "vm-extensions",
@@ -507,13 +507,13 @@
       "id": "az104-030",
       "question": "An ops team needs to schedule monthly OS-security patching on a fleet of Azure VMs (Windows + Linux) during a maintenance window every last Sunday 02:00-06:00. The chosen service must support recurring schedules, multi-VM scope (subscription / management group / tag selectors), and per-classification (Critical / Security) patch picking. Which service fits?",
       "options": [
-        "Azure Automation Update Management (classic) — earlier recurring-maintenance schedule tool for subscription-wide patching; retired in favour of Azure Update Manager",
-        "Azure Update Manager maintenance configurations — current recurring maintenance schedule with subscription/MG/tag scope",
-        "Hotpatch-enabled VMs auto-patching — Windows Server Azure Edition only; no admin-defined maintenance windows at subscription scope",
-        "Azure Policy with `audit` effect — audits patch state across the subscription scope; no recurring maintenance scheduling for VMs"
+        "Azure Automation Update Management (classic)",
+        "Hotpatch-enabled Windows Server Azure Edition auto-patching",
+        "Azure Update Manager maintenance configurations",
+        "An Azure Policy assignment with the audit effect on patch state"
       ],
-      "correct": 1,
-      "explanation": "Azure Update Manager uses maintenance configurations to define recurring schedules for patching. You can specify recurrence (monthly, last Sunday), start time, duration (2-hour window), and scope (specific VMs, resource groups, or subscriptions via Azure Policy). The maintenance configuration is associated with VMs, and Update Manager handles the orchestrated patching. Azure Automation Update Management is the legacy solution being replaced by Azure Update Manager. VM auto-patching uses Azure-defined windows, not customer-defined schedules. Azure Policy audit effects only report compliance, they do not patch VMs.",
+      "correct": 2,
+      "explanation": "Azure Update Manager is the current patching service: maintenance configurations support recurring schedules (e.g., last Sunday 02:00–06:00), broad scopes (subscription, management group, tag selector), and classification-based picks like Critical and Security. Update Management (classic) is the predecessor and is being retired in favour of Update Manager. Hotpatch on Windows Server Azure Edition installs patches without reboots but uses Microsoft-defined rings — admins do not pick the monthly window. An Azure Policy audit effect only flags non-compliant patch state; it does not orchestrate patching.",
       "tags": [
         "operations",
         "patching",
@@ -526,13 +526,13 @@
       "id": "az104-031",
       "question": "A global SaaS app has backends in East US AND West Europe. Requirements: route users to the geographically closest HEALTHY backend; fail over instantly to the other region on backend failure; terminate TLS at the edge with WAF inspection; anycast public IP rather than per-region DNS. Which front-end best fits all four?",
       "options": [
-        "Azure Traffic Manager — DNS-based at the resolver edge, no front-side anycast IP, no edge TLS termination",
-        "Azure Front Door + WAF",
-        "Azure Load Balancer Standard — regional, no front-of-network edge presence or WAF",
-        "Azure CDN Premium — caching-first front-of-network edge, no edge WAF policy of the same shape as Front Door WAF"
+        "Azure Traffic Manager with priority routing",
+        "Azure Load Balancer Standard with cross-region frontends",
+        "Azure CDN Premium configured in front of both regions",
+        "Azure Front Door with a WAF policy"
       ],
-      "correct": 1,
-      "explanation": "Azure Front Door is a global Layer 7 load balancer that combines: latency-based routing to the closest healthy origin, automatic health probing and failover, WAF policies (at the global entry point), DDoS protection, SSL offload, and CDN capabilities. Unlike Traffic Manager (which is DNS-based and does not process HTTP traffic), Front Door operates at the application layer and can inspect, modify, and route HTTP requests. This makes it the ideal single service for this scenario.",
+      "correct": 3,
+      "explanation": "Azure Front Door is a global Layer-7 edge service: anycast public IP, latency-based routing to the closest healthy origin, automatic failover on origin health probes, TLS termination at the edge, and Azure WAF integrated for OWASP rule enforcement. Traffic Manager is DNS-based — it returns the address of an endpoint to the resolver and never sees the HTTP request, so no edge TLS or WAF. Load Balancer Standard is regional Layer-4 and has no global anycast frontend. Azure CDN focuses on caching and does not provide the same edge-WAF feature Front Door does.",
       "tags": [
         "networking",
         "global-routing",
@@ -545,13 +545,13 @@
       "id": "az104-032",
       "question": "A security audit asks who deleted a production VM yesterday at 14:47 UTC and from which IP. The investigation must rely on a tenant-wide, immutable, default-on plane-of-record log. Which Azure log is the authoritative source?",
       "options": [
-        "Azure Activity Log entries for the subscription",
-        "Azure VM Boot Diagnostics console-output logs",
-        "Azure Network Watcher NSG flow-log archives",
-        "Azure Application Insights request and trace logs"
+        "The Azure Activity Log for the subscription",
+        "The VM's Boot Diagnostics console output",
+        "Network Watcher NSG flow log archives",
+        "Application Insights request and trace logs"
       ],
       "correct": 0,
-      "explanation": "Azure Activity Log records every subscription-level management-plane operation — who, what, when, where — for resource creation, modification, and deletion. Entries include caller (UPN or service principal), operation, timestamp, and result. Default retention is 90 days; export to Log Analytics or Storage for longer. Boot Diagnostics captures console output, Flow Logs record L4 traffic, App Insights records app telemetry — none are the control-plane log.",
+      "explanation": "The Azure Activity Log is the immutable, default-on, tenant-wide record of management-plane operations: every create, modify, and delete is logged with caller (UPN or service principal), timestamp, source IP, and result — the canonical 'who deleted what, when' source. Boot Diagnostics captures console output from a single VM and is unrelated to control-plane events. NSG flow logs record allowed and denied L4 flows on a subnet or NIC, not Resource Manager operations. Application Insights records application-side telemetry from instrumented code; it has no visibility into Azure resource lifecycle.",
       "tags": [
         "monitoring",
         "activity-log",
@@ -564,13 +564,13 @@
       "id": "az104-033",
       "question": "A high-performance computing (HPC) application requires shared file storage accessible by hundreds of Linux VMs simultaneously via NFS v4.1, with consistent sub-millisecond latency and throughput of over 1,000 MB/s. Which Azure storage service is designed for this workload?",
       "options": [
-        "Azure Files Premium shared SMB — managed but max throughput per share limits HPC shared workloads",
-        "Azure NetApp Files with NFS 4.1 protocol",
-        "Azure Disk shared mode — block-level shared disk, no POSIX file semantics for shared HPC reads",
-        "Azure Blob shared NFS 3.0 — shared object-store NFS, optimised for read-heavy not low-latency shared HPC writes"
+        "Azure Files Premium with the SMB protocol",
+        "Azure NetApp Files using NFS 4.1",
+        "Azure shared managed disks in shared mode",
+        "Azure Blob Storage exposed over NFS 3.0"
       ],
       "correct": 1,
-      "explanation": "Azure NetApp Files is an enterprise NAS service powered by NetApp hardware designed for latency-sensitive, high-throughput workloads. The Ultra service level provides 128 MB/s of throughput per TiB of provisioned capacity and sub-millisecond latency. It natively supports NFS v3 and NFS v4.1 for Linux workloads. For an HPC application requiring 1,000 MB/s, a sufficiently provisioned Ultra-tier volume (approximately 8 TiB at 128 MB/s/TiB) would meet requirements. Azure Files Premium uses SMB 3.x primarily (NFS 4.1 is also supported but throughput is lower). Shared Ultra Disks are designed for clustered applications, not hundreds of simultaneous NFS clients.",
+      "explanation": "Azure NetApp Files is an enterprise NAS service built on NetApp hardware; the Ultra service level provides sub-millisecond latency and 128 MB/s per provisioned TiB, scaling linearly to satisfy 1,000+ MB/s when sized appropriately. It natively supports NFS 3 and NFS 4.1 — the exact protocol the workload uses. Azure Files Premium is primarily SMB; NFS 4.1 is supported but with lower throughput ceilings than NetApp Files. Shared managed disks expose block storage to a small cluster, not a POSIX filesystem for hundreds of NFS clients. Blob NFS 3.0 targets read-heavy object workloads and does not deliver the consistent sub-millisecond latency for HPC writes.",
       "tags": [
         "storage",
         "hpc",
@@ -583,13 +583,13 @@
       "id": "az104-034",
       "question": "A CISO wants a SINGLE dashboard that surfaces (a) unpatched OS vulns per VM, (b) public-exposed storage accounts, (c) drift from CIS benchmarks, and (d) a numeric posture score that improves as recommendations are remediated. The score is the executive KPI. Which Azure feature is this?",
       "options": [
-        "Azure Monitor custom workbook — possible to build similar feature manually, lacks the named score + recommendations engine",
-        "Microsoft Defender for Cloud Secure Score and recommendations",
-        "Azure Policy compliance dashboard — shows policy pass/fail recommendations, no numeric posture-score feature",
-        "Microsoft Sentinel workbook — threat-hunting feature, not a posture recommendations engine"
+        "An Azure Monitor custom workbook",
+        "The Azure Policy compliance dashboard",
+        "Microsoft Defender for Cloud Secure Score",
+        "A Microsoft Sentinel workbook"
       ],
-      "correct": 1,
-      "explanation": "Microsoft Defender for Cloud (formerly Azure Security Center) provides Cloud Security Posture Management (CSPM). The Secure Score is a percentage representing how many security recommendations have been implemented out of the total available. Each recommendation is prioritized by potential security impact. The free CSPM tier covers Azure resources; enhanced Defender plans (Defender for Servers, Storage, Containers, etc.) add threat detection and advanced vulnerability scanning. Azure Policy measures regulatory compliance but does not provide the security posture scoring that Defender for Cloud does.",
+      "correct": 2,
+      "explanation": "Microsoft Defender for Cloud provides Cloud Security Posture Management — a unified dashboard with recommendations across VMs (unpatched vulnerabilities), storage (public exposure), and benchmark drift (CIS, ISO, NIST), together with a numeric Secure Score that rises as recommendations are remediated. An Azure Monitor workbook is a build-it-yourself report; it does not ship with the recommendations engine or the named score. The Azure Policy compliance dashboard shows pass/fail counts per policy assignment but has no Secure Score. A Sentinel workbook is for SIEM analytics over event logs, not posture recommendations.",
       "tags": [
         "security",
         "defender-for-cloud",
@@ -604,11 +604,11 @@
       "options": [
         "Azure Logic Apps with a recurrence trigger",
         "Azure Policy with a DeployIfNotExists effect",
-        "Azure Automation runbook with a schedule and tag query",
-        "Azure DevOps pipeline triggered by a cron schedule"
+        "An Azure DevOps pipeline triggered by a cron schedule",
+        "Azure Automation runbook with a schedule and tag query"
       ],
-      "correct": 2,
-      "explanation": "Azure Automation runbooks are PowerShell or Python scripts in an Automation Account that run on a schedule against a tag-based query (`Get-AzVM | Where-Object Tag.Environment -eq 'Dev'`). The runbook calls `Start-AzVM` / `Stop-AzVM`. Logic Apps could do it but cost more. Azure Policy enforces configuration compliance, not periodic start/stop. A DevOps pipeline works but couples ops to the build system.",
+      "correct": 3,
+      "explanation": "An Azure Automation runbook (PowerShell or Python) hosted in an Automation Account can run on a schedule, query Azure for VMs by tag, and call Start-AzVM / Stop-AzVM — the no-bespoke-infrastructure pattern Microsoft documents for this scenario. Logic Apps can express the same workflow but cost more per execution and add an extra service to the cost surface. Azure Policy enforces configuration compliance; it has no scheduling primitive that calls VM operations. A DevOps pipeline works but couples a routine cost-saving operation to the build system and licensing, which is operationally over-broad.",
       "tags": [
         "operations",
         "automation-account",
@@ -621,13 +621,13 @@
       "id": "az104-036",
       "question": "A user attempts self-service password reset and gets 'feature not enabled'. The admin needs the per-user / group / all-users setting that turns on SSPR for the tenant. Which feature is this?",
       "options": [
-        "Azure AD MFA registration policy — enrols users in self-managed MFA methods, doesn't enable SSPR self-service reset",
         "Azure AD Self-Service Password Reset (SSPR)",
-        "Azure AD Password Protection global banned list — prevents weak passwords at self-service change time, doesn't enable the SSPR self-service reset feature",
-        "Azure AD Identity Protection sign-in risk policy — gates risky sign-ins, doesn't enable the self-service password reset feature"
+        "Azure AD MFA registration policy",
+        "Azure AD Password Protection global banned list",
+        "Azure AD Identity Protection sign-in risk policy"
       ],
-      "correct": 1,
-      "explanation": "Self-Service Password Reset (SSPR) is the named feature toggled in Azure AD → Password reset. Identity Protection is a separate product. PRIOR VERSION HAD WRONG CORRECT-ANSWER INDEX (marked Identity Protection) — fixed 2026-05-13.",
+      "correct": 0,
+      "explanation": "Self-Service Password Reset is the named feature toggled in Azure AD → Password reset, scoped to None, Selected, or All users. Until SSPR is enabled, end users see the 'feature not enabled' message. The MFA registration policy enrols users in MFA methods but does not turn on SSPR. Password Protection blocks weak or banned passwords at change time but cannot enable the self-service flow. Identity Protection sign-in risk policies challenge or block risky sign-ins; they are unrelated to enabling the SSPR feature.",
       "tags": [
         "identity",
         "sspr",
@@ -640,13 +640,13 @@
       "id": "az104-037",
       "question": "A Conditional Access policy must BLOCK legacy authentication protocols (IMAP, POP3, SMTP AUTH, MAPI) because they bypass MFA. The policy must apply to all users and all cloud apps. Which condition + control combination achieves this?",
       "options": [
-        "Condition: all cloud apps, all authentication methods. Control: Require MFA — legacy authentication clients cannot satisfy MFA; they need Block access, not MFA",
-        "Condition: Client apps = Legacy authentication clients. Control: Block access",
-        "Condition: Sign-in risk = High. Control: Require MFA — risk-based; does not specifically target legacy authentication client protocols or block access to them",
-        "Condition: Device platform = Unknown. Control: Block access — too broad; blocks modern authentication on unknown platforms as well, not scoped to legacy authentication"
+        "Condition: all cloud apps; Control: Require MFA",
+        "Condition: Client apps = Legacy authentication clients; Control: Block access",
+        "Condition: Sign-in risk = High; Control: Require MFA",
+        "Condition: Device platform = Unknown; Control: Block access"
       ],
       "correct": 1,
-      "explanation": "The 'Client apps' condition in Conditional Access can target specific authentication flows. Selecting 'Legacy authentication clients' (which covers Exchange ActiveSync and other older protocols that use basic authentication) and applying a 'Block access' control prevents any sign-in using those protocols. Simply requiring MFA for legacy auth would not help because legacy protocols cannot perform MFA challenges — they must be blocked outright. This is a critical security configuration as legacy authentication is a common attack vector for password spray attacks.",
+      "explanation": "The Client apps condition in Conditional Access can target the legacy authentication client category (basic-auth flows used by older IMAP, POP, SMTP AUTH and MAPI clients) — pairing it with Block access stops those sign-ins outright. Requiring MFA does not help because basic-auth protocols cannot present an MFA challenge — they simply fail without remediation. Sign-in risk targets compromised behaviour rather than the legacy protocol family. Filtering by unknown device platform is over-broad and also blocks modern authentication on unrecognised devices.",
       "tags": [
         "identity",
         "conditional-access",
@@ -659,13 +659,13 @@
       "id": "az104-038",
       "question": "VMs in an app subnet need OUTBOUND internet connectivity (e.g., to update servers, call SaaS APIs) without each VM having its own public IP. NO inbound from internet is required. The solution must be (a) managed-PaaS, (b) high-throughput, (c) without per-VM NIC public IPs. Which Azure service?",
       "options": [
-        "Azure LB Standard with outbound rules attached to the subnet — possible but the LB frontend is sized for inbound + outbound; high SNAT port exhaustion risk at scale",
-        "Azure NAT Gateway attached to the subnet — managed outbound-only NAT, SNATs to its public IPs, high port-allocation budget",
-        "Azure Firewall in the hub VNet attached to a dedicated subnet — works for egress with high inspection cost; heavy-weight when no packet inspection is needed",
-        "Assign a public IP to every VM NIC in the subnet — exactly what the requirement forbids; not a subnet-level high-capacity NAT solution"
+        "Azure Load Balancer Standard with outbound rules on the subnet",
+        "Azure Firewall in a hub VNet attached to a dedicated subnet",
+        "An Azure NAT Gateway attached to the subnet",
+        "A public IP assigned to every VM NIC in the subnet"
       ],
-      "correct": 1,
-      "explanation": "NAT Gateway is the modern, managed, outbound-only NAT for Azure subnets — no per-VM public IP, no inbound exposure, much higher SNAT-port budget than LB outbound rules. PRIOR VERSION HAD WRONG CORRECT-ANSWER INDEX (marked Azure Firewall, which is overkill when no inspection is required) — fixed 2026-05-13.",
+      "correct": 2,
+      "explanation": "NAT Gateway is the managed, outbound-only NAT for a subnet: VMs share its public IPs for egress, no inbound exposure is created, and the SNAT port budget is far higher than what Load Balancer outbound rules give before exhaustion at scale. Load Balancer outbound rules work but were sized for combined inbound/outbound and exhaust SNAT ports under high concurrency. Azure Firewall provides egress with packet inspection, which is heavy-weight when the scenario has no inspection requirement. Assigning a public IP per NIC is exactly what the scenario forbids.",
       "tags": [
         "networking",
         "nat-gateway",
@@ -678,13 +678,13 @@
       "id": "az104-039",
       "question": "A globally distributed app routes users by their RESOLVER'S geographic location: European resolvers get the EU backend pool, North-American resolvers get the NA pool. Routing must happen at DNS resolution, not via anycast. Which Traffic Manager routing method?",
       "options": [
-        "Weighted routing — distributes traffic by weight ratio across each endpoint pool, not by the geographic origin of the user or resolver",
-        "Performance routing — picks the lowest-latency endpoint per resolver; geographic-correlated but does not deterministically map a geographic region to a specific pool",
-        "Priority routing — primary/standby failover order across the pool; not triggered by the geographic location of the caller or resolver",
-        "Geographic routing — explicit mapping from caller geography (resolver country/region) to endpoint pool"
+        "Weighted routing across the regional endpoint pool",
+        "Performance routing to the lowest-latency endpoint",
+        "Priority routing across the regional endpoints",
+        "Geographic routing mapping resolver location to endpoint"
       ],
       "correct": 3,
-      "explanation": "Geographic routing in Azure Traffic Manager maps user DNS queries to specific endpoints based on the geographic location of the DNS resolver. Users in Europe are routed to European endpoints; users in Asia to Asian endpoints. When combined with endpoint health probes, Traffic Manager can automatically exclude unhealthy endpoints, causing the next applicable geographic mapping to be used. Performance routing routes to the lowest-latency endpoint globally (not strictly by continent). Geographic routing is the correct choice when you need deterministic regional assignment regardless of latency.",
+      "explanation": "Geographic routing maps the resolver's geographic location (country, sub-continent, world region) to a specific Traffic Manager endpoint — Europe goes to the EU pool, North America goes to the NA pool — deterministically. Weighted routing splits traffic by ratio with no geographic logic. Performance routing picks the lowest-latency endpoint, which correlates with geography but does not guarantee a continent-to-pool mapping. Priority routing is a primary/standby failover pattern, not a geographic-mapping pattern.",
       "tags": [
         "networking",
         "traffic-manager",
@@ -697,13 +697,13 @@
       "id": "az104-040",
       "question": "An organisation runs Azure Private DNS zones alongside on-prem DNS. Both sides must resolve each other: on-prem clients must reach `*.privatelink.blob.core.windows.net` records in Azure Private DNS, and Azure VMs must resolve internal on-prem zones via conditional forwarders. Which managed service supports this bidirectional hybrid resolution?",
       "options": [
-        "Azure DNS Private Resolver",
-        "Azure Firewall with DNS proxy enabled",
+        "Azure DNS Private Resolver with inbound and outbound endpoints",
+        "Azure Firewall with DNS proxy enabled in the hub VNet",
         "An Azure Private DNS zone linked to every VNet",
-        "Azure VPN Gateway running BGP across the tunnel"
+        "An Azure VPN Gateway running BGP across the tunnel"
       ],
       "correct": 0,
-      "explanation": "Azure DNS Private Resolver is the managed PaaS replacement for the old DNS-forwarder-VM pattern. Inbound endpoints answer queries from on-prem; outbound endpoints with rule sets forward designated zones to on-prem resolvers. Firewall DNS proxy can proxy but isn't the documented hybrid resolver. Private DNS zones with VNet links are Azure-only. VPN/BGP is routing, not DNS.",
+      "explanation": "Azure DNS Private Resolver is the managed PaaS replacement for the legacy DNS-forwarder VM. Inbound endpoints answer queries from on-premises (giving on-prem resolvers a way to reach Azure Private DNS records), and outbound endpoints with forwarding rule sets forward designated zones to on-prem resolvers — covering both directions. Azure Firewall DNS proxy can forward DNS but does not provide the bidirectional resolver pattern with rule-set forwarding. Private DNS zones are Azure-internal and do not answer on-prem queries directly. VPN Gateway BGP advertises IP routes, not DNS resolution.",
       "tags": [
         "networking",
         "private-resolver",
@@ -716,13 +716,13 @@
       "id": "az104-041",
       "question": "A VMSS autoscale rule (add 2 VMs when CPU > 75% for 10 minutes) is OSCILLATING — brief CPU spikes trigger scale-out, cooldown lets scale-in fire on quiet periods, and the pattern repeats. The daily traffic is highly predictable (busy 09:00-17:00 weekdays, idle otherwise). Which approach removes the oscillation while still scaling for the predictable load?",
       "options": [
-        "Raise the CPU scale-out threshold from 75% to 95% — still reactive metric-based scaling; does not switch to a schedule-based approach for predictable load",
-        "Increase the autoscale cooldown period to 30 minutes — slows reactive scaling oscillation but keeps metric-based scaling; does not implement a schedule-based profile",
-        "Remove the scale-in rule and keep the scale-out rule — avoids scale-in flapping but prevents any scheduled scaling down during off-peak periods",
-        "Switch to a schedule-based scaling profile by hour"
+        "Raise the CPU scale-out threshold from 75% to 95%",
+        "Switch to a schedule-based scaling profile by hour of day",
+        "Increase the autoscale cooldown period to 30 minutes",
+        "Remove the scale-in rule and keep only the scale-out rule"
       ],
-      "correct": 3,
-      "explanation": "When the demand pattern is predictable, schedule-based scaling is the right primitive — set capacity 10 at 09:00 and 3 at 17:00 on weekdays. That removes reactive flapping entirely. Raising the threshold is still reactive, larger cooldowns slow flapping but don't fix the wrong basis, and disabling scale-in creates permanent over-scale.",
+      "correct": 1,
+      "explanation": "When demand is predictable (09:00–17:00 weekdays busy, otherwise idle), schedule-based scaling profiles — for example, capacity 10 between 09:00 and 17:00, capacity 3 otherwise — set the right capacity directly and remove the metric-driven oscillation entirely. Raising the threshold keeps the reactive logic; transient spikes still trip it. Larger cooldowns slow the oscillation but do not address the wrong basis. Removing the scale-in rule prevents scale-down forever, which wastes capacity during the predictable idle window.",
       "tags": [
         "compute",
         "autoscale",
@@ -735,13 +735,13 @@
       "id": "az104-042",
       "question": "A NON-CRITICAL batch workload CAN tolerate interruption (it checkpoints every 5 min and resumes elsewhere if evicted). The team wants the LARGEST possible cost discount on the compute. Which pricing model fits?",
       "options": [
-        "Reserved Instance 1-year — heavy discount but locked to predictable steady workload; ill-suited to an interruptible burst job",
+        "Reserved Instance with a 1-year commitment",
+        "Azure Savings Plan for Compute with a 1-year commitment",
         "Azure Spot VMs",
-        "Azure Savings Plan for Compute — commitment-based discount, but not the interruption-tolerant maximum-discount tier",
-        "Pay-as-you-go with auto-shutdown — no discount on the compute hour itself"
+        "Pay-as-you-go with auto-shutdown outside business hours"
       ],
-      "correct": 1,
-      "explanation": "Spot VMs trade availability for cost — up to ~90% off list. Eviction notice is 30 s. Perfect for interruption-tolerant work with checkpointing. Reserved Instances are for STEADY workloads; the question explicitly says non-critical / interruptible. PRIOR VERSION HAD WRONG CORRECT-ANSWER INDEX — fixed 2026-05-13.",
+      "correct": 2,
+      "explanation": "Spot VMs trade availability for cost — Azure can evict them with about 30 seconds' notice and they price at up to ~90% off pay-as-you-go, exactly the deepest-discount tier for interruptible, checkpoint-friendly workloads. Reserved Instances and Savings Plans require a 1- or 3-year commitment to steady-state usage and target predictable workloads, not bursty interruptible ones. Pay-as-you-go with auto-shutdown does not discount the hourly compute rate; it only avoids billing during the off hours.",
       "tags": [
         "compute",
         "spot-vms",
@@ -754,13 +754,13 @@
       "id": "az104-043",
       "question": "Two VMs (an app server and a latency-sensitive database) must be deployed with the lowest possible inter-VM network latency in the same region. Same Availability Zone is not specific enough — within an AZ, VMs can sit in different physical buildings. Which Azure feature physically co-locates the VMs in the same data-centre row?",
       "options": [
-        "Place both VMs in the same Availability Set",
-        "Place both VMs in the same Availability Zone",
-        "Place both VMs in the same Proximity Placement Group",
-        "Place both VMs in the same Azure resource group"
+        "Place both VMs in the same Azure Availability Set",
+        "Place both VMs in the same Azure Availability Zone",
+        "Place both VMs in the same Azure resource group",
+        "Place both VMs in the same Azure Proximity Placement Group"
       ],
-      "correct": 2,
-      "explanation": "A Proximity Placement Group is the scheduler hint that pins co-deployment in the same physical proximity — same data-centre row or cluster — which gives the lowest network latency Azure can offer. Availability Sets deliberately spread fault/update domains (the opposite goal). Same AZ narrows region but not row. Resource groups are logical containers without placement effect.",
+      "correct": 3,
+      "explanation": "A Proximity Placement Group is a scheduler hint that co-locates VMs in the same physical data-centre row or cluster, giving the lowest inter-VM network latency Azure offers. Availability Sets deliberately spread VMs across fault and update domains — the opposite goal. The same Availability Zone narrows region to a zone but the VMs can still land in different buildings within that zone. Resource groups are logical containers and have no placement effect on hardware.",
       "tags": [
         "compute",
         "proximity-placement-group",
@@ -773,13 +773,13 @@
       "id": "az104-044",
       "question": "A Windows dev team needs to share config files and binaries across multiple Azure VMs via SMB 3.x, with Active-Directory-DS authentication (not just a storage-account key), and a fully managed service (no file-server VM to operate). Which storage service fits all three?",
       "options": [
-        "Azure Blob with NFS 3.0 — NFS authentication for Linux, no SMB/AD authentication for Windows",
-        "Azure Files (Standard or Premium) with AD-DS authentication",
-        "Azure NetApp Files SMB 3.x with AD-DS authentication — also AD-DS authentication capable, premium-priced specialty service",
-        "Azure Shared Managed Disk — block storage with no SMB/file authentication concept at all"
+        "Azure Files (Standard or Premium) with AD DS authentication",
+        "Azure NetApp Files SMB 3.x volumes with AD DS authentication",
+        "Azure Blob Storage exposed over NFS 3.0",
+        "Azure shared managed disks attached to the VMs"
       ],
-      "correct": 1,
-      "explanation": "Azure Files provides fully managed SMB file shares in the cloud. It supports SMB 3.x protocol, which is compatible with Windows VMs. Azure Files supports identity-based access control via on-premises Active Directory Domain Services (AD DS) or Azure AD DS, allowing users and VMs to authenticate with their existing AD credentials. This replaces traditional Windows file servers. Azure NetApp Files also supports SMB but is enterprise NAS for high-performance workloads and is more expensive. Blob Storage's NFS 3.0 support is for Linux workloads only.",
+      "correct": 0,
+      "explanation": "Azure Files is the managed SMB file share: it speaks SMB 3.x, supports identity-based access through on-prem AD DS (or Azure AD DS), and is fully managed — no file server VM to operate. Azure NetApp Files also supports SMB with AD DS but is enterprise NAS for high-performance workloads at premium pricing, more than the scenario calls for. Blob NFS 3.0 targets Linux and has no SMB or AD DS authentication. Shared managed disks expose block storage with no SMB or file-level authentication semantics.",
       "tags": [
         "storage",
         "file-shares",
@@ -792,13 +792,13 @@
       "id": "az104-045",
       "question": "An external partner needs READ access to a SPECIFIC blob container for 48 hours, after which the access must expire automatically. The grant must be (a) scoped to that container only, (b) auto-expiring, (c) NOT require the partner have a Microsoft account, (d) NEVER expose your storage account key. Which mechanism?",
       "options": [
-        "Share the storage-account access key — not scoped to a container; exposes FULL ACCOUNT access; the OPPOSITE of (a) and (d) — NEVER do this",
-        "Generate a Shared Access Signature (SAS) token scoped to that container, with 48-hour expiry — meets all four constraints",
-        "Create a Guest user in Azure AD and grant Storage Blob Data Reader scoped to the container — requires the partner to have an MS-identity account and provides durable access, not a 48-hour scoped token",
-        "Enable anonymous public read scoped to that container — exposes the container to EVERYONE on the internet, not a scoped partner-only grant"
+        "Share the storage account access key with the partner",
+        "Generate a Shared Access Signature scoped to the container with 48-hour expiry",
+        "Create an Azure AD Guest user and assign Storage Blob Data Reader on the container",
+        "Enable anonymous public read access scoped to the container"
       ],
       "correct": 1,
-      "explanation": "Shared Access Signatures (SAS) grant time-limited, scope-limited delegated access. Account-level vs. service-level vs. user-delegation SAS — all options here are the user-delegation/service-SAS pattern. Sharing the account key gives FULL CONTROL of the storage account and is a SECURITY ANTI-PATTERN. PRIOR VERSION HAD WRONG CORRECT-ANSWER INDEX (marked account-key sharing — a security incident waiting to happen) — fixed 2026-05-13.",
+      "explanation": "A Shared Access Signature can be scoped to a single container, restricted to read, time-bound to 48 hours, and signed with either a storage-account key or — better — a user-delegation key. The partner needs no Microsoft account, and the storage-account key never leaves the tenant. Sharing the storage account key grants full control of the entire account and is a known security anti-pattern. A Guest user works but requires the partner to have a Microsoft identity and the grant does not auto-expire after 48 hours. Anonymous public read exposes the container to the entire internet, not only the partner.",
       "tags": [
         "storage",
         "sas",
@@ -811,13 +811,13 @@
       "id": "az104-046",
       "question": "Blobs older than 90 days must move to Cool, blobs older than 365 days must move to Archive, and blobs older than 7 years must be deleted. The team wants a declarative policy, not custom code or runbooks. Which Azure Storage feature delivers this?",
       "options": [
-        "An Azure Data Factory pipeline triggered by blob storage events — custom ETL code; not a declarative storage-native tier-transition policy",
+        "An Azure Data Factory pipeline triggered by blob storage events",
+        "Azure Blob versioning combined with a storage retention policy",
         "An Azure Storage lifecycle management policy",
-        "Azure Blob versioning combined with a storage retention policy — manages blob history retention; not a tiering policy that moves blobs between storage tiers on an age schedule",
-        "An Azure Automation runbook on a daily schedule calling the storage SDK — custom code; not a declarative storage-native lifecycle policy"
+        "An Azure Automation runbook on a daily schedule calling the SDK"
       ],
-      "correct": 1,
-      "explanation": "Lifecycle management policies are the storage-native, declarative answer: JSON rules per filter (prefix, blob type, days since last-modified) that transition between tiers or delete. Policies run daily at no extra cost. Versioning controls history retention, not tiering. Data Factory and runbooks could re-implement the feature but add operational complexity.",
+      "correct": 2,
+      "explanation": "Lifecycle management policies are the storage-native, declarative way to age blobs: JSON rules filter by prefix or blob type and act on 'days since last modified' to transition tiers (to Cool, Cold, Archive) or delete the blob. Policies run daily at no extra cost. Versioning controls how many revisions are kept, not where data lives. A Data Factory pipeline or an Automation runbook can re-implement the behaviour with custom code, but the storage service ships the declarative feature for this exact scenario.",
       "tags": [
         "storage",
         "lifecycle-management",
@@ -830,13 +830,13 @@
       "id": "az104-047",
       "question": "An Azure Monitor metric alert fires when a VM scale set's average CPU exceeds 85% for 5 minutes. The team needs the alert to also (a) email two on-call DLs, (b) post to a webhook, (c) run a Logic App. Where is the email + webhook + Logic App configured — separately from the alert condition?",
       "options": [
-        "In the alert rule's condition settings page — sets metric/threshold, not the email/webhook/logic-app delivery channel",
-        "In an Action Group associated with the alert rule",
-        "In Azure Monitor diagnostic settings — routes raw logs, doesn't deliver alerts via email/webhook/logic app",
-        "In the scale-set's autoscale rule — scales the resource, no email/webhook/logic-app delivery"
+        "In the alert rule's condition settings page",
+        "In an Azure Monitor diagnostic setting on the resource",
+        "In the scale set's autoscale rule",
+        "In an Action Group associated with the alert rule"
       ],
-      "correct": 1,
-      "explanation": "In Azure Monitor, alert rules define when to fire an alert (condition, threshold, evaluation window), while Action Groups define what happens when an alert fires. An Action Group contains one or more action types: email/SMS notifications, Azure Function, Logic App, Automation Runbook, webhook, ITSM connector, and more. Multiple alert rules can share the same Action Group. This separation of concerns allows you to reuse notification configurations across many alert rules and modify notification recipients without changing alert conditions.",
+      "correct": 3,
+      "explanation": "Azure Monitor splits alert design into two pieces: the alert rule defines when to fire (metric, threshold, evaluation window) and an Action Group defines what happens when it fires (email, SMS, webhook, Logic App, Azure Function, Automation runbook, ITSM connector). Multiple alert rules can share one Action Group, which is exactly the reuse pattern the scenario implies. The condition settings page chooses signal and threshold, not delivery. Diagnostic settings route raw logs, not alerts. Autoscale rules add or remove instances; they do not deliver notifications.",
       "tags": [
         "monitoring",
         "alerts",
@@ -849,13 +849,13 @@
       "id": "az104-048",
       "question": "An admin wants a shared, persistent, drag-and-drop visual surface in the Azure portal that combines (a) Log Analytics KQL query tiles, (b) Azure Monitor metric charts, (c) resource health tiles for selected resources. The artefact should be portal-resident and pinnable, not a workbook with parameter-driven interactivity. Which artefact?",
       "options": [
-        "Azure Monitor Alerts summary blade — a fixed list of alerts; not a drag-and-drop pinnable shared dashboard surface",
-        "Azure Monitor Workbooks — interactive parameterised reports; a different artefact from a drag-and-drop pinnable shared portal dashboard surface",
-        "Azure Dashboard (shared portal dashboard) — the drag-and-drop pinnable surface in the portal",
-        "Log Analytics workspace overview blade — workspace-scoped overview; not a cross-resource drag-and-drop pinnable shared dashboard surface"
+        "A shared Azure portal dashboard (drag-and-drop, pinnable)",
+        "The Azure Monitor Alerts summary blade",
+        "An Azure Monitor Workbook",
+        "The Log Analytics workspace overview blade"
       ],
-      "correct": 2,
-      "explanation": "Azure Monitor Workbooks provide a flexible canvas for combining multiple data types: KQL log queries, metric charts, resource health, text, links, and parameters. Workbooks are interactive (parameters drive queries dynamically) and can be shared across the organization. They are ideal for creating custom operational runbooks, incident reports, and application health dashboards. Azure Portal shared dashboards can include metric charts but lack the KQL query and interactive parameter capabilities of Workbooks. Workbooks are available within both Azure Monitor and resource blades.",
+      "correct": 0,
+      "explanation": "A shared Azure portal dashboard is the drag-and-drop, pinnable surface that combines tiles from many resources — KQL query tiles, metric charts, resource health tiles — and persists for the team. Workbooks are interactive, parameter-driven reports — a different artefact whose interactivity the scenario explicitly says it does not need. The Alerts summary blade lists alerts only and is not a customisable visual canvas. The Log Analytics overview blade is scoped to one workspace and is not a cross-resource pinnable surface.",
       "tags": [
         "monitoring",
         "dashboards",
@@ -868,13 +868,13 @@
       "id": "az104-049",
       "question": "Azure Policy enforces that every resource in a subscription MUST have a `CostCenter` tag. A new storage account is created with no tag — the deployment FAILS with a policy-violation error rather than silently logging. Which Policy effect produces this immediate-fail behaviour?",
       "options": [
-        "Audit — logs non-compliance at submission time but does NOT block the resource; no immediate-fail behaviour",
-        "Deny — denies the resource at submission time, exactly the immediate-fail behaviour",
-        "Modify — automatically adds or updates the tag at submission time; does not deny or produce an immediate-fail behaviour",
-        "DeployIfNotExists — deploys a related resource after creation if missing; no deny or immediate-fail behaviour at submission time"
+        "Audit",
+        "Deny",
+        "Modify",
+        "DeployIfNotExists"
       ],
       "correct": 1,
-      "explanation": "The Modify effect in Azure Policy adds, updates, or removes tags on resources during creation or update operations. Unlike Deny (which blocks deployments missing the tag) or Audit (which only flags non-compliance), Modify actively alters the resource's properties to bring it into compliance. A Modify policy can add a 'CostCenter' tag with a default value when one is not provided. The policy requires a managed identity with Contributor rights to make modifications. DeployIfNotExists is used to deploy additional resources, not to modify tags on the deployed resource itself.",
+      "explanation": "The Deny effect rejects a resource at submission time when the policy condition fails — exactly the immediate-fail behaviour the scenario describes. Audit logs the non-compliance but lets the deployment succeed. Modify changes the resource on the way through, typically adding a missing tag with a default value, so the deployment succeeds rather than fails. DeployIfNotExists triggers a separate post-deployment task to deploy a related resource — it does not block the initial submission.",
       "tags": [
         "governance",
         "azure-policy",
@@ -887,13 +887,13 @@
       "id": "az104-050",
       "question": "An enterprise has dozens of subscriptions under nested management groups. The CISO requires a policy that EVERY existing subscription AND every future subscription must inherit, with a SINGLE assignment to maintain. Which scope satisfies the requirement?",
       "options": [
-        "Assign the policy to each subscription individually — does not include future subscriptions automatically; multiple assignments to manage",
-        "Assign the policy at the Root (Tenant) Management Group level",
-        "Assign the policy at each resource group scope — wrong scope, no subscription-level future inheritance",
-        "Configure the rule in Microsoft Defender for Cloud — its own management UI, NOT an Azure Policy assignment"
+        "Assign the policy to each subscription individually",
+        "Assign the policy at each resource group scope",
+        "Assign the policy at the Tenant Root Management Group",
+        "Configure the rule in Microsoft Defender for Cloud's posture engine"
       ],
-      "correct": 1,
-      "explanation": "Azure Policy assignments inherit DOWNWARD through the management-group hierarchy. Assigning at the Tenant Root MG means every subscription — current and future — receives the policy automatically. Per-subscription assignment doesn't auto-include new subscriptions. Defender enforces its OWN recommendations, not arbitrary policies. NOTE: prior version had wrong correct-answer index — fixed 2026-05-13.",
+      "correct": 2,
+      "explanation": "Azure Policy assignments inherit downward through the management-group hierarchy, so an assignment at the Tenant Root MG applies to every current subscription and, automatically, every future subscription created under that tenant — one assignment, no future maintenance. Per-subscription assignments need to be re-applied to each new subscription, which the scenario explicitly rejects. Resource group scope is below subscription level and does not inherit upward to new subscriptions. Defender for Cloud has its own recommendations engine; configuring a rule there does not translate into an Azure Policy assignment across subscriptions.",
       "tags": [
         "governance",
         "azure-policy",
@@ -906,13 +906,13 @@
       "id": "az104-051",
       "question": "An organisation wants to enforce a STANDARD packaged Azure environment for every new project: a defined set of RBAC role assignments + resource groups + Policy assignments + ARM templates, deployed as a single VERSIONED package. New projects pick a version of the package. Which AZURE-NATIVE feature was purpose-built for this 'enterprise environment template' role?",
       "options": [
-        "ARM templates alone — covers resource deployment environment but not packaged RBAC + policies as a versioned assignable environment unit",
-        "Azure Blueprints (or its successor, Deployment Stacks / Environment Templates) — versioned packages of RBAC + policy + RG + templates",
-        "Azure Policy initiative alone — packages POLICIES into an assignable unit but not RBAC / RG / ARM templates together as a complete project environment",
-        "Terraform modules with shared state — third-party IaC that can deploy any environment; not the AZURE-NATIVE versioned environment-package feature the question asks for"
+        "ARM templates alone deployed per project",
+        "An Azure Policy initiative grouping the policies only",
+        "A Terraform module shared across projects via remote state",
+        "Azure Blueprints (or its successor, Deployment Stacks)"
       ],
-      "correct": 1,
-      "explanation": "Azure Blueprints (being superseded by Deployment Stacks / Environment Templates in 2026) is the Azure-native versioned package of RBAC + policy + RG + ARM templates. Terraform is a valid 3rd-party alternative but not the answer when the question specifies Azure-native. PRIOR VERSION HAD WRONG CORRECT-ANSWER INDEX (marked Terraform) — fixed 2026-05-13.",
+      "correct": 3,
+      "explanation": "Azure Blueprints — being superseded by Deployment Stacks — is the Azure-native, versioned package of RBAC role assignments, resource groups, Azure Policy assignments, and ARM templates assigned as a single environment. New projects pick a published version. ARM templates alone cover resource deployment but not RBAC and policy as a packaged unit. A Policy initiative packages policies only — no RBAC, RGs, or ARM templates in the bundle. Terraform modules can re-implement the same pattern but are third-party tooling, not the Azure-native answer the scenario asks for.",
       "tags": [
         "governance",
         "blueprints",
@@ -925,13 +925,13 @@
       "id": "az104-052",
       "question": "A finance team wants an email plus Action Group alert when an Azure subscription's monthly spend hits 80% of the forecast, with a hard alert at 100%. The control must sit per-subscription, with thresholds at 50/80/100% configurable. Which feature provides this directly?",
       "options": [
-        "Azure Monitor metric alert rules on subscription cost — Monitor metric alerts target resource metrics; no native budget alert thresholds on subscription spend",
-        "Azure Cost Management budgets with alert thresholds",
-        "Azure Advisor cost-optimization recommendations — surfaces saving opportunities; no configurable budget alert thresholds on subscription spend",
-        "An Azure Policy with a 'cost' effect on the subscription — no 'cost' policy effect exists; Azure Policy cannot set budget alert thresholds"
+        "Azure Cost Management budgets with percentage alert thresholds",
+        "Azure Monitor metric alert rules on subscription cost",
+        "Azure Advisor cost-optimization recommendations",
+        "An Azure Policy with a 'cost' effect on the subscription"
       ],
-      "correct": 1,
-      "explanation": "Cost Management budgets are purpose-built for percentage-of-budget alerts (50/80/100% etc.), scoped to subscription, resource group, or management group, with email and Action Group integration. Azure Monitor metric alerts operate on resource metrics, not subscription cost. Advisor surfaces long-term recommendations. Azure Policy has no 'cost' effect.",
+      "correct": 0,
+      "explanation": "Cost Management budgets are purpose-built for percentage-of-budget alerting (50/80/100% configurable) scoped to a subscription (or RG or management group) with email and Action Group integration. Azure Monitor metric alerts target resource metrics, not subscription cost. Azure Advisor surfaces long-term cost-saving recommendations but does not raise budget threshold alerts. Azure Policy has no 'cost' effect — its effects are limited to Audit, Deny, Modify, Append, DeployIfNotExists, AuditIfNotExists, and DisabledIfNotExists.",
       "tags": [
         "cost-management",
         "budgets",
@@ -944,13 +944,13 @@
       "id": "az104-054",
       "question": "A CI/CD pipeline builds container images and needs a private registry in Azure for distribution. Requirements: (a) Docker / OCI image format, (b) integrated AAD auth + managed identities, (c) geo-replicated across regions, (d) AKS / Container Apps pull-side support. Which Azure service?",
       "options": [
-        "Azure Blob Storage with 'Docker layer caching' — Blob is object storage; NOT a Docker / OCI image registry and not AAD-integrated for image pulls",
-        "Docker Hub private repo with AAD-integrated identity — Docker Hub is a 3rd-party SaaS; not Azure-native or directly AAD-integrated for managed identities",
-        "Azure Container Registry (ACR) — private OCI image registry, AAD-integrated, geo-replication, premium SKU, AKS-native",
-        "Azure Container Apps built-in image registry — Container Apps doesn't expose a separate AAD-integrated registry; it pulls images FROM ACR"
+        "Azure Blob Storage with Docker layer caching",
+        "Azure Container Registry",
+        "Docker Hub private repository linked to AAD",
+        "The Azure Container Apps built-in image registry"
       ],
-      "correct": 2,
-      "explanation": "ACR is the Azure-native OCI image registry with AAD auth, geo-replication, content-trust, and AKS pull integration. Blob storage is OBJECT storage and does not implement the OCI registry protocol. PRIOR VERSION HAD WRONG CORRECT-ANSWER INDEX (marked Blob) — fixed 2026-05-13.",
+      "correct": 1,
+      "explanation": "Azure Container Registry is the Azure-native, OCI-compliant private image registry: Entra ID integration with managed identities, geo-replication across regions on the Premium SKU, content trust, vulnerability scanning, and first-class AKS and Container Apps pull integration. Blob Storage is generic object storage — it does not implement the OCI registry protocol. Docker Hub is third-party SaaS and is not natively Entra ID-integrated with managed identities. Container Apps consumes images from ACR; it does not expose its own AAD-integrated registry.",
       "tags": [
         "containers",
         "acr",
@@ -963,13 +963,13 @@
       "id": "az104-055",
       "question": "A DevOps team wants ACR to AUTOMATICALLY rebuild a container image when code is pushed to the GitHub repo source. The build should run inside ACR (no external CI runner) and push the resulting image into the same registry. Which feature?",
       "options": [
-        "ACR Tasks with a source-code trigger (Git webhook) — build, test, and push run inside ACR on each push",
-        "AKS Flux GitOps continuous deployment — deploys MANIFESTS from source code; does not build container images inside ACR",
-        "Azure DevOps pipeline with ACR push — compiles source code outside of ACR on an external pipeline runner before pushing the image",
-        "ACR geo-replication webhook trigger — replicates built images between regions; does not compile source code or trigger an inside-ACR build"
+        "An Azure DevOps pipeline configured to push to ACR",
+        "AKS Flux GitOps continuous deployment",
+        "ACR Tasks with a Git source-code trigger",
+        "ACR geo-replication webhook trigger"
       ],
-      "correct": 0,
-      "explanation": "ACR Tasks is a suite of features within Azure Container Registry that automates container image builds and maintenance. A 'quick task' builds images on demand; a task with a 'source code trigger' automatically builds a new image when code is committed to a connected GitHub, Azure Repos, or Bitbucket repository (via webhook). Tasks can also trigger on base image updates. This eliminates the need for a separate CI server just for building and pushing container images. ACR Tasks run in Azure on managed compute, not on your own infrastructure.",
+      "correct": 2,
+      "explanation": "ACR Tasks lets you register a Git source — GitHub, Azure Repos, Bitbucket — and a Dockerfile path; on each push, ACR webhooks itself, builds the image on managed compute inside the registry, and pushes the result. An Azure DevOps pipeline compiles outside ACR on its own pipeline runner before pushing, which violates the 'no external CI runner' constraint. Flux deploys manifests pointing at already-built images; it does not build images. ACR geo-replication webhooks fire on push to keep replicas in sync — they do not build new images.",
       "tags": [
         "containers",
         "acr-tasks",
@@ -982,13 +982,13 @@
       "id": "az104-056",
       "question": "A regional ransomware incident has corrupted the in-region recovery points of a Recovery Services vault (the attacker had vault-contributor and triggered point deletion before locking the data). The vault is configured with cross-region geo-redundancy. Which recovery option uses the OUT-OF-REGION copy that the attacker could not reach?",
       "options": [
-        "Instant Restore from a snapshot copy in the same region — the same region was compromised; the snapshot copy is in the affected area",
-        "Cross-Region Restore from the paired-region copy",
-        "File-level recovery to mount a 3-day-old disk from the same-region cross-snapshot — still relies on the compromised in-region recovery points, not the cross-region copy",
-        "ASR failover into the paired region using the cross-region replica — ASR replicates running VMs, not Backup-vault cross-region recovery point data"
+        "Instant Restore from a snapshot copy in the same region",
+        "File-level recovery mounting a 3-day-old disk from the same region",
+        "ASR failover into the paired region using the cross-region replica",
+        "Cross-Region Restore from the paired-region copy"
       ],
-      "correct": 1,
-      "explanation": "Cross-Region Restore reads from the paired-region COPY of the vault's data (enabled with geo-redundant storage on the vault). In a regional ransomware scenario where in-region recovery points are touched, the paired-region copy is the recovery surface of last resort. Soft-delete + immutable vaults are now the recommended belt-and-braces. PRIOR VERSION HAD WRONG CORRECT-ANSWER INDEX — fixed 2026-05-13.",
+      "correct": 3,
+      "explanation": "Cross-Region Restore reads the paired-region copy that Recovery Services vaults maintain when geo-redundant storage is enabled, so the restore source is outside the compromised region. Instant Restore reads in-region snapshots — the same surface the attacker corrupted. File-level recovery against an in-region recovery point relies on the same compromised data. Azure Site Recovery replicates running VMs for DR failover; it is a separate product and is not the recovery surface for backup recovery points.",
       "tags": [
         "backup",
         "disaster-recovery",
@@ -1001,13 +1001,13 @@
       "id": "az104-057",
       "question": "A VM backup policy must support: daily snapshots retained 30 days, weekly (Sunday) retained 12 weeks, monthly (1st Sunday) retained 18 months, yearly (1st Sunday of January) retained 7 years, AND multiple-backups-per-day. Which Azure VM backup policy SUBTYPE supports all of these in one policy?",
       "options": [
-        "Standard backup policy with the Enhanced tier subtype — that mix-and-match doesn't exist; weekly, monthly, and yearly retention points require the distinct Enhanced policy type",
-        "Enhanced backup policy with Vault-Standard tier — Enhanced is required for sub-daily backup; daily+weekly+monthly+yearly retention rules are built-in",
-        "Standard backup policy with daily-only recovery points — covers daily retention but not weekly, monthly, or yearly long-term retention tiers",
-        "Custom backup policy via Azure Backup Center — the Center is a portal view; the underlying policy type (Standard or Enhanced) still governs weekly, monthly, and yearly retention support"
+        "Enhanced backup policy with the Vault-Standard tier",
+        "Standard backup policy with the Enhanced tier subtype",
+        "Standard backup policy with daily-only recovery points",
+        "A custom backup policy authored through Azure Backup Center"
       ],
-      "correct": 1,
-      "explanation": "Azure VM backup supports Enhanced policies (also called policy sub-type 'Enhanced') that are required for features like multiple daily backups and tiering. However, for the specific combination of daily/weekly/monthly retention tiers in a single policy, the Standard backup policy already supports GFS (Grandfather-Father-Son) retention with daily, weekly, monthly, and yearly retention points. The Enhanced policy additionally supports hourly backups and tiering to Vault-Archive for long-term retention cost savings. For this scenario, a standard policy with GFS retention rules covers all three retention requirements.",
+      "correct": 0,
+      "explanation": "The Enhanced policy is the modern Azure VM backup policy type — it adds multiple backups per day on top of the GFS daily/weekly/monthly/yearly retention rules that long-term Standard policies already supported, all in one policy. The 'Standard policy with Enhanced subtype' description does not match any documented policy type. 'Standard policy with daily-only points' explicitly drops the weekly/monthly/yearly retention tiers the scenario requires. Backup Center is a portal-level management view, not a separate policy type — the underlying policy is still Standard or Enhanced, and only Enhanced supports the sub-daily cadence.",
       "tags": [
         "backup",
         "policies",
@@ -1020,13 +1020,13 @@
       "id": "az104-058",
       "question": "Azure Firewall is deployed in a hub VNet to inspect all spoke traffic. Spoke VMs are STILL reaching the internet directly (egress not going through the firewall). The hub-and-spoke peering is in place. Which configuration forces spoke internet egress through the firewall?",
       "options": [
-        "An NSG on the firewall subnet — controls subnet-level inbound/outbound but cannot reroute spoke egress to the hub",
-        "A User-Defined Route for 0.0.0.0/0 with next-hop = the firewall's private IP, applied to each spoke subnet's route table",
-        "VNet peering with gateway transit — peers the VNets but doesn't force internet-bound traffic through the hub firewall",
-        "An Application Rule collection in the firewall — defines what the firewall ALLOWS, doesn't change egress routing"
+        "An NSG on the firewall subnet allowing all outbound",
+        "A UDR for 0.0.0.0/0 with next-hop = the firewall's private IP, attached to each spoke subnet",
+        "VNet peering with gateway transit between hub and spokes",
+        "An Application Rule collection on the firewall"
       ],
       "correct": 1,
-      "explanation": "Azure Firewall sits in the hub VNet but VMs in spoke VNets use Azure's default system routes, which route 0.0.0.0/0 directly to the internet gateway. To force traffic through Azure Firewall, you must create a User Defined Route (UDR) with a 0.0.0.0/0 route and set the next hop to the Azure Firewall's private IP address. This route table must be associated with each spoke subnet that should have its traffic inspected. The VNet peering must already exist for connectivity, but without the UDR, traffic bypasses the firewall.",
+      "explanation": "Azure's default system route sends 0.0.0.0/0 directly to the internet from each spoke. To force the egress through Azure Firewall in the hub, attach a route table containing a 0.0.0.0/0 route with next-hop set to 'Virtual Appliance' and the firewall's private IP. NSGs filter packets but cannot reroute them. Peering with gateway transit gives connectivity, not routing change. Application rules describe what the firewall allows after traffic reaches it; they do not steer traffic toward the firewall in the first place.",
       "tags": [
         "networking",
         "azure-firewall",
@@ -1045,7 +1045,7 @@
         "Phone-call approval with PIN confirmation"
       ],
       "correct": 2,
-      "explanation": "Microsoft's phishing-resistant MFA tier is FIDO2, Windows Hello for Business, and certificate-based authentication — public-key methods that bind the credential to the relying-party origin. Authenticator push with number matching is strong but in a lower tier. SMS and voice-call OTPs are explicitly NOT phishing-resistant: an attacker proxying the login flow can capture either.",
+      "explanation": "FIDO2 security keys (and platform passkeys / Windows Hello for Business) are public-key methods that cryptographically bind the credential to the relying-party origin — a phishing site at a different origin cannot capture or replay a usable credential. Microsoft Authenticator push with number matching is strong and resists basic push-bombing, but it is not in Microsoft's phishing-resistant tier because the user can still be deceived into approving a relay. SMS OTPs and phone-call OTPs are explicitly classed as not phishing-resistant — attacker-in-the-middle proxies can capture and replay either.",
       "tags": [
         "identity",
         "mfa",
@@ -1058,13 +1058,13 @@
       "id": "az104-060",
       "question": "A production Azure VM is unresponsive — RDP and SSH fail, the VM agent is unreachable, even Azure Bastion can't connect. The admin needs to reach the VM's console (the equivalent of plugging a serial cable into a physical machine) to see boot output and run recovery commands. Which Azure feature provides this?",
       "options": [
-        "Azure Bastion Standard tier shareable link — depends on the VM network stack and agent; cannot reach the serial console or boot output when the OS is hung",
-        "VM Run Command extension via the portal — executes scripts through the VM agent; does not access the serial console or boot diagnostics output",
-        "Azure Serial Console with Boot Diagnostics enabled",
-        "Re-image the VM from a recent custom snapshot — destructive; does not provide serial console or boot diagnostics access to the hung OS"
+        "Azure Bastion Standard tier with a shareable link",
+        "A Run Command extension issued through the portal",
+        "Re-image the VM from a recent custom snapshot",
+        "The Azure Serial Console with Boot Diagnostics enabled"
       ],
-      "correct": 2,
-      "explanation": "Azure Serial Console exposes the VM's COM1 port through the portal, bypassing the network stack entirely. It works when the OS is hung at the network level as long as the hypervisor can reach the serial port. Boot Diagnostics must be enabled (storage account or managed). Bastion and Run Command both depend on the VM agent / in-VM stack being responsive. Re-imaging from snapshot is destructive — last resort, not a console.",
+      "correct": 3,
+      "explanation": "Serial Console attaches to the VM's COM1 / serial port via the hypervisor and the portal, so it works even when the OS network stack is hung — provided Boot Diagnostics is enabled to expose the console stream. Bastion proxies RDP and SSH and depends on the VM's network stack being responsive. Run Command sends scripts through the VM agent, which is also unreachable when the agent itself is down. Re-imaging from snapshot is destructive — it replaces the VM rather than letting you see boot output or run recovery commands.",
       "tags": [
         "operations",
         "serial-console",
