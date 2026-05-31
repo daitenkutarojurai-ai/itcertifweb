@@ -326,7 +326,7 @@ function buildMinigame(chap, chapIndex, sorted, qsByIdMap, title) {
 
 // ── Chapter builder ──────────────────────────────────────────────────────────
 
-function buildChapter(chap, chapIndex, qsByIdMap) {
+function buildChapter(chap, chapIndex, qsByIdMap, usedConceptTags = new Set()) {
   const title = tagToTitle(chap.tag);
   const nodes = [];
 
@@ -344,21 +344,32 @@ function buildChapter(chap, chapIndex, qsByIdMap) {
   //       using the FULL question stem (no 80-char slice — that was
   //       cutting off in the middle of words). The explanation is the
   //       back of the card.
-  let libEntry = CONCEPT_LIBRARY[chap.tag];
-  let matchedTag = libEntry ? chap.tag : null;
-  if (!libEntry) {
+  // Avoid teaching the same primer twice in one path: prefer the primary tag,
+  // else the most-frequent library-backed secondary tag, skipping any tag a
+  // previous chapter already claimed. Only repeat a tag if no alternative
+  // library entry exists at all (still on-topic beats an auto-derived stub).
+  let libEntry = null;
+  let matchedTag = null;
+  if (CONCEPT_LIBRARY[chap.tag] && !usedConceptTags.has(chap.tag)) {
+    libEntry = CONCEPT_LIBRARY[chap.tag];
+    matchedTag = chap.tag;
+  } else {
     const tagFreq = {};
     for (const q of chap.questions) {
       for (const t of (q.tags || [])) {
-        if (CONCEPT_LIBRARY[t]) tagFreq[t] = (tagFreq[t] || 0) + 1;
+        if (CONCEPT_LIBRARY[t] && !usedConceptTags.has(t)) tagFreq[t] = (tagFreq[t] || 0) + 1;
       }
     }
     const sortedTags = Object.entries(tagFreq).sort((a, b) => b[1] - a[1]);
     if (sortedTags.length) {
       matchedTag = sortedTags[0][0];
       libEntry = CONCEPT_LIBRARY[matchedTag];
+    } else if (CONCEPT_LIBRARY[chap.tag]) {
+      libEntry = CONCEPT_LIBRARY[chap.tag];
+      matchedTag = chap.tag;
     }
   }
+  if (matchedTag) usedConceptTags.add(matchedTag);
   let conceptNode;
   if (libEntry && Array.isArray(libEntry.flashcards) && libEntry.flashcards.length) {
     conceptNode = {
@@ -510,7 +521,8 @@ function buildPath(packId, pack) {
 
   const qsByIdMap = {};
   for (const q of questions) qsByIdMap[q.id] = q;
-  const builtChapters = chapters.map((c, i) => buildChapter(c, i, qsByIdMap));
+  const usedConceptTags = new Set();
+  const builtChapters = chapters.map((c, i) => buildChapter(c, i, qsByIdMap, usedConceptTags));
 
   // Inject hand-authored bonus mini-games (regen-safe), distributed across
   // chapters and placed just before each chapter's treasure chest.
