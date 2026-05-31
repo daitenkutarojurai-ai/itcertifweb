@@ -109,6 +109,21 @@ const report = (label, items) => {
   report('news/ pages not present in data/news.json feed', gap);
 }
 
+// 3b. every brand with available packs has a brand page + a hub link
+{
+  const idx = JSON.parse(read('data/index.json'));
+  const hub = read('certifications/index.html');
+  const noPage = [], noHubLink = [];
+  for (const b of (idx.brands || [])) {
+    const hasAvail = (b.packs || []).some(p => p.available !== false);
+    if (!hasAvail) continue;
+    if (!fs.existsSync(r(`certifications/${b.id}.html`))) noPage.push(b.id);
+    else if (!hub.includes(`/certifications/${b.id}.html`)) noHubLink.push(b.id);
+  }
+  report('Brands with available packs but no certifications/<brand>.html page', noPage);
+  report('Brand pages not linked from certifications/index.html', noHubLink);
+}
+
 // 4. learning dirs → data/courses.json
 {
   const courses = read('data/courses.json');
