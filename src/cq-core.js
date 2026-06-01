@@ -1,4 +1,4 @@
-/* CertQuests core bundle — generated 2026-06-01T06:52:56.317Z
+/* CertQuests core bundle — generated 2026-06-01T07:06:03.975Z
  *
  * This file is concatenated by scripts/build-core.js. Do not edit by hand;
  * edit the source modules in src/*.js and re-run `npm run build-core`.
@@ -356,7 +356,8 @@ if (typeof module !== 'undefined' && module.exports) {
     perPack: {},
     bonusXp: 0,
     xp: 0,
-    level: 1
+    level: 1,
+    cloudXpFloor: 0   /* cross-platform account XP floor; set by sync.js from the cloud high-water mark */
   };
 
   /* Migrate older shapes forward. Always non-destructive: missing fields
@@ -485,7 +486,10 @@ if (typeof module !== 'undefined' && module.exports) {
       s.perPack[detail.packId] = p;
     }
     var prevLevel = s.level;
-    s.xp = computeXp(s);
+    // Floor to the cross-platform account XP (sync.js writes cloudXpFloor from
+    // the cloud high-water mark) so web-only recompute never drops below
+    // progress earned on the native app. Defaults to 0 → no effect signed out.
+    s.xp = Math.max(computeXp(s), s.cloudXpFloor || 0);
     s.level = levelForXp(s.xp);
     return { stats: s, leveledUp: s.level > prevLevel, prevLevel: prevLevel };
   }

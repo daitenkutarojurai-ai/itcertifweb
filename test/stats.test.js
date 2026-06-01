@@ -108,6 +108,28 @@ test('computeXp: perfect accuracy = 1.0× (clamp ceiling is 1.2, unreachable fro
   assert.strictEqual(stats.computeXp(high), 10);
 });
 
+test('applySession: cloudXpFloor pins xp to the cross-platform account high-water mark', () => {
+  /* A user with big native-app XP (floor) but a tiny web session keeps the
+     floor — the web account "matches" the app rather than snapping to a low
+     web-only recompute. */
+  const s = Object.assign({}, stats.DEFAULTS, { cloudXpFloor: 100000 });
+  const res = stats.applySession(s, { secondsSpent: 60, questionsAnswered: 1, correct: 1 });
+  assert.strictEqual(res.stats.xp, 100000);
+  assert.strictEqual(res.stats.level, stats.levelForXp(100000));
+});
+
+test('applySession: with the default floor (0) xp is the plain recompute (signed-out unchanged)', () => {
+  const s = Object.assign({}, stats.DEFAULTS);
+  const res = stats.applySession(s, { secondsSpent: 600, questionsAnswered: 10, correct: 8 });
+  assert.strictEqual(res.stats.xp, stats.computeXp(res.stats));
+});
+
+test('applySession: web XP that overtakes the floor wins (account grows past app)', () => {
+  const s = Object.assign({}, stats.DEFAULTS, { cloudXpFloor: 5, totalSeconds: 600, questionsAnswered: 10, correctAnswered: 10 });
+  const res = stats.applySession(s, {});
+  assert.ok(res.stats.xp > 5, 'real web XP above the floor should win');
+});
+
 test('computeXp: streak adds 8 XP per day', () => {
   const s = Object.assign({}, stats.DEFAULTS, { streakDays: 5 });
   assert.strictEqual(stats.computeXp(s), 40);

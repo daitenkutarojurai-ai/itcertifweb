@@ -321,9 +321,20 @@
     if (stale()) return;
     if (prof.data) {
       var localPayload = readKey('cq-stats-v1', {});
+      // Unify XP as a high-water mark — the SAME max() merge the native app
+      // uses (lib/sync/merge.ts), and what the server-side guard_monotonic_xp
+      // trigger enforces. cloudXpFloor persists the account XP so the web's
+      // per-session recompute (stats.js applySession) never drops below
+      // progress earned on the app. level is NOT adopted from the cloud —
+      // the web's 30-stage scale differs from the app's 10-tier scale, so we
+      // derive our own level from the unified XP.
+      var cloudXp = typeof prof.data.xp === 'number' ? prof.data.xp : 0;
+      var unifiedXp = Math.max(localPayload.xp || 0, cloudXp);
+      var lvlFor = (window.cqStats && window.cqStats.levelForXp);
       var merged = Object.assign({}, localPayload, {
-        xp: typeof prof.data.xp === 'number' ? prof.data.xp : (localPayload.xp || 0),
-        level: typeof prof.data.level === 'number' ? prof.data.level : (localPayload.level || 0),
+        xp: unifiedXp,
+        cloudXpFloor: unifiedXp,
+        level: lvlFor ? lvlFor(unifiedXp) : (localPayload.level || 1),
       });
       if (prof.data.username) merged.username = prof.data.username;
       writeKey('cq-stats-v1', merged);
