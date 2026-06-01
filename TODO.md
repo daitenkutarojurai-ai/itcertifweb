@@ -472,15 +472,24 @@ competition-driven, community-driven** layer. Highest-priority builds:
   UI; guild-vs-guild challenges (pairs with 7.4); per-guild shared goal +
   weekly guild XP (via `user_weekly_xp`); invite-only / private guilds; cap.
 
-#### 7.4 — Challenges (défis)
+#### 7.4 — Challenges (défis) ✅ v1 SHIPPED 2026-06-01
 
-- Time-boxed competitive events: weekly "answer 100 Qs", "7-day
-  streak sprint", head-to-head duels, guild-vs-guild. Distinct from
-  the existing `daily.js` quest (solo, daily) — challenges are
-  competitive and ranked.
-- Steps: `challenges` + `challenge_entries` tables → challenge feed
-  UI → join + progress → reward (XP, cosmetics, laurels) → results
-  board. Reuse the `cq:session-complete` event bus for progress.
+- **Shipped:** `/challenges/` — three weekly, ranked competitive events
+  (Weekly Sprint = 100 questions, Path Crawler = 15 path nodes, Streak
+  Keeper = 7-day streak). `src/challenges.js` (in cq-core bundle) holds the
+  static templates and accrues per-ISO-week progress from the event bus
+  (`cq:session-complete` → question count, `cq:path-progress-changed` →
+  nodes, streak derived from `cq-stats`); resets each week. Progress mirrors
+  to `public.challenge_progress` (own-row RLS, migration `0007`, monotonic
+  guard) when signed in. `get_challenge_leaderboard(id, week)` (anon-exec,
+  opt-in-gated) ranks players per challenge; the page shows my progress bars
+  + a top-10 board each. Node-CJS pure core + 6 unit tests. Hamburger drawer
+  + sitemap + footer links. Non-breaking for the app.
+- **Deferred (v2):** reward payout (XP/cosmetics on completion — held back to
+  avoid double-counting against the monotonic-XP guard; daily.js's
+  bonusXp pattern can wire it); head-to-head duels & guild-vs-guild (builds
+  on 7.3 guild tables); user-created / seasonal challenges; a results/history
+  board after a week closes.
 
 #### 7.5 — IA coach (squid mascot 🦑) ✅ v1 SHIPPED 2026-06-01 (rules-based)
 

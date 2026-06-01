@@ -77,6 +77,9 @@
         '<a href="/guilds/">' +
           '<span class="mobile-menu-emoji">🛡️</span>Guilds' +
         '</a>' +
+        '<a href="/challenges/">' +
+          '<span class="mobile-menu-emoji">⚡</span>Challenges' +
+        '</a>' +
         '<a href="/news/">' +
           '<span class="mobile-menu-emoji">💡</span>Pro tips' +
         '</a>' +
