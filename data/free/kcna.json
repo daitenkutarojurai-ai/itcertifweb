@@ -3,24 +3,24 @@
     "id": "kcna",
     "name": "Kubernetes and Cloud Native Associate (KCNA)",
     "vendor": "Linux Foundation",
-    "version": "1.0.2",
+    "version": "1.0.3",
     "question_count": 10,
-    "last_updated": "2026-05-12",
-    "notes": " [bulk-tag pass: added `kcna` tag to 10 questions] | 2026-05-23 keyword-balance pass",
-    "updated": "2026-05-23"
+    "last_updated": "2026-06-01",
+    "notes": " [bulk-tag pass: added `kcna` tag to 10 questions] | 2026-05-23 keyword-balance pass | 2026-06-01 hardening pass: stripped self-revealing distractor giveaways, rebalanced answer positions across all 4 slots, equalized option lengths, expanded explanations to cover every distractor",
+    "updated": "2026-06-01"
   },
   "questions": [
     {
       "id": "kcna-001",
       "question": "Two containers in the same Pod can reach each other on `localhost` and read files written by the sibling under a shared `emptyDir` volume. Which statement about the Kubernetes Pod model best explains this behavior?",
       "options": [
-        "Containers in a Pod share a network namespace and any mounted volumes, while each container keeps its own root filesystem, PID namespace, and mount namespace by default",
-        "Each container in a Pod runs in its own network namespace, and kube-proxy programs DNAT rules between sibling containers so calls to `localhost` are translated transparently",
-        "All containers in a Pod are merged into one Linux namespace group covering network, PID, and IPC, and any declared volume is mounted into every container without `volumeMounts`",
-        "Containers in a Pod share an IP address only when the `shareProcessNamespace` field is set and the Pod is configured to use the host network mode at admission time"
+        "Each container in a Pod runs in its own network namespace, and kube-proxy programs DNAT rules between sibling containers so calls to `localhost` are translated transparently to the right destination port",
+        "All containers in a Pod are merged into one Linux namespace group covering network, PID, IPC, and mount, so every declared volume is automatically exposed without `volumeMounts` entries on the container",
+        "Containers in a Pod share an IP address only when `shareProcessNamespace` is set and the Pod is configured with `hostNetwork: true`, otherwise each container gets its own IP from the CNI plugin",
+        "Containers in a Pod share a single Linux network namespace and any Pod-level volumes the containers mount, while each container keeps its own root filesystem, PID namespace, and mount namespace by default"
       ],
-      "correct": 0,
-      "explanation": "Pods share a Linux network namespace, so containers reach each other on `localhost` and observe the same Pod IP. Volumes declared on the Pod are made available to containers that mount them via `volumeMounts`. By default each container has its own filesystem root, PID namespace, and mount namespace; sharing PIDs is opt-in via `shareProcessNamespace`. kube-proxy does not rewrite intra-Pod traffic — it programs Service virtual IPs.",
+      "correct": 3,
+      "explanation": "Pods share a Linux network namespace, which is why containers reach each other on `localhost` and observe the same Pod IP, and Pod-level volumes become available to any container that mounts them via `volumeMounts`. By default each container keeps its own root filesystem, PID namespace, and mount namespace; sharing PIDs is opt-in via `shareProcessNamespace`. The first option is wrong because kube-proxy programs Service virtual IPs, not intra-Pod `localhost` traffic, which already works through the shared network namespace. The 'one merged namespace group' framing in the second option is incorrect: containers do not share PID, IPC, or mount namespaces by default, and a volume still has to be referenced in `volumeMounts` to appear in a container. The third option misstates the model: every Pod gets one shared IP from the CNI without any need for `shareProcessNamespace` or `hostNetwork`.",
       "tags": [
         "pods",
         "namespaces",
@@ -35,13 +35,13 @@
       "id": "kcna-002",
       "question": "An internal API must be reachable from other workloads in the cluster by a stable DNS name but must not be exposed to traffic outside the cluster. Which Service type satisfies this requirement with the simplest configuration?",
       "options": [
-        "NodePort, since it exposes the workload on every node's IP at a static port — NodePort makes the workload reachable from outside the cluster on each node's public IP; it does not create the stable internal virtual IP that a ClusterIP service provides for in-cluster-only traffic",
         "ClusterIP, which assigns a stable virtual IP reachable only from within the cluster and is published in CoreDNS as `<svc>.<ns>.svc.cluster.local` for service discovery",
+        "NodePort, which opens the workload on a static port on every node's IP so any client that can reach a node — including off-cluster traffic — can connect to it",
         "LoadBalancer with `loadBalancerSourceRanges: []`, which still provisions an external endpoint but rejects all source IPs while keeping the in-cluster DNS record intact",
-        "ExternalName, which returns a CNAME for the requested name and avoids exposing any cluster endpoint while still resolving inside Pods through standard DNS queries"
+        "ExternalName, which returns a CNAME for an external host and avoids exposing any cluster endpoint while still resolving inside Pods through standard DNS queries"
       ],
-      "correct": 1,
-      "explanation": "ClusterIP is the default Service type and assigns an in-cluster virtual IP plus the `<svc>.<ns>.svc.cluster.local` DNS record — reachable only from within the cluster. NodePort opens a port on every node's IP, which breaks the no-external-exposure requirement. LoadBalancer always provisions external infrastructure on supported clouds. ExternalName returns a CNAME for an external host and does not front cluster Pods.",
+      "correct": 0,
+      "explanation": "ClusterIP is the default Service type and assigns an in-cluster virtual IP plus the `<svc>.<ns>.svc.cluster.local` DNS record, reachable only from within the cluster — exactly what the requirement asks for. NodePort opens a port on every node's IP and is reachable from outside the cluster, which breaks the no-external-exposure constraint. LoadBalancer always provisions external infrastructure on supported clouds; clamping source ranges still burns a public endpoint and is far from the simplest configuration. ExternalName does not front Pods at all — it returns a CNAME for an external hostname, so it cannot expose your internal API to in-cluster callers.",
       "tags": [
         "services",
         "clusterip",
@@ -57,12 +57,12 @@
       "question": "A platform team must roll out a new version of a stateless web service with zero downtime, a controlled surge above the desired replica count, and a one-command rollback if errors spike. Which Kubernetes workload object is purpose-built for this pattern?",
       "options": [
         "A ReplicaSet, which directly manages Pods and exposes `maxSurge` and `maxUnavailable` fields under its `spec.strategy` block to coordinate rolling upgrades between versions",
-        "A StatefulSet using `updateStrategy: RollingUpdate`, which orders Pod replacement so the active replica count never drops below the desired value during version transitions",
         "A Deployment, which manages a per-revision ReplicaSet, supports `RollingUpdate` with `maxSurge`/`maxUnavailable`, and provides `kubectl rollout undo` to revert to a previous revision",
+        "A StatefulSet using `updateStrategy: RollingUpdate`, which orders Pod replacement so the active replica count never drops below the desired value during version transitions",
         "A DaemonSet using `updateStrategy: RollingUpdate`, which keeps one Pod per node and replaces them in batches sized by the `maxUnavailable` field on the controller spec"
       ],
-      "correct": 2,
-      "explanation": "Deployments are the standard controller for stateless rolling updates. They manage a per-revision ReplicaSet, support `RollingUpdate` with `maxSurge` and `maxUnavailable`, and offer `kubectl rollout undo` for rollback. ReplicaSets manage replicas but have no rolling-update strategy of their own. StatefulSets serve stateful workloads with stable identity. DaemonSets schedule one Pod per node and are not for general application scaling.",
+      "correct": 1,
+      "explanation": "Deployments are the standard controller for stateless rolling updates: they own a per-revision ReplicaSet, support `RollingUpdate` with `maxSurge`/`maxUnavailable`, and expose `kubectl rollout undo` for one-command rollback. ReplicaSets manage replicas only and have no `spec.strategy` field of their own — the rolling-update logic lives one level up in the Deployment that owns them. StatefulSets exist for stateful workloads that need stable network identity and ordered Pod management, which is the wrong primitive for a stateless web service. DaemonSets schedule one Pod per node and are designed for node-level agents like log collectors or CNI helpers, not for replicated application workloads.",
       "tags": [
         "deployments",
         "rolling-update",
@@ -77,13 +77,13 @@
       "id": "kcna-004",
       "question": "A Pod requires durable storage that survives Pod restarts and rescheduling onto another node. The cluster has a default StorageClass configured. Which object combination correctly grants the Pod a dynamically provisioned volume?",
       "options": [
-        "A PersistentVolumeClaim referencing the StorageClass; the provisioner creates a matching PersistentVolume and binds it to the claim, which the Pod mounts by name in `volumes`",
-        "A PersistentVolume created in advance by the operator and referenced by name in the Pod's `volumes` block, which removes the need for a PersistentVolumeClaim in the Pod spec",
+        "A PersistentVolume created in advance by the operator and referenced by name in the Pod's `volumes` block, bypassing the cluster's default StorageClass and removing the need for a PersistentVolumeClaim",
         "A ConfigMap pointing at the CSI driver's backing path, mounted into the container at the desired filesystem location through the Pod's `volumeMounts` configuration block",
-        "A StorageClass embedded directly into the Pod spec under `spec.storage`, which signals the scheduler to bind the Pod to a node with a matching local disk attached"
+        "A StorageClass embedded directly into the Pod spec under `spec.storage`, which signals the scheduler to bind the Pod to a node with a matching local disk attached and provisions it as the Pod's volume",
+        "A PersistentVolumeClaim referencing the StorageClass; the provisioner creates a matching PersistentVolume and binds it to the claim, which the Pod mounts by name in `volumes`"
       ],
-      "correct": 0,
-      "explanation": "Dynamic provisioning uses a StorageClass plus a PersistentVolumeClaim. The provisioner creates a matching PersistentVolume bound to the PVC, and the Pod mounts the PVC by name in its `volumes` block. Statically provisioned PVs are valid but not dynamic. ConfigMaps deliver configuration data, not block or file storage. There is no `spec.storage` field on a Pod.",
+      "correct": 3,
+      "explanation": "Dynamic provisioning uses a StorageClass plus a PersistentVolumeClaim: when the PVC is created, the StorageClass's provisioner creates a matching PersistentVolume bound to the claim, and the Pod consumes it via its `volumes` block. Creating a PV in advance and pointing the Pod directly at it is static provisioning — it does not use the cluster's default StorageClass, and even then a Pod consumes a PV through a PVC rather than by referencing the PV by name. ConfigMaps deliver configuration data and have nothing to do with CSI drivers or block storage, so they cannot back durable disk. There is no `spec.storage` field on a Pod; StorageClasses are referenced from a PVC, not embedded in the Pod spec.",
       "tags": [
         "storage",
         "pvc",
@@ -98,13 +98,13 @@
       "id": "kcna-005",
       "question": "Since the dockershim was removed from Kubernetes, which interface does the kubelet use to start, stop, and inspect containers on a node, and which runtime is a widely deployed default that implements it?",
       "options": [
-        "The Open Container Initiative runtime spec is called directly by the kubelet using a widely compatible binary interface — the OCI runtime spec defines the container lifecycle; the kubelet does not call OCI runtimes directly but through the Container Runtime Interface gRPC API",
-        "The Container Runtime Interface (CRI) is a gRPC API the kubelet calls into, with `containerd` as a widely used default that handles container lifecycle operations through its CRI plugin",
-        "The kubelet shells out to the legacy `docker` command using a compatibility shim layer, which translates each Docker command into an OCI call handled internally by `runc` on the host",
+        "The Open Container Initiative runtime spec, which the kubelet invokes by calling `runc` directly on the node through a stable command-line ABI exposed for that purpose",
+        "The kubelet shells out to the legacy `docker` command via a built-in compatibility shim that translates each Docker CLI invocation into an equivalent OCI call handled internally by `runc`",
+        "The Container Runtime Interface (CRI), a gRPC API the kubelet calls into, with `containerd` (via its CRI plugin) as a widely deployed default that handles container lifecycle operations",
         "The kubelet binary embeds a CRI-O library at compile time and bypasses any external runtime daemon, making container runtime selection effectively a node OS install-time choice only"
       ],
-      "correct": 1,
-      "explanation": "The kubelet talks to a container runtime over the Container Runtime Interface (CRI), a gRPC API. `containerd` (with its CRI plugin) and `CRI-O` are widely deployed implementations. Both ultimately use `runc` to apply the OCI runtime spec to create containers, but the kubelet does not call `runc` directly. The dockershim was removed in Kubernetes 1.24, so the `docker` CLI is no longer used as the kubelet runtime path. CRI-O is a separate daemon, not embedded in the kubelet.",
+      "correct": 2,
+      "explanation": "The kubelet talks to a container runtime over the Container Runtime Interface (CRI), a gRPC API; `containerd` (with its CRI plugin) and `CRI-O` are the widely deployed implementations. Both ultimately use `runc` to apply the OCI runtime spec to create containers, but the kubelet never calls `runc` directly — the OCI spec defines the container lifecycle, not the kubelet-runtime wire protocol. The `docker` shim was removed in Kubernetes 1.24, so there is no built-in compatibility translation back to the Docker CLI. CRI-O is itself a long-running daemon spoken to over CRI, not a library compiled into the kubelet binary.",
       "tags": [
         "cri",
         "containerd",
@@ -119,13 +119,13 @@
       "id": "kcna-006",
       "question": "According to the Kubernetes networking model, which statement is always true about Pod-to-Pod communication in a conformant cluster?",
       "options": [
+        "Pods on the same node share a single virtual IP and can only reach Pods on other nodes through kube-proxy, which performs source NAT on all cross-node Pod traffic when running in iptables proxy mode",
         "Every Pod receives a unique cluster-wide IP and can reach any other Pod's IP directly without source NAT, regardless of which node the source and destination Pods happen to be scheduled on",
-        "Pods on the same node share a single virtual IP and reach Pods on other nodes only through kube-proxy, which performs source NAT on all cross-node Pod traffic in iptables mode",
         "Inter-Pod traffic is encrypted in transit by default through a sidecar injected by the cluster's CNI plugin, with the encryption keys distributed automatically by the API server at startup",
         "Pod IPs are randomly assigned from each node's host network range, so two Pods on different nodes may share an IP and rely on the Service abstraction to disambiguate connections"
       ],
-      "correct": 0,
-      "explanation": "The Kubernetes network model requires that every Pod has a unique cluster-wide IP and that every Pod can reach every other Pod directly without NAT — a property that the CNI plugin implements. Cross-Pod traffic is not encrypted by default; that is an opt-in service-mesh feature. Pod IPs are not duplicated across nodes. kube-proxy implements Service virtual IPs, not Pod-to-Pod routing.",
+      "correct": 1,
+      "explanation": "The Kubernetes network model requires every Pod to have a unique cluster-wide IP and that every Pod can reach every other Pod directly without NAT — a property the CNI plugin is responsible for implementing. The first option inverts the model: Pods on the same node each get their own IP, and kube-proxy programs Service virtual IPs, not Pod-to-Pod routing. Encryption in transit is not part of the Kubernetes networking model — it is an opt-in feature provided by service meshes or specific CNI plugins, and the API server does not distribute mesh keys. Pod IPs are explicitly not duplicated across nodes; allowing duplicates would break the uniqueness invariant the model is built on.",
       "tags": [
         "networking",
         "cni",
@@ -140,13 +140,13 @@
       "id": "kcna-007",
       "question": "A workload's CPU usage varies sharply between business hours and overnight, and the team wants the number of Pod replicas to grow and shrink automatically based on observed CPU utilization. Which Kubernetes object provides this behavior?",
       "options": [
-        "The Vertical Pod Autoscaler (VPA), which observes resource usage and adjusts each Pod's CPU and memory requests between fixed limits — VPA right-sizes individual Pod resource requests; it does not scale the number of Pod replicas between a minimum and maximum count based on load metrics",
-        "The Cluster Autoscaler, which watches for Pods stuck in Pending due to insufficient capacity and asks the cloud provider to add or remove nodes to match overall workload demand",
         "The Horizontal Pod Autoscaler (HPA), which reads metrics (CPU, memory, or custom) and scales a target Deployment's replica count between configured `minReplicas` and `maxReplicas`",
+        "The Vertical Pod Autoscaler (VPA), which observes resource usage and adjusts each running Pod's CPU and memory requests between configured floor and ceiling values",
+        "The Cluster Autoscaler, which watches for Pods stuck in Pending due to insufficient capacity and asks the cloud provider to add or remove nodes to match overall workload demand",
         "The PodDisruptionBudget, which limits how many replicas of a workload can be voluntarily evicted at once and indirectly drives replica count adjustments during cluster maintenance"
       ],
-      "correct": 2,
-      "explanation": "The Horizontal Pod Autoscaler scales a target's replica count based on observed metrics — the right tool for load-driven scaling. The VPA changes per-Pod resource requests, not replica count. The Cluster Autoscaler scales nodes, not Pods. A PodDisruptionBudget bounds voluntary evictions during maintenance and does not perform autoscaling.",
+      "correct": 0,
+      "explanation": "The Horizontal Pod Autoscaler is the controller that scales a target's replica count based on observed metrics — exactly the load-driven, scale-out behavior the question describes. The Vertical Pod Autoscaler changes per-Pod CPU/memory requests; it makes each Pod bigger or smaller but does not add or remove replicas. The Cluster Autoscaler operates one layer below: it scales the number of nodes in response to unschedulable Pods, so without an HPA driving Pod count first it never reacts to load. A PodDisruptionBudget only bounds how many replicas can be voluntarily evicted at once during maintenance; it never creates or removes Pods on its own.",
       "tags": [
         "autoscaling",
         "hpa",
@@ -161,13 +161,13 @@
       "id": "kcna-008",
       "question": "A team wants to run an HTTP function that wakes on request, scales out as traffic increases, and scales to zero replicas when idle, all on top of Kubernetes. Which CNCF project category is purpose-built for this serverless pattern?",
       "options": [
-        "Service mesh projects such as Istio and Linkerd, which manage inter-service traffic with mTLS and observability — service meshes handle L7 networking and security for Kubernetes workloads; they do not provide serverless scale-to-zero or event-driven invocation abstractions",
-        "Knative and similar serverless frameworks, which add request-driven autoscaling, scale-to-zero, and revision-based traffic splitting on top of standard Kubernetes workload primitives",
+        "Service mesh projects such as Istio and Linkerd, which manage inter-service traffic with mTLS, retries, and observability so that idle workloads can be safely scaled out by other controllers later",
         "The container runtime layer (containerd or CRI-O) combined with kubelet feature gates that let Pod replica counts drop to zero and resume automatically on incoming Service traffic",
-        "The Vertical Pod Autoscaler, which reduces resource requests of idle Pods toward near-zero values until the next inbound request triggers a scaling event back to normal sizing"
+        "The Vertical Pod Autoscaler, which reduces resource requests of idle Pods toward near-zero values until the next inbound request triggers a scaling event back to normal sizing",
+        "Knative and similar serverless frameworks, which add request-driven autoscaling, scale-to-zero, and revision-based traffic splitting on top of standard Kubernetes workload primitives"
       ],
-      "correct": 1,
-      "explanation": "Knative Serving provides request-driven autoscaling, scale-to-zero, and revision-based traffic splitting on Kubernetes — the canonical serverless-on-Kubernetes pattern. Service meshes route and observe traffic but do not implement scale-to-zero. Container runtimes do not control replica counts. The VPA changes resource requests on a Pod, not the number of Pods, and does not implement scale-to-zero.",
+      "correct": 3,
+      "explanation": "Knative Serving is the canonical CNCF serverless-on-Kubernetes project: it adds request-driven autoscaling, scale-to-zero when idle, and revision-based traffic splitting on top of standard Kubernetes primitives. Service meshes handle L7 routing, mTLS, and observability but have no scale-to-zero or request-activation primitive of their own. Container runtimes and kubelet feature gates do not control replica counts — that decision lives in workload controllers and autoscalers further up the stack. The Vertical Pod Autoscaler only changes resource requests on running Pods; it never drops the replica count to zero, so it cannot deliver the on-demand wake-up pattern the question requires.",
       "tags": [
         "serverless",
         "knative",
@@ -182,13 +182,13 @@
       "id": "kcna-009",
       "question": "A platform engineer must collect metrics, logs, and traces from heterogeneous services using a single vendor-neutral instrumentation library and pipeline that can export to multiple backends. Which CNCF project is designed for this unified telemetry use case?",
       "options": [
-        "Prometheus, which scrapes time-series metrics from instrumented endpoints and stores them in a time-series database — Prometheus collects and stores metrics but does not provide a unified API for logs or traces, nor does it define an SDK for exporting to multiple backends",
+        "Prometheus, which scrapes time-series metrics from instrumented endpoints, stores them in a TSDB, and provides a unified vendor-neutral instrumentation API for metrics, logs, and traces",
         "Fluentd, a data collector focused on log routing between sources and sinks that also ships built-in instrumentation APIs for emitting metrics and traces directly from application code",
         "OpenTelemetry, which defines a unified API, SDK, and collector for metrics, logs, and traces with exporters to many backends, and supersedes the earlier OpenTracing and OpenCensus efforts",
         "Jaeger, a distributed tracing backend whose client library has been extended to cover metrics ingestion and structured log forwarding in addition to its primary span and trace storage features"
       ],
       "correct": 2,
-      "explanation": "OpenTelemetry (OTel) is the CNCF project that merged OpenTracing and OpenCensus to provide a single vendor-neutral standard for metrics, logs, and traces. It defines an API and SDK for instrumentation plus the OTel Collector for routing telemetry to many backends. Prometheus is metrics-only. Fluentd is a logs router. Jaeger is a tracing backend without a unified metrics/logs API.",
+      "explanation": "OpenTelemetry (OTel) is the CNCF project that merged OpenTracing and OpenCensus to provide a single vendor-neutral standard for metrics, logs, and traces. It defines an API and SDK for instrumentation plus the OTel Collector for routing telemetry to many backends. Prometheus is a metrics-only project — it scrapes and stores time-series data and has no first-class API for logs or traces. Fluentd is a log routing tool, not a unified metrics/logs/traces SDK; it does not emit traces from application code. Jaeger is a tracing backend with tracing-only client libraries; it does not provide a unified API for logs or metrics either.",
       "tags": [
         "opentelemetry",
         "observability",
@@ -204,12 +204,12 @@
       "question": "A team adopts GitOps for application delivery using a controller such as Argo CD or Flux. Which statement best characterizes how a GitOps controller operates against a Kubernetes cluster?",
       "options": [
         "Developers push images directly to clusters using `kubectl apply` from their workstations, and the GitOps controller passively logs each apply for audit and rolls back any failures it detects",
-        "A CI server runs `kubectl apply` against the cluster on every Git commit, and the GitOps controller authenticates each apply using short-lived tokens minted at the start of each pipeline run",
         "An agent inside the cluster continuously reconciles live state with the desired manifests stored in a Git repository, pulling changes from Git rather than receiving pushes from a CI server",
+        "A CI server runs `kubectl apply` against the cluster on every Git commit, and the GitOps controller authenticates each apply using short-lived tokens minted at the start of each pipeline run",
         "The GitOps controller stores manifests inside an etcd-backed internal registry that mirrors the cluster's actual state, with Git acting only as a write-only audit log of completed changes"
       ],
-      "correct": 2,
-      "explanation": "GitOps controllers such as Argo CD and Flux run inside the cluster, watch a Git repository for desired state, and continuously reconcile cluster state to match. The model is pull-based and convergent rather than push-based from CI. Manifests live in Git, not in a separate registry. Running `kubectl apply` from CI on every commit is a CIOps pattern, not GitOps.",
+      "correct": 1,
+      "explanation": "GitOps controllers such as Argo CD and Flux run inside the cluster, watch a Git repository for the desired state, and continuously reconcile cluster state to match — the model is pull-based and convergent. The first option describes ad-hoc imperative deployments from developer workstations; a GitOps controller does not just tail those applies, and there is no automatic rollback on failed manual applies. The CI-driven `kubectl apply` model is CIOps (push-based from a pipeline), which is exactly what GitOps replaces — there is no GitOps controller mediating a CI push. And in GitOps the source of truth is Git itself, not an internal registry; etcd only holds the live cluster state being reconciled against the Git manifests.",
       "tags": [
         "gitops",
         "argo-cd",
