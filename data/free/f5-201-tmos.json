@@ -1,0 +1,184 @@
+{
+  "meta": {
+    "id": "f5-201-tmos",
+    "name": "F5 BIG-IP Administrator (201 TMOS Administration)",
+    "vendor": "F5 Networks",
+    "version": "1.0.0",
+    "question_count": 12,
+    "last_updated": "2026-06-01",
+    "notes": "Initial release — covers TMOS architecture, virtual servers, load balancing, monitors, SNAT, persistence, SSL offload, HA failover, tmsh and logs."
+  },
+  "id": "f5-201-tmos",
+  "title": "F5 BIG-IP Administrator (201 TMOS Administration)",
+  "description": "Practice questions for the F5 Certified BIG-IP Administrator 201 TMOS Administration exam.",
+  "questions": [
+    {
+      "id": "f5201-001",
+      "question": "Within the BIG-IP TMOS architecture, what is the role of the Traffic Management Microkernel (TMM)?",
+      "options": [
+        "A user-space process that owns the data plane and handles all virtual-server traffic",
+        "A Linux kernel module that provides Layer 2 switching between blades",
+        "A management daemon that renders the Configuration Utility GUI",
+        "A scheduler that allocates virtual-server resources to administrative partitions"
+      ],
+      "correct": 0,
+      "explanation": "TMM is a high-performance user-space process that runs the BIG-IP data plane: it owns the network interfaces, processes virtual-server traffic, terminates TCP/SSL and runs profiles, iRules and policies. The Linux host kernel under TMOS handles management-plane services only, the GUI is served by the httpd-driven mcpd/icrd stack, and partitions are an RBAC construct, not a scheduler.",
+      "tags": ["tmos", "architecture", "f5-201"],
+      "difficulty": "easy"
+    },
+    {
+      "id": "f5201-002",
+      "question": "An administrator needs a virtual server that accelerates TCP traffic at Layer 4 only, without the full proxy behaviour of a Standard virtual server. Which virtual-server type fits?",
+      "options": [
+        "Standard",
+        "Performance (Layer 4)",
+        "Forwarding (IP)",
+        "Reject"
+      ],
+      "correct": 1,
+      "explanation": "A Performance (Layer 4) virtual server uses the FastL4 profile and accelerates connections without doing full Layer 7 proxying, giving high throughput when only L4 services are required. Standard virtual servers are full proxies, Forwarding (IP) routes packets without load-balancing to a pool, and Reject drops traffic that matches the listener.",
+      "tags": ["virtual-server", "fastl4", "f5-201"],
+      "difficulty": "medium"
+    },
+    {
+      "id": "f5201-003",
+      "question": "Which load-balancing method directs each new connection to the pool member that currently has the fewest active connections?",
+      "options": [
+        "Round Robin",
+        "Ratio (member)",
+        "Least Connections (member)",
+        "Predictive (node)"
+      ],
+      "correct": 2,
+      "explanation": "Least Connections (member) tracks the active connection count per pool member and selects the member with the lowest count for each new connection, which works well for long-lived sessions of variable cost. Round Robin distributes sequentially regardless of load, Ratio uses a static weight, and Predictive tracks performance trends rather than the raw connection count.",
+      "tags": ["load-balancing", "pools", "f5-201"],
+      "difficulty": "easy"
+    },
+    {
+      "id": "f5201-004",
+      "question": "A web pool must be marked UP only when each member answers ICMP and returns HTTP 200 from /health. How should the monitor be configured?",
+      "options": [
+        "Assign Gateway ICMP only to the pool",
+        "Assign TCP_Half_Open only to the pool",
+        "Rely on the SNMP_DCA monitor for application health",
+        "Assign Gateway ICMP plus a custom HTTP monitor with a receive string matching '200 OK', requiring both to pass"
+      ],
+      "correct": 3,
+      "explanation": "Combining a network-layer monitor (Gateway ICMP) with an application-layer HTTP monitor that has a Send string of 'GET /health' and a Receive string matching '200 OK' verifies both reachability and application health; the pool member is marked UP only when both succeed. ICMP or TCP_Half_Open alone do not validate the application, and SNMP_DCA is a Dynamic Ratio monitor based on CPU/memory, not URL health.",
+      "tags": ["monitors", "health-checks", "f5-201"],
+      "difficulty": "medium"
+    },
+    {
+      "id": "f5201-005",
+      "question": "Pool members must observe the original client source IP address. Which configuration achieves that?",
+      "options": [
+        "Set SNAT to None on the virtual server and ensure pool members route return traffic through the BIG-IP",
+        "Enable Auto Map SNAT on the virtual server",
+        "Assign a SNAT pool containing one floating self IP",
+        "Enable Address Translation only and disable Port Translation"
+      ],
+      "correct": 0,
+      "explanation": "When SNAT is None, the BIG-IP forwards the client's original source IP to the pool members; for return traffic to be load-balanced correctly the members must use the BIG-IP as their default gateway (or have a route back through it). Auto Map and SNAT pools replace the client address with a BIG-IP-owned address, and toggling Address Translation alone does not change the source-IP behaviour on the server side.",
+      "tags": ["snat", "source-ip", "f5-201"],
+      "difficulty": "medium"
+    },
+    {
+      "id": "f5201-006",
+      "question": "A web application requires that, once a user is steered to a pool member, all subsequent HTTP requests from that user reach the same member, even across separate TCP connections. Which persistence profile is the best fit when SSL is terminated on the BIG-IP?",
+      "options": [
+        "Source Address Affinity persistence",
+        "Cookie persistence using HTTP cookie insert",
+        "SSL Session ID persistence",
+        "Universal persistence with no iRule"
+      ],
+      "correct": 1,
+      "explanation": "Cookie persistence (insert mode) injects a BIG-IP cookie that maps the user to a specific pool member, surviving connection churn and working correctly when many clients share a NAT address. Source Address Affinity breaks down behind large NAT pools, SSL Session ID persistence is unreliable once SSL is offloaded at the BIG-IP, and Universal persistence needs an iRule to compute the persist key.",
+      "tags": ["persistence", "cookie", "f5-201"],
+      "difficulty": "medium"
+    },
+    {
+      "id": "f5201-007",
+      "question": "The BIG-IP must terminate HTTPS from clients and forward clear-text HTTP to pool members (SSL offload). Which profile is mandatory on the virtual server?",
+      "options": [
+        "A Server SSL profile pointing at the back-end certificate",
+        "An HTTP profile only, with no SSL configuration",
+        "A Client SSL profile bound to the server certificate and key",
+        "A FastL4 profile to accelerate the handshake"
+      ],
+      "correct": 2,
+      "explanation": "A Client SSL profile holds the server certificate and key and lets TMM terminate the TLS handshake from the client; without it the virtual server cannot decrypt HTTPS. A Server SSL profile is only needed when traffic is re-encrypted to the back end, an HTTP profile alone does not handle TLS, and FastL4 bypasses the L7 SSL stack.",
+      "tags": ["ssl-offload", "client-ssl", "f5-201"],
+      "difficulty": "easy"
+    },
+    {
+      "id": "f5201-008",
+      "question": "Two BIG-IPs run a sync-failover device group. When the active unit fails, which resources move to the newly active unit?",
+      "options": [
+        "Only static non-floating self IPs",
+        "The management IP address",
+        "Only the host name and NTP configuration",
+        "Floating self IPs and the virtual servers in any traffic groups the unit takes ownership of"
+      ],
+      "correct": 3,
+      "explanation": "Failover is driven by traffic groups: the unit that becomes active for a traffic group takes over its floating self IPs, virtual addresses and SNAT translations. Non-floating self IPs are pinned to a specific device and do not move, the out-of-band management IP is per-device and never failed over, and host names and NTP are individual system settings.",
+      "tags": ["high-availability", "traffic-groups", "f5-201"],
+      "difficulty": "medium"
+    },
+    {
+      "id": "f5201-009",
+      "question": "Which tmsh command saves the running configuration to the on-disk configuration files so it survives a reboot?",
+      "options": [
+        "tmsh save sys config",
+        "tmsh save running-config",
+        "tmsh write memory",
+        "tmsh commit"
+      ],
+      "correct": 0,
+      "explanation": "On TMOS, 'tmsh save sys config' writes the running configuration out to the bigip.conf, bigip_base.conf and related files so it persists across reboots. 'save running-config' and 'write memory' are Cisco-style commands and do not exist on TMOS, and 'commit' is not the persistence command on BIG-IP.",
+      "tags": ["tmsh", "configuration", "f5-201"],
+      "difficulty": "easy"
+    },
+    {
+      "id": "f5201-010",
+      "question": "What distinguishes a floating self IP from a non-floating self IP on a BIG-IP?",
+      "options": [
+        "Floating self IPs are reserved exclusively for management-plane traffic",
+        "Non-floating self IPs are required as the SNAT translation address",
+        "Floating self IPs are owned by a traffic group and move to whichever device is active for that traffic group; non-floating self IPs are pinned to one device",
+        "Floating self IPs exist only on the standby device and become inactive on failover"
+      ],
+      "correct": 2,
+      "explanation": "A floating self IP belongs to a traffic group and is hosted by whichever device is currently active for that group, providing a stable next-hop and SNAT address through a failover. A non-floating self IP is tied to one specific device. Management traffic uses the dedicated management interface, SNAT does not require non-floating addresses, and floating self IPs are live on the active unit, not the standby.",
+      "tags": ["self-ip", "high-availability", "f5-201"],
+      "difficulty": "medium"
+    },
+    {
+      "id": "f5201-011",
+      "question": "Which iRule event fires after the BIG-IP has fully parsed an HTTP request header from a client and is the standard place to inspect or modify the request?",
+      "options": [
+        "CLIENT_ACCEPTED",
+        "SERVER_CONNECTED",
+        "HTTP_REQUEST",
+        "HTTP_RESPONSE"
+      ],
+      "correct": 2,
+      "explanation": "HTTP_REQUEST fires once the full request header has been received and parsed, so iRule logic can read URI, host, headers and cookies and call HTTP::redirect, pool, or header insert. CLIENT_ACCEPTED runs at TCP connection time before any HTTP is seen, SERVER_CONNECTED fires on the server side, and HTTP_RESPONSE fires for the response coming back from the pool member.",
+      "tags": ["irules", "http", "f5-201"],
+      "difficulty": "medium"
+    },
+    {
+      "id": "f5201-012",
+      "question": "An administrator notices pool members are being marked DOWN intermittently. Which log file is the right first place to look for monitor and TMM events related to the LTM module?",
+      "options": [
+        "/var/log/audit",
+        "/var/log/messages",
+        "/var/log/dmesg",
+        "/var/log/ltm"
+      ],
+      "correct": 3,
+      "explanation": "/var/log/ltm is the dedicated log for Local Traffic Manager events, including monitor state changes, pool member up/down transitions, TMM warnings and SSL handshake errors. /var/log/audit records configuration changes per user, /var/log/messages is the general system log, and /var/log/dmesg captures kernel ring-buffer messages from boot.",
+      "tags": ["logging", "troubleshooting", "f5-201"],
+      "difficulty": "easy"
+    }
+  ]
+}
