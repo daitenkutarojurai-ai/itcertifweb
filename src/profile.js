@@ -80,6 +80,30 @@
     }
   }
 
+  function renderCoach() {
+    var section = $('profile-coach-section');
+    var host = $('profile-coach');
+    if (!host || !window.cqCoach) return;
+    var tips = window.cqCoach.getAdvice(3) || [];
+    if (!tips.length) { if (section) section.hidden = true; return; }
+    function esc(s) {
+      return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) {
+        return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+      });
+    }
+    host.innerHTML = tips.map(function (t) {
+      return '<div class="coach-tip">' +
+        '<span class="coach-tip-icon" aria-hidden="true">' + esc(t.icon) + '</span>' +
+        '<div class="coach-tip-body">' +
+          '<div class="coach-tip-title">' + esc(t.title) + '</div>' +
+          '<div class="coach-tip-text">' + esc(t.text) + '</div>' +
+        '</div>' +
+        (t.cta ? '<a class="coach-tip-cta" href="' + esc(t.cta.href) + '">' + esc(t.cta.label) + '</a>' : '') +
+      '</div>';
+    }).join('');
+    if (section) section.hidden = false;
+  }
+
   function renderRoadmap() {
     var host = $('profile-roadmap');
     if (!host) return;
@@ -591,6 +615,7 @@
     renderStats(stats);
     renderHeatmap(stats);
     renderMilestones(stats);
+    renderCoach();
     renderRoadmap();
     renderHats();
     renderLaurels();

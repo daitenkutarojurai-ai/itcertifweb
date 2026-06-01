@@ -473,7 +473,20 @@ competition-driven, community-driven** layer. Highest-priority builds:
   UI → join + progress → reward (XP, cosmetics, laurels) → results
   board. Reuse the `cq:session-complete` event bus for progress.
 
-#### 7.5 — IA coach (squid mascot 🦑)
+#### 7.5 — IA coach (squid mascot 🦑) ✅ v1 SHIPPED 2026-06-01 (rules-based)
+
+- **Shipped:** `src/coach.js` (in cq-core bundle) — a pure, rules-based
+  advice engine `computeAdvice(ctx)` over data the browser already has
+  (stats / roadmap / streak / hearts). Surfaces a prioritised "🦑 Coach
+  — your next moves" panel on `/profile.html` (top 3 tips with deep-link
+  CTAs). Rules: cold-start, streak-at-risk, weakest-pack drill (lowest
+  per-pack accuracy < 70% with ≥5 answered), next-roadmap-step,
+  build-a-roadmap, hearts-full boss nudge, momentum fallback. Node-CJS
+  exported + 11 unit tests; `window.cqCoach.getAdvice(n)`.
+- **Deferred (v2):** LLM-backed coach behind a Cloudflare Pages Function
+  (swap computeAdvice's inputs for a model — surfaces unchanged); per-tag
+  accuracy (stats only tracks per-pack today); inline nudges on
+  `/path.html` + a post-session debrief on the results screen.
 
 - Turn the existing floating squid (`src/mascot.js`,
   `mascot-loader.js`) from static tips into a **conversational AI
