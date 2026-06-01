@@ -125,6 +125,51 @@
     }, 'user_id');
   }
 
+  // ── Weekly-XP bridge (cross-platform leaderboard) ──────────────────────
+  // Feeds public.user_weekly_xp — the SAME table the native app's
+  // get_weekly_leaderboard RPC reads — so web and app players rank on one
+  // board. We mirror the app's ISO-week key byte-for-byte (lib/league.ts
+  // isoWeek) and store the running weekly total, same as the app's
+  // addWeeklyXp. cq-stats-v1 has no per-week breakdown, so we track the XP
+  // delta since the last observation in cq-weekly-xp-v1 and accumulate it
+  // into the current week's bucket (resetting when the week rolls over).
+  function isoWeek(d) {
+    d = d || new Date();
+    var dt = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
+    var dayNum = dt.getUTCDay() || 7;
+    dt.setUTCDate(dt.getUTCDate() + 4 - dayNum);
+    var yearStart = new Date(Date.UTC(dt.getUTCFullYear(), 0, 1));
+    var week = Math.ceil(((dt.getTime() - yearStart.getTime()) / 86400000 + 1) / 7);
+    return dt.getUTCFullYear() + '-W' + String(week).padStart(2, '0');
+  }
+
+  async function pushWeeklyXp() {
+    var c = client(); var uid = userId();
+    if (!c || !uid) return;
+    var stats = readKey('cq-stats-v1', {});
+    var totalXp = typeof stats.xp === 'number' ? stats.xp | 0 : 0;
+    var wk = isoWeek();
+    var st = readKey('cq-weekly-xp-v1', null);
+    if (!st || typeof st.lastTotal !== 'number') {
+      // First observation on this device: baseline only. Never credit a
+      // user's accumulated lifetime XP to the current week.
+      writeKey('cq-weekly-xp-v1', { iso_week: wk, xp: 0, lastTotal: totalXp });
+      return;
+    }
+    if (st.iso_week !== wk) st = { iso_week: wk, xp: 0, lastTotal: st.lastTotal };
+    var delta = totalXp - st.lastTotal;
+    if (delta < 0) delta = 0; // XP only grows; guard against resets
+    st.xp += delta;
+    st.lastTotal = totalXp;
+    writeKey('cq-weekly-xp-v1', st);
+    if (st.xp <= 0) return; // nothing earned this week yet
+    await pushV2('user_weekly_xp', {
+      user_id: uid,
+      iso_week: wk,
+      xp: st.xp,
+    }, 'user_id,iso_week');
+  }
+
   async function pushAllPathProgressFromLocal() {
     var c = client(); var uid = userId();
     if (!c || !uid) return;
@@ -411,6 +456,7 @@
       dbg('[cq-sync] first sign-in — claiming local progress');
       await Promise.all([
         pushStats(),
+        pushWeeklyXp(),
         pushAllPathProgressFromLocal(),
         pushAllLaurelsFromLocal(),
         pushCosmetics(),
@@ -423,6 +469,9 @@
       dbg('[cq-sync] hydrating from cloud');
       await pullAll();
     }
+    // Establish the weekly-XP baseline for this session so subsequent
+    // cq:stats-changed deltas accumulate into the current week.
+    await pushWeeklyXp();
   }
 
   /* ═══════ EVENT BUS BINDINGS ════════════════════════════════════════ */
@@ -452,7 +501,7 @@
     // pushing back would create a useless round-trip.
     if (e && e.detail && e.detail.hydrated) return;
     clearTimeout(pendingStatsPush);
-    pendingStatsPush = setTimeout(pushStats, 1000);
+    pendingStatsPush = setTimeout(function () { pushStats(); pushWeeklyXp(); }, 1000);
   });
 
   window.addEventListener('cq:path-progress-changed', function (e) {
@@ -491,6 +540,8 @@
   window.cqSync = {
     bootstrap: bootstrap,
     pushStats: pushStats,
+    pushWeeklyXp: pushWeeklyXp,
+    isoWeek: isoWeek,
     pullAll: pullAll,
     isReady: function () { return bootstrapped; },
   };

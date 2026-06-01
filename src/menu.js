@@ -71,6 +71,9 @@
         '<a href="/cheatsheets/">' +
           '<span class="mobile-menu-emoji">📋</span>Cheatsheets' +
         '</a>' +
+        '<a href="/leaderboard/">' +
+          '<span class="mobile-menu-emoji">🏆</span>Leaderboard' +
+        '</a>' +
         '<a href="/news/">' +
           '<span class="mobile-menu-emoji">💡</span>Pro tips' +
         '</a>' +

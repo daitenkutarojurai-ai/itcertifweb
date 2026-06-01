@@ -434,6 +434,18 @@
     }
   }
 
+  // ISO-8601 week key (UTC), matching the native app's lib/league.ts isoWeek
+  // and src/sync.js so all three agree on which week a row belongs to.
+  function lbIsoWeek() {
+    var d = new Date();
+    var dt = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
+    var dayNum = dt.getUTCDay() || 7;
+    dt.setUTCDate(dt.getUTCDate() + 4 - dayNum);
+    var ys = new Date(Date.UTC(dt.getUTCFullYear(), 0, 1));
+    var wk = Math.ceil(((dt.getTime() - ys.getTime()) / 86400000 + 1) / 7);
+    return dt.getUTCFullYear() + '-W' + String(wk).padStart(2, '0');
+  }
+
   async function loadLeaderboardRank() {
     var rankRow = $('profile-lb-rank-row');
     var rankBadge = $('profile-lb-rank-badge');
@@ -441,16 +453,27 @@
     var session = window.cqAuth._client.auth && (await window.cqAuth._client.auth.getSession()).data.session;
     if (!session) return;
     try {
-      var r = await window.cqAuth._client.rpc('get_my_leaderboard_rank');
-      if (r.error || !r.data || !r.data.opted_in) return;
+      // Same RPCs the /leaderboard/ page and the native app call; find our
+      // own row via is_me to derive the rank on each board.
+      var res = await Promise.all([
+        window.cqAuth._client.rpc('get_leaderboard', { limit_n: 200 }),
+        window.cqAuth._client.rpc('get_weekly_leaderboard', { week: lbIsoWeek(), limit_n: 200 })
+      ]);
+      function rankOf(r) {
+        if (!r || r.error || !Array.isArray(r.data)) return null;
+        for (var i = 0; i < r.data.length; i++) if (r.data[i].is_me) return i + 1;
+        return null;
+      }
+      var ra = rankOf(res[0]);
+      var rw = rankOf(res[1]);
       var parts = [];
-      if (r.data.rank_all_time) parts.push('🏆 #' + r.data.rank_all_time + ' tous les temps');
-      if (r.data.rank_weekly)   parts.push('⚡ #' + r.data.rank_weekly + ' cette semaine');
+      if (ra) parts.push('🏆 #' + ra + ' tous les temps');
+      if (rw) parts.push('⚡ #' + rw + ' cette semaine');
       if (!parts.length) return;
       rankBadge.textContent = parts.join(' · ');
       rankRow.hidden = false;
     } catch (e) {
-      if (window.cqDbg) window.cqDbg('[cq-profile] rank RPC failed:', e.message);
+      if (window.cqDbg) window.cqDbg('[cq-profile] rank lookup failed:', e.message);
     }
   }
 

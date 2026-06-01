@@ -6,7 +6,7 @@
   <meta name="theme-color" content="#06080f" />
 
   <title>Leaderboard — Top 100 cert-study players · CertQuests</title>
-  <meta name="description" content="Top 100 CertQuests players ranked by all-time XP. Streak days, level, hats earned. Opt-in only — your profile only appears if you flip the switch in your account." />
+  <meta name="description" content="Top 100 CertQuests players ranked by all-time and weekly XP — web and Android-app players on one board. Opt-in only: your profile appears only if you flip the switch in your account." />
   <meta name="robots" content="index, follow" />
   <link rel="canonical" href="https://certquests.com/leaderboard/" />
 
@@ -26,8 +26,8 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700;800&family=DM+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet" />
 
-  <link rel="stylesheet" href="/src/styles/main.css?v=106" />
-  <link rel="stylesheet" href="/src/styles/desktop.css?v=106" />
+  <link rel="stylesheet" href="/src/styles/main.css?v=107" />
+  <link rel="stylesheet" href="/src/styles/desktop.css?v=107" />
 
   <style>
     .lb-page { max-width: 980px; margin: 0 auto; padding: 0 20px 80px; }
@@ -134,7 +134,7 @@
     <section class="lb-hero">
       <span class="eyebrow">🏆 Leaderboard</span>
       <h1>The <span class="grad">top 100</span> cert-study players</h1>
-      <p class="lede">Ranked by all-time XP — minutes studied × accuracy + streak bonus + sessions. Only players who opted in show up; everyone else stays private by default.</p>
+      <p class="lede">Ranked by XP — all-time and this week. Web and Android-app players share one board, so you're competing with every opted-in learner. Everyone else stays private by default.</p>
 
       <div class="lb-meta">
         <span class="pill live" id="lb-status">⏳ Loading…</span>
@@ -160,20 +160,17 @@
     </div>
 
     <div class="lb-explain">
-      <h3>How XP is computed</h3>
-      <p><code>minutes_studied × accuracy_factor + streak_days × 8 + sessions × 2 + bonus_xp</code> — see <code>src/stats.js</code>. Accuracy factor is clamped 0.4–1.2 so a 100%-accuracy 10-minute session doesn't outrank a 60-minute one with 80%.</p>
+      <h3>One board, web + app</h3>
+      <p>Rankings come from the same Supabase functions the CertQuests Android app uses, so a player grinding on their phone and one studying in the browser appear side by side. Sign in with the same account on either and your XP follows you.</p>
 
-      <h3>This week</h3>
-      <p>The weekly tab shows players who studied since Monday 00:00 UTC, ranked by total XP. Resets each Monday — a fresh sprint for regular learners.</p>
+      <h3>All-time vs this week</h3>
+      <p>The <strong>all-time</strong> tab ranks by lifetime XP. The <strong>this week</strong> tab ranks by XP earned in the current ISO week (Monday → Sunday, UTC) and resets every Monday — a fresh sprint for regular learners.</p>
 
       <h3>Why so few players (or zero)?</h3>
       <p>The leaderboard is <strong>opt-in only</strong>. Most players never flip the switch. If the table is empty, it just means nobody's published their score yet — go to <a href="/profile.html#leaderboard">your profile</a> and become the first.</p>
 
-      <h3>Streak honesty</h3>
-      <p>Streak days are currently client-trusted (computed in your browser, mirrored to the cloud). A future round will move the streak check server-side so it can't be inflated by date-spoofing.</p>
-
       <h3>RGPD</h3>
-      <p>Only your <em>display name</em> (separate from your auth username if you set one) and aggregated stats appear. No email, no user_id, no contact info. Flip the toggle off anytime and you're gone from the next page load.</p>
+      <p>Only your <em>display name</em> (separate from your auth username if you set one) and XP appear. No email, no user_id, no contact info. Flip the toggle off anytime and you're gone from the next page load.</p>
     </div>
   </main>
 
@@ -192,11 +189,14 @@
   </footer>
 
   <script>
-  /* ─── Leaderboard — Phase 6.7-R2 (UX-12) ───────────────────────────────
-     Fetches both leaderboard_all_time and leaderboard_weekly via anon JWT.
-     If the user is signed in (cq:auth-changed event from cq-core.js), calls
-     get_my_leaderboard_rank() RPC with their JWT to show their own rank.
-     Migration required: docs/migrations/0002_leaderboard_weekly.sql
+  /* ─── Leaderboard — unified web + native-app board ─────────────────────
+     Ranks opted-in players via the SAME Supabase RPCs the native app uses:
+     get_leaderboard (all-time, user_profile.xp) and get_weekly_leaderboard
+     (this ISO week, user_weekly_xp). Both filter profiles.leaderboard_opt_in.
+     Anon JWT renders the public board; the user's JWT (cq:auth-changed from
+     cq-core.js) re-fetches so is_me + own-rank light up. The web feeds these
+     tables through src/sync.js (pushStats → user_profile, pushWeeklyXp →
+     user_weekly_xp), so web and app players share one ranking.
   */
   (function () {
     const SUPABASE_URL     = 'https://zhxnteqtiyqnyidfkivj.supabase.co';
@@ -213,7 +213,6 @@
     /* cached fetched data for tab switching */
     var dataAll = null, dataWeek = null;
     var activeTab = 'alltime';
-    var myDisplayName = null; /* set after rank RPC resolves */
 
     function esc(s) {
       return String(s == null ? '' : s).replace(/[&<>"']/g, c =>
@@ -235,27 +234,19 @@
                'Be the first — flip the switch on <a style="color:#fbbf24" href="/profile.html#leaderboard">your profile</a>.</div>';
       }
       const rowsHtml = rows.map((row, i) => {
-        const r      = i + 1;
-        const streak = Number(row.streak_days) || 0;
-        const isMe   = myDisplayName && row.display_name === myDisplayName;
+        const r    = i + 1;
+        const isMe = !!row.is_me;
         return '<tr' + (isMe ? ' class="lb-row--me"' : '') + '>' +
           '<td class="lb-rank ' + rankClass(r) + '">' + rankIcon(r) + '</td>' +
           '<td class="lb-name">' + esc(row.display_name || 'Anonymous') +
             (isMe ? '<span class="lb-me-badge">vous</span>' : '') + '</td>' +
           '<td class="lb-xp">' + fmtNum(row.xp) + ' XP</td>' +
-          '<td class="lb-num">L' + (Number(row.level) || 1) + '</td>' +
-          '<td class="lb-streak ' + (streak > 0 ? '' : 'cold') + '">' + (streak > 0 ? '🔥 ' + streak + 'd' : '—') + '</td>' +
-          '<td class="lb-num lb-col-sessions">' + fmtNum(row.sessions_count) + '</td>' +
-          '<td class="lb-num lb-col-questions">' + fmtNum(row.questions_answered) + '</td>' +
         '</tr>';
       }).join('');
       return '<table class="lb-table" aria-label="' + ariaLabel + '">' +
         '<thead><tr>' +
           '<th>Rang</th><th>Joueur</th>' +
-          '<th style="text-align:right">XP</th><th style="text-align:right">Lvl</th>' +
-          '<th>Streak</th>' +
-          '<th class="lb-col-sessions" style="text-align:right">Sessions</th>' +
-          '<th class="lb-col-questions" style="text-align:right">Questions</th>' +
+          '<th style="text-align:right">XP</th>' +
         '</tr></thead>' +
         '<tbody>' + rowsHtml + '</tbody></table>';
     }
@@ -285,73 +276,85 @@
     tabAll.addEventListener('click',  function () { switchTab('alltime'); });
     tabWeek.addEventListener('click', function () { switchTab('weekly'); });
 
-    function apiFetch(path) {
-      return fetch(SUPABASE_URL + path, {
-        headers: { 'apikey': SUPABASE_ANON, 'Authorization': 'Bearer ' + SUPABASE_ANON, 'Accept': 'application/json' }
+    /* ── Data layer — calls the SAME Supabase RPCs the native app uses
+       (get_leaderboard / get_weekly_leaderboard), so web + app players
+       rank on one board. Rows: { user_id, display_name, xp, is_me }.
+       Anon JWT renders the public board; once signed in we re-fetch with
+       the user's JWT so is_me (and the own-rank banner) light up. */
+    var RPC_URL = SUPABASE_URL + '/rest/v1/rpc/';
+    var currentJwt = null;
+
+    function isoWeek(d) {
+      d = d || new Date();
+      var dt = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
+      var dayNum = dt.getUTCDay() || 7;
+      dt.setUTCDate(dt.getUTCDate() + 4 - dayNum);
+      var ys = new Date(Date.UTC(dt.getUTCFullYear(), 0, 1));
+      var wk = Math.ceil(((dt.getTime() - ys.getTime()) / 86400000 + 1) / 7);
+      return dt.getUTCFullYear() + '-W' + String(wk).padStart(2, '0');
+    }
+
+    function callRpc(name, body) {
+      return fetch(RPC_URL + name, {
+        method: 'POST',
+        headers: {
+          'apikey': SUPABASE_ANON,
+          'Authorization': 'Bearer ' + (currentJwt || SUPABASE_ANON),
+          'Content-Type': 'application/json',
+          'Accept': 'application/json'
+        },
+        body: JSON.stringify(body || {})
       }).then(function (r) {
         if (!r.ok) return r.text().then(function (t) { throw new Error('HTTP ' + r.status + ': ' + t.slice(0, 200)); });
         return r.json();
       });
     }
 
-    /* Fetch both boards in parallel */
-    Promise.all([
-      apiFetch('/rest/v1/leaderboard_all_time?select=*&order=xp.desc&limit=100'),
-      apiFetch('/rest/v1/leaderboard_weekly?select=*&order=xp.desc&limit=100')
-        .catch(function () { return []; }) /* graceful: weekly view may not exist yet */
-    ]).then(function (results) {
-      dataAll  = results[0];
-      dataWeek = results[1];
-      statusEl.textContent = '🟢 Live';
-      renderActive();
-    }).catch(function (err) {
-      statusEl.textContent = '🔴 Offline';
-      var msg = String(err.message || '');
-      var missing = /relation .* does not exist|404|not found/i.test(msg);
-      wrap.innerHTML = missing
-        ? '<div class="lb-empty">Leaderboard isn\'t live yet — apply <code style="color:#fbbf24">docs/migrations/0001_leaderboards.sql</code> in Supabase Studio.</div>'
-        : '<div class="lb-error">Couldn\'t load: ' + esc(msg) + '</div>';
-    });
+    function renderOwnRank() {
+      if (!currentJwt) { ownRankEl.classList.remove('is-visible'); return; }
+      function rankOf(rows) { for (var i = 0; i < rows.length; i++) if (rows[i].is_me) return i + 1; return null; }
+      var ra = dataAll ? rankOf(dataAll) : null;
+      var rw = dataWeek ? rankOf(dataWeek) : null;
+      var parts = [];
+      if (ra) parts.push('🏆 <em>#' + ra + '</em> tous les temps');
+      if (rw) parts.push('⚡ <em>#' + rw + '</em> cette semaine');
+      ownRankTxt.innerHTML = parts.length
+        ? 'Votre rang — ' + parts.join(' <span class="lb-own-rank-sep">·</span> ') +
+          ' &nbsp;<a href="/profile.html#leaderboard" style="color:#fbbf24;font-weight:500;font-size:12px">modifier ›</a>'
+        : 'Vous n\'apparaissez pas encore — activez l\'opt-in dans votre profil et gagnez de l\'XP. ' +
+          '<a href="/profile.html#leaderboard" style="color:#fbbf24;font-weight:500;font-size:12px">profil ›</a>';
+      ownRankEl.classList.add('is-visible');
+    }
 
-    /* Own-rank: fires when cq-core.js auth module emits cq:auth-changed */
+    function loadBoards() {
+      wrap.innerHTML = '<div class="lb-loading">Fetching…</div>';
+      return Promise.all([
+        callRpc('get_leaderboard', { limit_n: 100 }),
+        callRpc('get_weekly_leaderboard', { week: isoWeek(), limit_n: 100 }).catch(function () { return []; })
+      ]).then(function (res) {
+        dataAll  = Array.isArray(res[0]) ? res[0] : [];
+        dataWeek = Array.isArray(res[1]) ? res[1] : [];
+        statusEl.textContent = '🟢 Live';
+        renderActive();
+        renderOwnRank();
+      }).catch(function (err) {
+        statusEl.textContent = '🔴 Offline';
+        wrap.innerHTML = '<div class="lb-error">Couldn\'t load: ' + esc(String(err.message || err)) + '</div>';
+      });
+    }
+
+    loadBoards();
+
+    /* Re-fetch with the user's JWT once signed in (or back to anon on sign-out) */
     window.addEventListener('cq:auth-changed', function (e) {
       var session = e.detail && e.detail.session;
-      if (!session || !session.access_token) return;
-      var jwt = session.access_token;
-
-      fetch(SUPABASE_URL + '/rest/v1/rpc/get_my_leaderboard_rank', {
-        method: 'POST',
-        headers: {
-          'apikey': SUPABASE_ANON,
-          'Authorization': 'Bearer ' + jwt,
-          'Content-Type': 'application/json',
-          'Accept': 'application/json'
-        },
-        body: '{}'
-      })
-      .then(function (r) { return r.ok ? r.json() : null; })
-      .then(function (data) {
-        if (!data || !data.opted_in) return;
-        /* Look up display name from the leaderboard data for row highlighting */
-        if (dataAll) {
-          var ra = data.rank_all_time;
-          if (ra && ra <= dataAll.length) myDisplayName = dataAll[ra - 1] && dataAll[ra - 1].display_name;
-        }
-        var parts = [];
-        if (data.rank_all_time) parts.push('🏆 <em>#' + data.rank_all_time + '</em> tous les temps');
-        if (data.rank_weekly)   parts.push('⚡ <em>#' + data.rank_weekly + '</em> cette semaine');
-        if (!parts.length) return;
-        ownRankTxt.innerHTML = 'Votre rang — ' + parts.join(' <span class="lb-own-rank-sep">·</span> ') +
-          ' &nbsp;<a href="/profile.html#leaderboard" style="color:#fbbf24;font-weight:500;font-size:12px">modifier ›</a>';
-        ownRankEl.classList.add('is-visible');
-        renderActive(); /* re-render to highlight "vous" row */
-      })
-      .catch(function () { /* rank RPC not yet applied — silently skip */ });
+      var jwt = (session && session.access_token) || null;
+      if (jwt !== currentJwt) { currentJwt = jwt; loadBoards(); }
     });
   })();
   </script>
 
-  <script src="/src/cq-core.js?v=106" defer></script>
-  <script src="/src/mascot-loader.js?v=106" defer></script>
+  <script src="/src/cq-core.js?v=107" defer></script>
+  <script src="/src/mascot-loader.js?v=107" defer></script>
 </body>
 </html>
