@@ -1,0 +1,395 @@
+{
+  "packId": "aws-mla-c01",
+  "title": "AWS Machine Learning Engineer Associate (MLA-C01)",
+  "brandName": "Amazon AWS",
+  "brandColor": "#60a5fa",
+  "chapters": [
+    {
+      "id": "ch1",
+      "title": "Deployment",
+      "tag": "deployment",
+      "nodes": [
+        {
+          "id": "c1-concept",
+          "type": "concept",
+          "title": "Kubernetes Deployment strategies: Key Ideas",
+          "content": "A Kubernetes Deployment manages rolling updates and rollbacks for stateless Pods. CKAD exams test strategy types, rollout commands, and how resource limits interact with scheduling.",
+          "flashcards": [
+            {
+              "front": "RollingUpdate vs Recreate deployment strategy?",
+              "back": "RollingUpdate: gradually replaces old Pods with new ones (zero downtime). Recreate: terminates all old Pods before starting new ones (brief downtime)."
+            },
+            {
+              "front": "maxSurge and maxUnavailable — what do they control?",
+              "back": "maxSurge: how many extra Pods above the desired count can exist during rollout. maxUnavailable: how many Pods can be down at once. Both accept absolute numbers or percentages."
+            },
+            {
+              "front": "Command to roll back a Deployment to the previous revision?",
+              "back": "kubectl rollout undo deployment/<name>  (add --to-revision=N to target a specific revision from rollout history)."
+            },
+            {
+              "front": "Liveness vs Readiness probe — difference?",
+              "back": "Liveness: kills and restarts the container if it fails. Readiness: removes the Pod from Service endpoints if it fails (does not restart)."
+            }
+          ],
+          "source": "concept-library",
+          "sourceTag": "deployment"
+        },
+        {
+          "id": "c1-quiz1",
+          "type": "quiz",
+          "title": "Deployment — Drill 1",
+          "questionIds": [
+            "aws-mla-c01-006",
+            "aws-mla-c01-015",
+            "aws-mla-c01-007",
+            "aws-mla-c01-008",
+            "aws-mla-c01-013"
+          ]
+        },
+        {
+          "id": "c1-game",
+          "type": "minigame",
+          "gameType": "lightning",
+          "mode": "lightning-round",
+          "data": {
+            "secondsPerQuestion": 7,
+            "livesAllowed": 3,
+            "questions": [
+              {
+                "q": "A model needs to score 10 GB of accumulated daily transactions in a nightly batch with no requirement for an always-on endpoint. Which SageMaker inference option is the most appropriate choice?",
+                "choices": [
+                  "Real-time inference endpoint provisioned 24/7 with auto-scaling enabled across multiple instances",
+                  "Serverless Inference endpoint configured with a maximum concurrency of 200 simultaneous requests",
+                  "Asynchronous Inference endpoint with input payloads pulled from an Amazon SQS queue continuously",
+                  "Batch Transform job that reads inputs from S3, runs the model, and writes outputs to S3"
+                ],
+                "correctIndex": 3,
+                "explanation": "Batch Transform is purpose-built for offline scoring of large datasets in S3 — it spins up compute, processes the input, writes results back to S3, then tears down, so there are no idle endpoint costs. Real-time endpoints bill continuously even when no traffic arrives, which is wasteful for a nightly job. Serverless Inference targets sporadic small online requests and has per-payload size limits unsuited to bulk dataset scoring. Asynchronous Inference handles long-running single requests up to 1 GB each, not multi-GB bulk dataset scans against an S3 prefix."
+              },
+              {
+                "q": "You want to roll a new model version to 10% of live production traffic before deciding whether to promote it fully. Which SageMaker capability supports this with no client-side code changes?",
+                "choices": [
+                  "Production variants on a single endpoint with weights set so 10% of invocations route to the new model",
+                  "Two SageMaker endpoints behind a custom Application Load Balancer that splits traffic via target groups",
+                  "Shadow tests that mirror 100% of production traffic to the candidate model and compare predictions offline",
+                  "A SageMaker Pipeline step that retrains the model on every fifth request received by the existing endpoint"
+                ],
+                "correctIndex": 0,
+                "explanation": "A SageMaker endpoint can host multiple production variants behind one InvokeEndpoint URL. Setting initial_variant_weight on each variant routes traffic by weighted random allocation (for example 90/10), so clients keep using the same endpoint name with no SDK changes. A custom ALB requires deploying two separate endpoints and managing target groups — extra infrastructure for the same result, and the client URL would change. Shadow tests mirror traffic to a candidate model but do not serve any responses to real users from it. Pipelines orchestrate retraining workflows; they do not split live request traffic."
+              },
+              {
+                "q": "You need a managed, lineage-tracked workflow that chains data processing, training, evaluation, conditional approval, and registration of an ML model. Which AWS service is purpose-built for this?",
+                "choices": [
+                  "AWS Glue workflows orchestrated by Glue triggers and crawlers running on a recurring time schedule",
+                  "AWS Step Functions executing arbitrary Lambda tasks defined in an Amazon States Language JSON definition",
+                  "Amazon SageMaker Pipelines with ProcessingStep, TrainingStep, ConditionStep, and RegisterModel steps",
+                  "Amazon EventBridge rules that invoke individual AWS Lambda functions based on event-bus pattern matching"
+                ],
+                "correctIndex": 2,
+                "explanation": "SageMaker Pipelines is the native ML workflow service: it understands ML-specific step types (Processing, Training, Tuning, Condition, RegisterModel, etc.), captures lineage automatically in SageMaker Lineage, and integrates with the Model Registry for conditional approval. Glue workflows orchestrate ETL jobs and crawlers, not ML training and registration. Step Functions can run any Lambda task but lack built-in ML-step abstractions and automatic lineage tracking. EventBridge routes events between AWS services on a publish/subscribe model — it does not orchestrate ordered multi-step pipelines."
+              },
+              {
+                "q": "A SageMaker real-time endpoint serves a deep-learning model and experiences spiky daytime traffic with long idle periods at night, causing wasted cost on always-on instances. The team wants automatic scaling tied to request load. Which configuration should they apply?",
+                "choices": [
+                  "Register the endpoint variant as a scalable target with Application Auto Scaling using a target-tracking policy on SageMakerVariantInvocationsPerInstance",
+                  "Manually update the endpoint's instance count each morning and evening based on the previous day's observed traffic patterns",
+                  "Deploy the model with a fixed fleet sized for peak load so no scaling logic is ever required during the daytime spike",
+                  "Move the model to a SageMaker Batch Transform job that runs continuously to absorb the spiky real-time traffic"
+                ],
+                "correctIndex": 0,
+                "explanation": "SageMaker endpoint variants integrate with Application Auto Scaling: registering the variant as a scalable target and using a target-tracking policy on SageMakerVariantInvocationsPerInstance automatically adds and removes instances as request load changes, cutting idle-time cost. Manually updating instance counts twice a day is operationally heavy and cannot react to within-day spikes. A fixed peak-sized fleet wastes money during the long idle nights — the exact problem being solved. Batch Transform is for offline bulk scoring, not low-latency real-time request traffic, and running it continuously does not serve interactive requests."
+              },
+              {
+                "q": "A customer-support team wants to add sentiment analysis and entity extraction to incoming text tickets without training or hosting any custom model. Which AWS service meets this with the least effort?",
+                "choices": [
+                  "Amazon SageMaker JumpStart, used to fine-tune and deploy a foundation model for text classification on the team's labeled tickets",
+                  "Amazon Kendra, an enterprise search service that indexes documents and answers natural-language search queries",
+                  "Amazon Transcribe, which converts audio recordings of support calls into written transcripts for analysis",
+                  "Amazon Comprehend, a managed NLP service that detects sentiment and extracts entities from text through an API"
+                ],
+                "correctIndex": 3,
+                "explanation": "Amazon Comprehend is a fully managed NLP service that returns sentiment and extracts entities (and key phrases, language, PII) from text via a simple API, with no model training or hosting required. SageMaker JumpStart still requires choosing, fine-tuning, deploying, and operating a model — far more effort than the requirement allows. Amazon Kendra is for intelligent enterprise document search, not sentiment or entity extraction. Amazon Transcribe converts speech audio to text and does not analyze sentiment or entities on its own."
+              }
+            ]
+          },
+          "title": "Deployment — Lightning Round"
+        },
+        {
+          "id": "c1-boss",
+          "type": "subboss",
+          "title": "Boss: Deployment",
+          "questionIds": [
+            "aws-mla-c01-006",
+            "aws-mla-c01-015",
+            "aws-mla-c01-007",
+            "aws-mla-c01-008",
+            "aws-mla-c01-013"
+          ]
+        },
+        {
+          "id": "c1-chest",
+          "type": "chest",
+          "title": "Treasure Chest",
+          "rewardXp": 30,
+          "cosmeticKey": "chapter-1"
+        }
+      ]
+    },
+    {
+      "id": "ch2",
+      "title": "Data Preparation",
+      "tag": "data-preparation",
+      "nodes": [
+        {
+          "id": "c2-concept",
+          "type": "concept",
+          "title": "Data Preparation: Key Ideas",
+          "content": "Quick primer on Data Preparation. Tap to flip cards covering the most-asked exam ideas in this domain.",
+          "flashcards": [
+            {
+              "front": "You need a managed feature store that supports both millisecond-latency lookups for real-time inference and full historical reads for offline training. Which AWS service component fits this requirement?",
+              "back": "SageMaker Feature Store provides two co-located stores per feature group: an online store for low-latency key-value lookups during inference, and an offline store backed by S3 and queryable through Athena for training and analysis. They share schema and ingestion paths. SageMaker Model Registry tracks trained model versions and approval status — it stores models, not features. DynamoDB-to-Redshift via DMS is custom plumbing that does not unify online and offline access in one schema. S3-only loses the millisecond online lookup capability needed for real-time inference."
+            },
+            {
+              "front": "A binary fraud-detection training set has 99.2% legitimate and 0.8% fraudulent transactions, and the trained classifier predicts 'legitimate' for nearly every input. Which technique most directly addresses the underlying class-imbalance problem?",
+              "back": "SMOTE (Synthetic Minority Over-sampling Technique) generates new minority-class samples in feature space, and class weighting penalizes errors on the minority class more heavily — both are standard remedies for skewed labels. MSE is a regression loss and does not change how often the minority class appears in training. Removing stratification harms evaluation by allowing class-imbalanced folds; it makes the imbalance problem worse rather than fixing it. A smaller learning rate slows convergence but leaves the label distribution and the model's majority-class bias untouched."
+            },
+            {
+              "front": "A tabular dataset has a categorical 'country' column with about 150 distinct values that must be fed into a SageMaker XGBoost model. Which encoding is the most appropriate for this high-cardinality categorical feature?",
+              "back": "One-hot encoding converts each category into its own binary indicator column, which XGBoost (and most tabular learners) require since they operate on numeric matrices, and it avoids imposing a false ordinal relationship. XGBoost does not accept raw category strings — input must be numeric. Assigning random integer IDs implies a spurious ordering and magnitude relationship between countries that the model would wrongly learn from. Dropping the column discards potentially predictive signal; high cardinality is a handling challenge, not an automatic reason to remove a feature."
+            },
+            {
+              "front": "A nightly SageMaker Processing job for feature engineering must read raw data from S3 and write transformed features back to S3 on a fully managed, ephemeral cluster. Which SageMaker component is designed for this preprocessing step?",
+              "back": "A SageMaker Processing job spins up managed, ephemeral compute, runs a built-in (for example SKLearnProcessor) or custom container to execute the preprocessing script against S3 inputs, writes outputs to S3, and tears the cluster down — purpose-built for feature engineering and data processing steps. A real-time endpoint is for low-latency online inference, not batch preprocessing of a dataset. The Model Registry versions and governs trained models; it does not run processing compute. Leaving a Studio notebook running overnight is not a managed, ephemeral, schedulable job and wastes idle compute."
+            }
+          ],
+          "source": "auto-derived"
+        },
+        {
+          "id": "c2-quiz1",
+          "type": "quiz",
+          "title": "Data Preparation — Drill 1",
+          "questionIds": [
+            "aws-mla-c01-001",
+            "aws-mla-c01-016",
+            "aws-mla-c01-002",
+            "aws-mla-c01-011"
+          ]
+        },
+        {
+          "id": "c2-game",
+          "type": "minigame",
+          "gameType": "lightning",
+          "mode": "lightning-round",
+          "data": {
+            "secondsPerQuestion": 7,
+            "livesAllowed": 3,
+            "questions": [
+              {
+                "q": "You need a managed feature store that supports both millisecond-latency lookups for real-time inference and full historical reads for offline training. Which AWS service component fits this requirement?",
+                "choices": [
+                  "SageMaker Model Registry that tracks model versions, approval states, and ModelPackageGroups for sharing across accounts",
+                  "SageMaker Feature Store with both online and offline stores enabled on the same feature group",
+                  "DynamoDB streams replicated to Redshift via AWS Database Migration Service",
+                  "S3 partitioned Parquet datasets queried only by AWS Glue and Athena"
+                ],
+                "correctIndex": 1,
+                "explanation": "SageMaker Feature Store provides two co-located stores per feature group: an online store for low-latency key-value lookups during inference, and an offline store backed by S3 and queryable through Athena for training and analysis. They share schema and ingestion paths. SageMaker Model Registry tracks trained model versions and approval status — it stores models, not features. DynamoDB-to-Redshift via DMS is custom plumbing that does not unify online and offline access in one schema. S3-only loses the millisecond online lookup capability needed for real-time inference."
+              },
+              {
+                "q": "A binary fraud-detection training set has 99.2% legitimate and 0.8% fraudulent transactions, and the trained classifier predicts 'legitimate' for nearly every input. Which technique most directly addresses the underlying class-imbalance problem?",
+                "choices": [
+                  "Switch the loss function to mean squared error so larger residuals on rare-class examples incur heavier penalties",
+                  "Replace stratified k-fold cross-validation with a single random 80/20 train/validation split of the data",
+                  "Apply SMOTE to synthesize additional minority-class samples or use class weights during training",
+                  "Lower the learning rate by an order of magnitude so the optimizer takes smaller, more cautious updates"
+                ],
+                "correctIndex": 2,
+                "explanation": "SMOTE (Synthetic Minority Over-sampling Technique) generates new minority-class samples in feature space, and class weighting penalizes errors on the minority class more heavily — both are standard remedies for skewed labels. MSE is a regression loss and does not change how often the minority class appears in training. Removing stratification harms evaluation by allowing class-imbalanced folds; it makes the imbalance problem worse rather than fixing it. A smaller learning rate slows convergence but leaves the label distribution and the model's majority-class bias untouched."
+              },
+              {
+                "q": "A tabular dataset has a categorical 'country' column with about 150 distinct values that must be fed into a SageMaker XGBoost model. Which encoding is the most appropriate for this high-cardinality categorical feature?",
+                "choices": [
+                  "Pass the raw country strings directly to XGBoost, which natively interprets text categories without numeric encoding",
+                  "Replace each country with a random unique integer ID so the model treats it as a continuous numeric value",
+                  "One-hot encode the country column into binary indicator columns, one per distinct country value",
+                  "Drop the country column entirely because high-cardinality categoricals always reduce model accuracy"
+                ],
+                "correctIndex": 2,
+                "explanation": "One-hot encoding converts each category into its own binary indicator column, which XGBoost (and most tabular learners) require since they operate on numeric matrices, and it avoids imposing a false ordinal relationship. XGBoost does not accept raw category strings — input must be numeric. Assigning random integer IDs implies a spurious ordering and magnitude relationship between countries that the model would wrongly learn from. Dropping the column discards potentially predictive signal; high cardinality is a handling challenge, not an automatic reason to remove a feature."
+              },
+              {
+                "q": "A nightly SageMaker Processing job for feature engineering must read raw data from S3 and write transformed features back to S3 on a fully managed, ephemeral cluster. Which SageMaker component is designed for this preprocessing step?",
+                "choices": [
+                  "A SageMaker real-time inference endpoint configured to transform records as they are invoked one at a time",
+                  "A SageMaker Model Registry entry that versions the preprocessing logic alongside the trained model artifacts",
+                  "A SageMaker Processing job using a built-in or custom container to run the preprocessing script on managed compute",
+                  "A SageMaker Studio notebook left running overnight to execute the transformation cells on a schedule"
+                ],
+                "correctIndex": 2,
+                "explanation": "A SageMaker Processing job spins up managed, ephemeral compute, runs a built-in (for example SKLearnProcessor) or custom container to execute the preprocessing script against S3 inputs, writes outputs to S3, and tears the cluster down — purpose-built for feature engineering and data processing steps. A real-time endpoint is for low-latency online inference, not batch preprocessing of a dataset. The Model Registry versions and governs trained models; it does not run processing compute. Leaving a Studio notebook running overnight is not a managed, ephemeral, schedulable job and wastes idle compute."
+              }
+            ]
+          },
+          "title": "Data Preparation — Lightning Round"
+        },
+        {
+          "id": "c2-boss",
+          "type": "subboss",
+          "title": "Boss: Data Preparation",
+          "questionIds": [
+            "aws-mla-c01-001",
+            "aws-mla-c01-016",
+            "aws-mla-c01-002",
+            "aws-mla-c01-011"
+          ]
+        },
+        {
+          "id": "c2-chest",
+          "type": "chest",
+          "title": "Treasure Chest",
+          "rewardXp": 30,
+          "cosmeticKey": "chapter-2"
+        }
+      ]
+    },
+    {
+      "id": "ch3",
+      "title": "Model Development",
+      "tag": "model-development",
+      "nodes": [
+        {
+          "id": "c3-concept",
+          "type": "concept",
+          "title": "Model Development: Key Ideas",
+          "content": "Quick primer on Model Development. Tap to flip cards covering the most-asked exam ideas in this domain.",
+          "flashcards": [
+            {
+              "front": "You want SageMaker to automatically search a large hyperparameter space and converge near the optimum without an exhaustive grid sweep. Which tuning strategy is the recommended default?",
+              "back": "SageMaker Automatic Model Tuning supports Bayesian (default), Random, Grid, and Hyperband strategies. Bayesian optimization builds a surrogate model of the objective and uses an acquisition function to pick informed next trials, typically converging in fewer jobs than random or grid search. Random search ignores prior trial outcomes, so it does not converge faster than informed methods. A linear/grid sweep is the exhaustive approach the question is explicitly asking to avoid. Manual tuning is slow and does not scale across a large hyperparameter space."
+            },
+            {
+              "front": "You want to cut deep-learning training cost by up to 90% on long-running SageMaker training jobs while tolerating possible interruptions. Which combination of settings is required?",
+              "back": "Managed Spot Training uses EC2 Spot capacity for training instances, saving up to 90% over On-Demand. Spot interruptions are inevitable, so SageMaker requires a CheckpointConfig (an S3 prefix and a local checkpoint path) so the job can resume from the last checkpoint instead of restarting from scratch. On-Demand pricing offers no Spot discount, and capping runtime just kills jobs early rather than reducing per-hour cost. Pipe mode improves data-loading throughput but does not provide a Spot discount or interruption recovery. Inference-optimized images cannot perform training because they ship without gradient-computation paths."
+            },
+            {
+              "front": "Your team wants to train a custom PyTorch model with their own training script while still letting SageMaker handle infrastructure, data download, and artifact upload. Which approach matches the requirement most directly?",
+              "back": "Script mode lets you reuse SageMaker's pre-built framework containers (PyTorch, TensorFlow, MXNet, Hugging Face, etc.) by supplying your own entry-point script through the Estimator's source_dir and entry_point arguments. SageMaker still manages instances, data channels, and artifact upload. BYOC is heavier than needed when a pre-built PyTorch container already exists for the same task. Built-in algorithms force you to use a fixed XGBoost or similar API rather than your PyTorch code. Running manually on EC2 forfeits every managed benefit the question explicitly asks SageMaker to provide."
+            },
+            {
+              "front": "A trained model achieves 99% accuracy on the training set but only 72% on the validation set. Which pair of techniques most directly addresses this overfitting?",
+              "back": "The large train-versus-validation gap is classic overfitting; L2 regularization penalizes large weights and dropout randomly deactivates units, both reducing the model's ability to memorize training noise and improving generalization. Training for more epochs and removing the validation split would worsen overfitting and remove the ability to detect it. Changing the optimizer and raising the learning rate affects convergence behavior, not the fundamental capacity-versus-generalization tradeoff. Increasing depth and width adds capacity, which typically increases overfitting rather than reducing it."
+            }
+          ],
+          "source": "auto-derived"
+        },
+        {
+          "id": "c3-quiz1",
+          "type": "quiz",
+          "title": "Model Development — Drill 1",
+          "questionIds": [
+            "aws-mla-c01-005",
+            "aws-mla-c01-003",
+            "aws-mla-c01-004",
+            "aws-mla-c01-012"
+          ]
+        },
+        {
+          "id": "c3-game",
+          "type": "minigame",
+          "gameType": "lightning",
+          "mode": "lightning-round",
+          "data": {
+            "secondsPerQuestion": 7,
+            "livesAllowed": 3,
+            "questions": [
+              {
+                "q": "You want SageMaker to automatically search a large hyperparameter space and converge near the optimum without an exhaustive grid sweep. Which tuning strategy is the recommended default?",
+                "choices": [
+                  "Random search over the entire hyperparameter grid for the maximum configured number of training jobs",
+                  "Bayesian optimization, which models the objective and picks each next trial from prior results",
+                  "A linear sweep that increments each hyperparameter by a fixed step until it reaches its upper bound",
+                  "Manual tuning by a data scientist who launches jobs one at a time and inspects the validation metric"
+                ],
+                "correctIndex": 1,
+                "explanation": "SageMaker Automatic Model Tuning supports Bayesian (default), Random, Grid, and Hyperband strategies. Bayesian optimization builds a surrogate model of the objective and uses an acquisition function to pick informed next trials, typically converging in fewer jobs than random or grid search. Random search ignores prior trial outcomes, so it does not converge faster than informed methods. A linear/grid sweep is the exhaustive approach the question is explicitly asking to avoid. Manual tuning is slow and does not scale across a large hyperparameter space."
+              },
+              {
+                "q": "You want to cut deep-learning training cost by up to 90% on long-running SageMaker training jobs while tolerating possible interruptions. Which combination of settings is required?",
+                "choices": [
+                  "Enable Managed Spot Training and configure CheckpointConfig to resume from the latest checkpoint",
+                  "Use On-Demand instances and lower the MaxRuntimeInSeconds setting to cap total training cost over time",
+                  "Enable Pipe input mode so streaming data input avoids re-downloading from Amazon S3 across attempts",
+                  "Switch the framework container to inference-optimized images that disable gradient computation entirely"
+                ],
+                "correctIndex": 0,
+                "explanation": "Managed Spot Training uses EC2 Spot capacity for training instances, saving up to 90% over On-Demand. Spot interruptions are inevitable, so SageMaker requires a CheckpointConfig (an S3 prefix and a local checkpoint path) so the job can resume from the last checkpoint instead of restarting from scratch. On-Demand pricing offers no Spot discount, and capping runtime just kills jobs early rather than reducing per-hour cost. Pipe mode improves data-loading throughput but does not provide a Spot discount or interruption recovery. Inference-optimized images cannot perform training because they ship without gradient-computation paths."
+              },
+              {
+                "q": "Your team wants to train a custom PyTorch model with their own training script while still letting SageMaker handle infrastructure, data download, and artifact upload. Which approach matches the requirement most directly?",
+                "choices": [
+                  "Bring Your Own Container with a fully custom Docker image, model server, and entrypoint",
+                  "Use a SageMaker built-in algorithm such as XGBoost and pass training hyperparameters through the SDK",
+                  "Use a SageMaker pre-built PyTorch framework container in script mode with your script as the entry point",
+                  "Run the script directly on an Amazon EC2 instance and copy the trained model artifacts to Amazon S3 by hand"
+                ],
+                "correctIndex": 2,
+                "explanation": "Script mode lets you reuse SageMaker's pre-built framework containers (PyTorch, TensorFlow, MXNet, Hugging Face, etc.) by supplying your own entry-point script through the Estimator's source_dir and entry_point arguments. SageMaker still manages instances, data channels, and artifact upload. BYOC is heavier than needed when a pre-built PyTorch container already exists for the same task. Built-in algorithms force you to use a fixed XGBoost or similar API rather than your PyTorch code. Running manually on EC2 forfeits every managed benefit the question explicitly asks SageMaker to provide."
+              },
+              {
+                "q": "A trained model achieves 99% accuracy on the training set but only 72% on the validation set. Which pair of techniques most directly addresses this overfitting?",
+                "choices": [
+                  "Increase the number of training epochs and remove the validation split so the model sees more data",
+                  "Add L2 regularization and dropout to constrain model complexity during training",
+                  "Switch the optimizer from Adam to plain SGD and raise the learning rate substantially",
+                  "Increase the model's depth and width so it has more capacity to fit the validation set"
+                ],
+                "correctIndex": 1,
+                "explanation": "The large train-versus-validation gap is classic overfitting; L2 regularization penalizes large weights and dropout randomly deactivates units, both reducing the model's ability to memorize training noise and improving generalization. Training for more epochs and removing the validation split would worsen overfitting and remove the ability to detect it. Changing the optimizer and raising the learning rate affects convergence behavior, not the fundamental capacity-versus-generalization tradeoff. Increasing depth and width adds capacity, which typically increases overfitting rather than reducing it."
+              }
+            ]
+          },
+          "title": "Model Development — Lightning Round"
+        },
+        {
+          "id": "c3-boss",
+          "type": "subboss",
+          "title": "Boss: Model Development",
+          "questionIds": [
+            "aws-mla-c01-005",
+            "aws-mla-c01-003",
+            "aws-mla-c01-004",
+            "aws-mla-c01-012"
+          ]
+        },
+        {
+          "id": "c3-chest",
+          "type": "chest",
+          "title": "Treasure Chest",
+          "rewardXp": 30,
+          "cosmeticKey": "chapter-3"
+        }
+      ]
+    }
+  ],
+  "finalBoss": {
+    "id": "final-boss",
+    "type": "finalboss",
+    "title": "Final Exam: AWS Machine Learning Engineer Associate (MLA-C01)",
+    "questionCount": 15,
+    "timeMinutes": 23
+  },
+  "meta": {
+    "generatedAt": "2026-06-01T06:04:11.667Z",
+    "totalNodes": 16,
+    "totalQuestions": 16,
+    "nodeTypes": [
+      "concept",
+      "quiz",
+      "minigame",
+      "subboss",
+      "finalboss"
+    ]
+  }
+}

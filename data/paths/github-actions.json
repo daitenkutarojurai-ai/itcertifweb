@@ -1,0 +1,407 @@
+{
+  "packId": "github-actions",
+  "title": "GitHub Actions Certification",
+  "brandName": "GitHub",
+  "brandColor": "#8b5cf6",
+  "chapters": [
+    {
+      "id": "ch1",
+      "title": "Part 1",
+      "tag": "part-1",
+      "nodes": [
+        {
+          "id": "c1-concept",
+          "type": "concept",
+          "title": "Security fundamentals: Key Ideas",
+          "content": "Security is about layering defenses so no single failure compromises a system. Most exams test the same core ideas: least privilege, defense in depth, the CIA triad, and the shared-responsibility line between you and your cloud provider.",
+          "flashcards": [
+            {
+              "front": "What is the CIA triad?",
+              "back": "Confidentiality (only the right people see the data), Integrity (data isn't tampered with), Availability (the system is reachable when needed). Every security control maps to at least one of these three pillars."
+            },
+            {
+              "front": "What does 'least privilege' mean?",
+              "back": "Grant each identity (user, role, service account) the minimum permissions needed to do its job — no more. The opposite is wildcard access, which makes a single credential leak catastrophic."
+            },
+            {
+              "front": "What is defense in depth?",
+              "back": "Stack multiple, independent controls so an attacker has to defeat all of them. Example: WAF in front of an app, network ACL on the subnet, IAM on the workload, encryption at rest in the database."
+            },
+            {
+              "front": "Shared responsibility model — who does what?",
+              "back": "The cloud provider secures the cloud (physical hardware, hypervisor, region facilities). You secure what's IN the cloud (your data, IAM config, OS patching on EC2, application code). The exact line shifts by service: serverless is more on the provider, IaaS is more on you."
+            }
+          ],
+          "source": "concept-library",
+          "sourceTag": "security"
+        },
+        {
+          "id": "c1-quiz1",
+          "type": "quiz",
+          "title": "Part 1 — Drill 1",
+          "questionIds": [
+            "github-actions-001",
+            "github-actions-002",
+            "github-actions-003",
+            "github-actions-004",
+            "github-actions-005"
+          ]
+        },
+        {
+          "id": "c1-game",
+          "type": "minigame",
+          "gameType": "lightning",
+          "mode": "lightning-round",
+          "data": {
+            "secondsPerQuestion": 7,
+            "livesAllowed": 3,
+            "questions": [
+              {
+                "q": "A platform team needs a single workflow file that runs on pull requests targeting `main` and on a nightly schedule. Which statement correctly describes this configuration?",
+                "choices": [
+                  "Both `pull_request` and `schedule` fit in one `on:` block with independent filters; `github.event_name` shows which event fired",
+                  "A workflow file accepts only one trigger, so the nightly run must live in a second workflow file dedicated to the `schedule` event",
+                  "When declared together, the `schedule` trigger inherits the `branches:` filter of the `pull_request` trigger in the same `on:` block",
+                  "Multiple triggers may be listed, but GitHub merges their event payloads into one combined `github.event` object at runtime"
+                ],
+                "correctIndex": 0,
+                "explanation": "A single `on:` block can declare several event triggers. `pull_request` takes its own `branches:` filter while `schedule` takes its own `cron:` entries, and the two fire independently — inside the run, `github.event_name` equals `pull_request` or `schedule` so steps can branch on it. There is no one-trigger-per-file limit, so a second workflow file is unnecessary. The `schedule` trigger does not inherit a `pull_request` branch filter; scheduled runs execute on the default branch. And triggers never merge payloads — each run carries the single event context that started it."
+              },
+              {
+                "q": "A CI workflow has three jobs: `build`, `unit-test`, and `deploy`. `unit-test` must start only after `build` succeeds, and `deploy` must start only after both complete. Which approach correctly models this dependency graph?",
+                "choices": [
+                  "List the jobs top-to-bottom in the file, since GitHub Actions runs jobs in the order they are declared in the YAML",
+                  "Set `concurrency: sequential` at the workflow level to disable parallelism and run the jobs in file order",
+                  "Declare `needs: build` on `unit-test` and `needs: [build, unit-test]` on `deploy` to define the dependency graph",
+                  "Assign each job a `stage:` value — `build`, `unit-test`, then `deploy` — and Actions runs the stages in that sequence"
+                ],
+                "correctIndex": 2,
+                "explanation": "The `needs:` keyword declares explicit job dependencies. With `needs: build`, `unit-test` waits for `build` to succeed; with `needs: [build, unit-test]`, `deploy` waits for both. Without `needs:`, all jobs run in parallel and declaration order has no effect on execution order. There is no `concurrency: sequential` option — `concurrency:` manages concurrent workflow runs, not inter-job ordering. And GitHub Actions has no `stage:` keyword; `needs:` is the only mechanism for sequencing jobs."
+              },
+              {
+                "q": "A workflow step must authenticate to an external API using a sensitive token stored as a repository secret named `API_TOKEN`. Which statement accurately describes usage and protection of the secret?",
+                "choices": [
+                  "Every repository secret is injected as a plain-text OS environment variable when the runner starts, so any step can read it with no YAML wiring",
+                  "Secrets must be base64-encoded before storage and decoded with a shell command inside each step that consumes them",
+                  "A secret is available only in the workflow's first job and must be re-exposed through that job's `outputs:` block for later jobs to use it",
+                  "The token is read with `${{ secrets.API_TOKEN }}` and passed through `env:` or `with:`, and GitHub masks its value in workflow logs"
+                ],
+                "correctIndex": 3,
+                "explanation": "Secrets are referenced with `${{ secrets.SECRET_NAME }}` and mapped to a step's environment via `env:` or passed as an action input via `with:`; GitHub automatically masks the value anywhere it would appear in logs. Secrets are not pre-exposed as plain-text OS environment variables — they must be explicitly wired in. They need no base64 encoding; you store the raw value. And a secret is available to every job that references it, with no need to relay it through a first job's `outputs:`."
+              },
+              {
+                "q": "A `build` job produces a compiled binary that a downstream `integration-test` job in the same workflow must execute. Both jobs run on separate, isolated runners. What is the correct method for transferring the file?",
+                "choices": [
+                  "Mount a shared NFS volume into every runner so all jobs in the workflow read and write a common filesystem",
+                  "Call `actions/upload-artifact` at the end of `build` and `actions/download-artifact` at the start of `integration-test`",
+                  "Publish the binary's path in the `build` job's `outputs:` block and read the file in the test job via `${{ needs.build.outputs.binary-path }}`",
+                  "Set the workflow-level property `artifact-sharing: true` so files produced in one job are copied to every job that `needs:` it"
+                ],
+                "correctIndex": 1,
+                "explanation": "Each GitHub Actions job runs on a fresh, isolated runner with its own filesystem, so files do not persist between jobs automatically. `actions/upload-artifact` stores the file in GitHub's artifact storage and `actions/download-artifact` retrieves it in the consuming job. Job `outputs:` transmit scalar strings such as version tags — passing a path string does not transfer the file itself, since the runner that would read it has a different filesystem. There is no shared NFS volume by default, and no `artifact-sharing:` workflow-level property exists."
+              },
+              {
+                "q": "A DevOps team wants multiple product teams across the organization to invoke a shared, centrally maintained deployment workflow without copying the YAML into each repository. Which GitHub Actions feature is purpose-built for this?",
+                "choices": [
+                  "Reusable workflows declared with `on: workflow_call:` and invoked with `uses:` at the job level to call another repo's pipeline",
+                  "Composite actions kept in a `.github/actions/` directory and referenced with `uses:` in steps to share step logic across repositories",
+                  "Workflow starter templates placed in the organization's `.github` repository that teams browse and copy into their own repositories",
+                  "Required status checks in branch protection that force a centrally managed workflow to pass before any pull request can merge"
+                ],
+                "correctIndex": 0,
+                "explanation": "Reusable workflows (declared with `on: workflow_call:`) are invoked from another workflow with `uses: org/repo/.github/workflows/deploy.yml@ref` at the job level, giving shared, versioned pipeline logic with no copied YAML. Composite actions only bundle step logic inside a single job, not a whole multi-job pipeline. Starter workflow templates produce a one-time copy each team then owns and edits independently, so central updates do not propagate. Required status checks gate whether a PR can merge — they do not distribute pipeline logic."
+              },
+              {
+                "q": "A developer wants to create a GitHub Action that runs a Node.js script to post a comment on a pull request using the GitHub REST API. Which action type is the most direct fit?",
+                "choices": [
+                  "A Docker container action that bundles the Node.js runtime and script into an image, named via `runs.image:` in `action.yml`",
+                  "A composite action that chains `run:` shell steps, one of which calls `node script.js`, with no `runs.using:` type set",
+                  "A workflow action, a built-in type for GitHub API calls, set with `runs.using: github-api` plus a permissions block in `action.yml`",
+                  "A JavaScript action that runs on the runner's Node.js, set with `runs.using: node20` and `runs.main: index.js`"
+                ],
+                "correctIndex": 3,
+                "explanation": "JavaScript actions run directly on the runner's pre-installed Node.js and are defined in `action.yml` with `runs.using: node20` and `runs.main: index.js`; the `@actions/github` and `@actions/core` packages give typed API access. A Docker container action works but adds image build/pull overhead, so it is not the most direct fit. A composite action can shell out to `node script.js` but does not bundle npm dependencies natively. There is no `github-api` (or `workflow`) action type — that `runs.using:` value does not exist."
+              }
+            ]
+          },
+          "title": "Part 1 — Lightning Round"
+        },
+        {
+          "id": "c1-chest",
+          "type": "chest",
+          "title": "Treasure Chest",
+          "rewardXp": 30,
+          "cosmeticKey": "chapter-1"
+        }
+      ]
+    },
+    {
+      "id": "ch2",
+      "title": "Part 2",
+      "tag": "part-2",
+      "nodes": [
+        {
+          "id": "c2-concept",
+          "type": "concept",
+          "title": "Networking fundamentals: Key Ideas",
+          "content": "Networking moves packets between machines using layered protocols (the OSI / TCP-IP stack). Most exam questions test routing decisions, subnetting math, the difference between L2 and L3, and how DNS / DHCP make the whole thing usable for humans.",
+          "flashcards": [
+            {
+              "front": "What's the difference between Layer 2 and Layer 3?",
+              "back": "L2 (data link) uses MAC addresses to deliver frames inside a single broadcast domain (a switch). L3 (network) uses IP addresses to route packets between networks (a router). Switches do L2; routers do L3."
+            },
+            {
+              "front": "How does a subnet mask work?",
+              "back": "The mask splits an IP into a network portion (the high bits, set to 1) and a host portion (the low bits, set to 0). `/24` means the first 24 bits are network = up to 256 hosts (254 usable). `/30` is 4 IPs = 2 hosts — typical for a point-to-point link."
+            },
+            {
+              "front": "What does DNS do?",
+              "back": "Domain Name System translates human-readable names (`example.com`) into IP addresses. A recursive resolver asks the root, the TLD server (`.com`), and finally the authoritative server for the domain. TTL controls how long answers are cached."
+            },
+            {
+              "front": "TCP vs UDP — when do you pick each?",
+              "back": "TCP is reliable, ordered, congestion-controlled — use it when every byte matters (HTTP, SSH, SMTP). UDP is lightweight, no handshake, no retransmit — use it for streaming, gaming, DNS queries, anywhere latency beats reliability."
+            }
+          ],
+          "source": "concept-library",
+          "sourceTag": "networking"
+        },
+        {
+          "id": "c2-quiz1",
+          "type": "quiz",
+          "title": "Part 2 — Drill 1",
+          "questionIds": [
+            "github-actions-007",
+            "github-actions-008",
+            "github-actions-010",
+            "github-actions-011",
+            "github-actions-012"
+          ]
+        },
+        {
+          "id": "c2-game",
+          "type": "minigame",
+          "gameType": "lightning",
+          "mode": "lightning-round",
+          "data": {
+            "secondsPerQuestion": 7,
+            "livesAllowed": 3,
+            "questions": [
+              {
+                "q": "A custom composite action accepts a `target-environment` string from callers and must expose a `deployment-url` string that downstream steps can reference. Which `action.yml` structure is correct?",
+                "choices": [
+                  "A `parameters:` block listing `target-environment` with `type: string`, plus a `return:` block giving `deployment-url` its computed value",
+                  "An `env:` block mapping the caller's value to a variable, plus an `artifacts:` block naming the keys the action exposes when it finishes",
+                  "An `inputs:` entry for `target-environment` with `description:` and `required:`, plus an `outputs:` entry for `deployment-url` with a `value:` expression",
+                  "A `with:` block in `action.yml` naming the accepted parameters, plus `::set-output name=deployment-url::` echo lines that write the computed result to stdout"
+                ],
+                "correctIndex": 2,
+                "explanation": "In `action.yml`, `inputs:` defines the parameters callers pass via `with:` (each supporting `description:`, `required:`, and `default:`), and `outputs:` defines values exposed back to callers, each with a `value:` expression such as `${{ steps.deploy.outputs.url }}`. There are no `parameters:`/`return:` keys — that is not the schema. `env:` and `artifacts:` do not declare an action's interface. And `::set-output::` is deprecated (replaced by writing to `$GITHUB_OUTPUT`); `with:` is how a caller supplies inputs, not how an action declares them inside `action.yml`."
+              },
+              {
+                "q": "An enterprise needs production workflows to run on company-owned servers inside a private datacenter to access internal services not reachable from GitHub-hosted runners. Which statement about self-hosted runners is accurate?",
+                "choices": [
+                  "Self-hosted runners are registered per repository only and cannot be shared across repositories in the same organization or enterprise",
+                  "The runner application polls GitHub for queued jobs over outbound HTTPS, so the host needs no inbound firewall rules",
+                  "GitHub patches the runner host OS and updates the runner application automatically on a weekly schedule from the Actions settings UI",
+                  "A workflow must set `runs-on: self-hosted` as the sole label and cannot add further labels to target specific runner capabilities"
+                ],
+                "correctIndex": 1,
+                "explanation": "The self-hosted runner application establishes outbound connections to GitHub to poll for work. Only outbound HTTPS (port 443) to GitHub's endpoints is required — no inbound ports need opening on the runner host. Runners can be registered at repository, organization, or enterprise scope and shared accordingly. OS patches and runner application updates are the operator's responsibility, not automated by GitHub. And multiple labels can be combined on `runs-on:` (e.g., `[self-hosted, linux, gpu]`) to route jobs to runners with specific capabilities."
+              },
+              {
+                "q": "A team wants to deploy to AWS from GitHub Actions without storing long-lived AWS access keys as secrets anywhere in GitHub. Which mechanism eliminates the need for static credentials?",
+                "choices": [
+                  "Store the AWS access key ID and secret access key as organization-level secrets so every repository shares one centrally managed credential",
+                  "Turn on the built-in GitHub–AWS integration in repository Settings, which provisions and rotates temporary IAM session credentials per run",
+                  "Put the AWS credentials in a GitHub deployment environment protected by branch filters and required reviewers",
+                  "Configure AWS IAM to trust GitHub's OIDC provider, then have the workflow assume an IAM role using a short-lived token issued to the run"
+                ],
+                "correctIndex": 3,
+                "explanation": "GitHub Actions can request a signed OpenID Connect (OIDC) token at runtime and exchange it with AWS STS for temporary credentials, so no static keys are stored. Setup adds `token.actions.githubusercontent.com` as an IAM Identity Provider and creates an IAM role whose trust policy is scoped to the org, repo, and branch; `actions/configure-aws-credentials` then uses `role-to-assume:` instead of key inputs. Storing access keys as org secrets keeps exactly the long-lived static credentials the team wants to remove. There is no built-in 'GitHub–AWS integration' that auto-rotates IAM sessions. And a protected deployment environment still holds static credentials — it limits who can use them but does not make them ephemeral."
+              },
+              {
+                "q": "A release team requires that any workflow job deploying to the production environment must be explicitly approved by at least one member of the `release-eng` team before execution begins. Which GitHub Actions feature implements this gate natively?",
+                "choices": [
+                  "A deployment environment `production` with a required-reviewer rule for the `release-eng` team, set via the job's `environment:` key",
+                  "Branch protection on the release branch that requires a pull request review from the `release-eng` team before code can merge",
+                  "A `concurrency:` group on the deploy job that queues runs and notifies the `release-eng` channel to approve before the next run starts",
+                  "A composite action as the deploy job's first step that calls the Deployments API to open a pending status and blocks until a reviewer approves"
+                ],
+                "correctIndex": 0,
+                "explanation": "GitHub deployment environments support protection rules, including required reviewers. When a job sets `environment: production` and that environment lists the `release-eng` team as required reviewers, the job pauses before executing, requests approval from the team, and runs only once approved. Branch protection gates merging code, not the execution of a deployment job. `concurrency:` only serializes runs — it has no human-approval step. Calling the Deployments API from a composite action could approximate a gate, but it is a custom workaround, not the native feature for this requirement."
+              },
+              {
+                "q": "A workflow declares a job with `strategy.matrix.node-version: [16, 18, 20]`. A teammate asks how many times the job runs and how the values are accessed. Which statement is correct?",
+                "choices": [
+                  "The job runs three times — once per `node-version` value — and each run reads its value via `${{ matrix.node-version }}`",
+                  "The job runs once and iterates the three versions internally; the values are read from `${{ strategy.node-version }}` inside a loop step",
+                  "The job runs three times, but the values are exposed only as the environment variable `$MATRIX_NODE_VERSION`, not through the `matrix` context",
+                  "The job runs once for the first value and the remaining values are queued as separate workflow runs triggered by a `matrix` event"
+                ],
+                "correctIndex": 0,
+                "explanation": "A matrix with a single dimension of three values expands into three parallel job runs, one per value, each reading the current value through the `matrix` context — `${{ matrix.node-version }}`. The job does not run once and loop internally; the matrix fans out into separate jobs. There is no `strategy.<key>` value context for reading matrix entries, and matrix values are not surfaced as an auto-named `$MATRIX_*` environment variable. The expansion produces parallel jobs in one run, not separate workflow runs from a fictional `matrix` event."
+              },
+              {
+                "q": "A build job downloads the same npm dependencies on every run, slowing the pipeline. The team wants to persist `~/.npm` between runs keyed on the lockfile so unchanged dependencies are restored. Which approach is the intended GitHub Actions mechanism?",
+                "choices": [
+                  "Add `persistent-storage: true` to the job so the runner keeps its filesystem between runs and reuses the previously installed dependencies automatically",
+                  "Use `actions/cache` with a `key` derived from `hashFiles('**/package-lock.json')` and a `path` of `~/.npm` to save and restore the directory",
+                  "Upload `~/.npm` with `actions/upload-artifact` at the end of the run and download it at the start of the next run to rehydrate the dependencies",
+                  "Reference the dependencies through job `outputs:` so a subsequent run can read the cached package set from the previous run's output values"
+                ],
+                "correctIndex": 1,
+                "explanation": "`actions/cache` is purpose-built for this: it restores a `path` (here `~/.npm`) when a content-based `key` — typically `hashFiles('**/package-lock.json')` — matches, and saves it after the job if there was no exact hit, so unchanged lockfiles reuse the cache. Runners are ephemeral and have no `persistent-storage:` property. Artifacts are designed to share files within a single workflow run, not to persist a cache across runs (and they expire / cost storage). Job `outputs:` carry scalar strings within one run, not directories across runs."
+              }
+            ]
+          },
+          "title": "Part 2 — Lightning Round"
+        },
+        {
+          "id": "c2-chest",
+          "type": "chest",
+          "title": "Treasure Chest",
+          "rewardXp": 30,
+          "cosmeticKey": "chapter-2"
+        }
+      ]
+    },
+    {
+      "id": "ch3",
+      "title": "Part 3",
+      "tag": "part-3",
+      "nodes": [
+        {
+          "id": "c3-concept",
+          "type": "concept",
+          "title": "Part 3: Key Ideas",
+          "content": "Quick primer on Part 3. Tap to flip cards covering the most-asked exam ideas in this domain.",
+          "flashcards": [
+            {
+              "front": "A repository's default `GITHUB_TOKEN` permissions were reduced to read-only org-wide. A workflow job must push a commit tag back to the repository. Which change grants exactly the access needed, scoped as narrowly as possible?",
+              "back": "The `permissions:` key in a workflow or job lets you raise or lower individual scopes of the automatic `GITHUB_TOKEN`; granting `contents: write` is exactly what is required to push a tag and overrides the read-only default for that one scope. A personal access token works but is broader, long-lived, and unnecessary — the automatic token can be elevated per-workflow. `permissions: write-all` grants every scope, violating least privilege. The 'create and approve pull requests' setting governs PR automation, not the token's `contents` write scope for pushing tags."
+            },
+            {
+              "front": "A workflow has a `deploy` job that must run a cleanup step even when an earlier step in the same job fails, and a final notification job that should run whether upstream jobs succeed or fail. Which expressions implement these two requirements?",
+              "back": "`if: always()` forces a step or job to run regardless of the prior status, so it is correct for both the cleanup step and the notification job (with `needs:` so the job waits for the upstream jobs first). `continue-on-error: true` only stops a failing step from failing the job and `fail-fast` controls matrix cancellation — neither guarantees the cleanup or notification runs after a failure. `if: failure()` would skip cleanup when earlier steps succeed, and `if: success()` would skip the notification after a failure — the opposite of the requirement. There is no `needs.<job>.result: always` setting; `needs.<job>.result` is a value you read, not a directive you set."
+            },
+            {
+              "front": "A composite action defines a step that runs a shell command. The author wants this step to execute a Bash script and needs to know which keys are mandatory for that step in a composite action's `action.yml`. Which statement is correct?",
+              "back": "In a composite action, every `run:` step must explicitly declare `shell:` (such as `shell: bash`) — unlike workflow steps, the shell is not defaulted and is a required key for composite `run:` steps. Composite actions absolutely can contain `run:` steps; that is one of their main purposes. `working-directory:` is optional, not required, so demanding both keys is wrong."
+            },
+            {
+              "front": "An organization owner wants to restrict which actions repositories may use in workflows, allowing only actions authored by GitHub plus a short allowlist of trusted third-party actions. Where is this policy configured?",
+              "back": "The organization (and enterprise) Settings → Actions → General policy lets an owner choose 'Allow select actions and reusable workflows' and enable categories such as actions created by GitHub plus an explicit allowlist of trusted third-party actions — the central control for this requirement. The `permissions:` block scopes the `GITHUB_TOKEN`, not which actions may run, and is not an allowlist. There is no `allowed-actions.yml` repository file consulted by the runner. Branch protection's outside-collaborator approval gates code review, not which actions a workflow may reference."
+            }
+          ],
+          "source": "auto-derived"
+        },
+        {
+          "id": "c3-quiz1",
+          "type": "quiz",
+          "title": "Part 3 — Drill 1",
+          "questionIds": [
+            "github-actions-014",
+            "github-actions-016",
+            "github-actions-013",
+            "github-actions-015"
+          ]
+        },
+        {
+          "id": "c3-game",
+          "type": "minigame",
+          "gameType": "lightning",
+          "mode": "lightning-round",
+          "data": {
+            "secondsPerQuestion": 7,
+            "livesAllowed": 3,
+            "questions": [
+              {
+                "q": "A repository's default `GITHUB_TOKEN` permissions were reduced to read-only org-wide. A workflow job must push a commit tag back to the repository. Which change grants exactly the access needed, scoped as narrowly as possible?",
+                "choices": [
+                  "Replace `GITHUB_TOKEN` everywhere with a long-lived personal access token stored as a secret, since the automatic token can never be granted write access once the org default is read-only",
+                  "Enable the repository setting 'Allow GitHub Actions to create and approve pull requests', which also raises the token's contents scope to write for tag pushes",
+                  "Set `permissions: write-all` at the workflow level so the token can perform any repository operation the job might need now or later",
+                  "Add a `permissions:` block granting `contents: write` at the job (or workflow) level, which overrides the read-only default for that scope only"
+                ],
+                "correctIndex": 3,
+                "explanation": "The `permissions:` key in a workflow or job lets you raise or lower individual scopes of the automatic `GITHUB_TOKEN`; granting `contents: write` is exactly what is required to push a tag and overrides the read-only default for that one scope. A personal access token works but is broader, long-lived, and unnecessary — the automatic token can be elevated per-workflow. `permissions: write-all` grants every scope, violating least privilege. The 'create and approve pull requests' setting governs PR automation, not the token's `contents` write scope for pushing tags."
+              },
+              {
+                "q": "A workflow has a `deploy` job that must run a cleanup step even when an earlier step in the same job fails, and a final notification job that should run whether upstream jobs succeed or fail. Which expressions implement these two requirements?",
+                "choices": [
+                  "Add `if: always()` to the cleanup step, and add `if: always()` to the notification job with `needs:` listing the upstream jobs",
+                  "Add `continue-on-error: true` to the cleanup step, and set `strategy.fail-fast: false` on the notification job so it ignores upstream failure",
+                  "Add `if: failure()` to the cleanup step, and add `if: success()` to the notification job so it still runs after any upstream result",
+                  "Add `if: ${{ job.status }}` to the cleanup step, and set `needs.notify.result: always` on the notification job to force it to run"
+                ],
+                "correctIndex": 0,
+                "explanation": "`if: always()` forces a step or job to run regardless of the prior status, so it is correct for both the cleanup step and the notification job (with `needs:` so the job waits for the upstream jobs first). `continue-on-error: true` only stops a failing step from failing the job and `fail-fast` controls matrix cancellation — neither guarantees the cleanup or notification runs after a failure. `if: failure()` would skip cleanup when earlier steps succeed, and `if: success()` would skip the notification after a failure — the opposite of the requirement. There is no `needs.<job>.result: always` setting; `needs.<job>.result` is a value you read, not a directive you set."
+              },
+              {
+                "q": "A composite action defines a step that runs a shell command. The author wants this step to execute a Bash script and needs to know which keys are mandatory for that step in a composite action's `action.yml`. Which statement is correct?",
+                "choices": [
+                  "A `run:` step in a composite action needs only the `run:` key; the runner defaults the shell to Bash on every platform without an explicit declaration",
+                  "A composite action cannot contain `run:` steps at all — it may only chain other actions via `uses:` steps, so the script must be wrapped in a separate action",
+                  "A `run:` step in a composite action must also specify `shell:` (for example `shell: bash`), because the shell is required for composite `run:` steps",
+                  "A `run:` step in a composite action requires both `shell:` and `working-directory:`, and omitting either causes the action to fail validation at load time"
+                ],
+                "correctIndex": 2,
+                "explanation": "In a composite action, every `run:` step must explicitly declare `shell:` (such as `shell: bash`) — unlike workflow steps, the shell is not defaulted and is a required key for composite `run:` steps. Composite actions absolutely can contain `run:` steps; that is one of their main purposes. `working-directory:` is optional, not required, so demanding both keys is wrong."
+              },
+              {
+                "q": "An organization owner wants to restrict which actions repositories may use in workflows, allowing only actions authored by GitHub plus a short allowlist of trusted third-party actions. Where is this policy configured?",
+                "choices": [
+                  "By adding a `permissions:` block to every workflow file that names the allowed actions, since the action allowlist is declared per workflow rather than centrally",
+                  "By committing an `allowed-actions.yml` file to each repository's `.github/` directory, which the runner reads to decide whether a referenced action may execute",
+                  "By enabling 'Require approval for all outside collaborators' in branch protection, which also blocks any action not authored by the organization's own members",
+                  "In the Actions policy settings at the organization (or enterprise) level, choosing 'Allow select actions' and listing GitHub-authored plus specified third-party actions"
+                ],
+                "correctIndex": 3,
+                "explanation": "The organization (and enterprise) Settings → Actions → General policy lets an owner choose 'Allow select actions and reusable workflows' and enable categories such as actions created by GitHub plus an explicit allowlist of trusted third-party actions — the central control for this requirement. The `permissions:` block scopes the `GITHUB_TOKEN`, not which actions may run, and is not an allowlist. There is no `allowed-actions.yml` repository file consulted by the runner. Branch protection's outside-collaborator approval gates code review, not which actions a workflow may reference."
+              }
+            ]
+          },
+          "title": "Part 3 — Lightning Round"
+        },
+        {
+          "id": "c3-boss",
+          "type": "subboss",
+          "title": "Boss: Part 3",
+          "questionIds": [
+            "github-actions-014",
+            "github-actions-016",
+            "github-actions-013",
+            "github-actions-015"
+          ]
+        },
+        {
+          "id": "c3-chest",
+          "type": "chest",
+          "title": "Treasure Chest",
+          "rewardXp": 30,
+          "cosmeticKey": "chapter-3"
+        }
+      ]
+    }
+  ],
+  "finalBoss": {
+    "id": "final-boss",
+    "type": "finalboss",
+    "title": "Final Exam: GitHub Actions Certification",
+    "questionCount": 15,
+    "timeMinutes": 23
+  },
+  "meta": {
+    "generatedAt": "2026-06-01T06:04:11.705Z",
+    "totalNodes": 14,
+    "totalQuestions": 16,
+    "nodeTypes": [
+      "concept",
+      "quiz",
+      "minigame",
+      "subboss",
+      "finalboss"
+    ]
+  }
+}

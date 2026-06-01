@@ -1,0 +1,408 @@
+{
+  "packId": "snowpro-core",
+  "title": "Snowflake SnowPro Core (COF-C02)",
+  "brandName": "Snowflake",
+  "brandColor": "#29B5E8",
+  "chapters": [
+    {
+      "id": "ch1",
+      "title": "Part 1",
+      "tag": "part-1",
+      "nodes": [
+        {
+          "id": "c1-concept",
+          "type": "concept",
+          "title": "Storage concepts: Key Ideas",
+          "content": "Cloud storage comes in three flavors with very different cost/perf trade-offs: object (think S3), block (think EBS / managed disks), and file (think EFS / Azure Files / Filestore). Pick wrong and you either overpay or hit performance ceilings.",
+          "flashcards": [
+            {
+              "front": "Object vs block vs file storage — when do you use each?",
+              "back": "Object (S3, Blob, GCS) for unstructured data, backups, static sites, data lakes — flat namespace, HTTP API, infinite scale. Block (EBS, managed disks) for OS disks and databases — low latency, single attach. File (EFS, NFS) when multiple VMs need a shared POSIX filesystem."
+            },
+            {
+              "front": "What is a storage class / tier?",
+              "back": "Same data, different SLA and price. Hot tier (frequent access, expensive read, cheap retrieval). Cold/archive tier (rare access, cheap to store, expensive to read, retrieval latency from minutes to hours). Lifecycle policies move data between tiers automatically."
+            },
+            {
+              "front": "Why use server-side encryption?",
+              "back": "Data is encrypted at rest by the storage service using either provider-managed keys (default, no extra config) or your own keys via KMS. This protects against physical disk theft and meets compliance baselines without changing your app code."
+            },
+            {
+              "front": "What's storage durability vs availability?",
+              "back": "Durability is the chance your data won't be lost (object stores claim ~11 9s — 99.999999999%). Availability is the chance you can reach it right now (typically 4 9s — 99.99%). Durability is multi-region replication; availability is how many concurrent failures the service tolerates."
+            }
+          ],
+          "source": "concept-library",
+          "sourceTag": "storage"
+        },
+        {
+          "id": "c1-quiz1",
+          "type": "quiz",
+          "title": "Part 1 — Drill 1",
+          "questionIds": [
+            "snowpro-core-001",
+            "snowpro-core-002",
+            "snowpro-core-003",
+            "snowpro-core-006",
+            "snowpro-core-004"
+          ]
+        },
+        {
+          "id": "c1-game",
+          "type": "minigame",
+          "gameType": "lightning",
+          "mode": "lightning-round",
+          "data": {
+            "secondsPerQuestion": 7,
+            "livesAllowed": 3,
+            "questions": [
+              {
+                "q": "A new engineer joining a Snowflake team asks what a virtual warehouse actually is. Storage is decoupled, so it isn't disk. Multiple warehouses share the same tables, so it isn't a database. What is the best description?",
+                "choices": [
+                  "A physical datacentre holding tables, indexes, and compute nodes that own the persistent data of the account",
+                  "A named cluster of compute nodes that executes queries and DML without owning the underlying persistent data",
+                  "A logical container that groups databases, schemas, and tables under one account name",
+                  "A managed service that auto-scales the persistent storage layer of the account based on query volume"
+                ],
+                "correctIndex": 1,
+                "explanation": "A virtual warehouse in Snowflake is a named MPP compute cluster. It executes queries and DML operations but does not own or store data — all data lives in Snowflake's centralized cloud storage layer, keeping compute and storage independently scalable and billable."
+              },
+              {
+                "q": "A solution architect briefs leadership on Snowflake's multi-cluster shared-data design. The platform decouples persistent data from query execution, and adds a control plane above both that manages metadata, security, and optimisation. Which three layers does the architecture separate?",
+                "choices": [
+                  "Ingestion, transformation, and serving layers as in a classic lakehouse pipeline — Snowflake's three-layer architecture describes how the persistent storage, virtual warehouse compute, and cloud services components are separated, not an ETL data-processing pipeline",
+                  "Bronze, silver, and gold data-quality tiers familiar from medallion architectures",
+                  "A persistent storage layer, a compute layer of virtual warehouses, and a cloud-services",
+                  "Source, staging, and target zones as in a traditional on-prem ETL stack"
+                ],
+                "correctIndex": 2,
+                "explanation": "Snowflake uses three decoupled layers: (1) Cloud Services — the global brain handling metadata, security, query optimization, and transactions; (2) Query Processing — virtual warehouses that run queries; and (3) Database Storage — columnar micro-partition storage billed separately from compute."
+              },
+              {
+                "q": "A Snowflake admin is onboarding a new analyst. Users do not receive privileges directly; instead privileges are bundled into a named principal that can be granted to users or to other principals, supporting hierarchy. Which statement best describes a role in the RBAC model?",
+                "choices": [
+                  "A role is an individual user credential used to authenticate sessions, distinct from the privileges granted on objects",
+                  "A role is a named collection of privileges that can be granted to users or to other roles to compose hierarchical access",
+                  "A role defines the cloud region where a virtual warehouse executes the queries it is granted access to",
+                  "A role is a network policy that restricts inbound connections by IP address range for a given user account"
+                ],
+                "correctIndex": 1,
+                "explanation": "In Snowflake RBAC, a role is a named entity that holds privileges on securable objects such as databases, schemas, tables, and warehouses. Roles are granted to users or to other roles, forming a hierarchy. Users activate a role in a session to exercise its privileges."
+              },
+              {
+                "q": "A pipeline engineer prepares an ad-hoc bulk load using a single command rather than continuous ingestion. Two elements are non-negotiable. Which pair of elements is always required when running this loader command?",
+                "choices": [
+                  "A running X-Large warehouse and a pre-defined file-format object referenced by the command",
+                  "A named internal or external stage (or inline cloud-storage path) AND a destination table",
+                  "An active Snowpipe configuration and an SQS or Event Grid notification channel for the destination",
+                  "A scheduled task with a CRON expression and a stream on the source table feeding the destination"
+                ],
+                "correctIndex": 1,
+                "explanation": "COPY INTO requires at minimum a source location — a named stage such as @my_stage or an inline cloud URL like s3://bucket/path/ — and a destination table. File format can be inferred or defaulted; warehouse size has no minimum requirement; Snowpipe and Tasks are separate, optional features."
+              },
+              {
+                "q": "A 4-TB events table is filtered frequently by event_date. As the table grows, queries scan more micro-partitions per request. The team defines a clustering key on event_date and observes a sharp drop in scan time. What is the primary benefit of this key?",
+                "choices": [
+                  "It enforces uniqueness on the key columns and prevents duplicate rows from loading into the partitioned table",
+                  "It compresses micro-partitions by deduplicating repeated values in the key column during background maintenance",
+                  "It co-locates related key values in adjacent micro-partitions, so fewer partitions need to be scanned per filter",
+                  "It distributes data evenly across active warehouses to maximise parallelism for every query against the table"
+                ],
+                "correctIndex": 2,
+                "explanation": "Snowflake stores data in immutable micro-partitions. A cluster key causes Snowflake's Automatic Clustering service to reorganize data so rows with similar key values land in the same or adjacent micro-partitions. Queries filtering on the cluster key can then prune most micro-partitions, dramatically reducing scan cost on large tables."
+              },
+              {
+                "q": "A logging pipeline ingests JSON payloads whose schema varies per event. The team wants a single column type that stores those documents natively and supports dot-notation traversal, without flattening into individual columns up front. Which column type fits?",
+                "choices": [
+                  "TEXT with a maximum declared length of 16,777,216 characters per stored document value",
+                  "OBJECT, which enforces a fixed list of named key-value pairs at the column level for every row",
+                  "VARIANT, which stores up to 16 MB of semi-structured data per value in a self-describing form",
+                  "ARRAY typed as VARCHAR to serialise the JSON as a delimited string column per row"
+                ],
+                "correctIndex": 2,
+                "explanation": "VARIANT is Snowflake's universal semi-structured type. It can hold JSON, Avro, ORC, Parquet, or XML data up to 16 MB per value. Snowflake stores VARIANT columns in columnar micro-partitions and supports querying nested paths with dot notation or the FLATTEN table function — no predefined schema required."
+              }
+            ]
+          },
+          "title": "Part 1 — Lightning Round"
+        },
+        {
+          "id": "c1-chest",
+          "type": "chest",
+          "title": "Treasure Chest",
+          "rewardXp": 30,
+          "cosmeticKey": "chapter-1"
+        }
+      ]
+    },
+    {
+      "id": "ch2",
+      "title": "Part 2",
+      "tag": "part-2",
+      "nodes": [
+        {
+          "id": "c2-concept",
+          "type": "concept",
+          "title": "Cloud billing and cost: Key Ideas",
+          "content": "Cloud cost optimization is mostly visibility + commitments. You can't optimize what you can't see, and you can't commit without forecasts. Most exams test the savings instruments (reserved instances, savings plans, sustained use) and the visibility tools.",
+          "flashcards": [
+            {
+              "front": "Where do you see cloud spend?",
+              "back": "AWS Cost Explorer / Azure Cost Management / GCP Billing reports. Filter by tag, service, account, region. Set up budget alerts (notify when 80% / 100% of monthly budget is hit) so a runaway autoscaler doesn't surprise you on the 28th."
+            },
+            {
+              "front": "Reserved Instance vs Savings Plan vs Spot — pick the right one.",
+              "back": "RI / committed-use: 1-3 yr commitment, 30-60% off, locked to instance family/region. Savings Plan: 1-3 yr commitment on $/hr spend, more flexible across instance types. Spot/preemptible: up to 90% off, can be reclaimed any moment. Use commitments for steady baseline, spot for fault-tolerant workloads."
+            },
+            {
+              "front": "What's the egress (data transfer out) cost trap?",
+              "back": "Most clouds charge nothing to ingest data but $0.05-$0.12/GB to send it OUT. Inter-region replication, public-facing APIs, multi-cloud data movement — all add up fast. Mitigations: same-region peering, CloudFront / CDN caching, VPC endpoints to keep traffic on the AWS backbone."
+            },
+            {
+              "front": "What is a unit cost / cost per X?",
+              "back": "Cost-per-request, cost-per-active-user, cost-per-transaction. Total cloud spend is a vanity metric — engineers can't act on '$50k/month'. Unit cost ($0.003 per request) reveals whether you got cheaper or more expensive as you scaled, which is what optimization actually means."
+            }
+          ],
+          "source": "concept-library",
+          "sourceTag": "billing"
+        },
+        {
+          "id": "c2-quiz1",
+          "type": "quiz",
+          "title": "Part 2 — Drill 1",
+          "questionIds": [
+            "snowpro-core-009",
+            "snowpro-core-007",
+            "snowpro-core-008",
+            "snowpro-core-010",
+            "snowpro-core-011"
+          ]
+        },
+        {
+          "id": "c2-game",
+          "type": "minigame",
+          "gameType": "lightning",
+          "mode": "lightning-round",
+          "data": {
+            "secondsPerQuestion": 7,
+            "livesAllowed": 3,
+            "questions": [
+              {
+                "q": "A production table was accidentally dropped 30 minutes ago. The DBA needs a built-in feature that lets them restore the table OR query its state just before the drop, without using an external backup. Which feature provides this?",
+                "choices": [
+                  "Fail-safe, which retains dropped-object data for 7 days after the Time Travel retention period ends — Fail-safe is accessible only through Snowflake support and never lets the user directly UNDROP the table or query historical state independently",
+                  "Time Travel, which lets the user UNDROP the table or query its historical state within the retention period",
+                  "Zero-copy cloning, which automatically preserves a shadow copy of every object on every drop event",
+                  "Cross-region replication, which continuously mirrors a read-only replica of the table to a secondary region"
+                ],
+                "correctIndex": 1,
+                "explanation": "Snowflake Time Travel lets you run UNDROP TABLE <name> to restore a dropped table (or schema or database) within the configured retention period (1 day on Standard; up to 90 days on Enterprise). Fail-safe is a subsequent 7-day window managed solely by Snowflake for disaster recovery — it is not accessible via SQL commands."
+              },
+              {
+                "q": "An organisation wants to give a business partner live, read-only access to specific tables WITHOUT copying the data or running an ETL pipeline. The partner should query the data live from their own Snowflake account. Which feature does this?",
+                "choices": [
+                  "External tables pointing to a shared S3 bucket that both accounts can read concurrently without copying — external tables require both accounts to have direct cloud storage access and do not provide the access-controlled, governed sharing that Snowflake Secure Data Sharing offers",
+                  "Snowflake Secure Data Sharing, which grants a consumer account access to a SHARE object without copying",
+                  "Snowpipe streaming that continuously pushes CDC updates to the partner's Snowflake account on a schedule",
+                  "A database replication group that clones and synchronises the full database nightly to the partner account"
+                ],
+                "correctIndex": 1,
+                "explanation": "Secure Data Sharing lets a provider create a SHARE object containing specific tables, views, or other objects and grant it to consumer Snowflake accounts. Consumers see live data with no data copy, no storage cost to the consumer, and no ETL. External tables, replication, and Snowpipe serve entirely different use cases."
+              },
+              {
+                "q": "A cost review reveals two warehouses running idle overnight. The team wants warehouses to suspend automatically after a configurable inactivity period, so credits stop accruing on unused compute. Which warehouse parameter triggers this auto-suspension?",
+                "choices": [
+                  "MAX_CLUSTER_COUNT, which caps the number of active clusters in a multi-cluster warehouse during periods of high load — MAX_CLUSTER_COUNT controls horizontal scaling for multi-cluster warehouses; it does not suspend an idle warehouse after a period of inactivity",
+                  "AUTO_RESUME, which starts a suspended warehouse the moment a query is submitted against the configured warehouse",
+                  "AUTO_SUSPEND, which suspends the warehouse after the specified number of idle seconds in the configured warehouse",
+                  "STATEMENT_TIMEOUT_IN_SECONDS, which terminates long-running queries on the warehouse before they exhaust the credit budget"
+                ],
+                "correctIndex": 2,
+                "explanation": "AUTO_SUSPEND (default 600 seconds) automatically puts the warehouse into a suspended state after it has been idle for the specified interval. A suspended warehouse consumes no compute credits. AUTO_RESUME controls restart behavior; MAX_CLUSTER_COUNT controls multi-cluster scaling; STATEMENT_TIMEOUT_IN_SECONDS limits individual query duration."
+              },
+              {
+                "q": "A finance partner asks what Snowflake actually bills for. Storage is billed per terabyte separately, but the bulk of consumption is a credit unit charged against compute time and serverless features. Which activities primarily consume Snowflake credits?",
+                "choices": [
+                  "Storing data in internal stages and returning result-cache rows for repeated identical queries — result cache hits and internal stage storage do not consume compute credits; serverless features such as Snowpipe and Automatic Clustering do consume credits in Snowflake",
+                  "Running virtual warehouses, Snowpipe ingestion, and serverless features such as automatic clustering and search optimisation",
+                  "Network egress within the same cloud region and reads from external tables on public buckets through the network",
+                  "Creating databases, schemas, and empty tables regardless of any subsequent query or load activity on those objects"
+                ],
+                "correctIndex": 1,
+                "explanation": "Snowflake credits measure compute consumption. They are charged when a virtual warehouse is running (per-second billing per cluster), when Snowpipe processes files, and when serverless features such as Automatic Clustering, Materialized View maintenance, or Search Optimization run. Storage is billed separately in TB/month. DDL operations and result-cache reads consume no credits."
+              },
+              {
+                "q": "A developer needs to test a risky transformation against a 10-TB production table without disrupting production users or paying to duplicate the 10 TB of storage up front. They want an independent, writable copy created in seconds. Which Snowflake feature fits?",
+                "choices": [
+                  "Zero-copy cloning, which creates an independent, writable copy that initially shares the source's micro-partitions and only stores new data as the clone diverges",
+                  "A CREATE TABLE AS SELECT statement, which physically copies all 10 TB of rows into a new table so the developer has a fully separate dataset to modify",
+                  "Secure Data Sharing, which exposes the production table to the developer as a read-only share they can query but not write transformations against",
+                  "Time Travel, which lets the developer query the table as of an earlier timestamp but does not produce a separate writable object to modify"
+                ],
+                "correctIndex": 0,
+                "explanation": "Zero-copy cloning (CLONE) creates a new, fully writable object near-instantly. The clone references the source's existing micro-partitions through metadata, so no storage is duplicated until either the clone or the source changes — only the diverging data incurs new storage. CREATE TABLE AS SELECT physically materializes every row, costing full storage and time. Secure Data Sharing produces a read-only consumer view, not a writable copy. Time Travel queries historical state but does not create an independent writable object."
+              },
+              {
+                "q": "A reporting dashboard reruns the exact same aggregation query many times an hour while the underlying table is unchanged. The team notices these repeats return instantly and consume no warehouse credits. Which Snowflake caching layer is responsible?",
+                "choices": [
+                  "The local disk (warehouse) cache, which holds raw micro-partition data on the warehouse's SSDs and still requires the warehouse to be running to serve the rows",
+                  "The metadata cache in the storage layer, which keeps per-table row counts and min/max values used only to optimise query pruning, not to return result sets",
+                  "The result cache in the cloud-services layer, which returns the stored result of an identical query for 24 hours when the underlying data has not changed",
+                  "The remote storage cache, which replicates query results into the customer's external cloud bucket so repeated reads are served from object storage"
+                ],
+                "correctIndex": 2,
+                "explanation": "Snowflake's result cache lives in the Cloud Services layer and holds the results of executed queries for 24 hours (extended on reuse). An identical query run by a user with the same role returns instantly from this cache and requires no running warehouse, so it costs no compute credits, as long as the underlying data is unchanged. The local disk/warehouse cache caches micro-partition data but needs a running warehouse and serves data, not finished results. The metadata cache stores statistics for pruning, not result sets. There is no feature that replicates results into the customer's external bucket."
+              }
+            ]
+          },
+          "title": "Part 2 — Lightning Round"
+        },
+        {
+          "id": "c2-chest",
+          "type": "chest",
+          "title": "Treasure Chest",
+          "rewardXp": 30,
+          "cosmeticKey": "chapter-2"
+        }
+      ]
+    },
+    {
+      "id": "ch3",
+      "title": "Part 3",
+      "tag": "part-3",
+      "nodes": [
+        {
+          "id": "c3-concept",
+          "type": "concept",
+          "title": "Security fundamentals: Key Ideas",
+          "content": "Security is about layering defenses so no single failure compromises a system. Most exams test the same core ideas: least privilege, defense in depth, the CIA triad, and the shared-responsibility line between you and your cloud provider.",
+          "flashcards": [
+            {
+              "front": "What is the CIA triad?",
+              "back": "Confidentiality (only the right people see the data), Integrity (data isn't tampered with), Availability (the system is reachable when needed). Every security control maps to at least one of these three pillars."
+            },
+            {
+              "front": "What does 'least privilege' mean?",
+              "back": "Grant each identity (user, role, service account) the minimum permissions needed to do its job — no more. The opposite is wildcard access, which makes a single credential leak catastrophic."
+            },
+            {
+              "front": "What is defense in depth?",
+              "back": "Stack multiple, independent controls so an attacker has to defeat all of them. Example: WAF in front of an app, network ACL on the subnet, IAM on the workload, encryption at rest in the database."
+            },
+            {
+              "front": "Shared responsibility model — who does what?",
+              "back": "The cloud provider secures the cloud (physical hardware, hypervisor, region facilities). You secure what's IN the cloud (your data, IAM config, OS patching on EC2, application code). The exact line shifts by service: serverless is more on the provider, IaaS is more on you."
+            }
+          ],
+          "source": "concept-library",
+          "sourceTag": "security"
+        },
+        {
+          "id": "c3-quiz1",
+          "type": "quiz",
+          "title": "Part 3 — Drill 1",
+          "questionIds": [
+            "snowpro-core-013",
+            "snowpro-core-014",
+            "snowpro-core-016",
+            "snowpro-core-015"
+          ]
+        },
+        {
+          "id": "c3-game",
+          "type": "minigame",
+          "gameType": "lightning",
+          "mode": "lightning-round",
+          "data": {
+            "secondsPerQuestion": 7,
+            "livesAllowed": 3,
+            "questions": [
+              {
+                "q": "An ingestion team must continuously load small files as they land in a cloud storage bucket, with near-real-time latency and serverless billing, rather than running a warehouse on a schedule for bulk loads. Which Snowflake feature is designed for this continuous micro-batch ingestion?",
+                "choices": [
+                  "A scheduled Task that runs a COPY INTO statement every minute on a dedicated X-Small warehouse the team must keep provisioned for the load window",
+                  "Snowpipe, which uses serverless compute and event notifications to load new files automatically and bills per the compute it consumes rather than per warehouse",
+                  "An external table defined over the bucket, which exposes the files for query in place but does not load them into a Snowflake-managed table at all",
+                  "A materialized view over the bucket's files, which refreshes automatically and persists the loaded rows in Snowflake-managed micro-partitions on each new file"
+                ],
+                "correctIndex": 1,
+                "explanation": "Snowpipe is Snowflake's continuous data ingestion service. Triggered by cloud event notifications (or REST calls), it loads new files moments after they arrive using Snowflake-managed serverless compute, billed per compute consumed rather than against a user warehouse — ideal for frequent small files. A scheduled Task running COPY INTO requires you to manage a warehouse and adds polling latency. An external table queries files in place without loading them. Materialized views are built over Snowflake tables/queries, not raw bucket files, and are not an ingestion mechanism."
+              },
+              {
+                "q": "A security review asks which Snowflake system-defined role sits at the top of the role hierarchy and should be used only for rare account-wide administrative tasks rather than day-to-day work. Which role is it?",
+                "choices": [
+                  "SYSADMIN, the role recommended for creating and owning warehouses, databases, and other objects in normal operations",
+                  "SECURITYADMIN, the role that manages grants and can create and manage users and roles across the account",
+                  "ACCOUNTADMIN, the top-level role that encapsulates SYSADMIN and SECURITYADMIN and should be restricted to a few users for sensitive account operations",
+                  "PUBLIC, the pseudo-role automatically granted to every user that provides a baseline of shared object access"
+                ],
+                "correctIndex": 2,
+                "explanation": "ACCOUNTADMIN is the most powerful system-defined role, sitting at the top of the hierarchy and inheriting both SYSADMIN and SECURITYADMIN; Snowflake recommends limiting it to a small number of users and using it only for account-level tasks (billing, account parameters). SYSADMIN is intended for creating and owning warehouses and databases in day-to-day work. SECURITYADMIN manages users, roles, and grants but is below ACCOUNTADMIN. PUBLIC is the lowest pseudo-role automatically granted to everyone, not an administrative role."
+              },
+              {
+                "q": "A team running short, spiky bursts of many concurrent queries notices that some queries are queuing during peak login periods even though the single warehouse is the right size for an individual query. They want extra clusters to spin up only during these concurrency spikes and spin down after. Which configuration addresses this?",
+                "choices": [
+                  "Increase the warehouse size from Small to 4X-Large so a single, larger cluster has enough compute to run all concurrent queries at once during peaks",
+                  "Set STATEMENT_QUEUED_TIMEOUT_IN_SECONDS to zero so queued queries fail fast and clients retry them, smoothing out the concurrency spike over time",
+                  "Enable the result cache so the concurrent queries reuse one another's results instead of each provisioning its own compute during the busy period",
+                  "Configure a multi-cluster warehouse in auto-scale (economy/standard) mode with MIN_CLUSTER_COUNT below MAX_CLUSTER_COUNT so clusters scale out during spikes"
+                ],
+                "correctIndex": 3,
+                "explanation": "Concurrency problems (queuing because too many queries run at once) are solved by scaling out, not up. A multi-cluster warehouse in auto-scale mode adds clusters when queries queue and removes them when demand falls, governed by MIN_CLUSTER_COUNT and MAX_CLUSTER_COUNT and a scaling policy. Increasing the warehouse size scales up a single cluster, which speeds individual queries but does not add concurrency capacity. STATEMENT_QUEUED_TIMEOUT_IN_SECONDS just abandons queued queries rather than serving them. The result cache only helps identical repeat queries, not a spike of distinct concurrent queries."
+              },
+              {
+                "q": "An analyst loads a CSV from an internal stage but does not want to write a CREATE TABLE statement or run a load first — they simply want to inspect a few rows and the inferred columns of the file while it still sits in the stage. Which capability lets them do this?",
+                "choices": [
+                  "Querying the staged file directly with SELECT and the stage reference (for example SELECT $1, $2 FROM @my_stage/data.csv) to read columns without loading",
+                  "Running UNDROP on the stage, which materialises the file's rows into a temporary table the analyst can then query for inspection before deciding to load",
+                  "Calling the SYSTEM$PIPE_STATUS function on the stage, which returns a preview of the next rows Snowpipe would ingest from the staged file",
+                  "Issuing a PUT command from the worksheet, which both previews the file's contents and uploads it into a managed table in a single round trip"
+                ],
+                "correctIndex": 0,
+                "explanation": "Snowflake lets you query files in a stage directly with SELECT, referencing columns positionally as $1, $2, ... (optionally with a file format), so the analyst can inspect rows and columns without creating a table or running COPY INTO. UNDROP restores dropped objects via Time Travel and has nothing to do with previewing staged files. SYSTEM$PIPE_STATUS reports a pipe's execution state, not file contents. PUT only uploads a local file into an internal stage — it does not preview contents or load into a table."
+              }
+            ]
+          },
+          "title": "Part 3 — Lightning Round"
+        },
+        {
+          "id": "c3-boss",
+          "type": "subboss",
+          "title": "Boss: Part 3",
+          "questionIds": [
+            "snowpro-core-013",
+            "snowpro-core-014",
+            "snowpro-core-016",
+            "snowpro-core-015"
+          ]
+        },
+        {
+          "id": "c3-chest",
+          "type": "chest",
+          "title": "Treasure Chest",
+          "rewardXp": 30,
+          "cosmeticKey": "chapter-3"
+        }
+      ]
+    }
+  ],
+  "finalBoss": {
+    "id": "final-boss",
+    "type": "finalboss",
+    "title": "Final Exam: Snowflake SnowPro Core (COF-C02)",
+    "questionCount": 15,
+    "timeMinutes": 23
+  },
+  "meta": {
+    "generatedAt": "2026-06-01T06:04:11.727Z",
+    "totalNodes": 14,
+    "totalQuestions": 16,
+    "nodeTypes": [
+      "concept",
+      "quiz",
+      "minigame",
+      "subboss",
+      "finalboss"
+    ]
+  }
+}

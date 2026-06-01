@@ -4,10 +4,10 @@
     "name": "Cloudflare Application Security Specialist",
     "vendor": "Cloudflare",
     "version": "1.0.2",
-    "question_count": 10,
-    "last_updated": "2026-05-18",
-    "notes": "Initial release covering Cloudflare application security topics: proxy fundamentals, TLS modes, WAF, DDoS protection, bot management, rate limiting, API Shield, Page Shield, Cloudflare Access, and security observability. | 2026-05-23 keyword-balance pass",
-    "updated": "2026-05-23"
+    "question_count": 16,
+    "last_updated": "2026-06-01",
+    "notes": "Initial release covering Cloudflare application security topics: proxy fundamentals, TLS modes, WAF, DDoS protection, bot management, rate limiting, API Shield, Page Shield, Cloudflare Access, and security observability. | 2026-05-23 keyword-balance pass | 2026-06-01 +6 questions to unlock learning path",
+    "updated": "2026-06-01"
   },
   "questions": [
     {
@@ -219,6 +219,132 @@
       ],
       "difficulty": "medium",
       "domain": "Security Observability"
+    },
+    {
+      "id": "cloudflare-cass-011",
+      "question": "A team needs to expose a web application running on a private server that has no public IP and sits behind a firewall that blocks all inbound connections. They want Cloudflare to reach it securely without opening any inbound port. Which Cloudflare product is purpose-built for this?",
+      "options": [
+        "A proxied (orange-cloud) DNS A record pointing at the server's public IP, which lets Cloudflare reach the origin once the firewall permits inbound 443 from Cloudflare's ranges",
+        "Cloudflare Tunnel, which runs a connector (cloudflared) on the origin that makes an outbound-only encrypted connection to Cloudflare, so no inbound ports need opening",
+        "A Page Rule that rewrites requests to the server's internal hostname, which lets Cloudflare resolve the private address directly without any agent installed on the origin",
+        "Spectrum, which proxies arbitrary TCP and UDP ports and exposes the private server by mapping its internal IP to a public Cloudflare anycast address automatically"
+      ],
+      "correct": 1,
+      "explanation": "Cloudflare Tunnel runs the `cloudflared` connector on the origin, which dials out to Cloudflare over an encrypted connection; because the link is outbound-only, the firewall can keep all inbound ports closed and the server needs no public IP. A proxied A record still requires a publicly reachable origin IP and inbound 443 from Cloudflare. Page Rules adjust request handling but cannot route to an unreachable private host. Spectrum proxies TCP/UDP applications but still requires a reachable origin and does not establish an outbound connector from a private, inbound-blocked server.",
+      "tags": [
+        "cloudflare-tunnel",
+        "zero-trust",
+        "origin",
+        "cloudflare",
+        "cloudflare-cass"
+      ],
+      "difficulty": "medium",
+      "domain": "Zero Trust and Access"
+    },
+    {
+      "id": "cloudflare-cass-012",
+      "question": "A site owner wants requests for static assets (images, CSS, JS) to be served from Cloudflare's edge cache to reduce origin load, while ensuring HTML pages are always fetched fresh from the origin. Which Cloudflare behavior or setting should they rely on?",
+      "options": [
+        "By default Cloudflare caches static file extensions based on its default cacheable file list while not caching HTML, and Cache Rules can refine this per-path behavior",
+        "Cloudflare caches every response including HTML by default, so the owner must add a Cache Rule that explicitly bypasses cache for static assets to keep them fresh",
+        "Cloudflare never caches any response until the origin sends a `Cf-Cache: store` header, so the owner must configure the origin to emit that header on static assets",
+        "Caching is controlled solely by the WAF, so the owner enables a Managed Ruleset that caches assets matching common image and script signatures at the edge"
+      ],
+      "correct": 0,
+      "explanation": "Cloudflare's default cache behavior caches a set of static file types (by extension) and does not cache HTML unless told to, which already matches the requirement; Cache Rules (the successor to cache-related Page Rules) let you refine caching per path, extension, or other criteria. Cloudflare does not cache HTML by default, so the premise that you must bypass static assets is backwards. There is no `Cf-Cache: store` request gate that the origin must send to enable caching. The WAF inspects and blocks requests; it is not the caching engine and has no asset-caching managed ruleset.",
+      "tags": [
+        "cache",
+        "cdn",
+        "cache-rules",
+        "cloudflare",
+        "cloudflare-cass"
+      ],
+      "difficulty": "medium",
+      "domain": "Application Services Fundamentals"
+    },
+    {
+      "id": "cloudflare-cass-013",
+      "question": "A security engineer wants to block all traffic to the zone originating from a specific country except for a small set of trusted office IP addresses, which must always be allowed regardless of country. Which Cloudflare configuration expresses this most directly?",
+      "options": [
+        "Enable the Cloudflare Managed Ruleset, which includes a geo-reputation rule that automatically blocks the country while allowlisting any IP marked as an internal corporate address",
+        "Set the zone's Security Level to 'I'm Under Attack', which issues a challenge to every visitor from the targeted country while transparently allowing known office IPs through",
+        "Create one WAF Custom Rule that blocks when `ip.geoip.country` equals the country AND the source IP is not in the trusted office IP list, ordered so trusted IPs are not blocked",
+        "Add the country to the zone's IP Access Rules block list and rely on Cloudflare to automatically skip any request whose ASN belongs to a business broadband provider"
+      ],
+      "correct": 2,
+      "explanation": "WAF Custom Rules use an expression language where you can combine conditions — for example block when `ip.geoip.country eq \"XX\"` AND the client IP is not in your trusted set (or place an allow/skip rule for the office IPs ahead of the block rule). This precisely encodes 'block this country except these IPs'. The Managed Ruleset targets known attack classes, not arbitrary geo policy with an IP exception. 'I'm Under Attack' mode challenges nearly all visitors site-wide and is not a per-country, per-IP allow/block tool. IP Access Rules can block a country but do not auto-skip based on a guessed business ASN.",
+      "tags": [
+        "waf",
+        "custom-rules",
+        "geo-blocking",
+        "cloudflare",
+        "cloudflare-cass"
+      ],
+      "difficulty": "medium",
+      "domain": "Web Application Firewall"
+    },
+    {
+      "id": "cloudflare-cass-014",
+      "question": "An operator has a valid origin certificate problem: they want to issue a free TLS certificate that is trusted specifically by Cloudflare for the Cloudflare-to-origin leg in Full (strict) mode, without buying a publicly trusted certificate for the origin. Which Cloudflare offering provides this?",
+      "options": [
+        "Universal SSL, which Cloudflare provisions automatically to secure the visitor-to-Cloudflare leg and which can be installed on the origin to satisfy Full (strict) validation",
+        "Cloudflare Origin CA certificates, which Cloudflare issues for free and are trusted by Cloudflare's edge for the Cloudflare-to-origin connection in Full (strict) mode",
+        "Keyless SSL, which lets the origin present any self-signed certificate because the private key stays on the origin and Cloudflare skips origin certificate validation",
+        "Authenticated Origin Pulls, which generates a public DigiCert-signed certificate for the origin so that browsers and Cloudflare both trust the origin directly"
+      ],
+      "correct": 1,
+      "explanation": "Cloudflare Origin CA issues free TLS certificates signed by Cloudflare's own origin CA; installed on the origin, they are trusted by Cloudflare's edge and satisfy Full (strict) for the Cloudflare-to-origin leg without a paid public certificate. Universal SSL secures the visitor-to-Cloudflare leg and is not installed on the origin. Keyless SSL keeps the private key on the customer's side for the front-end TLS handshake and does not waive origin validation. Authenticated Origin Pulls makes the origin verify that requests come from Cloudflare (client-certificate from Cloudflare to origin) — it does not issue a server certificate to make the origin publicly trusted.",
+      "tags": [
+        "tls",
+        "origin-ca",
+        "certificates",
+        "cloudflare",
+        "cloudflare-cass"
+      ],
+      "difficulty": "hard",
+      "domain": "TLS and Certificate Management"
+    },
+    {
+      "id": "cloudflare-cass-015",
+      "question": "A serverless team wants to run custom request-handling logic — such as adding security headers and routing — at Cloudflare's edge close to users, without provisioning or managing any servers. Which Cloudflare product runs this code at the edge?",
+      "options": [
+        "Cloudflare Pages Functions only, which can execute code exclusively as part of a statically deployed Pages site and cannot run in front of an existing proxied origin",
+        "Cloudflare Workers, which run developer-supplied JavaScript or WebAssembly on Cloudflare's edge network in response to requests, with no servers to manage",
+        "Cloudflare Load Balancing, which runs custom request-handling scripts on each pool member to add headers and route traffic before forwarding to the selected origin",
+        "Cloudflare Stream, which executes edge logic to transform and route incoming requests while primarily serving as the platform's adaptive video delivery service"
+      ],
+      "correct": 1,
+      "explanation": "Cloudflare Workers is the serverless edge compute platform: you deploy JavaScript or WebAssembly that runs on Cloudflare's global network in response to requests, letting you add headers, rewrite, route, or generate responses with no servers to manage. Pages Functions are Workers-based but tied to a Pages project and are not the general 'run code in front of any proxied origin' answer. Load Balancing distributes traffic across pools by health and steering but does not run arbitrary user code. Stream is a video encoding and delivery service, not a general edge-compute runtime.",
+      "tags": [
+        "workers",
+        "edge-compute",
+        "serverless",
+        "cloudflare",
+        "cloudflare-cass"
+      ],
+      "difficulty": "medium",
+      "domain": "Application Services Fundamentals"
+    },
+    {
+      "id": "cloudflare-cass-016",
+      "question": "A team running an API behind API Shield has uploaded an OpenAPI specification and wants Cloudflare to reject any request whose body or parameters do not conform to the documented contract (wrong types, missing required fields, disallowed values). Which API Shield feature enforces this?",
+      "options": [
+        "API Discovery, which observes live traffic to learn endpoints and then automatically blocks any request to an endpoint that was not seen during the learning period",
+        "Mutual TLS (mTLS), which validates that each client presents a certificate from an uploaded CA and rejects malformed request bodies that fail the certificate handshake",
+        "Schema Validation, which compares incoming requests against the uploaded OpenAPI schema and applies the configured action to requests that violate the contract",
+        "Sequence Mitigation, which enforces the documented field types by requiring API calls to arrive in the exact order defined in the uploaded OpenAPI specification"
+      ],
+      "correct": 2,
+      "explanation": "API Shield Schema Validation enforces the uploaded OpenAPI schema, checking requests against the contract (required fields, types, allowed values, paths/methods) and applying the configured action — log or block — to non-conforming requests. API Discovery inventories endpoints from observed traffic; it does not validate request structure against a schema. mTLS authenticates client certificates and has nothing to do with request body/parameter conformance. Sequence-based controls relate to the order of API calls (abuse detection), not field-level schema enforcement.",
+      "tags": [
+        "api-shield",
+        "schema-validation",
+        "openapi",
+        "cloudflare",
+        "cloudflare-cass"
+      ],
+      "difficulty": "medium",
+      "domain": "API Shield"
     }
   ]
 }

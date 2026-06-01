@@ -1,0 +1,408 @@
+{
+  "packId": "aws-dop-c02",
+  "title": "AWS DevOps Engineer Professional (DOP-C02)",
+  "brandName": "Amazon AWS",
+  "brandColor": "#60a5fa",
+  "chapters": [
+    {
+      "id": "ch1",
+      "title": "Part 1",
+      "tag": "part-1",
+      "nodes": [
+        {
+          "id": "c1-concept",
+          "type": "concept",
+          "title": "AWS CloudFormation: Key Ideas",
+          "content": "CloudFormation is AWS's native IaC service — declarative YAML/JSON templates that describe stacks of AWS resources. The control plane handles ordering, rollback on failure, and drift detection. The exam tests intrinsic functions, change sets, and stack lifecycle.",
+          "flashcards": [
+            {
+              "front": "What's a change set?",
+              "back": "A preview of what would happen if you applied an updated template. Lists adds, modifies, replaces (resources that must be destroyed and recreated). Lets you spot dangerous changes (replacing your prod RDS!) before executing. Always use change sets in production; never `update-stack` blind."
+            },
+            {
+              "front": "When is a resource replaced vs updated in place?",
+              "back": "Depends on the property changed. Some properties (instance type) update in place. Others (security group name, RDS engine version major) require replacement: CFN creates a new resource, updates references, then deletes the old. Replacement = downtime + possible data loss. Read the docs before changing names or immutable IDs."
+            },
+            {
+              "front": "Stack policy — what does it protect?",
+              "back": "A JSON document attached to a stack that says 'these resource updates are NOT allowed during stack update'. Typical use: lock the prod database resource so an accidental rerun of `update-stack` can't drop it. Default policy: everything mutable; you opt in to lock specific logical IDs."
+            },
+            {
+              "front": "Nested stacks vs cross-stack references.",
+              "back": "Nested: parent template instantiates child templates as `AWS::CloudFormation::Stack` resources — tight coupling, one deploy unit. Cross-stack: stack A exports an output, stack B imports it via `Fn::ImportValue` — loose coupling, independent lifecycles. Pick nested for reusable patterns, cross-stack for shared infra (VPC) referenced by many apps."
+            }
+          ],
+          "source": "concept-library",
+          "sourceTag": "cloudformation"
+        },
+        {
+          "id": "c1-quiz1",
+          "type": "quiz",
+          "title": "Part 1 — Drill 1",
+          "questionIds": [
+            "aws-dop-c02-006",
+            "aws-dop-c02-001",
+            "aws-dop-c02-002",
+            "aws-dop-c02-003",
+            "aws-dop-c02-004"
+          ]
+        },
+        {
+          "id": "c1-game",
+          "type": "minigame",
+          "gameType": "lightning",
+          "mode": "lightning-round",
+          "data": {
+            "secondsPerQuestion": 7,
+            "livesAllowed": 3,
+            "questions": [
+              {
+                "q": "A team runs an Amazon ECS service behind an Application Load Balancer and needs zero-downtime deployments with the ability to validate the new revision against test traffic before production cutover. Which deployment approach meets this requirement?",
+                "choices": [
+                  "Use CodeDeploy blue/green for ECS with two target groups, register the replacement task set, route test traffic via a test listener, then shift production traffic",
+                  "Use CodeDeploy with the in-place ECS deployment type, which replaces tasks in batches and exposes the new revision on the same ALB listener so test clients can probe it before cutover",
+                  "Use a CodePipeline canary stage action that scales the new ECS task definition to 25% capacity, runs automated checks, and promotes the revision if metrics stay healthy",
+                  "Set the ECS rolling-update controller with `minimumHealthyPercent: 200`, ensuring the new task definition fully serves traffic before the old set is drained"
+                ],
+                "correctIndex": 0,
+                "explanation": "CodeDeploy blue/green for the ECS compute platform provisions a replacement task set, registers it to a separate target group, and exposes it via a test listener so the team can validate before traffic shifts. CodeDeploy then performs the production cutover (linear, canary, or all-at-once). The in-place option for ECS does exist for the EC2/On-Premises platform but is not the supported model for ECS services — CodeDeploy for ECS uses the blue/green model, and there is no second listener to validate against in a rolling task replacement. CodePipeline has no built-in canary stage action that scales ECS tasks; canary behaviour is delegated to CodeDeploy's traffic-shifting config. `minimumHealthyPercent: 200` is not a valid blue/green construct — `minimumHealthyPercent` and `maximumPercent` only govern rolling-update task counts."
+              },
+              {
+                "q": "A pipeline must build a containerized Java application and push the image to Amazon ECR. The buildspec must authenticate to ECR before `docker push`. Which buildspec configuration is correct?",
+                "choices": [
+                  "Set `env.exported-variables` to include `ECR_PASSWORD`, then run `docker login -u AWS -p $ECR_PASSWORD <registry>` in the pre_build phase before the docker build step",
+                  "Add an `auth.ecr` block under `phases.build` with `enabled: true`, which causes CodeBuild to inject ECR registry credentials into the docker daemon for the build phase only",
+                  "Specify `image-pull-credentials-type: SERVICE_ROLE` on the CodeBuild project so the build's service role transparently authenticates `docker push` to ECR with no explicit login",
+                  "In the pre_build phase, run `aws ecr get-login-password --region $AWS_REGION | docker login --username AWS --password-stdin <account>.dkr.ecr.$AWS_REGION.amazonaws.com`"
+                ],
+                "correctIndex": 3,
+                "explanation": "`aws ecr get-login-password` returns a short-lived auth token that `docker login --password-stdin` consumes. The CodeBuild service role must hold `ecr:GetAuthorizationToken`, `ecr:BatchCheckLayerAvailability`, and `ecr:PutImage` (or the managed policy `AmazonEC2ContainerRegistryPowerUser`). `env.exported-variables` only forwards values to downstream CodePipeline stages — it does not produce or store ECR credentials. There is no `auth.ecr` buildspec block in the schema. `image-pull-credentials-type: SERVICE_ROLE` controls how CodeBuild pulls its own build environment image from ECR at container start, not how docker commands inside the build authenticate to push images."
+              },
+              {
+                "q": "After a CloudFormation stack deploys an EC2 launch template and Auto Scaling group, an operator manually edits the launch template's user data via the EC2 console. The team wants to detect this divergence automatically and report on it. What is the correct approach?",
+                "choices": [
+                  "Create an EventBridge rule on the `aws.cloudformation` source that triggers on `UpdateLaunchTemplate` calls, then publishes a Lambda alert summarizing which stack and resource drifted",
+                  "Run the CloudFormation linter `cfn-lint` on a schedule against the deployed template; it compares the current resource state to the template and reports any drift findings",
+                  "Enable AWS Config with the `cloudformation-stack-drift-detection-check` managed rule, which periodically invokes `DetectStackDrift` and flags resources that differ from the template",
+                  "Enable CloudFormation Stack Sets in self-managed mode, which automatically reconciles drift on every stack instance by overwriting changes with the original template values"
+                ],
+                "correctIndex": 2,
+                "explanation": "AWS Config provides a managed rule `cloudformation-stack-drift-detection-check` that automates periodic drift detection across stacks. Drift detection itself is a CloudFormation feature (`DetectStackDrift`) that compares the live resource configuration to template-defined values. EventBridge captures API events, but a console edit to a launch template is emitted under the `aws.ec2` source as `ModifyLaunchTemplate`, not under `aws.cloudformation` — the proposed rule never fires. `cfn-lint` is a static-analysis tool for template syntax and best practices; it does not compare deployed-state to template. Stack Sets manage multi-account deployments and do not automatically reconcile drift — drift on instances is reported, never overwritten."
+              },
+              {
+                "q": "A platform team manages 200 AWS accounts under AWS Organizations and needs a baseline IAM role and S3 bucket deployed identically into every existing and future account. Which solution requires the least ongoing operational effort?",
+                "choices": [
+                  "Build a CodePipeline that iterates over the AWS Organizations accounts list weekly and deploys missing resources via `aws cloudformation deploy` against each account it cannot reach",
+                  "Use a CloudFormation StackSet with service-managed permissions targeting the organization root, with auto-deployment enabled so new accounts receive the stack instance",
+                  "Package the resources as an AWS Service Catalog product, share the portfolio with the organization, and require account owners to manually launch the product in each new account",
+                  "Use AWS Resource Access Manager (RAM) to share a single central IAM role and S3 bucket from a hub account, granting every member account access without duplicating the resources"
+                ],
+                "correctIndex": 1,
+                "explanation": "Service-managed StackSets integrate directly with AWS Organizations. Auto-deployment provisions stack instances into every account in the targeted OUs, including new accounts as they join, with no per-account intervention. The CodePipeline approach works but adds undifferentiated heavy lifting and only catches new accounts on the next weekly run (and depends on cross-account assume-role plumbing being maintained). Service Catalog requires a manual product launch in every new account — direct opposite of \"least ongoing effort\". RAM shares specific resource types (subnets, Transit Gateways, License Manager configurations, etc.); it cannot share IAM roles or S3 buckets — those resources are account-scoped and must be created per account."
+              },
+              {
+                "q": "A SaaS company runs an active-active deployment across us-east-1 and eu-west-1 fronted by a single Route 53 hosted zone. Each region exposes a regional ALB. They need automatic failover that removes a region from DNS within minutes if its health degrades. Which Route 53 configuration meets the requirement?",
+                "choices": [
+                  "Create simple routing records that return both ALB addresses and rely on the resolver to round-robin between regions, with health checks attached to each record value",
+                  "Configure weighted routing with weights of 100 per region; the weight drops to 0 automatically when CloudWatch alarms fire on elevated 5xx error rates against the regional ALB endpoint",
+                  "Use multi-value answer routing with associated TXT records that store the regional health state; DNS resolvers parse the TXT field on each query and skip endpoints flagged unhealthy",
+                  "Use latency-based records for both ALBs with associated Route 53 health checks; Route 53 stops returning the unhealthy record while the healthy region continues serving traffic"
+                ],
+                "correctIndex": 3,
+                "explanation": "Route 53 latency-based (or geolocation, weighted, failover, multi-value) records combined with health checks remove unhealthy endpoints from query responses within the health-check evaluation window (typically 30–60 seconds). Simple routing in Route 53 does not support attaching health checks to record values at all — health checks are only honoured by the non-simple policies. Weighted routing weights are static configuration values; they do not auto-adjust from CloudWatch alarms unless you build separate automation, which violates \"automatic\" in the requirement. Multi-value answer routing does support health checks directly on each record, but the proposed TXT-based encoding is fictional — DNS resolvers do not parse arbitrary TXT records to make routing decisions."
+              },
+              {
+                "q": "A DevOps engineer needs to query a Lambda function's CloudWatch Logs to extract every error stack trace from the last 6 hours, grouped by error class. The volume is roughly 2 GB. Which approach is the most appropriate?",
+                "choices": [
+                  "Export the relevant log group to S3 using a CloudWatch Logs export task, then run an Amazon Athena query against the exported JSON files using a Glue table definition for schema",
+                  "Subscribe the log group to a Kinesis Data Firehose delivery stream that writes to OpenSearch Service, then run aggregations through OpenSearch Dashboards on the indexed records",
+                  "Use CloudWatch Logs Insights with a `parse`, `filter`, and `stats count() by errorClass` query directly against the log group; results return interactively without staging the data",
+                  "Use the `aws logs filter-log-events` CLI in a loop, page through results into local files, and post-process them with `jq` and `awk` to compute per-error-class counts locally"
+                ],
+                "correctIndex": 2,
+                "explanation": "CloudWatch Logs Insights is purpose-built for ad-hoc log analytics directly against a log group with no data movement. Its query language supports `parse`, `filter`, `stats`, and `sort` over multi-hour windows of multi-GB volumes interactively, and it bills per byte scanned. The Athena route requires standing up an export task plus a Glue table — appropriate for repeated long-horizon analytics, not a single 6-hour investigation. OpenSearch via Firehose is the right design for sustained dashboards or alerting but requires building an indexing pipeline you don't otherwise need. The CLI loop is bandwidth- and rate-limited (`FilterLogEvents` paginates slowly) and offers no native aggregation — a poor fit for 2 GB."
+              }
+            ]
+          },
+          "title": "Part 1 — Lightning Round"
+        },
+        {
+          "id": "c1-chest",
+          "type": "chest",
+          "title": "Treasure Chest",
+          "rewardXp": 30,
+          "cosmeticKey": "chapter-1"
+        }
+      ]
+    },
+    {
+      "id": "ch2",
+      "title": "Part 2",
+      "tag": "part-2",
+      "nodes": [
+        {
+          "id": "c2-concept",
+          "type": "concept",
+          "title": "Security fundamentals: Key Ideas",
+          "content": "Security is about layering defenses so no single failure compromises a system. Most exams test the same core ideas: least privilege, defense in depth, the CIA triad, and the shared-responsibility line between you and your cloud provider.",
+          "flashcards": [
+            {
+              "front": "What is the CIA triad?",
+              "back": "Confidentiality (only the right people see the data), Integrity (data isn't tampered with), Availability (the system is reachable when needed). Every security control maps to at least one of these three pillars."
+            },
+            {
+              "front": "What does 'least privilege' mean?",
+              "back": "Grant each identity (user, role, service account) the minimum permissions needed to do its job — no more. The opposite is wildcard access, which makes a single credential leak catastrophic."
+            },
+            {
+              "front": "What is defense in depth?",
+              "back": "Stack multiple, independent controls so an attacker has to defeat all of them. Example: WAF in front of an app, network ACL on the subnet, IAM on the workload, encryption at rest in the database."
+            },
+            {
+              "front": "Shared responsibility model — who does what?",
+              "back": "The cloud provider secures the cloud (physical hardware, hypervisor, region facilities). You secure what's IN the cloud (your data, IAM config, OS patching on EC2, application code). The exact line shifts by service: serverless is more on the provider, IaaS is more on you."
+            }
+          ],
+          "source": "concept-library",
+          "sourceTag": "security"
+        },
+        {
+          "id": "c2-quiz1",
+          "type": "quiz",
+          "title": "Part 2 — Drill 1",
+          "questionIds": [
+            "aws-dop-c02-007",
+            "aws-dop-c02-008",
+            "aws-dop-c02-011",
+            "aws-dop-c02-009",
+            "aws-dop-c02-010"
+          ]
+        },
+        {
+          "id": "c2-game",
+          "type": "minigame",
+          "gameType": "lightning",
+          "mode": "lightning-round",
+          "data": {
+            "secondsPerQuestion": 7,
+            "livesAllowed": 3,
+            "questions": [
+              {
+                "q": "A security team requires that any IAM user creation in any account triggers an immediate Slack notification and an audit-log entry in a central S3 bucket. Which design is the most operationally efficient across an AWS Organization?",
+                "choices": [
+                  "Create an organization trail in the management account and an EventBridge rule on `CreateUser` API calls; a Lambda target posts to Slack and writes the event to the central S3 audit bucket",
+                  "Enable a separate CloudTrail in every member account and deploy a per-account Lambda to process IAM events and push findings to a central organization EventBridge bus on the security account",
+                  "Use AWS Config aggregator to collect IAM resource changes, then a daily CloudWatch Events query summarises newly created IAM users for Slack and the central S3 audit bucket",
+                  "Subscribe every account's CloudTrail log group to a central Kinesis Data Stream; a consumer in the security account replays events, filters for `CreateUser`, and forwards each match to Slack and S3"
+                ],
+                "correctIndex": 0,
+                "explanation": "An organization trail in the management account writes management events from every member account to a single S3 bucket, satisfying the central audit requirement. EventBridge can match management-event API calls (`CreateUser`) and route to a Lambda that posts to Slack — all centrally maintained, no per-account footprint. The per-account CloudTrail + Lambda fan-in produces duplicate trail data, multiplies operational surface, and is harder to govern. AWS Config aggregator runs on periodic configuration snapshots and the proposed daily query violates the \"immediate\" requirement. Subscribing every account's log group to a central Kinesis stream works mechanically but adds an unnecessary streaming consumer and per-account subscription filters compared to a single organization-wide EventBridge rule."
+              },
+              {
+                "q": "A web application reads a database password from AWS Secrets Manager. Compliance requires the password to rotate every 30 days with no application downtime. Which configuration meets the requirement?",
+                "choices": [
+                  "Schedule an EventBridge rule every 30 days that invokes a custom Lambda to generate a new password, update RDS, overwrite the Secrets Manager value, then trigger a CodeDeploy redeploy of the application",
+                  "Enable Secrets Manager automatic rotation with the AWS-provided RDS rotation Lambda; configure a 30-day rotation schedule and have the application re-fetch the secret on cache miss or refresh interval",
+                  "Use AWS Systems Manager Parameter Store SecureString with a 30-day expiration policy; the parameter value is automatically replaced with a freshly generated random string and consumers refresh on the next read",
+                  "Store the password as a KMS-encrypted environment variable and have a CodePipeline stage rebuild and redeploy the application every 30 days, generating the new database password and rotating it on RDS in the same run"
+                ],
+                "correctIndex": 1,
+                "explanation": "Secrets Manager native rotation orchestrates a four-step Lambda (`createSecret`, `setSecret`, `testSecret`, `finishSecret`) that uses the AWSCURRENT and AWSPENDING staging labels so the new credential is created and tested before promotion — clients reading AWSCURRENT see continuous availability. The official RDS rotation Lambda templates implement this dance safely against the database. A custom EventBridge-driven rotation can work but reinvents the staging-label protocol and forces an application redeploy on every cycle. Parameter Store has no native rotation or expiration-based regeneration — values are static until explicitly overwritten. KMS-encrypted environment variables couple the secret's lifetime to the deployment pipeline, meaning rotation requires a redeploy, which is operationally heavy and not zero-downtime by default."
+              },
+              {
+                "q": "An application in account A must encrypt objects to an S3 bucket in account B using a KMS customer-managed key in account B. Which permission configuration enables this?",
+                "choices": [
+                  "Grant `kms:*` to the account A principal in the S3 bucket policy of account B; Amazon S3 forwards the bucket policy permission to the KMS service when handling SSE-KMS write operations on objects",
+                  "Grant `kms:Encrypt` on `*` to the IAM role in account A and rely on the matching IAM permission on the caller side being sufficient for KMS to authorize a cross-account encrypt call against an account B key",
+                  "Grant the account A principal `kms:Encrypt` and `kms:GenerateDataKey` in the key policy of account B, and grant the IAM role in account A matching permissions on the specific key ARN in account B",
+                  "Leave the account B key policy at the AWS default and grant the IAM role in account A `kms:CreateGrant` on the key so that cross-account encryption flows through a grant rather than the key policy"
+                ],
+                "correctIndex": 2,
+                "explanation": "Cross-account KMS access requires both sides: the key policy in the owning account must grant the foreign principal access (or delegate to IAM via the standard `Allow access through IAM` statement), and the IAM principal in the calling account must hold matching permissions on the specific key ARN. S3 bucket policies cannot delegate KMS permissions — KMS authorization is evaluated independently against the key's own resource policy. IAM-side permission alone is insufficient: KMS does not honour IAM-only access on a key whose resource policy hasn't opened it cross-account. `CreateGrant` is a valid alternative mechanism for one-off delegation, but the caller can only create a grant if the key policy first allows it, so simply granting `kms:CreateGrant` to account A's role against a default key policy fails."
+              },
+              {
+                "q": "A team uses CodeDeploy in-place deployments on EC2 to roll out a Node.js service registered behind an ELB. They need to drain in-flight HTTP connections from the instance before the new version starts and to verify the new version returns 200 on `/health` before traffic resumes. Which lifecycle event hooks should they implement in `appspec.yml`?",
+                "choices": [
+                  "Use the `BeforeAllowTraffic` hook to drain in-flight HTTP connections and the `AfterAllowTraffic` hook to verify the `/health` endpoint returns 200 before the deployment continues to the next instance",
+                  "Use the `ApplicationStop` hook to drain in-flight connections from the ELB and the `BeforeInstall` hook to call the `/health` endpoint, blocking the deployment if it returns a non-200 response",
+                  "Use the `DownloadBundle` hook to drain in-flight connections from the ELB and the `ApplicationStart` hook to validate the new version's `/health` endpoint by polling with a configurable retry budget",
+                  "Use the `BeforeBlockTraffic` hook to drain in-flight connections from the load balancer and the `ValidateService` hook to verify the new version's `/health` endpoint returns 200 after install"
+                ],
+                "correctIndex": 3,
+                "explanation": "CodeDeploy's EC2 lifecycle hooks for in-place deployments include `ApplicationStop`, `BeforeInstall`, `AfterInstall`, `ApplicationStart`, `ValidateService`, and (for ELB-attached instances) `BeforeBlockTraffic`/`AfterBlockTraffic` and `BeforeAllowTraffic`/`AfterAllowTraffic`. `BeforeBlockTraffic` runs before the instance is deregistered from the load balancer — the right place to drain in-flight connections. `ValidateService` runs after `ApplicationStart` and is the conventional health-check hook; a non-zero exit fails the deployment. `BeforeAllowTraffic`/`AfterAllowTraffic` run after the new version is already up and the instance is being re-registered — too late to drain old connections. `ApplicationStop` runs after the instance has already been deregistered (and the old code is about to stop), so it can't gracefully bleed live ELB traffic. `DownloadBundle` is an internal CodeDeploy phase, not a script hook — you cannot attach a script to it."
+              },
+              {
+                "q": "A CodePipeline deploys an EC2 fleet via CodeDeploy. The team wants a deployment to automatically roll back and stop if Amazon CloudWatch alarms detect elevated application error rates during or shortly after the rollout. Which configuration achieves this with native CodeDeploy features?",
+                "choices": [
+                  "Add a manual approval action after the CodeDeploy stage so an operator can watch CloudWatch dashboards and reject the change if error rates climb during the deployment window",
+                  "Configure an EventBridge rule on `CodeDeploy DeploymentSuccess` events that invokes a Lambda to redeploy the previous revision whenever a CloudWatch alarm is simultaneously in ALARM state",
+                  "Associate CloudWatch alarms with the CodeDeploy deployment group and enable automatic rollback on deployment failure and on alarm threshold breaches",
+                  "Set the CodeDeploy deployment configuration to `CodeDeployDefault.AllAtOnce` so any failing instance immediately reverts the entire fleet to the last known good revision"
+                ],
+                "correctIndex": 2,
+                "explanation": "CodeDeploy deployment groups support associating CloudWatch alarms and enabling automatic rollback both on deployment failure and when an associated alarm enters the ALARM state — this is the native, no-code mechanism. A manual approval action only gates promotion at a point in time and relies on a human watching dashboards, not on automatic alarm-driven rollback. An EventBridge rule on `DeploymentSuccess` fires only after a successful deployment and would not trigger mid-rollout; building Lambda redeploy logic also reinvents a native feature. `AllAtOnce` is a traffic/timing strategy that does not, by itself, watch metrics or revert on elevated error rates."
+              },
+              {
+                "q": "An organization needs every EC2 instance across hundreds of accounts to be continuously evaluated against a CIS hardening standard, with non-compliant instances reported centrally and automatically remediated where possible. Which combination is the most operationally efficient?",
+                "choices": [
+                  "Run a nightly Systems Manager Run Command document on every instance that executes a shell script to check CIS controls and writes a pass/fail file to a central S3 bucket for review",
+                  "Deploy AWS Config conformance packs via an organization-level deployment, aggregate results in a delegated administrator account, and attach SSM Automation documents as remediation actions",
+                  "Enable Amazon Inspector in every account and rely on its CVE findings to represent CIS compliance, exporting the vulnerability report to Security Hub once per week for the security team",
+                  "Schedule a CodeBuild project in each account that SSHes into every instance, runs a CIS benchmark tool, and emails the security team a consolidated compliance report each morning"
+                ],
+                "correctIndex": 1,
+                "explanation": "AWS Config conformance packs bundle Config rules (including CIS-aligned checks) and can be deployed across an organization; results aggregate into a delegated administrator account, and Config supports automatic remediation via SSM Automation documents. A nightly Run Command shell script reinvents rule evaluation and central reporting that Config provides natively. Amazon Inspector assesses software vulnerabilities (CVEs) and network reachability, not CIS configuration-hardening controls, so it does not represent CIS compliance. A per-account CodeBuild job SSHing into every instance is fragile, high-maintenance, and lacks the centralized aggregation and remediation Config delivers."
+              }
+            ]
+          },
+          "title": "Part 2 — Lightning Round"
+        },
+        {
+          "id": "c2-chest",
+          "type": "chest",
+          "title": "Treasure Chest",
+          "rewardXp": 30,
+          "cosmeticKey": "chapter-2"
+        }
+      ]
+    },
+    {
+      "id": "ch3",
+      "title": "Part 3",
+      "tag": "part-3",
+      "nodes": [
+        {
+          "id": "c3-concept",
+          "type": "concept",
+          "title": "Observability and monitoring: Key Ideas",
+          "content": "Observability is metrics + logs + traces — the three pillars. You need all three to debug a production incident: metrics tell you something is wrong, logs tell you what happened, traces tell you where in the call graph the problem lives.",
+          "flashcards": [
+            {
+              "front": "Metrics vs logs vs traces — what does each tell you?",
+              "back": "Metrics: numeric time-series, cheap to store, perfect for dashboards and alerts ('p99 latency = 800 ms'). Logs: discrete events with context, expensive at scale, perfect for forensics. Traces: causally-linked spans showing a request's full path through services."
+            },
+            {
+              "front": "What's the difference between an alert and a notification?",
+              "back": "An alert is a condition that fires when a metric crosses a threshold (CPU > 80% for 5 min). The notification is the resulting message (email, Slack, PagerDuty page). One alert can fan out to many notifications. Tuning alerts is harder than wiring notifications."
+            },
+            {
+              "front": "What is an SLI / SLO / SLA?",
+              "back": "SLI (indicator): the metric you actually measure ('% of requests under 200 ms'). SLO (objective): the internal target ('99.9% of requests under 200 ms over 28 days'). SLA (agreement): the contractual promise to customers, usually weaker than the SLO so you have buffer."
+            },
+            {
+              "front": "Why structured logs?",
+              "back": "Plain-text logs are unparseable at scale. Structured logs (JSON, with timestamp + level + service + request_id + key fields) are indexable, queryable, and join-able across services. Most platforms auto-extract fields from JSON without configuration."
+            }
+          ],
+          "source": "concept-library",
+          "sourceTag": "monitoring"
+        },
+        {
+          "id": "c3-quiz1",
+          "type": "quiz",
+          "title": "Part 3 — Drill 1",
+          "questionIds": [
+            "aws-dop-c02-013",
+            "aws-dop-c02-014",
+            "aws-dop-c02-015",
+            "aws-dop-c02-016"
+          ]
+        },
+        {
+          "id": "c3-game",
+          "type": "minigame",
+          "gameType": "lightning",
+          "mode": "lightning-round",
+          "data": {
+            "secondsPerQuestion": 7,
+            "livesAllowed": 3,
+            "questions": [
+              {
+                "q": "A stateless web application runs on an EC2 Auto Scaling group behind an ALB across three Availability Zones. The team needs cost savings during predictable low-traffic overnight hours while keeping fast scale-out during the morning spike. Which scaling configuration best meets this?",
+                "choices": [
+                  "Use only a target-tracking policy on average CPU utilization and rely on it alone to both shrink the fleet overnight and grow it during the morning spike across all three Availability Zones",
+                  "Combine a scheduled scaling action that lowers desired and minimum capacity overnight with a target-tracking policy on CPU that handles the morning demand spike",
+                  "Set a high static minimum capacity sized for peak so the group never needs to scale, eliminating cold-start latency during the morning spike at the cost of overnight idle instances",
+                  "Replace the Auto Scaling group with a single large instance per Availability Zone and use ALB health checks to restart instances if they fail, avoiding scaling complexity entirely"
+                ],
+                "correctIndex": 1,
+                "explanation": "Scheduled scaling proactively lowers minimum/desired capacity during the known overnight window for cost savings, while a target-tracking CPU policy reactively adds capacity for the less precisely timed morning demand — combining both is AWS's recommended pattern for predictable plus dynamic load. Target tracking alone reacts only after metrics rise, so it cannot proactively shrink at a known time as efficiently and may lag the spike. A high static minimum wastes money overnight and defeats the cost objective. Replacing the ASG with single large instances removes elasticity and reintroduces the scaling problem the requirement is trying to solve."
+              },
+              {
+                "q": "A team must aggregate application metrics, traces, and logs from EKS workloads into a single observability solution while writing the least custom code. Which approach is the most appropriate?",
+                "choices": [
+                  "Deploy the CloudWatch agent and AWS Distro for OpenTelemetry (ADOT) collector as DaemonSets to ship container metrics, traces, and logs into CloudWatch and X-Ray",
+                  "Write a custom sidecar in every pod that batches metrics and log lines and posts them to a self-managed Prometheus and Grafana stack running on separate EC2 instances",
+                  "Enable VPC Flow Logs on the EKS cluster subnets and parse them with Athena to reconstruct per-pod application metrics, traces, and request-level error rates",
+                  "Stream all pod stdout to a Kinesis Data Stream and build a Lambda consumer that derives metrics, assembles traces, and indexes logs into a custom data store"
+                ],
+                "correctIndex": 0,
+                "explanation": "The CloudWatch agent (Container Insights) plus the AWS Distro for OpenTelemetry collector, deployed as DaemonSets, is the managed path to collect metrics, traces, and logs from EKS into CloudWatch and X-Ray with minimal custom code. A custom per-pod sidecar feeding a self-managed Prometheus/Grafana stack is far more operational overhead and bespoke code. VPC Flow Logs capture network-level IP traffic metadata only — they cannot reconstruct application metrics, traces, or error rates. A Kinesis + Lambda pipeline that derives metrics and assembles traces is exactly the heavy custom engineering the requirement seeks to avoid."
+              },
+              {
+                "q": "A regulated company requires that production deployments through CodePipeline pause for an authorized approver, and that the approval (who and when) is captured in an immutable audit log. Which design satisfies both requirements with native services?",
+                "choices": [
+                  "Email the release manager a link to the pipeline and ask them to reply-all confirming approval, then store the email thread in a shared mailbox folder as the audit record of who approved",
+                  "Use an EventBridge rule that auto-approves the stage during business hours and writes a row to a DynamoDB table, treating the table as the immutable approval audit log for compliance",
+                  "Configure the deployment stage with a long wait action and rely on the deploying engineer to self-certify in the commit message that an approver verbally signed off before merge",
+                  "Add a CodePipeline manual approval action gated by an IAM policy limiting approvers, with an organization CloudTrail recording the `PutApprovalResult` API call to a write-once S3 bucket"
+                ],
+                "correctIndex": 3,
+                "explanation": "A CodePipeline manual approval action pauses the pipeline; restricting `codepipeline:PutApprovalResult` via IAM controls who may approve, and an organization CloudTrail records the approval API call (including identity and timestamp) to an S3 bucket that can be locked write-once with S3 Object Lock for immutability. An email reply-all thread is not an authoritative, tamper-evident audit log and isn't tied to the pipeline action. An EventBridge auto-approval removes the required human authorization entirely, and a plain DynamoDB table is mutable, not immutable. A self-certifying commit message provides no enforced gate or independent audit trail of the approver."
+              },
+              {
+                "q": "A microservices platform on Amazon SQS-decoupled workers occasionally produces messages that fail processing repeatedly, blocking the queue and burning Lambda retries. The team needs failed messages isolated for later inspection without losing them. Which configuration addresses this?",
+                "choices": [
+                  "Increase the SQS visibility timeout to several hours so failing messages stay invisible long enough for the worker to eventually succeed on a later automatic retry attempt",
+                  "Set the SQS message retention period to the maximum of 14 days and let failing messages expire naturally once the retention window closes without further processing",
+                  "Enable SQS FIFO ordering on the queue so a poison message blocks only its own message group and the rest of the queue continues processing in strict order",
+                  "Configure a dead-letter queue with a redrive policy and a maxReceiveCount so messages exceeding the receive threshold move to the DLQ for isolated inspection"
+                ],
+                "correctIndex": 3,
+                "explanation": "An SQS dead-letter queue with a redrive policy and a `maxReceiveCount` automatically moves a message to the DLQ after it has been received (and failed) that many times, isolating poison messages for inspection while preventing them from blocking the main queue or exhausting retries. Raising the visibility timeout just delays redelivery and does not stop a permanently failing message from retrying forever. Maxing the retention period and letting messages expire loses the failed data the team wants to inspect. FIFO ordering changes delivery semantics and a poison message in a group can still stall that group's processing — it is not a poison-message isolation mechanism."
+              }
+            ]
+          },
+          "title": "Part 3 — Lightning Round"
+        },
+        {
+          "id": "c3-boss",
+          "type": "subboss",
+          "title": "Boss: Part 3",
+          "questionIds": [
+            "aws-dop-c02-013",
+            "aws-dop-c02-014",
+            "aws-dop-c02-015",
+            "aws-dop-c02-016"
+          ]
+        },
+        {
+          "id": "c3-chest",
+          "type": "chest",
+          "title": "Treasure Chest",
+          "rewardXp": 30,
+          "cosmeticKey": "chapter-3"
+        }
+      ]
+    }
+  ],
+  "finalBoss": {
+    "id": "final-boss",
+    "type": "finalboss",
+    "title": "Final Exam: AWS DevOps Engineer Professional (DOP-C02)",
+    "questionCount": 15,
+    "timeMinutes": 23
+  },
+  "meta": {
+    "generatedAt": "2026-06-01T06:04:11.665Z",
+    "totalNodes": 14,
+    "totalQuestions": 16,
+    "nodeTypes": [
+      "concept",
+      "quiz",
+      "minigame",
+      "subboss",
+      "finalboss"
+    ]
+  }
+}

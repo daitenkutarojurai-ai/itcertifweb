@@ -1,0 +1,406 @@
+{
+  "packId": "kcna",
+  "title": "Kubernetes and Cloud Native Associate (KCNA)",
+  "brandName": "Linux Foundation",
+  "brandColor": "#22c55e",
+  "chapters": [
+    {
+      "id": "ch1",
+      "title": "Part 1",
+      "tag": "part-1",
+      "nodes": [
+        {
+          "id": "c1-concept",
+          "type": "concept",
+          "title": "Storage concepts: Key Ideas",
+          "content": "Cloud storage comes in three flavors with very different cost/perf trade-offs: object (think S3), block (think EBS / managed disks), and file (think EFS / Azure Files / Filestore). Pick wrong and you either overpay or hit performance ceilings.",
+          "flashcards": [
+            {
+              "front": "Object vs block vs file storage — when do you use each?",
+              "back": "Object (S3, Blob, GCS) for unstructured data, backups, static sites, data lakes — flat namespace, HTTP API, infinite scale. Block (EBS, managed disks) for OS disks and databases — low latency, single attach. File (EFS, NFS) when multiple VMs need a shared POSIX filesystem."
+            },
+            {
+              "front": "What is a storage class / tier?",
+              "back": "Same data, different SLA and price. Hot tier (frequent access, expensive read, cheap retrieval). Cold/archive tier (rare access, cheap to store, expensive to read, retrieval latency from minutes to hours). Lifecycle policies move data between tiers automatically."
+            },
+            {
+              "front": "Why use server-side encryption?",
+              "back": "Data is encrypted at rest by the storage service using either provider-managed keys (default, no extra config) or your own keys via KMS. This protects against physical disk theft and meets compliance baselines without changing your app code."
+            },
+            {
+              "front": "What's storage durability vs availability?",
+              "back": "Durability is the chance your data won't be lost (object stores claim ~11 9s — 99.999999999%). Availability is the chance you can reach it right now (typically 4 9s — 99.99%). Durability is multi-region replication; availability is how many concurrent failures the service tolerates."
+            }
+          ],
+          "source": "concept-library",
+          "sourceTag": "storage"
+        },
+        {
+          "id": "c1-quiz1",
+          "type": "quiz",
+          "title": "Part 1 — Drill 1",
+          "questionIds": [
+            "kcna-001",
+            "kcna-002",
+            "kcna-003",
+            "kcna-004",
+            "kcna-005"
+          ]
+        },
+        {
+          "id": "c1-game",
+          "type": "minigame",
+          "gameType": "lightning",
+          "mode": "lightning-round",
+          "data": {
+            "secondsPerQuestion": 7,
+            "livesAllowed": 3,
+            "questions": [
+              {
+                "q": "Two containers in the same Pod can reach each other on `localhost` and read files written by the sibling under a shared `emptyDir` volume. Which statement about the Kubernetes Pod model best explains this behavior?",
+                "choices": [
+                  "Containers in a Pod share a network namespace and any mounted volumes, while each container keeps its own root filesystem, PID namespace, and mount namespace by default",
+                  "Each container in a Pod runs in its own network namespace, and kube-proxy programs DNAT rules between sibling containers so calls to `localhost` are translated transparently",
+                  "All containers in a Pod are merged into one Linux namespace group covering network, PID, and IPC, and any declared volume is mounted into every container without `volumeMounts`",
+                  "Containers in a Pod share an IP address only when the `shareProcessNamespace` field is set and the Pod is configured to use the host network mode at admission time"
+                ],
+                "correctIndex": 0,
+                "explanation": "Pods share a Linux network namespace, so containers reach each other on `localhost` and observe the same Pod IP. Volumes declared on the Pod are made available to containers that mount them via `volumeMounts`. By default each container has its own filesystem root, PID namespace, and mount namespace; sharing PIDs is opt-in via `shareProcessNamespace`. kube-proxy does not rewrite intra-Pod traffic — it programs Service virtual IPs."
+              },
+              {
+                "q": "An internal API must be reachable from other workloads in the cluster by a stable DNS name but must not be exposed to traffic outside the cluster. Which Service type satisfies this requirement with the simplest configuration?",
+                "choices": [
+                  "NodePort, since it exposes the workload on every node's IP at a static port — NodePort makes the workload reachable from outside the cluster on each node's public IP; it does not create the stable internal virtual IP that a ClusterIP service provides for in-cluster-only traffic",
+                  "ClusterIP, which assigns a stable virtual IP reachable only from within the cluster and is published in CoreDNS as `<svc>.<ns>.svc.cluster.local` for service discovery",
+                  "LoadBalancer with `loadBalancerSourceRanges: []`, which still provisions an external endpoint but rejects all source IPs while keeping the in-cluster DNS record intact",
+                  "ExternalName, which returns a CNAME for the requested name and avoids exposing any cluster endpoint while still resolving inside Pods through standard DNS queries"
+                ],
+                "correctIndex": 1,
+                "explanation": "ClusterIP is the default Service type and assigns an in-cluster virtual IP plus the `<svc>.<ns>.svc.cluster.local` DNS record — reachable only from within the cluster. NodePort opens a port on every node's IP, which breaks the no-external-exposure requirement. LoadBalancer always provisions external infrastructure on supported clouds. ExternalName returns a CNAME for an external host and does not front cluster Pods."
+              },
+              {
+                "q": "A platform team must roll out a new version of a stateless web service with zero downtime, a controlled surge above the desired replica count, and a one-command rollback if errors spike. Which Kubernetes workload object is purpose-built for this pattern?",
+                "choices": [
+                  "A ReplicaSet, which directly manages Pods and exposes `maxSurge` and `maxUnavailable` fields under its `spec.strategy` block to coordinate rolling upgrades between versions",
+                  "A StatefulSet using `updateStrategy: RollingUpdate`, which orders Pod replacement so the active replica count never drops below the desired value during version transitions",
+                  "A Deployment, which manages a per-revision ReplicaSet, supports `RollingUpdate` with `maxSurge`/`maxUnavailable`, and provides `kubectl rollout undo` to revert to a previous revision",
+                  "A DaemonSet using `updateStrategy: RollingUpdate`, which keeps one Pod per node and replaces them in batches sized by the `maxUnavailable` field on the controller spec"
+                ],
+                "correctIndex": 2,
+                "explanation": "Deployments are the standard controller for stateless rolling updates. They manage a per-revision ReplicaSet, support `RollingUpdate` with `maxSurge` and `maxUnavailable`, and offer `kubectl rollout undo` for rollback. ReplicaSets manage replicas but have no rolling-update strategy of their own. StatefulSets serve stateful workloads with stable identity. DaemonSets schedule one Pod per node and are not for general application scaling."
+              },
+              {
+                "q": "A Pod requires durable storage that survives Pod restarts and rescheduling onto another node. The cluster has a default StorageClass configured. Which object combination correctly grants the Pod a dynamically provisioned volume?",
+                "choices": [
+                  "A PersistentVolumeClaim referencing the StorageClass; the provisioner creates a matching PersistentVolume and binds it to the claim, which the Pod mounts by name in `volumes`",
+                  "A PersistentVolume created in advance by the operator and referenced by name in the Pod's `volumes` block, which removes the need for a PersistentVolumeClaim in the Pod spec",
+                  "A ConfigMap pointing at the CSI driver's backing path, mounted into the container at the desired filesystem location through the Pod's `volumeMounts` configuration block",
+                  "A StorageClass embedded directly into the Pod spec under `spec.storage`, which signals the scheduler to bind the Pod to a node with a matching local disk attached"
+                ],
+                "correctIndex": 0,
+                "explanation": "Dynamic provisioning uses a StorageClass plus a PersistentVolumeClaim. The provisioner creates a matching PersistentVolume bound to the PVC, and the Pod mounts the PVC by name in its `volumes` block. Statically provisioned PVs are valid but not dynamic. ConfigMaps deliver configuration data, not block or file storage. There is no `spec.storage` field on a Pod."
+              },
+              {
+                "q": "Since the dockershim was removed from Kubernetes, which interface does the kubelet use to start, stop, and inspect containers on a node, and which runtime is a widely deployed default that implements it?",
+                "choices": [
+                  "The Open Container Initiative runtime spec is called directly by the kubelet using a widely compatible binary interface — the OCI runtime spec defines the container lifecycle; the kubelet does not call OCI runtimes directly but through the Container Runtime Interface gRPC API",
+                  "The Container Runtime Interface (CRI) is a gRPC API the kubelet calls into, with `containerd` as a widely used default that handles container lifecycle operations through its CRI plugin",
+                  "The kubelet shells out to the legacy `docker` command using a compatibility shim layer, which translates each Docker command into an OCI call handled internally by `runc` on the host",
+                  "The kubelet binary embeds a CRI-O library at compile time and bypasses any external runtime daemon, making container runtime selection effectively a node OS install-time choice only"
+                ],
+                "correctIndex": 1,
+                "explanation": "The kubelet talks to a container runtime over the Container Runtime Interface (CRI), a gRPC API. `containerd` (with its CRI plugin) and `CRI-O` are widely deployed implementations. Both ultimately use `runc` to apply the OCI runtime spec to create containers, but the kubelet does not call `runc` directly. The dockershim was removed in Kubernetes 1.24, so the `docker` CLI is no longer used as the kubelet runtime path. CRI-O is a separate daemon, not embedded in the kubelet."
+              },
+              {
+                "q": "According to the Kubernetes networking model, which statement is always true about Pod-to-Pod communication in a conformant cluster?",
+                "choices": [
+                  "Every Pod receives a unique cluster-wide IP and can reach any other Pod's IP directly without source NAT, regardless of which node the source and destination Pods happen to be scheduled on",
+                  "Pods on the same node share a single virtual IP and reach Pods on other nodes only through kube-proxy, which performs source NAT on all cross-node Pod traffic in iptables mode",
+                  "Inter-Pod traffic is encrypted in transit by default through a sidecar injected by the cluster's CNI plugin, with the encryption keys distributed automatically by the API server at startup",
+                  "Pod IPs are randomly assigned from each node's host network range, so two Pods on different nodes may share an IP and rely on the Service abstraction to disambiguate connections"
+                ],
+                "correctIndex": 0,
+                "explanation": "The Kubernetes network model requires that every Pod has a unique cluster-wide IP and that every Pod can reach every other Pod directly without NAT — a property that the CNI plugin implements. Cross-Pod traffic is not encrypted by default; that is an opt-in service-mesh feature. Pod IPs are not duplicated across nodes. kube-proxy implements Service virtual IPs, not Pod-to-Pod routing."
+              }
+            ]
+          },
+          "title": "Part 1 — Lightning Round"
+        },
+        {
+          "id": "c1-chest",
+          "type": "chest",
+          "title": "Treasure Chest",
+          "rewardXp": 30,
+          "cosmeticKey": "chapter-1"
+        }
+      ]
+    },
+    {
+      "id": "ch2",
+      "title": "Part 2",
+      "tag": "part-2",
+      "nodes": [
+        {
+          "id": "c2-concept",
+          "type": "concept",
+          "title": "Part 2: Key Ideas",
+          "content": "Quick primer on Part 2. Tap to flip cards covering the most-asked exam ideas in this domain.",
+          "flashcards": [
+            {
+              "front": "A workload's CPU usage varies sharply between business hours and overnight, and the team wants the number of Pod replicas to grow and shrink automatically based on observed CPU utilization. Which Kubernetes object provides this behavior?",
+              "back": "The Horizontal Pod Autoscaler scales a target's replica count based on observed metrics — the right tool for load-driven scaling. The VPA changes per-Pod resource requests, not replica count. The Cluster Autoscaler scales nodes, not Pods. A PodDisruptionBudget bounds voluntary evictions during maintenance and does not perform autoscaling."
+            },
+            {
+              "front": "A team wants to run an HTTP function that wakes on request, scales out as traffic increases, and scales to zero replicas when idle, all on top of Kubernetes. Which CNCF project category is purpose-built for this serverless pattern?",
+              "back": "Knative Serving provides request-driven autoscaling, scale-to-zero, and revision-based traffic splitting on Kubernetes — the canonical serverless-on-Kubernetes pattern. Service meshes route and observe traffic but do not implement scale-to-zero. Container runtimes do not control replica counts. The VPA changes resource requests on a Pod, not the number of Pods, and does not implement scale-to-zero."
+            },
+            {
+              "front": "A platform engineer must collect metrics, logs, and traces from heterogeneous services using a single vendor-neutral instrumentation library and pipeline that can export to multiple backends. Which CNCF project is designed for this unified telemetry use case?",
+              "back": "OpenTelemetry (OTel) is the CNCF project that merged OpenTracing and OpenCensus to provide a single vendor-neutral standard for metrics, logs, and traces. It defines an API and SDK for instrumentation plus the OTel Collector for routing telemetry to many backends. Prometheus is metrics-only. Fluentd is a logs router. Jaeger is a tracing backend without a unified metrics/logs API."
+            },
+            {
+              "front": "A team adopts GitOps for application delivery using a controller such as Argo CD or Flux. Which statement best characterizes how a GitOps controller operates against a Kubernetes cluster?",
+              "back": "GitOps controllers such as Argo CD and Flux run inside the cluster, watch a Git repository for desired state, and continuously reconcile cluster state to match. The model is pull-based and convergent rather than push-based from CI. Manifests live in Git, not in a separate registry. Running `kubectl apply` from CI on every commit is a CIOps pattern, not GitOps."
+            }
+          ],
+          "source": "auto-derived"
+        },
+        {
+          "id": "c2-quiz1",
+          "type": "quiz",
+          "title": "Part 2 — Drill 1",
+          "questionIds": [
+            "kcna-007",
+            "kcna-008",
+            "kcna-009",
+            "kcna-010",
+            "kcna-011"
+          ]
+        },
+        {
+          "id": "c2-game",
+          "type": "minigame",
+          "gameType": "lightning",
+          "mode": "lightning-round",
+          "data": {
+            "secondsPerQuestion": 7,
+            "livesAllowed": 3,
+            "questions": [
+              {
+                "q": "A workload's CPU usage varies sharply between business hours and overnight, and the team wants the number of Pod replicas to grow and shrink automatically based on observed CPU utilization. Which Kubernetes object provides this behavior?",
+                "choices": [
+                  "The Vertical Pod Autoscaler (VPA), which observes resource usage and adjusts each Pod's CPU and memory requests between fixed limits — VPA right-sizes individual Pod resource requests; it does not scale the number of Pod replicas between a minimum and maximum count based on load metrics",
+                  "The Cluster Autoscaler, which watches for Pods stuck in Pending due to insufficient capacity and asks the cloud provider to add or remove nodes to match overall workload demand",
+                  "The Horizontal Pod Autoscaler (HPA), which reads metrics (CPU, memory, or custom) and scales a target Deployment's replica count between configured `minReplicas` and `maxReplicas`",
+                  "The PodDisruptionBudget, which limits how many replicas of a workload can be voluntarily evicted at once and indirectly drives replica count adjustments during cluster maintenance"
+                ],
+                "correctIndex": 2,
+                "explanation": "The Horizontal Pod Autoscaler scales a target's replica count based on observed metrics — the right tool for load-driven scaling. The VPA changes per-Pod resource requests, not replica count. The Cluster Autoscaler scales nodes, not Pods. A PodDisruptionBudget bounds voluntary evictions during maintenance and does not perform autoscaling."
+              },
+              {
+                "q": "A team wants to run an HTTP function that wakes on request, scales out as traffic increases, and scales to zero replicas when idle, all on top of Kubernetes. Which CNCF project category is purpose-built for this serverless pattern?",
+                "choices": [
+                  "Service mesh projects such as Istio and Linkerd, which manage inter-service traffic with mTLS and observability — service meshes handle L7 networking and security for Kubernetes workloads; they do not provide serverless scale-to-zero or event-driven invocation abstractions",
+                  "Knative and similar serverless frameworks, which add request-driven autoscaling, scale-to-zero, and revision-based traffic splitting on top of standard Kubernetes workload primitives",
+                  "The container runtime layer (containerd or CRI-O) combined with kubelet feature gates that let Pod replica counts drop to zero and resume automatically on incoming Service traffic",
+                  "The Vertical Pod Autoscaler, which reduces resource requests of idle Pods toward near-zero values until the next inbound request triggers a scaling event back to normal sizing"
+                ],
+                "correctIndex": 1,
+                "explanation": "Knative Serving provides request-driven autoscaling, scale-to-zero, and revision-based traffic splitting on Kubernetes — the canonical serverless-on-Kubernetes pattern. Service meshes route and observe traffic but do not implement scale-to-zero. Container runtimes do not control replica counts. The VPA changes resource requests on a Pod, not the number of Pods, and does not implement scale-to-zero."
+              },
+              {
+                "q": "A platform engineer must collect metrics, logs, and traces from heterogeneous services using a single vendor-neutral instrumentation library and pipeline that can export to multiple backends. Which CNCF project is designed for this unified telemetry use case?",
+                "choices": [
+                  "Prometheus, which scrapes time-series metrics from instrumented endpoints and stores them in a time-series database — Prometheus collects and stores metrics but does not provide a unified API for logs or traces, nor does it define an SDK for exporting to multiple backends",
+                  "Fluentd, a data collector focused on log routing between sources and sinks that also ships built-in instrumentation APIs for emitting metrics and traces directly from application code",
+                  "OpenTelemetry, which defines a unified API, SDK, and collector for metrics, logs, and traces with exporters to many backends, and supersedes the earlier OpenTracing and OpenCensus efforts",
+                  "Jaeger, a distributed tracing backend whose client library has been extended to cover metrics ingestion and structured log forwarding in addition to its primary span and trace storage features"
+                ],
+                "correctIndex": 2,
+                "explanation": "OpenTelemetry (OTel) is the CNCF project that merged OpenTracing and OpenCensus to provide a single vendor-neutral standard for metrics, logs, and traces. It defines an API and SDK for instrumentation plus the OTel Collector for routing telemetry to many backends. Prometheus is metrics-only. Fluentd is a logs router. Jaeger is a tracing backend without a unified metrics/logs API."
+              },
+              {
+                "q": "A team adopts GitOps for application delivery using a controller such as Argo CD or Flux. Which statement best characterizes how a GitOps controller operates against a Kubernetes cluster?",
+                "choices": [
+                  "Developers push images directly to clusters using `kubectl apply` from their workstations, and the GitOps controller passively logs each apply for audit and rolls back any failures it detects",
+                  "A CI server runs `kubectl apply` against the cluster on every Git commit, and the GitOps controller authenticates each apply using short-lived tokens minted at the start of each pipeline run",
+                  "An agent inside the cluster continuously reconciles live state with the desired manifests stored in a Git repository, pulling changes from Git rather than receiving pushes from a CI server",
+                  "The GitOps controller stores manifests inside an etcd-backed internal registry that mirrors the cluster's actual state, with Git acting only as a write-only audit log of completed changes"
+                ],
+                "correctIndex": 2,
+                "explanation": "GitOps controllers such as Argo CD and Flux run inside the cluster, watch a Git repository for desired state, and continuously reconcile cluster state to match. The model is pull-based and convergent rather than push-based from CI. Manifests live in Git, not in a separate registry. Running `kubectl apply` from CI on every commit is a CIOps pattern, not GitOps."
+              },
+              {
+                "q": "An application reads its connection string from an environment variable and a TLS keystore from a mounted file. The connection string is non-sensitive, but the keystore must be handled as confidential. Which pairing of Kubernetes objects is the idiomatic choice?",
+                "choices": [
+                  "A ConfigMap for the non-sensitive connection string and a Secret for the confidential keystore, with both injected into the Pod as environment variables or mounted volumes as needed",
+                  "A Secret for both values, because storing the connection string in a ConfigMap would leak it to anyone with cluster read access while Secrets are always encrypted on disk by default",
+                  "A ConfigMap for both values, because Secrets and ConfigMaps store identical base64 data and the only practical difference between them is the maximum size of the data they can hold",
+                  "A downward-API volume for the connection string and a ConfigMap for the keystore, since the downward API is the only mechanism that can expose configuration data as both a file and a variable"
+                ],
+                "correctIndex": 0,
+                "explanation": "ConfigMaps hold non-sensitive configuration and Secrets hold confidential data; both can be surfaced as environment variables or mounted files, so this pairing matches the requirement. Putting everything in a Secret over-restricts non-sensitive data and Secrets are not encrypted at rest by default (that needs EncryptionConfiguration). ConfigMaps are unsuitable for the confidential keystore. The downward API exposes Pod and container metadata (labels, resource limits), not arbitrary configuration strings."
+              },
+              {
+                "q": "A batch job must run to completion exactly once, retrying on failure but not restarting after it succeeds. After it finishes, its Pod should remain so logs can be inspected. Which Kubernetes workload object fits this pattern?",
+                "choices": [
+                  "A Deployment with `replicas: 1`, which keeps the Pod running and restarts the container whenever the process exits, even after the batch task has already completed successfully",
+                  "A Job, which runs one or more Pods until a specified number complete successfully, tracks completions and retries, and leaves finished Pods in place for log inspection",
+                  "A DaemonSet, which schedules the batch task on every node and is considered complete only once each node's copy of the Pod has finished its work and exited cleanly",
+                  "A StatefulSet with `replicas: 1`, which guarantees the Pod a stable identity and persistent volume so the batch task can resume from a checkpoint after any failure"
+                ],
+                "correctIndex": 1,
+                "explanation": "A Job runs Pods to successful completion, tracks completions, retries failed Pods up to `backoffLimit`, and does not restart after success — and finished Pods persist until cleaned up, so logs remain inspectable. A Deployment keeps Pods running indefinitely and would restart a completed batch process. A DaemonSet runs one Pod per node for long-lived node agents, not run-to-completion tasks. A StatefulSet manages stateful long-running replicas with stable identity, not one-shot batch work."
+              }
+            ]
+          },
+          "title": "Part 2 — Lightning Round"
+        },
+        {
+          "id": "c2-chest",
+          "type": "chest",
+          "title": "Treasure Chest",
+          "rewardXp": 30,
+          "cosmeticKey": "chapter-2"
+        }
+      ]
+    },
+    {
+      "id": "ch3",
+      "title": "Part 3",
+      "tag": "part-3",
+      "nodes": [
+        {
+          "id": "c3-concept",
+          "type": "concept",
+          "title": "Part 3: Key Ideas",
+          "content": "Quick primer on Part 3. Tap to flip cards covering the most-asked exam ideas in this domain.",
+          "flashcards": [
+            {
+              "front": "On a node, which Kubernetes component is responsible for watching the API server for Pods assigned to that node, then starting their containers through the container runtime and reporting their status back?",
+              "back": "The kubelet is the per-node agent: it watches the API server for Pods bound to its node, drives the container runtime over the CRI to start containers, runs probes, and reports status. kube-scheduler is a single control-plane component that decides which node a Pod lands on; it does not run per node or start containers. kube-proxy programs Service networking rules and does not launch containers. The controller-manager runs control loops in the control plane, not on each worker node."
+            },
+            {
+              "front": "A team needs to set CPU and memory `requests` and `limits` correctly. Which statement accurately describes how the Kubernetes scheduler and kubelet treat these values?",
+              "back": "The scheduler uses a Pod's resource requests to find a node with enough allocatable capacity; the kubelet enforces limits at runtime, throttling CPU that exceeds the limit and OOM-killing a container that exceeds its memory limit. Requests are not just billing data — they drive scheduling. Limits are enforced, not advisory, and Kubernetes does not live-migrate Pods between nodes. The scheduler never terminates running containers for exceeding CPU usage; CPU is compressible and throttled, not fatal."
+            },
+            {
+              "front": "An organization wants to compare and select CNCF projects based on their maturity and the level of adoption the foundation recognizes. Which sequence correctly lists the CNCF project maturity levels from earliest to most mature?",
+              "back": "The CNCF hosts projects at three maturity levels: Sandbox (early-stage, experimental), Incubating (growing adoption and a healthy contributor base), and Graduated (mature, widely adopted, production-proven — e.g., Kubernetes, Prometheus). The other orderings invert these stages or invent tiers such as 'Experimental/Stable/Core' that the CNCF does not use."
+            },
+            {
+              "front": "A developer wants to package a Kubernetes application as a versioned, parameterizable artifact that bundles all its manifests and lets operators override values at install time. Which CNCF tool is purpose-built for this packaging and templating use case?",
+              "back": "Helm is the Kubernetes package manager: a chart bundles templated manifests, carries a version, and exposes a `values.yaml` so operators override parameters at install time, with charts distributed via repositories. `kubectl apply -k` invokes Kustomize for overlay-based customization but is not a versioned package manager with chart repositories. etcdctl is the etcd datastore client, unrelated to app packaging. containerd is a container runtime and does not package or template Kubernetes manifests."
+            }
+          ],
+          "source": "auto-derived"
+        },
+        {
+          "id": "c3-quiz1",
+          "type": "quiz",
+          "title": "Part 3 — Drill 1",
+          "questionIds": [
+            "kcna-013",
+            "kcna-015",
+            "kcna-014",
+            "kcna-016"
+          ]
+        },
+        {
+          "id": "c3-game",
+          "type": "minigame",
+          "gameType": "lightning",
+          "mode": "lightning-round",
+          "data": {
+            "secondsPerQuestion": 7,
+            "livesAllowed": 3,
+            "questions": [
+              {
+                "q": "On a node, which Kubernetes component is responsible for watching the API server for Pods assigned to that node, then starting their containers through the container runtime and reporting their status back?",
+                "choices": [
+                  "kube-scheduler, which runs as a per-node agent that binds Pods to itself and then drives the container runtime to start each scheduled Pod's containers in sequence",
+                  "kube-proxy, which maintains network rules on the node and additionally launches each Pod's containers once the API server records that the Pod has been bound to that node",
+                  "The kubelet, the per-node agent that watches the API server for Pods bound to its node, instructs the container runtime to run them, and continuously reports Pod and node status",
+                  "The controller-manager, which runs on each worker node and reconciles the desired Pod set for that node by directly invoking the container runtime's gRPC interface"
+                ],
+                "correctIndex": 2,
+                "explanation": "The kubelet is the per-node agent: it watches the API server for Pods bound to its node, drives the container runtime over the CRI to start containers, runs probes, and reports status. kube-scheduler is a single control-plane component that decides which node a Pod lands on; it does not run per node or start containers. kube-proxy programs Service networking rules and does not launch containers. The controller-manager runs control loops in the control plane, not on each worker node."
+              },
+              {
+                "q": "A team needs to set CPU and memory `requests` and `limits` correctly. Which statement accurately describes how the Kubernetes scheduler and kubelet treat these values?",
+                "choices": [
+                  "Requests are used only for billing reports while limits alone drive scheduling decisions, so a Pod with no request but a high limit is placed on whichever node has the most total capacity",
+                  "The scheduler places a Pod based on its CPU and memory requests against node allocatable capacity, while the kubelet enforces limits at runtime — throttling CPU above the limit and OOM-killing containers that exceed the memory limit",
+                  "Both requests and limits are advisory hints that the kubelet may ignore under load, and a container exceeding its memory limit is paused and migrated to another node automatically",
+                  "Limits are summed across all containers to choose a node, and requests cap runtime usage, so a container using more CPU than its request is immediately terminated by the scheduler"
+                ],
+                "correctIndex": 1,
+                "explanation": "The scheduler uses a Pod's resource requests to find a node with enough allocatable capacity; the kubelet enforces limits at runtime, throttling CPU that exceeds the limit and OOM-killing a container that exceeds its memory limit. Requests are not just billing data — they drive scheduling. Limits are enforced, not advisory, and Kubernetes does not live-migrate Pods between nodes. The scheduler never terminates running containers for exceeding CPU usage; CPU is compressible and throttled, not fatal."
+              },
+              {
+                "q": "An organization wants to compare and select CNCF projects based on their maturity and the level of adoption the foundation recognizes. Which sequence correctly lists the CNCF project maturity levels from earliest to most mature?",
+                "choices": [
+                  "Incubating, then Sandbox, then Graduated, reflecting that a project must first prove production adoption before entering the experimental Sandbox stage for broader community feedback",
+                  "Sandbox, then Graduated, then Incubating, where Graduated marks early experimentation and Incubating marks the final, most widely adopted and production-proven tier of the foundation",
+                  "Experimental, then Stable, then Core, which are the three tiers the CNCF Technical Oversight Committee assigns to every hosted project as it accumulates production deployments over time",
+                  "Sandbox, then Incubating, then Graduated, where Sandbox is for early-stage projects, Incubating signals growing adoption, and Graduated marks mature, widely adopted projects"
+                ],
+                "correctIndex": 3,
+                "explanation": "The CNCF hosts projects at three maturity levels: Sandbox (early-stage, experimental), Incubating (growing adoption and a healthy contributor base), and Graduated (mature, widely adopted, production-proven — e.g., Kubernetes, Prometheus). The other orderings invert these stages or invent tiers such as 'Experimental/Stable/Core' that the CNCF does not use."
+              },
+              {
+                "q": "A developer wants to package a Kubernetes application as a versioned, parameterizable artifact that bundles all its manifests and lets operators override values at install time. Which CNCF tool is purpose-built for this packaging and templating use case?",
+                "choices": [
+                  "kubectl, whose `kubectl apply -k` command bundles manifests into a versioned, publishable archive that consumers install from a remote repository with per-environment value overrides",
+                  "Helm, the package manager for Kubernetes whose charts bundle templated manifests, carry a version, and accept a `values.yaml` so operators can override parameters at install time",
+                  "etcdctl, the command-line client that exports the cluster's desired manifests into a portable package and re-imports them into other clusters with environment-specific substitutions applied",
+                  "containerd, the runtime that layers application manifests alongside image layers so a single pushed artifact carries both the container image and its parameterized deployment templates"
+                ],
+                "correctIndex": 1,
+                "explanation": "Helm is the Kubernetes package manager: a chart bundles templated manifests, carries a version, and exposes a `values.yaml` so operators override parameters at install time, with charts distributed via repositories. `kubectl apply -k` invokes Kustomize for overlay-based customization but is not a versioned package manager with chart repositories. etcdctl is the etcd datastore client, unrelated to app packaging. containerd is a container runtime and does not package or template Kubernetes manifests."
+              }
+            ]
+          },
+          "title": "Part 3 — Lightning Round"
+        },
+        {
+          "id": "c3-boss",
+          "type": "subboss",
+          "title": "Boss: Part 3",
+          "questionIds": [
+            "kcna-013",
+            "kcna-015",
+            "kcna-014",
+            "kcna-016"
+          ]
+        },
+        {
+          "id": "c3-chest",
+          "type": "chest",
+          "title": "Treasure Chest",
+          "rewardXp": 30,
+          "cosmeticKey": "chapter-3"
+        }
+      ]
+    }
+  ],
+  "finalBoss": {
+    "id": "final-boss",
+    "type": "finalboss",
+    "title": "Final Exam: Kubernetes and Cloud Native Associate (KCNA)",
+    "questionCount": 15,
+    "timeMinutes": 23
+  },
+  "meta": {
+    "generatedAt": "2026-06-01T06:04:11.707Z",
+    "totalNodes": 14,
+    "totalQuestions": 16,
+    "nodeTypes": [
+      "concept",
+      "quiz",
+      "minigame",
+      "subboss",
+      "finalboss"
+    ]
+  }
+}

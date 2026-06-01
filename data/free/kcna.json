@@ -4,9 +4,9 @@
     "name": "Kubernetes and Cloud Native Associate (KCNA)",
     "vendor": "Linux Foundation",
     "version": "1.0.3",
-    "question_count": 10,
+    "question_count": 16,
     "last_updated": "2026-06-01",
-    "notes": " [bulk-tag pass: added `kcna` tag to 10 questions] | 2026-05-23 keyword-balance pass | 2026-06-01 hardening pass: stripped self-revealing distractor giveaways, rebalanced answer positions across all 4 slots, equalized option lengths, expanded explanations to cover every distractor",
+    "notes": " [bulk-tag pass: added `kcna` tag to 10 questions] | 2026-05-23 keyword-balance pass | 2026-06-01 hardening pass: stripped self-revealing distractor giveaways, rebalanced answer positions across all 4 slots, equalized option lengths, expanded explanations to cover every distractor | 2026-06-01 +6 questions to unlock learning path",
     "updated": "2026-06-01"
   },
   "questions": [
@@ -214,6 +214,132 @@
         "gitops",
         "argo-cd",
         "flux",
+        "cloud-native-application-delivery",
+        "kcna"
+      ],
+      "difficulty": "medium",
+      "domain": "Cloud Native Application Delivery"
+    },
+    {
+      "id": "kcna-011",
+      "question": "An application reads its connection string from an environment variable and a TLS keystore from a mounted file. The connection string is non-sensitive, but the keystore must be handled as confidential. Which pairing of Kubernetes objects is the idiomatic choice?",
+      "options": [
+        "A ConfigMap for the non-sensitive connection string and a Secret for the confidential keystore, with both injected into the Pod as environment variables or mounted volumes as needed",
+        "A Secret for both values, because storing the connection string in a ConfigMap would leak it to anyone with cluster read access while Secrets are always encrypted on disk by default",
+        "A ConfigMap for both values, because Secrets and ConfigMaps store identical base64 data and the only practical difference between them is the maximum size of the data they can hold",
+        "A downward-API volume for the connection string and a ConfigMap for the keystore, since the downward API is the only mechanism that can expose configuration data as both a file and a variable"
+      ],
+      "correct": 0,
+      "explanation": "ConfigMaps hold non-sensitive configuration and Secrets hold confidential data; both can be surfaced as environment variables or mounted files, so this pairing matches the requirement. Putting everything in a Secret over-restricts non-sensitive data and Secrets are not encrypted at rest by default (that needs EncryptionConfiguration). ConfigMaps are unsuitable for the confidential keystore. The downward API exposes Pod and container metadata (labels, resource limits), not arbitrary configuration strings.",
+      "tags": [
+        "configmaps",
+        "secrets",
+        "configuration",
+        "kubernetes-fundamentals",
+        "kcna"
+      ],
+      "difficulty": "medium",
+      "domain": "Kubernetes Fundamentals"
+    },
+    {
+      "id": "kcna-012",
+      "question": "A batch job must run to completion exactly once, retrying on failure but not restarting after it succeeds. After it finishes, its Pod should remain so logs can be inspected. Which Kubernetes workload object fits this pattern?",
+      "options": [
+        "A Deployment with `replicas: 1`, which keeps the Pod running and restarts the container whenever the process exits, even after the batch task has already completed successfully",
+        "A Job, which runs one or more Pods until a specified number complete successfully, tracks completions and retries, and leaves finished Pods in place for log inspection",
+        "A DaemonSet, which schedules the batch task on every node and is considered complete only once each node's copy of the Pod has finished its work and exited cleanly",
+        "A StatefulSet with `replicas: 1`, which guarantees the Pod a stable identity and persistent volume so the batch task can resume from a checkpoint after any failure"
+      ],
+      "correct": 1,
+      "explanation": "A Job runs Pods to successful completion, tracks completions, retries failed Pods up to `backoffLimit`, and does not restart after success — and finished Pods persist until cleaned up, so logs remain inspectable. A Deployment keeps Pods running indefinitely and would restart a completed batch process. A DaemonSet runs one Pod per node for long-lived node agents, not run-to-completion tasks. A StatefulSet manages stateful long-running replicas with stable identity, not one-shot batch work.",
+      "tags": [
+        "jobs",
+        "batch",
+        "workloads",
+        "kubernetes-fundamentals",
+        "kcna"
+      ],
+      "difficulty": "medium",
+      "domain": "Kubernetes Fundamentals"
+    },
+    {
+      "id": "kcna-013",
+      "question": "On a node, which Kubernetes component is responsible for watching the API server for Pods assigned to that node, then starting their containers through the container runtime and reporting their status back?",
+      "options": [
+        "kube-scheduler, which runs as a per-node agent that binds Pods to itself and then drives the container runtime to start each scheduled Pod's containers in sequence",
+        "kube-proxy, which maintains network rules on the node and additionally launches each Pod's containers once the API server records that the Pod has been bound to that node",
+        "The kubelet, the per-node agent that watches the API server for Pods bound to its node, instructs the container runtime to run them, and continuously reports Pod and node status",
+        "The controller-manager, which runs on each worker node and reconciles the desired Pod set for that node by directly invoking the container runtime's gRPC interface"
+      ],
+      "correct": 2,
+      "explanation": "The kubelet is the per-node agent: it watches the API server for Pods bound to its node, drives the container runtime over the CRI to start containers, runs probes, and reports status. kube-scheduler is a single control-plane component that decides which node a Pod lands on; it does not run per node or start containers. kube-proxy programs Service networking rules and does not launch containers. The controller-manager runs control loops in the control plane, not on each worker node.",
+      "tags": [
+        "kubelet",
+        "node-components",
+        "control-plane",
+        "container-orchestration",
+        "kcna"
+      ],
+      "difficulty": "easy",
+      "domain": "Container Orchestration"
+    },
+    {
+      "id": "kcna-014",
+      "question": "A team needs to set CPU and memory `requests` and `limits` correctly. Which statement accurately describes how the Kubernetes scheduler and kubelet treat these values?",
+      "options": [
+        "Requests are used only for billing reports while limits alone drive scheduling decisions, so a Pod with no request but a high limit is placed on whichever node has the most total capacity",
+        "The scheduler places a Pod based on its CPU and memory requests against node allocatable capacity, while the kubelet enforces limits at runtime — throttling CPU above the limit and OOM-killing containers that exceed the memory limit",
+        "Both requests and limits are advisory hints that the kubelet may ignore under load, and a container exceeding its memory limit is paused and migrated to another node automatically",
+        "Limits are summed across all containers to choose a node, and requests cap runtime usage, so a container using more CPU than its request is immediately terminated by the scheduler"
+      ],
+      "correct": 1,
+      "explanation": "The scheduler uses a Pod's resource requests to find a node with enough allocatable capacity; the kubelet enforces limits at runtime, throttling CPU that exceeds the limit and OOM-killing a container that exceeds its memory limit. Requests are not just billing data — they drive scheduling. Limits are enforced, not advisory, and Kubernetes does not live-migrate Pods between nodes. The scheduler never terminates running containers for exceeding CPU usage; CPU is compressible and throttled, not fatal.",
+      "tags": [
+        "resources",
+        "requests-limits",
+        "scheduling",
+        "container-orchestration",
+        "kcna"
+      ],
+      "difficulty": "medium",
+      "domain": "Container Orchestration"
+    },
+    {
+      "id": "kcna-015",
+      "question": "An organization wants to compare and select CNCF projects based on their maturity and the level of adoption the foundation recognizes. Which sequence correctly lists the CNCF project maturity levels from earliest to most mature?",
+      "options": [
+        "Incubating, then Sandbox, then Graduated, reflecting that a project must first prove production adoption before entering the experimental Sandbox stage for broader community feedback",
+        "Sandbox, then Graduated, then Incubating, where Graduated marks early experimentation and Incubating marks the final, most widely adopted and production-proven tier of the foundation",
+        "Experimental, then Stable, then Core, which are the three tiers the CNCF Technical Oversight Committee assigns to every hosted project as it accumulates production deployments over time",
+        "Sandbox, then Incubating, then Graduated, where Sandbox is for early-stage projects, Incubating signals growing adoption, and Graduated marks mature, widely adopted projects"
+      ],
+      "correct": 3,
+      "explanation": "The CNCF hosts projects at three maturity levels: Sandbox (early-stage, experimental), Incubating (growing adoption and a healthy contributor base), and Graduated (mature, widely adopted, production-proven — e.g., Kubernetes, Prometheus). The other orderings invert these stages or invent tiers such as 'Experimental/Stable/Core' that the CNCF does not use.",
+      "tags": [
+        "cncf",
+        "project-maturity",
+        "landscape",
+        "cloud-native-architecture",
+        "kcna"
+      ],
+      "difficulty": "easy",
+      "domain": "Cloud Native Architecture"
+    },
+    {
+      "id": "kcna-016",
+      "question": "A developer wants to package a Kubernetes application as a versioned, parameterizable artifact that bundles all its manifests and lets operators override values at install time. Which CNCF tool is purpose-built for this packaging and templating use case?",
+      "options": [
+        "kubectl, whose `kubectl apply -k` command bundles manifests into a versioned, publishable archive that consumers install from a remote repository with per-environment value overrides",
+        "Helm, the package manager for Kubernetes whose charts bundle templated manifests, carry a version, and accept a `values.yaml` so operators can override parameters at install time",
+        "etcdctl, the command-line client that exports the cluster's desired manifests into a portable package and re-imports them into other clusters with environment-specific substitutions applied",
+        "containerd, the runtime that layers application manifests alongside image layers so a single pushed artifact carries both the container image and its parameterized deployment templates"
+      ],
+      "correct": 1,
+      "explanation": "Helm is the Kubernetes package manager: a chart bundles templated manifests, carries a version, and exposes a `values.yaml` so operators override parameters at install time, with charts distributed via repositories. `kubectl apply -k` invokes Kustomize for overlay-based customization but is not a versioned package manager with chart repositories. etcdctl is the etcd datastore client, unrelated to app packaging. containerd is a container runtime and does not package or template Kubernetes manifests.",
+      "tags": [
+        "helm",
+        "packaging",
+        "templating",
         "cloud-native-application-delivery",
         "kcna"
       ],

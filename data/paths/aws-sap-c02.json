@@ -1,0 +1,478 @@
+{
+  "packId": "aws-sap-c02",
+  "title": "AWS Solutions Architect Professional (SAP-C02)",
+  "brandName": "Amazon AWS",
+  "brandColor": "#60a5fa",
+  "chapters": [
+    {
+      "id": "ch1",
+      "title": "Part 1",
+      "tag": "part-1",
+      "nodes": [
+        {
+          "id": "c1-concept",
+          "type": "concept",
+          "title": "Cloud governance: Key Ideas",
+          "content": "Governance is the set of policies and guardrails that keep a cloud account safe and on-budget as it scales from one engineer to a hundred. Think tagging standards, budget alerts, organizational policies, and the multi-account strategy.",
+          "flashcards": [
+            {
+              "front": "Why use multiple accounts (an Organization) instead of one big account?",
+              "back": "Blast-radius isolation: a compromised prod account doesn't leak into dev. Billing clarity: per-team or per-environment cost reports. Quota independence: prod doesn't share API limits with sandbox. Service Control Policies (AWS) / management groups (Azure) enforce 'no one can disable CloudTrail' across the whole org."
+            },
+            {
+              "front": "What is a Service Control Policy (SCP)?",
+              "back": "An AWS Organizations policy that sets the maximum permissions any IAM identity in a member account can have. Even if a user's IAM policy grants `s3:*`, an SCP denying `s3:DeleteBucket` overrides it. SCPs are guardrails, not grants — they only restrict."
+            },
+            {
+              "front": "Tagging strategy — name three high-leverage tags.",
+              "back": "(1) Owner / team — who pays and who to page. (2) Environment (prod/staging/dev) — drives access controls and lifecycle. (3) Cost-center / project — for chargeback. Tags are free and infinitely valuable for cost allocation and automation; enforce them with policies."
+            },
+            {
+              "front": "What is a landing zone?",
+              "back": "A pre-baked multi-account setup with security baselines: org with master + audit + log-archive + workload accounts, CloudTrail / Config enabled everywhere, SSO wired up, network templates ready. AWS Control Tower / Azure Landing Zones / GCP setup automate this so you start on a safe foundation, not bare cloud."
+            }
+          ],
+          "source": "concept-library",
+          "sourceTag": "governance"
+        },
+        {
+          "id": "c1-quiz1",
+          "type": "quiz",
+          "title": "Part 1 — Drill 1",
+          "questionIds": [
+            "aws-sap-c02-006",
+            "aws-sap-c02-001",
+            "aws-sap-c02-002",
+            "aws-sap-c02-003",
+            "aws-sap-c02-005"
+          ]
+        },
+        {
+          "id": "c1-game",
+          "type": "minigame",
+          "gameType": "lightning",
+          "mode": "lightning-round",
+          "data": {
+            "secondsPerQuestion": 7,
+            "livesAllowed": 3,
+            "questions": [
+              {
+                "q": "A multi-account organization uses AWS Organizations across 50 member accounts. Security requires that no member account principal can ever disable AWS CloudTrail, while still allowing local admins to manage other services. Which approach scales best?",
+                "choices": [
+                  "Attach a Service Control Policy at the organization root that denies the CloudTrail stop, delete, and update API actions across all member accounts",
+                  "Author an explicit-deny IAM policy in each member account and attach it to every IAM role across the organization — per-account IAM policies require manual effort in each account and can be overridden by account admins; SCPs at the organization root apply across all accounts automatically",
+                  "Use AWS Config rules in every account that detect when CloudTrail is disabled and trigger a Lambda function to re-enable the trail after the fact",
+                  "Deploy a CloudFormation StackSet that recreates each account's CloudTrail every night so any disablement is silently reversed by the scheduled stack drift run"
+                ],
+                "correctIndex": 0,
+                "explanation": "Service Control Policies are preventive guardrails enforced by AWS Organizations at the account level. An SCP at the root denying cloudtrail:StopLogging, cloudtrail:DeleteTrail, and cloudtrail:UpdateTrail applies to every existing and future member account without per-account toil. Per-account IAM denies require manual attachment to every principal and miss new identities. Config plus Lambda is reactive, not preventive, and leaves a gap where logging is off. Nightly StackSet redeploys are also reactive and waste effort recreating resources."
+              },
+              {
+                "q": "A SaaS team operates 30 workload accounts that all need IP-routable access to a shared services VPC for Active Directory, DNS, and central logging. The networking team wants to manage routing in a single account. Which design fits best?",
+                "choices": [
+                  "Peer every workload VPC directly with the shared services VPC — VPC peering requires a separate peering connection per workload VPC, routes must be manually updated in each, and transitive routing through the shared services networking account is not supported by peering",
+                  "Build a Transit Gateway in the networking account, share it with each workload account via AWS RAM, and attach each VPC to that Transit Gateway",
+                  "Establish AWS Site-to-Site VPN tunnels from every workload VPC to the shared services VPC so traffic is encrypted across the public internet",
+                  "Duplicate the shared services VPC into every workload account and keep AD, DNS, and logging data in sync via scheduled cross-account exports"
+                ],
+                "correctIndex": 1,
+                "explanation": "Transit Gateway shared via AWS Resource Access Manager is the canonical hub-and-spoke pattern: routing lives centrally in the networking account, each workload VPC is one attachment, and new accounts onboard by sharing rather than mesh peering. Full-mesh VPC peering does not scale across 30 accounts and forces route table edits everywhere. Internet VPNs add latency and per-tunnel management. Duplicating the shared services per account loses single-source-of-truth and breaks identity directories."
+              },
+              {
+                "q": "An on-premises application requires NFS access and low-latency reads against a working set of a 200 TB file dataset that the team wants to standardize on Amazon S3. Which approach minimizes operational overhead?",
+                "choices": [
+                  "Replicate the entire S3 dataset nightly to a local NAS appliance via AWS DataSync — nightly replication does not provide low-latency local reads during the day and may not keep the NAS current for applications that need frequent reads between sync windows",
+                  "Deploy AWS Storage Gateway as a File Gateway on-premises, backed by the S3 bucket, so the hot working set stays cached locally for low-latency NFS reads",
+                  "Mount the S3 bucket directly on each application server with s3fs-fuse and rely on the Linux page cache to absorb read latency — fuse-based S3 mounts do not maintain a local working set cache with the consistency and performance of a dedicated File Gateway appliance",
+                  "Deploy AWS Storage Gateway in Volume Gateway cached-volume mode on-premises and expose the S3-backed iSCSI volumes to the application servers as NFS exports"
+                ],
+                "correctIndex": 1,
+                "explanation": "File Gateway exposes an S3 bucket as an NFS or SMB share on-premises, transparently caches frequently accessed files locally for low-latency reads, and writes new data through to S3. The dataset lives durably in S3 as the source of truth without nightly bulk replication. DataSync mirroring duplicates 200 TB and runs ongoing data drift. s3fs-fuse is fragile under heavy NFS-style use and is not officially supported for production workloads. Volume Gateway is a different Storage Gateway mode that exposes iSCSI block volumes, not NFS file shares, so it does not satisfy the application's NFS access requirement."
+              },
+              {
+                "q": "A trading platform requires single-digit-millisecond writes from users in two AWS regions and must keep accepting writes if either region fails, with no manual failover step. Which data layer best meets these requirements?",
+                "choices": [
+                  "An Amazon Aurora global database with a single writer in the primary region — Aurora Global Database has one primary region that accepts all writes; read replicas in secondary regions cannot accept writes, so it does not support either-region write acceptance",
+                  "An Amazon DynamoDB global table with active replicas in both regions, accepting writes locally in either region under last-writer-wins resolution rules",
+                  "An Amazon RDS for PostgreSQL Multi-AZ deployment in the primary region plus a cross-region read replica — the replica is not accepting writes; operators must promote it manually during a regional outage, creating downtime and potential data-loss risk",
+                  "An Amazon S3 cross-region replication pipeline copying database write-ahead log files between the two regions, with application-side reconciliation on failover"
+                ],
+                "correctIndex": 1,
+                "explanation": "DynamoDB global tables are multi-master: every replica region accepts writes locally and replication is eventually consistent with last-writer-wins. If one region fails the others keep serving without any manual failover, satisfying the active-active requirement. Aurora global databases have only one writer region; the secondary is read-only until a managed failover that takes minutes. RDS cross-region replicas require an operator-triggered promotion, breaking the no-manual-failover requirement. Replicating WAL files via S3 is not a primary database design and forces custom reconciliation."
+              },
+              {
+                "q": "A nightly bioinformatics batch job runs for six hours on 200 EC2 instances and tolerates interruption. A web tier runs continuously on 50 instances and must keep predictable performance. Which purchase mix minimizes spend?",
+                "choices": [
+                  "Buy three-year all-upfront Reserved Instances for both the batch and the web workloads to lock in the deepest possible discount on every running instance",
+                  "Run the batch workload on EC2 Spot Instances and cover the web tier's steady baseline capacity with a Compute Savings Plan commitment over one or three years",
+                  "Keep the batch workload on On-Demand to guarantee it finishes overnight and place the always-on web tier onto Spot to cut the largest cost line on the bill",
+                  "Run both the batch and web workloads entirely on Spot Instances and accept occasional web-tier outages because the cost savings outweigh the user impact"
+                ],
+                "correctIndex": 1,
+                "explanation": "Spot Instances offer up to about 90 percent off on-demand pricing and are the right fit for interruption-tolerant batch work. Compute Savings Plans cover predictable always-on capacity at a steep discount while remaining flexible across instance family and region. Three-year RIs on a six-hour-per-day batch fleet wastes commitment 18 hours a day. Running production web on Spot risks reclamation during the most visible workload, which violates the predictable-performance requirement. On-Demand for batch overspends compared to Spot."
+              },
+              {
+                "q": "An Amazon RDS for PostgreSQL writer shows CPU spikes during business hours that trace to a few heavy reporting queries, and OLTP latency suffers. Which improvement is most cost-effective for restoring transactional performance?",
+                "choices": [
+                  "Vertically scale the writer to the next-larger instance class so the reporting workload fits alongside transactional writes — vertical scaling increases cost and does not isolate reporting queries from transactional writes; a read replica accepts reads independently without impacting the PostgreSQL writer",
+                  "Move the reporting workload onto a PostgreSQL read replica and point the reporting application's connection string at the replica endpoint going forward",
+                  "Re-architect the application so both transactional writes and analytical reporting run together against a single Amazon Redshift cluster from now on",
+                  "Place an ElastiCache for Redis cluster in front of reporting queries so common lookups return from cache and the writer is shielded from most analytical traffic"
+                ],
+                "correctIndex": 1,
+                "explanation": "Read replicas offload analytical queries from the writer with near-zero application change beyond a connection string, and the replica can be a smaller instance class than the writer. Vertically scaling the writer doubles the bill without fixing workload isolation. Moving OLTP into Redshift breaks the transactional workload entirely since Redshift is an analytical column store. ElastiCache helps repeat key-value lookups but cannot transparently cache ad-hoc reporting SQL, and reports are typically not point-lookups."
+              }
+            ]
+          },
+          "title": "Part 1 — Lightning Round"
+        },
+        {
+          "id": "ch1-bonus1",
+          "type": "minigame",
+          "mode": "break-architecture",
+          "title": "Connect many VPCs and on-prem at scale",
+          "data": {
+            "diagramFormat": "ascii",
+            "diagram": "  [VPC A]  [VPC B]  [On-prem VPN]\n      |       |          |\n      +-------+----------+\n              |\n        [ __MASK__ ]   <-- pick this\n",
+            "maskedToken": "__MASK__",
+            "choices": [
+              "Transit Gateway",
+              "VPC peering",
+              "Internet Gateway",
+              "Direct Connect"
+            ],
+            "correctIndex": 0
+          },
+          "explanation": "A Transit Gateway is a hub that connects many VPCs and on-premises networks with one attachment each. Full-mesh VPC peering doesn't scale, an internet gateway is just internet egress, and Direct Connect is only the physical on-prem link."
+        },
+        {
+          "id": "c1-chest",
+          "type": "chest",
+          "title": "Treasure Chest",
+          "rewardXp": 30,
+          "cosmeticKey": "chapter-1"
+        }
+      ]
+    },
+    {
+      "id": "ch2",
+      "title": "Part 2",
+      "tag": "part-2",
+      "nodes": [
+        {
+          "id": "c2-concept",
+          "type": "concept",
+          "title": "Security fundamentals: Key Ideas",
+          "content": "Security is about layering defenses so no single failure compromises a system. Most exams test the same core ideas: least privilege, defense in depth, the CIA triad, and the shared-responsibility line between you and your cloud provider.",
+          "flashcards": [
+            {
+              "front": "What is the CIA triad?",
+              "back": "Confidentiality (only the right people see the data), Integrity (data isn't tampered with), Availability (the system is reachable when needed). Every security control maps to at least one of these three pillars."
+            },
+            {
+              "front": "What does 'least privilege' mean?",
+              "back": "Grant each identity (user, role, service account) the minimum permissions needed to do its job — no more. The opposite is wildcard access, which makes a single credential leak catastrophic."
+            },
+            {
+              "front": "What is defense in depth?",
+              "back": "Stack multiple, independent controls so an attacker has to defeat all of them. Example: WAF in front of an app, network ACL on the subnet, IAM on the workload, encryption at rest in the database."
+            },
+            {
+              "front": "Shared responsibility model — who does what?",
+              "back": "The cloud provider secures the cloud (physical hardware, hypervisor, region facilities). You secure what's IN the cloud (your data, IAM config, OS patching on EC2, application code). The exact line shifts by service: serverless is more on the provider, IaaS is more on you."
+            }
+          ],
+          "source": "concept-library",
+          "sourceTag": "security"
+        },
+        {
+          "id": "c2-quiz1",
+          "type": "quiz",
+          "title": "Part 2 — Drill 1",
+          "questionIds": [
+            "aws-sap-c02-008",
+            "aws-sap-c02-009",
+            "aws-sap-c02-007",
+            "aws-sap-c02-012",
+            "aws-sap-c02-010"
+          ]
+        },
+        {
+          "id": "c2-game",
+          "type": "minigame",
+          "gameType": "lightning",
+          "mode": "lightning-round",
+          "data": {
+            "secondsPerQuestion": 7,
+            "livesAllowed": 3,
+            "questions": [
+              {
+                "q": "A security audit finds an existing 30 TB S3 bucket containing tens of millions of unencrypted objects. The bucket must remain available to live applications while existing data is encrypted at rest. Which approach is best?",
+                "choices": [
+                  "Run an S3 Batch Operations Copy job that overwrites each existing object in place using SSE-KMS encryption, while applications continue reading and writing online",
+                  "Halt all application writes for 48 hours, download every object to a local server, re-encrypt with the new KMS key, and re-upload — halting writes for 48 hours is operationally disruptive; S3 Batch Operations Copy can re-encrypt objects in-place while the application continues writing",
+                  "Provision a brand-new bucket with default encryption enabled, point applications at it, and dual-write to both the old and the new buckets for a full month",
+                  "Enable Default Encryption on the existing bucket and rely on the setting to encrypt all existing objects transparently over time as background tasks run later"
+                ],
+                "correctIndex": 0,
+                "explanation": "S3 Batch Operations Copy can rewrite billions of objects in place with a new encryption setting and runs in the background while applications keep using the bucket. Default Encryption only applies to new puts and leaves existing objects unencrypted, so it does not solve the audit finding alone. Halting writes for 48 hours is unacceptable for a live application, and offline GPG encryption is the wrong tool for SSE-KMS. A dual-write migration adds complexity for a problem already solved by Batch Operations."
+              },
+              {
+                "q": "A microservice has intermittent 5xx errors that reproduce only in production. Engineers need to identify which downstream call is failing without modifying the service's source code. What should they do first?",
+                "choices": [
+                  "Enable detailed CloudWatch instance monitoring across the EC2 fleet and inspect per-instance call metrics — CloudWatch detailed monitoring provides instance-level resource metrics but does not capture distributed downstream call traces or propagate trace context across service boundaries",
+                  "Turn on AWS X-Ray active tracing for the service so every downstream call is captured as a span and inspect the traces to find the span returning the 5xx errors",
+                  "Ship the service logs into Amazon S3 and run a manual grep workflow across raw log files to look for errors by hand — manual grep does not correlate distributed spans or identify which downstream dependency is returning 5xx failures",
+                  "Add custom CloudWatch metrics emitted from every method in the service so that each failure path appears as a separate dimension on a metric graph for engineers to read"
+                ],
+                "correctIndex": 1,
+                "explanation": "X-Ray active tracing collects per-request distributed traces that show each downstream call as a span with latency and HTTP status, making intermittent 5xx errors visible end to end without modifying business logic. CloudWatch instance metrics show host-level health, not request-level failures across services. Grep on raw logs is slow and lacks request correlation. Adding custom metrics requires the code change the team is explicitly trying to avoid in this first step."
+              },
+              {
+                "q": "A company must migrate 800 TB of archival data from its data center to Amazon S3 within four weeks. The site has a 200 Mbps internet link that is also used by production traffic. Which transfer approach meets the deadline?",
+                "choices": [
+                  "Order multiple AWS Snowball Edge devices, copy the archive onto them on-premises in parallel, and ship the appliances back to AWS for direct ingest into S3",
+                  "Use AWS DataSync over the existing 200 Mbps link, running transfers continuously around the clock including during peak business hours for production traffic",
+                  "Build an AWS Site-to-Site VPN over the internet link and rsync the files into S3 via s3fs-fuse mounted on a bastion host running inside the company's VPC",
+                  "Compress the dataset with gzip on-premises and stream it via AWS CLI multipart uploads over the 200 Mbps link only during off-business hours each weeknight"
+                ],
+                "correctIndex": 0,
+                "explanation": "At 200 Mbps and a shared link, 800 TB would take many months even at full utilization, which the production traffic does not allow. Snowball Edge is purpose-built for petabyte-scale offline migrations: multiple appliances in parallel cover 800 TB in days, not months. DataSync over the existing link cannot beat the physical bandwidth ceiling. Bastion-host rsync over VPN inherits the same bottleneck plus operational fragility. Compression helps somewhat but the link is still the limit."
+              },
+              {
+                "q": "A monolithic .NET Framework application on Windows EC2 instances needs to scale rapidly under traffic and reduce Windows licensing cost. The team can rewrite small portions but not the whole codebase. Which approach balances effort and benefit?",
+                "choices": [
+                  "Re-host the monolith unchanged on larger Windows EC2 instances and rely on EC2 Auto Scaling at the instance level to handle spiky traffic patterns over time",
+                  "Re-platform the application onto AWS Elastic Beanstalk for Windows .NET so AWS manages the instances while the application's codebase and Windows OS remain unchanged",
+                  "Re-architect the latency-sensitive endpoints into containerized .NET 8 services running on Amazon ECS with AWS Fargate on Linux, leaving the rest of the monolith on EC2",
+                  "Port each .NET Framework module into AWS Lambda functions on .NET 8 Linux so the workload is fully serverless and Windows licensing can be retired across the whole stack"
+                ],
+                "correctIndex": 2,
+                "explanation": "Carving the hot, latency-sensitive endpoints out of the monolith into containerized .NET 8 services on ECS Fargate gives elastic scaling at the request level and runs on Linux, removing Windows Server licensing on those services. The rest of the monolith continues unchanged on EC2 during the gradual migration. Re-host on bigger Windows EC2 does not help cost or per-endpoint scale. Beanstalk for Windows .NET keeps the Windows license cost. Porting every module into Lambda functions exceeds the stated scope of small partial rewrites and forces a wholesale codebase refactor."
+              },
+              {
+                "q": "A company runs a three-tier web application in a single AWS Region and must meet a recovery point objective (RPO) of seconds and a recovery time objective (RTO) of a few minutes for a Region-wide outage, while keeping standby cost lower than a full duplicate of production. Which disaster recovery strategy fits these targets?",
+                "choices": [
+                  "Backup and restore — periodically snapshot data to Amazon S3 in a second Region and rebuild the entire stack from infrastructure-as-code only after a disaster is declared",
+                  "Pilot light — replicate the database to a second Region and keep core data services warm while application servers stay switched off until failover, then scale them up",
+                  "Warm standby — run a scaled-down but always-running copy of the full stack in a second Region with continuous data replication, then scale it up to production capacity on failover",
+                  "Multi-site active/active — run full production capacity simultaneously in two Regions with bidirectional replication so each Region serves live traffic at all times"
+                ],
+                "correctIndex": 2,
+                "explanation": "Warm standby keeps a scaled-down but fully functional copy of every tier running in the second Region with continuous replication, so RPO is seconds and RTO is minutes (just scale up), at a cost well below a full active/active duplicate. Backup and restore rebuilds from snapshots only after a disaster, giving RTO of hours and an RPO bounded by snapshot frequency — too slow for these targets. Pilot light keeps only core data warm with application servers off, so RTO is longer than warm standby because the app tier must be started and scaled from cold. Multi-site active/active meets the targets but runs full duplicate capacity, which exceeds the cost constraint stated in the requirement."
+              },
+              {
+                "q": "An enterprise is rolling out new AWS accounts and wants automated account provisioning, a secure baseline of guardrails, centralized logging, and an account factory, with minimal custom engineering. Which AWS service should be the foundation?",
+                "choices": [
+                  "AWS Control Tower, which sets up a multi-account landing zone with preventive and detective guardrails, centralized logging, and an Account Factory for provisioning",
+                  "AWS Organizations alone, attaching hand-written Service Control Policies and manually creating each account and its logging configuration as the company grows",
+                  "AWS Config aggregator combined with a custom Step Functions workflow that creates accounts and applies guardrails through bespoke Lambda functions for each new account",
+                  "AWS Service Catalog portfolios shared organization-wide so each team self-launches its own account vending product without a central landing-zone framework"
+                ],
+                "correctIndex": 0,
+                "explanation": "AWS Control Tower is purpose-built to stand up a well-architected multi-account landing zone: it provisions accounts via Account Factory, applies preventive (SCP) and detective (Config) guardrails, and configures centralized logging and audit accounts with minimal custom work. AWS Organizations alone provides the account and SCP primitives but requires you to hand-build the landing zone, logging, and guardrail baseline. A Config aggregator plus a custom Step Functions/Lambda account factory is exactly the bespoke engineering the requirement seeks to avoid. Service Catalog can vend account-creation products but does not by itself deliver the guardrail baseline, centralized logging, and landing-zone framework Control Tower provides."
+              }
+            ]
+          },
+          "title": "Part 2 — Lightning Round"
+        },
+        {
+          "id": "ch2-bonus2",
+          "type": "minigame",
+          "mode": "acronym-decoder",
+          "title": "Decode: SCP",
+          "data": {
+            "acronym": "SCP",
+            "correct": {
+              "fullName": "Service Control Policy",
+              "useCase": "Organization-level guardrails that set the maximum available permissions for accounts and OUs in AWS Organizations."
+            },
+            "distractors": [
+              {
+                "fullName": "Secure Compute Profile",
+                "useCase": "A hardened baseline applied to EC2 launch templates."
+              },
+              {
+                "fullName": "Subnet Connectivity Policy",
+                "useCase": "Controls routing between subnets in a VPC."
+              },
+              {
+                "fullName": "Service Catalog Provisioner",
+                "useCase": "Deploys approved product stacks for end users."
+              }
+            ]
+          }
+        },
+        {
+          "id": "c2-chest",
+          "type": "chest",
+          "title": "Treasure Chest",
+          "rewardXp": 30,
+          "cosmeticKey": "chapter-2"
+        }
+      ]
+    },
+    {
+      "id": "ch3",
+      "title": "Part 3",
+      "tag": "part-3",
+      "nodes": [
+        {
+          "id": "c3-concept",
+          "type": "concept",
+          "title": "Networking fundamentals: Key Ideas",
+          "content": "Networking moves packets between machines using layered protocols (the OSI / TCP-IP stack). Most exam questions test routing decisions, subnetting math, the difference between L2 and L3, and how DNS / DHCP make the whole thing usable for humans.",
+          "flashcards": [
+            {
+              "front": "What's the difference between Layer 2 and Layer 3?",
+              "back": "L2 (data link) uses MAC addresses to deliver frames inside a single broadcast domain (a switch). L3 (network) uses IP addresses to route packets between networks (a router). Switches do L2; routers do L3."
+            },
+            {
+              "front": "How does a subnet mask work?",
+              "back": "The mask splits an IP into a network portion (the high bits, set to 1) and a host portion (the low bits, set to 0). `/24` means the first 24 bits are network = up to 256 hosts (254 usable). `/30` is 4 IPs = 2 hosts — typical for a point-to-point link."
+            },
+            {
+              "front": "What does DNS do?",
+              "back": "Domain Name System translates human-readable names (`example.com`) into IP addresses. A recursive resolver asks the root, the TLD server (`.com`), and finally the authoritative server for the domain. TTL controls how long answers are cached."
+            },
+            {
+              "front": "TCP vs UDP — when do you pick each?",
+              "back": "TCP is reliable, ordered, congestion-controlled — use it when every byte matters (HTTP, SSH, SMTP). UDP is lightweight, no handshake, no retransmit — use it for streaming, gaming, DNS queries, anywhere latency beats reliability."
+            }
+          ],
+          "source": "concept-library",
+          "sourceTag": "networking"
+        },
+        {
+          "id": "c3-quiz1",
+          "type": "quiz",
+          "title": "Part 3 — Drill 1",
+          "questionIds": [
+            "aws-sap-c02-013",
+            "aws-sap-c02-014",
+            "aws-sap-c02-015",
+            "aws-sap-c02-016"
+          ]
+        },
+        {
+          "id": "c3-game",
+          "type": "minigame",
+          "gameType": "lightning",
+          "mode": "lightning-round",
+          "data": {
+            "secondsPerQuestion": 7,
+            "livesAllowed": 3,
+            "questions": [
+              {
+                "q": "A global media company serves large video and image files from an Amazon S3 origin to a worldwide audience and wants to lower latency, reduce origin load, and cut data-transfer-out cost. Which architecture is the most appropriate?",
+                "choices": [
+                  "Replicate the S3 bucket into a bucket in every Region with S3 Cross-Region Replication and use Route 53 latency routing to send users to the nearest regional bucket directly",
+                  "Place Amazon CloudFront in front of the S3 origin with an origin access control so viewers are served from edge caches close to them and the origin is shielded from repeated requests",
+                  "Enable S3 Transfer Acceleration on the origin bucket so each global viewer downloads files over the optimized AWS edge network straight from the single origin bucket",
+                  "Run a fleet of NGINX caching proxies on EC2 in several Regions behind a Network Load Balancer to cache and serve the S3 objects to nearby users"
+                ],
+                "correctIndex": 1,
+                "explanation": "CloudFront caches content at edge locations worldwide, lowering latency for global viewers, absorbing repeat requests so the origin is shielded, and reducing origin data-transfer-out cost (and S3 traffic) by serving from cache; origin access control keeps the bucket private. Cross-Region Replication plus latency routing multiplies storage cost in every Region and still serves uncached objects from S3 origins without edge caching. S3 Transfer Acceleration optimizes long-distance uploads/downloads to a single bucket but provides no edge caching or origin offload, so it neither cuts origin load nor caches content. A self-managed NGINX-on-EC2 proxy fleet reinvents a CDN with high operational overhead compared to managed CloudFront."
+              },
+              {
+                "q": "A company is migrating a large fleet of on-premises VMware virtual machines to Amazon EC2 and wants automated discovery, dependency mapping, and incremental block-level replication that minimizes cutover downtime. Which combination of services best supports this migration?",
+                "choices": [
+                  "Recreate each server by hand on EC2, copy application data with the AWS CLI, and schedule a maintenance window long enough to reinstall and reconfigure every application from scratch",
+                  "Export each VM to an OVA file, upload it to S3, and run VM Import/Export for every server individually as the primary ongoing migration mechanism for the whole fleet",
+                  "Use AWS DataSync to copy the VM disk files to S3 nightly and boot the latest copy as an EC2 instance during the final cutover window for each migrated server",
+                  "Use AWS Application Migration Service (MGN) for continuous block-level replication and short cutover, with AWS Application Discovery Service to inventory servers and map dependencies"
+                ],
+                "correctIndex": 3,
+                "explanation": "AWS Application Migration Service (MGN) performs continuous, block-level replication of source servers into AWS, enabling a short cutover with minimal downtime, while AWS Application Discovery Service inventories servers and maps their dependencies to plan move groups — together they meet all the stated needs. Manually recreating servers and copying data forfeits automated discovery and incremental replication and forces long downtime. VM Import/Export handles one-off image imports but is not built for continuous incremental replication of a large fleet with low cutover downtime. DataSync moves files and objects, not live block-level server replication, and nightly disk copies give a poor RPO and an awkward boot-the-copy cutover."
+              },
+              {
+                "q": "A financial services company must allow developers to access production databases only through audited, time-bound sessions, with no long-lived credentials and no inbound SSH ports open on the instances. Which design meets these requirements with the least custom tooling?",
+                "choices": [
+                  "Issue each developer a long-lived SSH key pair stored in AWS Secrets Manager and open port 22 to the corporate IP range, logging connections with VPC Flow Logs for audit",
+                  "Use AWS Systems Manager Session Manager with IAM-scoped, session-logged access and no open inbound ports, granting just-in-time permissions through temporary IAM role assumption",
+                  "Place a bastion host in a public subnet with a security group restricted to the office CIDR and rotate the shared bastion SSH key monthly through a scheduled Lambda function",
+                  "Distribute IAM access keys to developers and have them tunnel to the database through a self-managed OpenVPN server running on EC2 in the production VPC for each session"
+                ],
+                "correctIndex": 1,
+                "explanation": "Systems Manager Session Manager opens no inbound ports (it uses the SSM agent's outbound channel), logs every session to CloudWatch Logs or S3 for audit, and is governed by IAM, so combining it with temporary role assumption gives time-bound, audited, credential-free access with minimal tooling. Long-lived SSH keys plus an open port 22 contradict the no-long-lived-credentials and no-open-port requirements. A bastion host in a public subnet still exposes an inbound SSH port and relies on a shared key, weakening auditability and least privilege. Distributing IAM access keys creates long-lived credentials, and a self-managed OpenVPN server adds operational burden and still depends on standing credentials."
+              },
+              {
+                "q": "An event-driven order-processing system must fan a single 'order placed' event out to several independent downstream microservices, decouple producers from consumers, and let new consumers subscribe later without changing the producer. Which AWS messaging design is most appropriate?",
+                "choices": [
+                  "Have the producer write each order directly to a single Amazon SQS standard queue and let every downstream microservice poll that same queue for the messages it needs",
+                  "Have the producer call each downstream microservice's REST API synchronously in sequence, retrying any service that is temporarily unavailable until all of them have acknowledged",
+                  "Store each order in an Amazon DynamoDB table and have every microservice run a periodic scan of the table to discover and process newly written order items on its own schedule",
+                  "Publish each order event to an Amazon SNS topic and subscribe an Amazon SQS queue per downstream microservice so each service gets its own durable copy of the event"
+                ],
+                "correctIndex": 3,
+                "explanation": "The SNS fan-out pattern with an SQS queue subscribed per consumer (the topic-to-queue fan-out) delivers a durable copy of each event to every microservice, decouples producers from consumers, and lets new services subscribe later without any producer change. A single shared SQS queue cannot fan one message out to multiple independent consumers — each message is processed by only one consumer. Synchronous sequential REST calls tightly couple the producer to every consumer and fail if any service is down. Periodic DynamoDB scans are inefficient, add latency, and force each consumer to implement its own discovery and bookkeeping rather than receiving events."
+              }
+            ]
+          },
+          "title": "Part 3 — Lightning Round"
+        },
+        {
+          "id": "c3-boss",
+          "type": "subboss",
+          "title": "Boss: Part 3",
+          "questionIds": [
+            "aws-sap-c02-013",
+            "aws-sap-c02-014",
+            "aws-sap-c02-015",
+            "aws-sap-c02-016"
+          ]
+        },
+        {
+          "id": "ch3-bonus3",
+          "type": "minigame",
+          "mode": "scenario-builder",
+          "title": "Build a multi-account foundation",
+          "data": {
+            "scenario": "Stand up a governed multi-account AWS environment. Order the building blocks.",
+            "pool": [
+              "AWS Organizations",
+              "Organizational Unit (OU)",
+              "Service Control Policy",
+              "Member account",
+              "IAM role",
+              "AWS Config rule"
+            ],
+            "correctOrder": [
+              "AWS Organizations",
+              "Organizational Unit (OU)",
+              "Service Control Policy",
+              "Member account"
+            ]
+          },
+          "explanation": "Create the organization, group accounts into OUs, attach SCP guardrails to those OUs, then place member accounts under them so they inherit the guardrails."
+        },
+        {
+          "id": "c3-chest",
+          "type": "chest",
+          "title": "Treasure Chest",
+          "rewardXp": 30,
+          "cosmeticKey": "chapter-3"
+        }
+      ]
+    }
+  ],
+  "finalBoss": {
+    "id": "final-boss",
+    "type": "finalboss",
+    "title": "Final Exam: AWS Solutions Architect Professional (SAP-C02)",
+    "questionCount": 15,
+    "timeMinutes": 23
+  },
+  "meta": {
+    "generatedAt": "2026-06-01T06:04:11.669Z",
+    "totalNodes": 17,
+    "totalQuestions": 16,
+    "nodeTypes": [
+      "concept",
+      "quiz",
+      "minigame",
+      "subboss",
+      "finalboss"
+    ]
+  }
+}

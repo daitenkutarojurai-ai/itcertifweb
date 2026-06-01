@@ -4,10 +4,10 @@
     "name": "AWS Data Engineer Associate (DEA-C01)",
     "vendor": "Amazon AWS",
     "version": "1.1.0",
-    "question_count": 10,
-    "last_updated": "2026-05-25",
-    "notes": " [bulk-tag pass: added `aws-dea-c01` tag to 10 questions] | 2026-05-23 keyword-balance pass | 2026-05-25 distractor-hardening pass: removed embedded explanation tells, rebalanced correct-answer positions, normalized option length",
-    "updated": "2026-05-25"
+    "question_count": 16,
+    "last_updated": "2026-06-01",
+    "notes": " [bulk-tag pass: added `aws-dea-c01` tag to 10 questions] | 2026-05-23 keyword-balance pass | 2026-05-25 distractor-hardening pass: removed embedded explanation tells, rebalanced correct-answer positions, normalized option length | 2026-06-01 +6 questions to unlock learning path",
+    "updated": "2026-06-01"
   },
   "questions": [
     {
@@ -196,6 +196,121 @@
         "security",
         "encryption",
         "kms",
+        "aws-dea-c01"
+      ],
+      "difficulty": "medium"
+    },
+    {
+      "id": "aws-dea-c01-011",
+      "question": "A daily Glue ETL job writes its output to S3 as thousands of small files, and downstream Athena queries are slow because of the large number of tiny objects. Which change most directly improves read performance for the downstream queries?",
+      "options": [
+        "Increase the Glue worker type to G.2X so each task has more memory while still emitting one file per partition key value",
+        "Enable S3 Transfer Acceleration on the destination bucket so the small files are read back to Athena faster",
+        "Switch the job to write CSV instead of Parquet so each row group is smaller and parses more quickly in Athena",
+        "Coalesce or repartition the output DynamicFrame/DataFrame so the job writes fewer, larger files per partition"
+      ],
+      "correct": 3,
+      "explanation": "The small-files problem is solved by reducing file count: coalescing or repartitioning before the write produces fewer, larger objects (ideally 128 MB+), which cuts the per-object overhead Athena pays when listing and opening files. Increasing worker size gives more memory but does not change the number of output files. S3 Transfer Acceleration speeds long-distance uploads over the public internet and has no effect on Athena read latency for many small files. Switching to CSV makes things worse — CSV is row-oriented and loses columnar pruning, increasing bytes scanned.",
+      "tags": [
+        "data-transformation",
+        "glue",
+        "performance",
+        "aws-dea-c01"
+      ],
+      "difficulty": "medium"
+    },
+    {
+      "id": "aws-dea-c01-012",
+      "question": "A team must capture every row-level INSERT, UPDATE, and DELETE from an Amazon RDS for MySQL database and continuously land the changes in an S3 data lake with minimal load on the source database. Which approach is the best fit?",
+      "options": [
+        "Schedule an hourly AWS Glue JDBC full-table extract and overwrite the S3 dataset on each run",
+        "Use AWS DMS with a change data capture (CDC) task reading the MySQL binary log and an S3 target endpoint",
+        "Enable a DynamoDB stream on the table and forward records to S3 with an AWS Lambda consumer",
+        "Run a nightly mysqldump on the RDS instance and upload the resulting SQL file to the S3 bucket"
+      ],
+      "correct": 1,
+      "explanation": "AWS DMS CDC reads the MySQL binary log to capture row-level inserts, updates, and deletes with low impact on the source, and an S3 target endpoint writes the ongoing changes into the lake. An hourly Glue full extract re-scans the whole table each run, missing intra-hour deletes and putting heavy repeated load on the source. DynamoDB streams only exist on DynamoDB tables, not RDS for MySQL, so they cannot capture RDS changes. A nightly mysqldump is a full snapshot, not continuous CDC, and cannot represent individual delete operations between dumps.",
+      "tags": [
+        "data-ingestion",
+        "dms",
+        "cdc",
+        "aws-dea-c01"
+      ],
+      "difficulty": "medium"
+    },
+    {
+      "id": "aws-dea-c01-013",
+      "question": "An analytics team wants to load query results from Amazon S3 into Amazon Redshift as quickly and efficiently as possible from multiple large compressed files. Which method should they use?",
+      "options": [
+        "Run row-by-row INSERT statements from a Lambda function iterating over each file's parsed records",
+        "Use a single UNLOAD command pointed at the S3 prefix to pull the files into the cluster tables",
+        "Use the COPY command, which loads data in parallel across the cluster's slices from the S3 files",
+        "Mount the S3 bucket as an external table and SELECT INTO a local table one file at a time"
+      ],
+      "correct": 2,
+      "explanation": "The Redshift COPY command is the recommended bulk-load mechanism: it reads multiple files in parallel across all compute slices and ingests far faster than serial inserts. Row-by-row INSERTs are extremely slow and do not leverage Redshift's massively parallel architecture. UNLOAD does the opposite of loading — it exports query results from Redshift to S3. Querying an external table via Redshift Spectrum and SELECT INTO is workable for federated reads but is not the efficient parallel bulk-load path for permanently loading large files.",
+      "tags": [
+        "data-ops",
+        "redshift",
+        "data-ingestion",
+        "aws-dea-c01"
+      ],
+      "difficulty": "easy"
+    },
+    {
+      "id": "aws-dea-c01-014",
+      "question": "A data lake on S3 contains personally identifiable information. The governance team wants to automatically discover and classify sensitive data such as credit card and passport numbers across buckets. Which AWS service is purpose-built for this?",
+      "options": [
+        "Amazon Macie, which uses managed data identifiers and machine learning to discover and classify sensitive data in S3",
+        "AWS Glue DataBrew, which profiles datasets visually for data-quality cleaning and transformation recipes",
+        "Amazon Inspector, which continuously scans EC2 and container workloads for software vulnerabilities",
+        "AWS Config, which records resource configuration changes and evaluates them against compliance rules"
+      ],
+      "correct": 0,
+      "explanation": "Amazon Macie is built specifically to discover and classify sensitive data in S3 using managed data identifiers (for example credit card, passport, and other PII patterns) plus machine learning, and reports findings. Glue DataBrew profiles and cleans data for transformation but does not perform managed PII classification across buckets. Amazon Inspector scans compute workloads for vulnerabilities and CVEs, not S3 object contents. AWS Config tracks configuration state and compliance of resources, not the sensitive content stored inside S3 objects.",
+      "tags": [
+        "security",
+        "macie",
+        "data-governance",
+        "aws-dea-c01"
+      ],
+      "difficulty": "easy"
+    },
+    {
+      "id": "aws-dea-c01-015",
+      "question": "An Apache Spark job on Amazon EMR repeatedly fails with executor out-of-memory errors when joining a very large fact table to a small lookup table. Which optimization most directly addresses the failure?",
+      "options": [
+        "Increase the number of shuffle partitions so each task processes a larger slice of the join in one pass",
+        "Cache the large fact table in memory with persist(MEMORY_ONLY) before performing the join operation",
+        "Use a broadcast join so the small lookup table is sent to every executor and the large table is not shuffled",
+        "Disable speculative execution so executors do not duplicate tasks and consume additional heap memory"
+      ],
+      "correct": 2,
+      "explanation": "A broadcast join ships the small lookup table to every executor and joins locally, avoiding the expensive shuffle and skew that drive executor OOMs when one side of the join is large. Increasing shuffle partitions actually makes each task smaller, not larger — and the option's reasoning is inverted. Caching the large fact table in memory consumes more heap and worsens the OOM. Disabling speculative execution affects retried straggler tasks, not the memory pressure caused by shuffling a large join.",
+      "tags": [
+        "data-transformation",
+        "emr",
+        "spark",
+        "performance",
+        "aws-dea-c01"
+      ],
+      "difficulty": "hard"
+    },
+    {
+      "id": "aws-dea-c01-016",
+      "question": "A near-real-time pipeline ingests events with Amazon Data Firehose and must enrich each record by adding a derived field before the data lands in S3, with the least operational overhead. Which approach should the team use?",
+      "options": [
+        "Land the raw records in S3 first, then run a separate scheduled Glue job to add the derived field afterward",
+        "Switch the destination to Amazon Redshift and compute the derived field with a post-load SQL UPDATE statement",
+        "Attach an AWS Lambda transformation function to the Firehose stream to enrich each record buffer in flight",
+        "Replace Firehose with Kinesis Data Streams and write a Kinesis Client Library consumer that performs the enrichment"
+      ],
+      "correct": 2,
+      "explanation": "Amazon Data Firehose supports an inline AWS Lambda transformation that invokes on each buffered batch of records, letting you enrich or reshape data before it is delivered to S3 with no separate pipeline to operate. Landing raw data then running a scheduled Glue job adds a second stage and latency the requirement seeks to avoid. Routing to Redshift and post-processing with SQL changes the destination and adds a database the design does not need. Replacing Firehose with Kinesis Data Streams plus a custom KCL consumer reintroduces exactly the shard- and consumer-management overhead that Firehose was chosen to eliminate.",
+      "tags": [
+        "data-ingestion",
+        "firehose",
+        "lambda",
         "aws-dea-c01"
       ],
       "difficulty": "medium"

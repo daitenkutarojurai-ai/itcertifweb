@@ -1,0 +1,407 @@
+{
+  "packId": "az-400",
+  "title": "Azure DevOps Engineer Expert (AZ-400)",
+  "brandName": "Microsoft",
+  "brandColor": "#0078D4",
+  "chapters": [
+    {
+      "id": "ch1",
+      "title": "Part 1",
+      "tag": "part-1",
+      "nodes": [
+        {
+          "id": "c1-concept",
+          "type": "concept",
+          "title": "Security fundamentals: Key Ideas",
+          "content": "Security is about layering defenses so no single failure compromises a system. Most exams test the same core ideas: least privilege, defense in depth, the CIA triad, and the shared-responsibility line between you and your cloud provider.",
+          "flashcards": [
+            {
+              "front": "What is the CIA triad?",
+              "back": "Confidentiality (only the right people see the data), Integrity (data isn't tampered with), Availability (the system is reachable when needed). Every security control maps to at least one of these three pillars."
+            },
+            {
+              "front": "What does 'least privilege' mean?",
+              "back": "Grant each identity (user, role, service account) the minimum permissions needed to do its job — no more. The opposite is wildcard access, which makes a single credential leak catastrophic."
+            },
+            {
+              "front": "What is defense in depth?",
+              "back": "Stack multiple, independent controls so an attacker has to defeat all of them. Example: WAF in front of an app, network ACL on the subnet, IAM on the workload, encryption at rest in the database."
+            },
+            {
+              "front": "Shared responsibility model — who does what?",
+              "back": "The cloud provider secures the cloud (physical hardware, hypervisor, region facilities). You secure what's IN the cloud (your data, IAM config, OS patching on EC2, application code). The exact line shifts by service: serverless is more on the provider, IaaS is more on you."
+            }
+          ],
+          "source": "concept-library",
+          "sourceTag": "security"
+        },
+        {
+          "id": "c1-quiz1",
+          "type": "quiz",
+          "title": "Part 1 — Drill 1",
+          "questionIds": [
+            "az-400-001",
+            "az-400-002",
+            "az-400-003",
+            "az-400-004",
+            "az-400-005"
+          ]
+        },
+        {
+          "id": "c1-game",
+          "type": "minigame",
+          "gameType": "lightning",
+          "mode": "lightning-round",
+          "data": {
+            "secondsPerQuestion": 7,
+            "livesAllowed": 3,
+            "questions": [
+              {
+                "q": "A team of five developers needs to release to production multiple times per day while keeping main green. Which branching strategy fits this requirement best in Azure Repos?",
+                "choices": [
+                  "GitFlow with a permanent develop branch, version-specific release branches, and pull requests merged to both develop and main on every change",
+                  "Forking workflow where each developer maintains a personal fork and a release manager periodically merges cross-repository pull requests upstream",
+                  "Trunk-based development with short-lived feature branches merged to main via pull request, gated by a CI pipeline that blocks merges on test failure",
+                  "Environment branches such as dev, staging, and prod where promotion happens by merging dev into staging and then staging into prod after review"
+                ],
+                "correctIndex": 2,
+                "explanation": "Trunk-based development with short-lived branches is the recommended pattern for teams pursuing continuous delivery. It minimizes long-running divergence, keeps integration cost low, and pairs well with feature flags to ship partially complete work safely. GitFlow's release/develop layers add latency suited to scheduled releases, not many-times-per-day deployments. Forking workflows fit open-source contribution models, not internal teams. Environment branches couple deployment promotion to merges, which complicates rollback and parallel work."
+              },
+              {
+                "q": "A pull request to main must be blocked until a CI build passes and at least one reviewer from the team approves. Which Azure Repos mechanism enforces both conditions natively?",
+                "choices": [
+                  "A pre-receive Git hook on the Azure DevOps server that rejects pushes to main that lack a linked work item — Azure DevOps does not support server-side pre-receive hooks; branch policies on main are the correct mechanism to require PR review, approval count, and linked builds",
+                  "A YAML pipeline trigger that posts a failure status on the pull request — YAML triggers can run a build but cannot enforce merge blocking; branch policies in Azure DevOps are required to make reviewer approvals and build validation checks mandatory before merge",
+                  "A branch policy on main configuring required reviewers, a minimum approver count, and a build validation policy that runs a specified pipeline on every update",
+                  "An Azure Function webhook that listens for pull-request events, queues the pipeline, and only adds the merge-allowed label after both checks have passed"
+                ],
+                "correctIndex": 2,
+                "explanation": "Branch policies on protected branches are the native control. Required reviewers and a minimum approver count enforce human review, while a build validation policy runs the named pipeline on every PR update and blocks the merge until it succeeds. Azure DevOps does not expose user-configurable pre-receive hooks. A YAML trigger only reports status; it does not block a merge by itself. A custom webhook is a workaround for what is already built in."
+              },
+              {
+                "q": "An Azure Pipelines workflow must build an application, deploy it to a staging environment, then deploy it to production only after manual approval. What is the recommended way to model this end-to-end flow?",
+                "choices": [
+                  "Two separate classic release pipelines that share build artifacts and require an approval gate on the production pipeline — two pipelines sharing artifacts cannot share an environment-level approval in a single place; a single YAML pipeline with an explicit approval on the production environment stage is the native approach",
+                  "A single YAML pipeline using a runtime parameter deployToProd defaulting to false, where operators rerun the pipeline with the parameter flipped to true",
+                  "Three independent YAML pipelines triggered in order via pipeline resource triggers, with the production pipeline reading the staging completion event tag",
+                  "A single YAML pipeline containing build, staging, and production stages, with the production stage targeting an Environment resource that has approval checks"
+                ],
+                "correctIndex": 3,
+                "explanation": "Multi-stage YAML pipelines model build, staging, and production as separate stages within one file. Approval gates attach to Environment resources, so the production stage waits for designated approvers before running. The entire delivery flow is versioned alongside source code. Classic release pipelines are legacy and discouraged for new work. Runtime parameters can gate execution but lack the audit trail and reviewer permissions of environment approvals. Splitting into multiple pipelines fragments observability needlessly."
+              },
+              {
+                "q": "A pipeline must deploy resources to an Azure subscription that is reachable only from a private network behind a corporate firewall. Microsoft-hosted agents cannot reach the target. What is the correct approach?",
+                "choices": [
+                  "Deploy a self-hosted agent inside the private network and configure the pipeline pool to target that agent's pool so jobs run from inside the network perimeter",
+                  "Whitelist the Microsoft-hosted agent IP ranges on the firewall so the agent can deploy to the private target — this requires updating the allowlist each time Microsoft rotates the published IP address ranges",
+                  "Use the AzureCLI@2 task with a service connection scoped to a managed identity holding reader permissions on the firewall and on the destination Azure subscription",
+                  "Move the pipeline to GitHub Actions and use a runner group with the private-network label, which Azure DevOps tasks recognize as an in-network execution context"
+                ],
+                "correctIndex": 0,
+                "explanation": "Self-hosted agents run on machines you operate, so an agent placed inside the private network has direct access to in-network resources. The pipeline routes jobs to that pool via pool.name. Whitelisting Microsoft-hosted agent ranges is impractical and explicitly discouraged because the ranges are large and change frequently. Service connections control authentication, not network reachability. GitHub Actions runners are unrelated to Azure DevOps agent pool configuration."
+              },
+              {
+                "q": "A pipeline applies Terraform to provision Azure infrastructure. State must be shared across parallel runs without conflicting writes. Which configuration provides this safely?",
+                "choices": [
+                  "A local state file checked into the same repository as the Terraform code — committing state to Git risks exposing secrets in the state file, causes merge conflicts when multiple pipeline runs write to the same state, and does not support the locking required for concurrent pipeline writes",
+                  "An Azure Storage account backend with a blob container holding the state file, where the azurerm backend takes a blob lease to serialize concurrent writes",
+                  "An Azure Key Vault secret named terraform-state holding the serialized state JSON, retrieved at the start of each run and written back at completion",
+                  "Separate state files per pipeline run, each named with the build number, then merged together by a custom step at the end of the workflow to form one state"
+                ],
+                "correctIndex": 1,
+                "explanation": "The azurerm remote backend stores state in an Azure Storage blob and acquires a blob lease as an exclusive lock during operations. Parallel runs wait for the lease, preventing torn writes. Committing state to Git exposes secrets recorded in state and provides no locking. Key Vault is for secrets, not for the multi-megabyte mutable JSON Terraform produces. Per-run state files break resource tracking because Terraform identifies resources by their entry in a single authoritative state."
+              },
+              {
+                "q": "A pipeline needs the database connection string for a production deployment. The value must not appear in pipeline logs and must rotate without editing the YAML. Which mechanism is best?",
+                "choices": [
+                  "Reference the value from an Azure Key Vault via a variable group linked to that Key Vault, granting the pipeline's service principal Get permission on secrets",
+                  "Encode the connection string as base64 and place it in a pipeline variable marked secret, then decode the value inside the deployment task at runtime each run",
+                  "Commit the connection string to the repository in an encrypted file and use a custom decryption task that pulls the key material from runner environment variables",
+                  "Store the value in a pipeline parameter of type secret and supply it manually at queue time, requiring the operator to paste the value into the dialog each run"
+                ],
+                "correctIndex": 0,
+                "explanation": "Variable groups linked to Azure Key Vault pull secret values at run time. Rotating the secret in Key Vault takes effect on the next run with no YAML change, and Azure Pipelines automatically masks the values in logs. Base64 is not encryption and offers no protection against log exposure. Committing encrypted blobs requires custom tooling and key distribution. Pipeline parameters do not support a secret type, and manual entry blocks automated runs."
+              }
+            ]
+          },
+          "title": "Part 1 — Lightning Round"
+        },
+        {
+          "id": "c1-chest",
+          "type": "chest",
+          "title": "Treasure Chest",
+          "rewardXp": 30,
+          "cosmeticKey": "chapter-1"
+        }
+      ]
+    },
+    {
+      "id": "ch2",
+      "title": "Part 2",
+      "tag": "part-2",
+      "nodes": [
+        {
+          "id": "c2-concept",
+          "type": "concept",
+          "title": "Observability and monitoring: Key Ideas",
+          "content": "Observability is metrics + logs + traces — the three pillars. You need all three to debug a production incident: metrics tell you something is wrong, logs tell you what happened, traces tell you where in the call graph the problem lives.",
+          "flashcards": [
+            {
+              "front": "Metrics vs logs vs traces — what does each tell you?",
+              "back": "Metrics: numeric time-series, cheap to store, perfect for dashboards and alerts ('p99 latency = 800 ms'). Logs: discrete events with context, expensive at scale, perfect for forensics. Traces: causally-linked spans showing a request's full path through services."
+            },
+            {
+              "front": "What's the difference between an alert and a notification?",
+              "back": "An alert is a condition that fires when a metric crosses a threshold (CPU > 80% for 5 min). The notification is the resulting message (email, Slack, PagerDuty page). One alert can fan out to many notifications. Tuning alerts is harder than wiring notifications."
+            },
+            {
+              "front": "What is an SLI / SLO / SLA?",
+              "back": "SLI (indicator): the metric you actually measure ('% of requests under 200 ms'). SLO (objective): the internal target ('99.9% of requests under 200 ms over 28 days'). SLA (agreement): the contractual promise to customers, usually weaker than the SLO so you have buffer."
+            },
+            {
+              "front": "Why structured logs?",
+              "back": "Plain-text logs are unparseable at scale. Structured logs (JSON, with timestamp + level + service + request_id + key fields) are indexable, queryable, and join-able across services. Most platforms auto-extract fields from JSON without configuration."
+            }
+          ],
+          "source": "concept-library",
+          "sourceTag": "monitoring"
+        },
+        {
+          "id": "c2-quiz1",
+          "type": "quiz",
+          "title": "Part 2 — Drill 1",
+          "questionIds": [
+            "az-400-007",
+            "az-400-008",
+            "az-400-009",
+            "az-400-012",
+            "az-400-010"
+          ]
+        },
+        {
+          "id": "c2-game",
+          "type": "minigame",
+          "gameType": "lightning",
+          "mode": "lightning-round",
+          "data": {
+            "secondsPerQuestion": 7,
+            "livesAllowed": 3,
+            "questions": [
+              {
+                "q": "A pipeline builds a Docker image and pushes it to Azure Container Registry. The same image must be deployed unchanged to dev, staging, and production. Which tagging approach supports reliable promotion across environments?",
+                "choices": [
+                  "Tag the image as latest and have each environment pull latest — the latest tag is mutable and does not guarantee that all environments run the same image; a version-tagged image ensures each environment runs the identical build promoted across the pipeline",
+                  "Tag the image with both an immutable identifier such as the build number or commit SHA and a moving tag for convenience, deploying environments by the immutable tag",
+                  "Build a separate image per environment using environment-specific Dockerfiles, tagged myapp:dev, myapp:staging, and myapp:prod, for clear separation of build contexts",
+                  "Tag the image with the environment name at build time and overwrite the staging and production tags during deployment so each environment shows its current build"
+                ],
+                "correctIndex": 1,
+                "explanation": "Immutable tags such as a commit SHA or build ID guarantee that the exact artifact promoted from dev is what runs in production. Convenience tags like latest or an environment name move and cause drift between environments. Building separate images per environment defeats the build-once-deploy-many principle and risks divergence between code paths. Overwriting environment tags makes rollbacks ambiguous because the meaning of a tag changes over time."
+              },
+              {
+                "q": "A web application has been instrumented with Application Insights. The team wants to be alerted within minutes if the 95th-percentile response time exceeds 800 ms for a sustained period. What is the correct configuration?",
+                "choices": [
+                  "A log query alert that runs traces | where severityLevel == 3 every minute and pages the on-call team whenever any matching trace record is found in the workspace",
+                  "An Application Insights smart detection rule that automatically learns the baseline and fires when the failed-request rate doubles compared to the prior calendar week",
+                  "An Azure Function timer trigger that polls the Application Insights REST API hourly and emails a report of slow requests recorded during the preceding one-hour window",
+                  "An Azure Monitor metric alert against the requests/duration metric using the P95 aggregation, evaluated over a 5-minute window with the threshold set to 800 ms"
+                ],
+                "correctIndex": 3,
+                "explanation": "Application Insights publishes request duration as a metric that supports percentile aggregations. An Azure Monitor metric alert over requests/duration with the P95 aggregation and an 800 ms threshold matches the requirement directly and fires within minutes. Log query alerts on traces do not measure latency percentiles. Smart detection focuses on failure-rate anomalies, not latency thresholds. Polling via a custom Function adds latency, complexity, and cost compared to the built-in metric alert path."
+              },
+              {
+                "q": "A team wants to release a new checkout flow gradually, starting with 5 percent of users and increasing to 100 percent over a week, with the ability to roll the change back instantly. Which approach best supports this?",
+                "choices": [
+                  "Deploy two versions of the application to separate App Services and shift traffic between them using Azure Front Door weighted routing rules updated manually each day",
+                  "Maintain two long-running release branches in source control and deploy whichever branch matches the current rollout state, rebuilding the application for each step",
+                  "Use Azure App Configuration feature flags with a targeting filter that grades rollout percentage, toggled via the portal or API with no application redeploy required",
+                  "Read the rollout percentage from an environment variable set at App Service startup and restart the App Service whenever the percentage value is changed during the rollout"
+                ],
+                "correctIndex": 2,
+                "explanation": "Feature flags decouple deployment from release. Azure App Configuration provides feature flags with built-in filters, including percentage and targeting filters that the application evaluates per request, with no redeploy required to change the rollout. Weighted routing balances traffic between deployments but does not address per-user feature exposure. Branch-based gating requires rebuilds and complicates rollback. Environment variables require restarts and cannot easily target specific user subsets."
+              },
+              {
+                "q": "A pipeline must guarantee that no Azure resource is deployed without required tags and that storage accounts always have HTTPS-only enabled, regardless of which pipeline performs the deployment. What is the most robust enforcement?",
+                "choices": [
+                  "Author Azure Policy definitions assigned at the subscription or management-group scope that deny deployments missing the required tags or the HTTPS-only storage configuration",
+                  "Add an Azure Resource Manager template validation step to every pipeline that fails the build whenever required tags or HTTPS-only settings are missing from the template",
+                  "Configure branch policies on the infrastructure repository that require a security-team reviewer for any pull request touching storage account or tag-related YAML or Bicep files",
+                  "Use a self-hosted agent pool whose startup script scans the resource graph nightly and emails a non-compliance report listing resources without tags or with HTTPS-only disabled"
+                ],
+                "correctIndex": 0,
+                "explanation": "Azure Policy enforces requirements at the platform level. A deny policy assigned at the subscription or management-group scope blocks any deployment that violates the rule, regardless of which pipeline, ARM template, Bicep file, or portal user performs it. Template validation in one pipeline does not stop other pipelines or portal deployments. Branch policies are bypassed by anything outside that repository. Nightly scans detect drift after the fact rather than preventing it."
+              },
+              {
+                "q": "A YAML pipeline must authenticate to Azure to deploy resources, and the security team forbids storing any client secret or certificate for the service connection. Which Azure DevOps service connection authentication type meets this requirement?",
+                "choices": [
+                  "A service principal (manual) connection whose client secret is stored in a secret pipeline variable and rotated every 90 days by an automated job",
+                  "A workload identity federation service connection that uses OpenID Connect to obtain short-lived Azure tokens with no stored secret",
+                  "A managed identity connection that embeds the identity's primary access key in the connection definition for the pipeline to read",
+                  "A personal access token connection scoped to the deploying user's Azure role assignments and refreshed at each pipeline run"
+                ],
+                "correctIndex": 1,
+                "explanation": "Workload identity federation configures an Azure service connection to use OpenID Connect, exchanging a pipeline-issued token for a short-lived Azure access token with no secret or certificate stored anywhere. A service principal (manual) connection still stores a client secret, which is exactly what is forbidden. Managed identities do not expose a retrievable primary access key to embed in a connection. Personal access tokens authenticate to Azure DevOps itself, not to Azure resources, and are still a stored long-lived credential."
+              },
+              {
+                "q": "A team wants pull requests to main to automatically associate with the work items they implement, so traceability reports show which requirements shipped. Which Azure Repos configuration enforces that every completed PR is linked to at least one work item?",
+                "choices": [
+                  "A branch policy on main that enables the Check for linked work items requirement as a blocking policy",
+                  "A pipeline task that parses the commit message for an AB# token and fails the build when none is present",
+                  "A repository-level setting that automatically creates a placeholder work item for every pull request opened",
+                  "An Azure Boards query saved as a dashboard widget that lists pull requests missing a work item link"
+                ],
+                "correctIndex": 0,
+                "explanation": "The Check for linked work items branch policy on main can be set to required (blocking), so a pull request cannot complete unless it links at least one work item, enforcing traceability. Parsing commit messages for AB# tokens in a pipeline only reports after the build runs and is easily bypassed. Auto-creating placeholder work items produces meaningless links rather than tying PRs to real requirements. A Boards query widget surfaces missing links after the fact but enforces nothing at merge time."
+              }
+            ]
+          },
+          "title": "Part 2 — Lightning Round"
+        },
+        {
+          "id": "c2-chest",
+          "type": "chest",
+          "title": "Treasure Chest",
+          "rewardXp": 30,
+          "cosmeticKey": "chapter-2"
+        }
+      ]
+    },
+    {
+      "id": "ch3",
+      "title": "Part 3",
+      "tag": "part-3",
+      "nodes": [
+        {
+          "id": "c3-concept",
+          "type": "concept",
+          "title": "Part 3: Key Ideas",
+          "content": "Quick primer on Part 3. Tap to flip cards covering the most-asked exam ideas in this domain.",
+          "flashcards": [
+            {
+              "front": "A monolithic repository takes a long time to clone on Microsoft-hosted agents because of a large history of binary assets, slowing every CI run. Which combination most directly reduces clone time on each pipeline run?",
+              "back": "Shallow fetch limits how much history the checkout downloads, and moving large binaries to Git LFS keeps them out of the working clone, so each run fetches far less data. Raising the timeout and adding parallel jobs hides the cost rather than reducing clone time. Switching to TFVC is a disruptive version-control change that Microsoft positions Git as the default over, and it does not address the binary-history root cause cleanly. Running CI less often reduces feedback frequency without making any individual clone faster."
+            },
+            {
+              "front": "A release must not proceed to the production stage until an Azure Monitor query confirms that error rates in the canary remain below a threshold for 10 minutes after the canary deploy. Which Azure Pipelines environment check provides this automated quality verification?",
+              "back": "The Query Azure Monitor alerts environment check polls Azure Monitor and only allows the stage to proceed when no matching alert is firing, automating the canary health gate. Required reviewers add a human approval but evaluate no telemetry. A business hours check only restricts when deployments may run, not whether the canary is healthy. An exclusive lock serializes concurrent runs but says nothing about error rates or canary health."
+            },
+            {
+              "front": "A team adopting OpenTelemetry wants distributed traces from a .NET microservice to flow into Application Insights so end-to-end request correlation appears in the Application Map. What is the recommended integration?",
+              "back": "The Azure Monitor OpenTelemetry distro is the supported path: adding it to the .NET service and supplying the Application Insights connection string sends traces directly so end-to-end correlation appears in the Application Map. A nightly export job batches spans hours late and loses real-time correlation. IIS request logging captures coarse web-server logs, not distributed application traces with span context. A third-party backend with scraped dashboards does not feed structured trace telemetry into Application Insights."
+            },
+            {
+              "front": "A pipeline publishes an internal NuGet package consumed by several teams. Consumers must always resolve dependencies through a single feed that proxies and caches public packages while also hosting the internal one. Which Azure Artifacts capability provides this?",
+              "back": "An Azure Artifacts feed with an upstream source configured to nuget.org serves the internal package and transparently proxies and caches public packages, so consumers use one feed for everything. Publishing to NuGet.org exposes an internal package publicly and adds a second source rather than unifying resolution. Pipeline artifacts are build outputs referenced by path, not a managed package feed with dependency resolution. Universal packages store arbitrary files and are not consumed through NuGet dependency resolution."
+            }
+          ],
+          "source": "auto-derived"
+        },
+        {
+          "id": "c3-quiz1",
+          "type": "quiz",
+          "title": "Part 3 — Drill 1",
+          "questionIds": [
+            "az-400-013",
+            "az-400-015",
+            "az-400-016",
+            "az-400-014"
+          ]
+        },
+        {
+          "id": "c3-game",
+          "type": "minigame",
+          "gameType": "lightning",
+          "mode": "lightning-round",
+          "data": {
+            "secondsPerQuestion": 7,
+            "livesAllowed": 3,
+            "questions": [
+              {
+                "q": "A monolithic repository takes a long time to clone on Microsoft-hosted agents because of a large history of binary assets, slowing every CI run. Which combination most directly reduces clone time on each pipeline run?",
+                "choices": [
+                  "Enable shallow fetch with a small fetch depth on the pipeline checkout and migrate large binaries to Git LFS",
+                  "Increase the agent job timeout and add more parallel jobs so the long clone overlaps with other build stages",
+                  "Switch the repository from Git to Team Foundation Version Control so only the latest changeset is downloaded",
+                  "Schedule the CI pipeline to run less frequently so the cumulative clone cost across the day is reduced"
+                ],
+                "correctIndex": 0,
+                "explanation": "Shallow fetch limits how much history the checkout downloads, and moving large binaries to Git LFS keeps them out of the working clone, so each run fetches far less data. Raising the timeout and adding parallel jobs hides the cost rather than reducing clone time. Switching to TFVC is a disruptive version-control change that Microsoft positions Git as the default over, and it does not address the binary-history root cause cleanly. Running CI less often reduces feedback frequency without making any individual clone faster."
+              },
+              {
+                "q": "A release must not proceed to the production stage until an Azure Monitor query confirms that error rates in the canary remain below a threshold for 10 minutes after the canary deploy. Which Azure Pipelines environment check provides this automated quality verification?",
+                "choices": [
+                  "A required reviewers approval check assigned to the on-call engineer for the production environment",
+                  "A Query Azure Monitor alerts check on the environment that evaluates the alert state before allowing the stage",
+                  "A business hours check that delays the production stage until the next maintenance window opens",
+                  "An exclusive lock check that prevents concurrent runs from deploying to the environment simultaneously"
+                ],
+                "correctIndex": 1,
+                "explanation": "The Query Azure Monitor alerts environment check polls Azure Monitor and only allows the stage to proceed when no matching alert is firing, automating the canary health gate. Required reviewers add a human approval but evaluate no telemetry. A business hours check only restricts when deployments may run, not whether the canary is healthy. An exclusive lock serializes concurrent runs but says nothing about error rates or canary health."
+              },
+              {
+                "q": "A team adopting OpenTelemetry wants distributed traces from a .NET microservice to flow into Application Insights so end-to-end request correlation appears in the Application Map. What is the recommended integration?",
+                "choices": [
+                  "Add the Azure Monitor OpenTelemetry distro to the service and configure it with the Application Insights connection string",
+                  "Write a nightly export job that copies OpenTelemetry spans from local files into the Application Insights REST API",
+                  "Enable IIS request logging on the host and forward the W3C logs to a Log Analytics custom table",
+                  "Install a third-party tracing backend and screen-scrape its dashboards into an Application Insights workbook"
+                ],
+                "correctIndex": 0,
+                "explanation": "The Azure Monitor OpenTelemetry distro is the supported path: adding it to the .NET service and supplying the Application Insights connection string sends traces directly so end-to-end correlation appears in the Application Map. A nightly export job batches spans hours late and loses real-time correlation. IIS request logging captures coarse web-server logs, not distributed application traces with span context. A third-party backend with scraped dashboards does not feed structured trace telemetry into Application Insights."
+              },
+              {
+                "q": "A pipeline publishes an internal NuGet package consumed by several teams. Consumers must always resolve dependencies through a single feed that proxies and caches public packages while also hosting the internal one. Which Azure Artifacts capability provides this?",
+                "choices": [
+                  "Publish the package to a public NuGet.org account and have consumers add it as a second package source",
+                  "An Azure Artifacts feed with an upstream source to nuget.org so it both hosts internal packages and proxies public ones",
+                  "A pipeline artifact attached to each build that consumers download and reference by local file path",
+                  "A universal package stored in the feed and extracted by each consumer with the az artifacts CLI at build time"
+                ],
+                "correctIndex": 1,
+                "explanation": "An Azure Artifacts feed with an upstream source configured to nuget.org serves the internal package and transparently proxies and caches public packages, so consumers use one feed for everything. Publishing to NuGet.org exposes an internal package publicly and adds a second source rather than unifying resolution. Pipeline artifacts are build outputs referenced by path, not a managed package feed with dependency resolution. Universal packages store arbitrary files and are not consumed through NuGet dependency resolution."
+              }
+            ]
+          },
+          "title": "Part 3 — Lightning Round"
+        },
+        {
+          "id": "c3-boss",
+          "type": "subboss",
+          "title": "Boss: Part 3",
+          "questionIds": [
+            "az-400-013",
+            "az-400-015",
+            "az-400-016",
+            "az-400-014"
+          ]
+        },
+        {
+          "id": "c3-chest",
+          "type": "chest",
+          "title": "Treasure Chest",
+          "rewardXp": 30,
+          "cosmeticKey": "chapter-3"
+        }
+      ]
+    }
+  ],
+  "finalBoss": {
+    "id": "final-boss",
+    "type": "finalboss",
+    "title": "Final Exam: Azure DevOps Engineer Expert (AZ-400)",
+    "questionCount": 15,
+    "timeMinutes": 23
+  },
+  "meta": {
+    "generatedAt": "2026-06-01T06:04:11.675Z",
+    "totalNodes": 14,
+    "totalQuestions": 16,
+    "nodeTypes": [
+      "concept",
+      "quiz",
+      "minigame",
+      "subboss",
+      "finalboss"
+    ]
+  }
+}

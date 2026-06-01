@@ -4,10 +4,10 @@
     "name": "Kubernetes and Cloud Native Security Associate (KCSA)",
     "vendor": "Linux Foundation",
     "version": "1.0.2",
-    "question_count": 10,
-    "last_updated": "2026-05-19",
-    "notes": "Initial 10-question pack covering all six KCSA exam domains. | 2026-05-23 keyword-balance pass",
-    "updated": "2026-05-23"
+    "question_count": 16,
+    "last_updated": "2026-06-01",
+    "notes": "Initial 10-question pack covering all six KCSA exam domains. | 2026-05-23 keyword-balance pass | 2026-06-01 +6 questions to unlock learning path",
+    "updated": "2026-06-01"
   },
   "questions": [
     {
@@ -217,6 +217,131 @@
         "kcsa"
       ],
       "difficulty": "easy",
+      "domain": "Compliance and Security Frameworks"
+    },
+    {
+      "id": "kcsa-011",
+      "question": "A workload does not call the Kubernetes API at all, yet by default its Pod is given a mounted ServiceAccount token. Which configuration most directly reduces the risk that a compromised container reuses that token against the API server?",
+      "options": [
+        "Set `automountServiceAccountToken: false` on the Pod (or its ServiceAccount) so no API token is projected into the container, removing a credential an attacker could otherwise reuse",
+        "Bind the Pod's ServiceAccount to the `cluster-admin` ClusterRole so its permissions are explicit and centrally auditable, making any misuse easier to detect in the API audit log",
+        "Mount the default token but set `imagePullPolicy: Always`, ensuring the container image is re-pulled each restart so any tampered token baked into a layer is overwritten on boot",
+        "Run the Pod with `hostNetwork: true` so its API calls originate from the node IP, letting a NetworkPolicy on the node interface block the token from ever reaching the API server"
+      ],
+      "correct": 0,
+      "explanation": "If a workload never calls the API, the safest control is to stop projecting a token at all via `automountServiceAccountToken: false`, eliminating a credential an attacker could steal and replay. Binding to `cluster-admin` massively increases privilege and blast radius — the opposite of least privilege. `imagePullPolicy` controls image pulling and has nothing to do with the dynamically projected token. `hostNetwork: true` widens host exposure and does not prevent token use against the API server.",
+      "tags": [
+        "service-account",
+        "token",
+        "least-privilege",
+        "security-fundamentals",
+        "kcsa"
+      ],
+      "difficulty": "medium",
+      "domain": "Kubernetes Security Fundamentals"
+    },
+    {
+      "id": "kcsa-012",
+      "question": "A security team wants runtime detection that flags suspicious behavior inside running containers — such as a shell spawned in a container or an unexpected write to `/etc` — by observing Linux syscalls. Which CNCF project is purpose-built for this runtime threat-detection use case?",
+      "options": [
+        "Kyverno, a policy engine that intercepts API requests at admission and rejects or mutates Pods, providing the same coverage as syscall-level monitoring because every action passes through the API server",
+        "Falco, a runtime security project that consumes kernel syscall events (via eBPF or a kernel module) and raises alerts when container behavior matches rules such as a shell spawning in a container",
+        "Trivy, a scanner that detects the suspicious runtime behaviors by analyzing the container image's layers and software bill of materials before the workload is ever scheduled onto a node",
+        "cert-manager, which issues and rotates workload certificates and additionally watches syscall activity to detect when a compromised process attempts to exfiltrate a private key at runtime"
+      ],
+      "correct": 1,
+      "explanation": "Falco is the CNCF runtime security tool that ingests kernel syscall events through eBPF or a kernel module and alerts on suspicious behavior like an interactive shell in a container or writes to sensitive paths. Kyverno enforces policy at admission time and cannot observe runtime syscalls. Trivy is a static vulnerability/SBOM scanner that runs before execution, not at runtime. cert-manager manages certificates and does no syscall monitoring.",
+      "tags": [
+        "runtime-security",
+        "falco",
+        "threat-detection",
+        "platform-security",
+        "kcsa"
+      ],
+      "difficulty": "medium",
+      "domain": "Platform Security"
+    },
+    {
+      "id": "kcsa-013",
+      "question": "An attacker who obtains a low-privilege foothold in a Pod attempts to escalate by abusing the kubelet. Which kubelet configuration most directly limits an attacker's ability to call the kubelet API to read Secrets-bearing Pods or exec into containers on that node?",
+      "options": [
+        "Enable `--anonymous-auth=true` on the kubelet so every request carries an explicit identity, which the API server then maps to a ServiceAccount before the kubelet authorizes the call",
+        "Set the kubelet's `--authorization-mode=AlwaysAllow` and rely on the API server's RBAC to retroactively reject any kubelet call that a Pod's ServiceAccount was not permitted to make",
+        "Configure the kubelet with `--anonymous-auth=false` and `--authorization-mode=Webhook` so unauthenticated requests are rejected and authenticated ones are checked against the API server's authorizer",
+        "Expose the kubelet read-only port (10255) to the Pod network so monitoring works, and disable the authenticated port (10250) to remove the attack surface an attacker would target"
+      ],
+      "correct": 2,
+      "explanation": "Hardening the kubelet means disabling anonymous access (`--anonymous-auth=false`) and delegating authorization to the API server (`--authorization-mode=Webhook`), so only authenticated, authorized callers can hit the kubelet API. Enabling `--anonymous-auth=true` does the opposite and allows unauthenticated requests. `AlwaysAllow` disables kubelet authorization entirely. The read-only port 10255 leaks Pod data without auth and should be disabled, not exposed; the authenticated port 10250 is the one to keep and protect.",
+      "tags": [
+        "kubelet",
+        "authentication",
+        "authorization",
+        "cluster-component-security",
+        "kcsa"
+      ],
+      "difficulty": "hard",
+      "domain": "Kubernetes Cluster Component Security"
+    },
+    {
+      "id": "kcsa-014",
+      "question": "A team wants its container images to minimize the attack surface available to an attacker who achieves code execution inside the container. Which image-construction practice most directly supports this goal?",
+      "options": [
+        "Base every image on a full general-purpose distribution and install a shell, package manager, and debugging tools so responders can investigate, accepting the larger footprint as a monitoring tradeoff",
+        "Build minimal or distroless images that contain only the application and its runtime dependencies, omitting shells and package managers so a compromised process has far fewer tools to abuse",
+        "Always pull images by the mutable `latest` tag so the runtime fetches the newest build on every restart, ensuring the running container can never lag behind upstream security fixes",
+        "Run every container as UID 0 inside the image so file permissions never block the application, then rely on the node's seccomp default profile alone to contain any post-exploitation activity"
+      ],
+      "correct": 1,
+      "explanation": "Minimal or distroless images ship only the app and its runtime libraries, removing shells, package managers, and utilities — so an attacker who lands code execution has very few tools to escalate or pivot. Bundling a shell and full toolchain enlarges the attack surface. The mutable `latest` tag undermines reproducibility and supply-chain integrity; pin by digest instead. Running as root (UID 0) increases risk and is not offset by the seccomp default profile, which is not a substitute for a non-root, minimal image.",
+      "tags": [
+        "supply-chain",
+        "image-hardening",
+        "distroless",
+        "platform-security",
+        "kcsa"
+      ],
+      "difficulty": "medium",
+      "domain": "Platform Security"
+    },
+    {
+      "id": "kcsa-015",
+      "question": "While threat-modeling the cluster, the team classifies the danger that a low-privileged workload steals a more privileged ServiceAccount token and uses it to act against the API server. Which threat category from the STRIDE model does this scenario best illustrate?",
+      "options": [
+        "Repudiation, because the attacker performs actions that cannot later be attributed to any identity, defeating the cluster's audit logging rather than gaining any additional authority on the API",
+        "Denial of Service, because consuming another workload's token exhausts the API server's authentication capacity and prevents legitimate ServiceAccounts from completing their own requests",
+        "Elevation of Privilege, because the attacker acquires and reuses a more privileged credential to perform actions beyond the rights of the workload they originally compromised",
+        "Tampering, because the act of reading another Pod's token modifies the token's stored value in etcd and corrupts the cluster's record of which ServiceAccount the credential belongs to"
+      ],
+      "correct": 2,
+      "explanation": "Stealing and reusing a more privileged token to act beyond one's original rights is the definition of Elevation of Privilege in STRIDE. Repudiation concerns denying actions / defeating attribution, not gaining authority. Denial of Service concerns degrading availability, which token theft does not inherently cause. Tampering concerns unauthorized modification of data; reading a token does not alter its stored value in etcd.",
+      "tags": [
+        "stride",
+        "threat-model",
+        "privilege-escalation",
+        "kcsa"
+      ],
+      "difficulty": "medium",
+      "domain": "Kubernetes Threat Model"
+    },
+    {
+      "id": "kcsa-016",
+      "question": "A regulated organization must demonstrate that its workloads handle personal data in line with a recognized framework, and it wants Kubernetes-native, continuous evidence that policies are enforced rather than a one-time manual review. Which approach best fits this compliance objective?",
+      "options": [
+        "Run a manual penetration test once per year and archive the resulting PDF report, treating the absence of findings as continuous proof that the cluster's data-handling controls remain compliant over time",
+        "Adopt policy-as-code with an admission policy engine (such as Kyverno or OPA Gatekeeper) plus periodic configuration scanning, so required controls are enforced at admission and continuously audited against the framework",
+        "Set the namespace label `compliance: true` on every namespace holding personal data, which signals to the API server that those namespaces are exempt from further policy enforcement obligations",
+        "Disable audit logging to reduce the volume of personal data the cluster retains, on the basis that holding fewer records is the most direct way to satisfy any data-protection framework's requirements"
+      ],
+      "correct": 1,
+      "explanation": "Continuous, Kubernetes-native compliance is achieved with policy-as-code: an admission engine like Kyverno or OPA Gatekeeper enforces required controls at admission, and periodic configuration scanning continuously audits posture against the framework. An annual pen-test PDF is point-in-time evidence, not continuous enforcement. A `compliance: true` label has no built-in meaning and grants no exemption. Disabling audit logging removes the evidence trail most frameworks require and weakens, rather than strengthens, compliance.",
+      "tags": [
+        "compliance",
+        "policy-as-code",
+        "kyverno",
+        "security-frameworks",
+        "kcsa"
+      ],
+      "difficulty": "medium",
       "domain": "Compliance and Security Frameworks"
     }
   ]

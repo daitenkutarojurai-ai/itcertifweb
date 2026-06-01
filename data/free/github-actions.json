@@ -4,10 +4,10 @@
     "name": "GitHub Actions Certification",
     "vendor": "GitHub",
     "version": "1.1.0",
-    "question_count": 10,
-    "last_updated": "2026-05-29",
-    "notes": " [bulk-tag pass: added `github-actions` tag to 10 questions] | 2026-05-23 keyword-balance pass | 2026-05-29 hardening pass: removed self-refuting distractors that leaked the answer, rebalanced correct-answer positions (was option B in 8 of 10 questions), equalized option lengths, and ensured each explanation refutes every distractor",
-    "updated": "2026-05-29"
+    "question_count": 16,
+    "last_updated": "2026-06-01",
+    "notes": " [bulk-tag pass: added `github-actions` tag to 10 questions] | 2026-05-23 keyword-balance pass | 2026-05-29 hardening pass: removed self-refuting distractors that leaked the answer, rebalanced correct-answer positions (was option B in 8 of 10 questions), equalized option lengths, and ensured each explanation refutes every distractor | 2026-06-01 +6 questions to unlock learning path",
+    "updated": "2026-06-01"
   },
   "questions": [
     {
@@ -215,6 +215,132 @@
         "environments",
         "deployment-protection",
         "required-reviewers",
+        "manage-actions",
+        "github-actions"
+      ],
+      "difficulty": "medium",
+      "domain": "Manage GitHub Actions for the Enterprise"
+    },
+    {
+      "id": "github-actions-011",
+      "question": "A workflow declares a job with `strategy.matrix.node-version: [16, 18, 20]`. A teammate asks how many times the job runs and how the values are accessed. Which statement is correct?",
+      "options": [
+        "The job runs three times — once per `node-version` value — and each run reads its value via `${{ matrix.node-version }}`",
+        "The job runs once and iterates the three versions internally; the values are read from `${{ strategy.node-version }}` inside a loop step",
+        "The job runs three times, but the values are exposed only as the environment variable `$MATRIX_NODE_VERSION`, not through the `matrix` context",
+        "The job runs once for the first value and the remaining values are queued as separate workflow runs triggered by a `matrix` event"
+      ],
+      "correct": 0,
+      "explanation": "A matrix with a single dimension of three values expands into three parallel job runs, one per value, each reading the current value through the `matrix` context — `${{ matrix.node-version }}`. The job does not run once and loop internally; the matrix fans out into separate jobs. There is no `strategy.<key>` value context for reading matrix entries, and matrix values are not surfaced as an auto-named `$MATRIX_*` environment variable. The expansion produces parallel jobs in one run, not separate workflow runs from a fictional `matrix` event.",
+      "tags": [
+        "matrix",
+        "strategy",
+        "jobs",
+        "workflow-authoring",
+        "github-actions"
+      ],
+      "difficulty": "medium",
+      "domain": "Author and Maintain Workflows"
+    },
+    {
+      "id": "github-actions-012",
+      "question": "A build job downloads the same npm dependencies on every run, slowing the pipeline. The team wants to persist `~/.npm` between runs keyed on the lockfile so unchanged dependencies are restored. Which approach is the intended GitHub Actions mechanism?",
+      "options": [
+        "Add `persistent-storage: true` to the job so the runner keeps its filesystem between runs and reuses the previously installed dependencies automatically",
+        "Use `actions/cache` with a `key` derived from `hashFiles('**/package-lock.json')` and a `path` of `~/.npm` to save and restore the directory",
+        "Upload `~/.npm` with `actions/upload-artifact` at the end of the run and download it at the start of the next run to rehydrate the dependencies",
+        "Reference the dependencies through job `outputs:` so a subsequent run can read the cached package set from the previous run's output values"
+      ],
+      "correct": 1,
+      "explanation": "`actions/cache` is purpose-built for this: it restores a `path` (here `~/.npm`) when a content-based `key` — typically `hashFiles('**/package-lock.json')` — matches, and saves it after the job if there was no exact hit, so unchanged lockfiles reuse the cache. Runners are ephemeral and have no `persistent-storage:` property. Artifacts are designed to share files within a single workflow run, not to persist a cache across runs (and they expire / cost storage). Job `outputs:` carry scalar strings within one run, not directories across runs.",
+      "tags": [
+        "caching",
+        "actions-cache",
+        "performance",
+        "workflow-authoring",
+        "github-actions"
+      ],
+      "difficulty": "medium",
+      "domain": "Author and Maintain Workflows"
+    },
+    {
+      "id": "github-actions-013",
+      "question": "A repository's default `GITHUB_TOKEN` permissions were reduced to read-only org-wide. A workflow job must push a commit tag back to the repository. Which change grants exactly the access needed, scoped as narrowly as possible?",
+      "options": [
+        "Replace `GITHUB_TOKEN` everywhere with a long-lived personal access token stored as a secret, since the automatic token can never be granted write access once the org default is read-only",
+        "Enable the repository setting 'Allow GitHub Actions to create and approve pull requests', which also raises the token's contents scope to write for tag pushes",
+        "Set `permissions: write-all` at the workflow level so the token can perform any repository operation the job might need now or later",
+        "Add a `permissions:` block granting `contents: write` at the job (or workflow) level, which overrides the read-only default for that scope only"
+      ],
+      "correct": 3,
+      "explanation": "The `permissions:` key in a workflow or job lets you raise or lower individual scopes of the automatic `GITHUB_TOKEN`; granting `contents: write` is exactly what is required to push a tag and overrides the read-only default for that one scope. A personal access token works but is broader, long-lived, and unnecessary — the automatic token can be elevated per-workflow. `permissions: write-all` grants every scope, violating least privilege. The 'create and approve pull requests' setting governs PR automation, not the token's `contents` write scope for pushing tags.",
+      "tags": [
+        "permissions",
+        "github-token",
+        "security",
+        "manage-actions",
+        "github-actions"
+      ],
+      "difficulty": "hard",
+      "domain": "Manage GitHub Actions for the Enterprise"
+    },
+    {
+      "id": "github-actions-014",
+      "question": "A workflow has a `deploy` job that must run a cleanup step even when an earlier step in the same job fails, and a final notification job that should run whether upstream jobs succeed or fail. Which expressions implement these two requirements?",
+      "options": [
+        "Add `if: always()` to the cleanup step, and add `if: always()` to the notification job with `needs:` listing the upstream jobs",
+        "Add `continue-on-error: true` to the cleanup step, and set `strategy.fail-fast: false` on the notification job so it ignores upstream failure",
+        "Add `if: failure()` to the cleanup step, and add `if: success()` to the notification job so it still runs after any upstream result",
+        "Add `if: ${{ job.status }}` to the cleanup step, and set `needs.notify.result: always` on the notification job to force it to run"
+      ],
+      "correct": 0,
+      "explanation": "`if: always()` forces a step or job to run regardless of the prior status, so it is correct for both the cleanup step and the notification job (with `needs:` so the job waits for the upstream jobs first). `continue-on-error: true` only stops a failing step from failing the job and `fail-fast` controls matrix cancellation — neither guarantees the cleanup or notification runs after a failure. `if: failure()` would skip cleanup when earlier steps succeed, and `if: success()` would skip the notification after a failure — the opposite of the requirement. There is no `needs.<job>.result: always` setting; `needs.<job>.result` is a value you read, not a directive you set.",
+      "tags": [
+        "conditionals",
+        "expressions",
+        "always",
+        "workflow-authoring",
+        "github-actions"
+      ],
+      "difficulty": "medium",
+      "domain": "Author and Maintain Workflows"
+    },
+    {
+      "id": "github-actions-015",
+      "question": "A composite action defines a step that runs a shell command. The author wants this step to execute a Bash script and needs to know which keys are mandatory for that step in a composite action's `action.yml`. Which statement is correct?",
+      "options": [
+        "A `run:` step in a composite action needs only the `run:` key; the runner defaults the shell to Bash on every platform without an explicit declaration",
+        "A composite action cannot contain `run:` steps at all — it may only chain other actions via `uses:` steps, so the script must be wrapped in a separate action",
+        "A `run:` step in a composite action must also specify `shell:` (for example `shell: bash`), because the shell is required for composite `run:` steps",
+        "A `run:` step in a composite action requires both `shell:` and `working-directory:`, and omitting either causes the action to fail validation at load time"
+      ],
+      "correct": 2,
+      "explanation": "In a composite action, every `run:` step must explicitly declare `shell:` (such as `shell: bash`) — unlike workflow steps, the shell is not defaulted and is a required key for composite `run:` steps. Composite actions absolutely can contain `run:` steps; that is one of their main purposes. `working-directory:` is optional, not required, so demanding both keys is wrong.",
+      "tags": [
+        "composite-action",
+        "action.yml",
+        "shell",
+        "author-actions",
+        "github-actions"
+      ],
+      "difficulty": "hard",
+      "domain": "Author and Maintain Actions"
+    },
+    {
+      "id": "github-actions-016",
+      "question": "An organization owner wants to restrict which actions repositories may use in workflows, allowing only actions authored by GitHub plus a short allowlist of trusted third-party actions. Where is this policy configured?",
+      "options": [
+        "By adding a `permissions:` block to every workflow file that names the allowed actions, since the action allowlist is declared per workflow rather than centrally",
+        "By committing an `allowed-actions.yml` file to each repository's `.github/` directory, which the runner reads to decide whether a referenced action may execute",
+        "By enabling 'Require approval for all outside collaborators' in branch protection, which also blocks any action not authored by the organization's own members",
+        "In the Actions policy settings at the organization (or enterprise) level, choosing 'Allow select actions' and listing GitHub-authored plus specified third-party actions"
+      ],
+      "correct": 3,
+      "explanation": "The organization (and enterprise) Settings → Actions → General policy lets an owner choose 'Allow select actions and reusable workflows' and enable categories such as actions created by GitHub plus an explicit allowlist of trusted third-party actions — the central control for this requirement. The `permissions:` block scopes the `GITHUB_TOKEN`, not which actions may run, and is not an allowlist. There is no `allowed-actions.yml` repository file consulted by the runner. Branch protection's outside-collaborator approval gates code review, not which actions a workflow may reference.",
+      "tags": [
+        "actions-policy",
+        "organization",
+        "security",
         "manage-actions",
         "github-actions"
       ],

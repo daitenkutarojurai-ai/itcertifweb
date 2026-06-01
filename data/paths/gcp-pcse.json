@@ -1,0 +1,408 @@
+{
+  "packId": "gcp-pcse",
+  "title": "Google Cloud Professional Cloud Security Engineer",
+  "brandName": "Google Cloud",
+  "brandColor": "#4285F4",
+  "chapters": [
+    {
+      "id": "ch1",
+      "title": "Part 1",
+      "tag": "part-1",
+      "nodes": [
+        {
+          "id": "c1-concept",
+          "type": "concept",
+          "title": "Identity and access management: Key Ideas",
+          "content": "IAM is the layer that decides who can do what. It's almost always the first thing to misconfigure and the most common security failure mode. Every cloud uses the same primitives — identities, policies, roles — under slightly different names.",
+          "flashcards": [
+            {
+              "front": "What's the difference between authentication and authorization?",
+              "back": "Authentication (AuthN) proves who you are — password, MFA, certificate. Authorization (AuthZ) decides what you're allowed to do once authenticated — policies, roles, ACLs. AuthN happens first; AuthZ is checked on every request."
+            },
+            {
+              "front": "What is a role (vs a user)?",
+              "back": "A user is a long-lived identity tied to a person. A role is a short-lived, assumable identity — services or users 'become' the role to get temporary credentials. Roles let you grant access without sharing long-term keys. Always prefer roles."
+            },
+            {
+              "front": "Identity-based vs resource-based policies.",
+              "back": "Identity-based policies attach to a user / role and say what THEY can do. Resource-based policies attach to a thing (S3 bucket, KMS key, SQS queue) and say who can access IT. Cross-account access usually needs both: target's resource policy says 'allow this account', source identity policy says 'allow this action on that resource'."
+            },
+            {
+              "front": "Why federation / SSO?",
+              "back": "Instead of creating cloud users for every employee, federate from your corporate identity provider (Okta, Azure AD, Google Workspace). Users sign in once with their work account; the IdP issues a SAML / OIDC token; the cloud trades it for temporary credentials. One source of truth, instant deprovisioning."
+            }
+          ],
+          "source": "concept-library",
+          "sourceTag": "iam"
+        },
+        {
+          "id": "c1-quiz1",
+          "type": "quiz",
+          "title": "Part 1 — Drill 1",
+          "questionIds": [
+            "pcse-001",
+            "pcse-002",
+            "pcse-004",
+            "pcse-006",
+            "pcse-003"
+          ]
+        },
+        {
+          "id": "c1-game",
+          "type": "minigame",
+          "gameType": "lightning",
+          "mode": "lightning-round",
+          "data": {
+            "secondsPerQuestion": 7,
+            "livesAllowed": 3,
+            "questions": [
+              {
+                "q": "A SaaS company runs analytics jobs on AWS that must query BigQuery datasets. The security team wants to eliminate long-lived service account keys currently stored in AWS Secrets Manager. Which approach reduces credential exposure most effectively?",
+                "choices": [
+                  "Rotate the service account key every 24 hours from a Lambda and write it to AWS Secrets Manager — frequent rotation shortens the window of exposure but long-lived key material still exists; Workload Identity Federation eliminates long-lived keys entirely",
+                  "Use Workload Identity Federation so AWS workloads exchange their IAM role for short-lived tokens.",
+                  "Embed the service account key in the container image and pin the image digest in deployments.",
+                  "Issue one service account per AWS workload and grant AWS admins the Token Creator role on them."
+                ],
+                "correctIndex": 1,
+                "explanation": "Workload Identity Federation lets external workloads (AWS, Azure, OIDC providers) impersonate Google service accounts using short-lived, automatically-rotated STS tokens, removing the need to store any long-lived key material outside Google Cloud. Key rotation still leaves a downloadable secret at rest; embedding keys in images is worse; granting Token Creator to humans only widens the blast radius."
+              },
+              {
+                "q": "A developer needs to list objects in a single Cloud Storage bucket but must not download, modify, or delete any of them. Which assignment best fits the principle of least privilege?",
+                "choices": [
+                  "Grant roles/storage.objectViewer at the project level so the developer can browse objects across all buckets — objectViewer at project scope grants access to all buckets and their objects in the project, not just the specific bucket's objects listed",
+                  "Grant roles/storage.legacyBucketReader at the bucket level for backward-compatible read access.",
+                  "Grant a custom role at the bucket scope containing only the storage.objects.list permission.",
+                  "Grant roles/viewer at the project level so the developer can inspect resource metadata widely."
+                ],
+                "correctIndex": 2,
+                "explanation": "A custom role scoped to the bucket with just storage.objects.list grants the exact ability requested and nothing more. roles/storage.objectViewer also grants storage.objects.get (object download). roles/storage.legacyBucketReader confers read on bucket contents including downloads. roles/viewer at project scope is far too broad and applies to every resource in the project."
+              },
+              {
+                "q": "A regulated bank stores compliance archives in Cloud Storage and must hold the encryption keys in its own on-premises HSM, with all key operations auditable and revocable by the bank's HSM administrators. Which option meets these requirements?",
+                "choices": [
+                  "Use Google-managed encryption keys with Access Transparency enabled — Google-managed keys are controlled by Google inside its infrastructure; the bank's external key management system cannot hold or control these keys",
+                  "Use Cloud KMS with software-protected keys stored in a dedicated multi-region key ring resource.",
+                  "Use Cloud KMS with HSM-protected keys created in the same region as the storage bucket itself.",
+                  "Use Cloud External Key Manager so the keys remain hosted in the bank's external HSM appliance."
+                ],
+                "correctIndex": 3,
+                "explanation": "Cloud External Key Manager (Cloud EKM) keeps the key material in an external partner HSM (or the customer's own HSM via EKM-VPC); Google never sees the raw key and the bank can revoke access at the source. Google-managed keys give no customer control; software-protected and HSM-protected KMS keys remain inside Google's boundary, which fails the on-premises custody requirement."
+              },
+              {
+                "q": "A retailer must scan customer support transcripts in Cloud Storage for credit card numbers and email addresses, then redact those fields before downstream analytics teams access the data. Which managed service is purpose-built for this workflow?",
+                "choices": [
+                  "Sensitive Data Protection (Cloud DLP) with infoType detectors and a de-identification template.",
+                  "Cloud Functions triggered by uploads that run a regex-based redaction script on each transcript.",
+                  "BigQuery column-level access policies applied after the raw transcripts land in a staging table.",
+                  "Confidential VM nodes that decrypt and re-encrypt transcripts using customer-supplied keys only."
+                ],
+                "correctIndex": 0,
+                "explanation": "Sensitive Data Protection (formerly Cloud DLP) provides managed infoType detectors for PCI, PII and similar categories and supports de-identification transformations such as redaction, masking, and tokenization driven by templates. Hand-rolled regex misses many variants and creates maintenance burden; column-level access controls hide values but do not redact them; Confidential VMs protect data in use, not classify or redact it."
+              },
+              {
+                "q": "A research team's BigQuery dataset holds genomic records subject to data exfiltration rules. The CISO wants to prevent authorized users from copying the dataset to projects outside an approved boundary even when their IAM permissions would otherwise allow it. Which control enforces this?",
+                "choices": [
+                  "Add a deny policy on roles/bigquery.dataOwner for any principal outside the approved projects — IAM deny policies control who can call the BigQuery API but do not prevent data from the projects from being copied or exfiltrated to external destinations via the API",
+                  "Define a VPC Service Controls perimeter around the projects with BigQuery as a restricted service.",
+                  "Apply an organization policy that constrains allowedExternalUsers to the research team's identity.",
+                  "Configure column-level access controls on the genomic columns and audit reads through Cloud Logging."
+                ],
+                "correctIndex": 1,
+                "explanation": "VPC Service Controls draw a context-aware perimeter around restricted services (BigQuery, GCS, etc.). Cross-perimeter API calls are blocked regardless of IAM grants, defeating the classic 'copy to my own project' exfiltration pattern. IAM deny policies cannot model a project boundary; allowedExternalUsers is not a real constraint; column-level controls do not stop a permitted user from exporting the full table."
+              },
+              {
+                "q": "A workload runs in a VPC subnet with no external IP and needs to call the storage.googleapis.com API. Traffic must not traverse the public internet, and the workload must keep using the existing hostname. Which configuration achieves this?",
+                "choices": [
+                  "Enable Private Google Access on the subnet so traffic to Google APIs flows over Google's network.",
+                  "Deploy a Cloud NAT gateway and restrict its egress allow list to Google API IP ranges for the subnet — Cloud NAT routes outbound traffic via NAT public IPs; it does not keep traffic on the private subnet path to Google APIs and still sends packets over the internet",
+                  "Build a Cloud VPN tunnel between the VPC and a Google-managed VPN endpoint for storage traffic.",
+                  "Use Cloud Interconnect with VLAN attachments advertising only Google API prefixes to the VPC."
+                ],
+                "correctIndex": 0,
+                "explanation": "Private Google Access lets VMs without external IPs reach Google APIs and services via the existing googleapis.com endpoints; traffic stays on Google's internal network. Cloud NAT still uses public IPs by definition. There is no customer-facing Google-managed VPN endpoint for Storage. Cloud Interconnect addresses on-prem-to-VPC connectivity, not in-VPC API egress."
+              }
+            ]
+          },
+          "title": "Part 1 — Lightning Round"
+        },
+        {
+          "id": "c1-chest",
+          "type": "chest",
+          "title": "Treasure Chest",
+          "rewardXp": 30,
+          "cosmeticKey": "chapter-1"
+        }
+      ]
+    },
+    {
+      "id": "ch2",
+      "title": "Part 2",
+      "tag": "part-2",
+      "nodes": [
+        {
+          "id": "c2-concept",
+          "type": "concept",
+          "title": "Google Kubernetes Engine: Key Ideas",
+          "content": "GKE is GCP's managed Kubernetes service — two flavors: Standard (you manage node pools) and Autopilot (Google manages nodes, you only pay for pod resources). Exam questions test node pools, networking, identity, and which mode to pick.",
+          "flashcards": [
+            {
+              "front": "GKE Standard vs Autopilot — which to pick?",
+              "back": "Standard: you create and size node pools, pay for nodes whether pods use them or not, full control. Autopilot: Google sizes nodes automatically, you pay only for pods' CPU/RAM/storage, hands-off but less flexibility (e.g., DaemonSets restricted). Pick Autopilot for new projects; Standard when you need GPUs, large nodes, or custom OS."
+            },
+            {
+              "front": "What's a node pool?",
+              "back": "A group of nodes with the same machine type, OS, and config inside a GKE cluster. You can have multiple pools (e.g., default + gpu-pool + high-memory-pool). Pods can be scheduled to specific pools via node selectors or taints. Upgrades happen per pool, so prod and batch can be on different K8s versions."
+            },
+            {
+              "front": "Workload Identity — why use it?",
+              "back": "Lets a Kubernetes Service Account impersonate a Google Cloud Service Account — pods get GCP IAM permissions without long-lived JSON keys. Replaces the dangerous pattern of mounting `gcp-sa-key.json` as a secret. Always-on by default in Autopilot; opt-in for Standard."
+            },
+            {
+              "front": "VPC-native vs routes-based clusters.",
+              "back": "VPC-native: pods get IPs from a secondary range of your VPC — direct routing, no overlay overhead, supports private GKE. Routes-based: legacy, uses GCP routes table (limited to 200 routes per VPC). All new clusters should be VPC-native; routes-based is for legacy compatibility only."
+            }
+          ],
+          "source": "concept-library",
+          "sourceTag": "gke"
+        },
+        {
+          "id": "c2-quiz1",
+          "type": "quiz",
+          "title": "Part 2 — Drill 1",
+          "questionIds": [
+            "pcse-008",
+            "pcse-009",
+            "pcse-010",
+            "pcse-011",
+            "pcse-012"
+          ]
+        },
+        {
+          "id": "c2-game",
+          "type": "minigame",
+          "gameType": "lightning",
+          "mode": "lightning-round",
+          "data": {
+            "secondsPerQuestion": 7,
+            "livesAllowed": 3,
+            "questions": [
+              {
+                "q": "A GKE cluster runs payment workloads. The platform team must guarantee that only images signed by the production CI pipeline can be deployed, and this guarantee must hold even if a developer's IAM permissions are misconfigured. Which feature provides it?",
+                "choices": [
+                  "Enable Container Analysis vulnerability scanning and block any image with critical findings here.",
+                  "Configure Workload Identity so only the CI service account is allowed to push to Artifact Registry.",
+                  "Enable Binary Authorization with an attestor policy that requires signatures from the CI's key.",
+                  "Set up an admission webhook that blocks Pods whose image digests differ from a manifest list."
+                ],
+                "correctIndex": 2,
+                "explanation": "Binary Authorization is a deploy-time policy enforced by GKE: a Pod cannot start unless its image has the attestations the policy requires (e.g., a signature from the CI pipeline's KMS key). Vulnerability scanning rates risk but does not gate deploys by default. Restricting push permissions does not stop someone with deploy rights from pulling an unsigned image. A custom webhook is brittle and bypassable if disabled or misconfigured."
+              },
+              {
+                "q": "An internal HR app on Compute Engine should be reachable by employees from any network without a VPN, while still enforcing strong identity-based access checks. Which solution meets both requirements with the least operational overhead?",
+                "choices": [
+                  "Front the app with Identity-Aware Proxy attached to a global external HTTPS load balancer.",
+                  "Restrict the firewall to corporate office IP ranges and have employees connect via VPN — IP-based firewall rules do not verify identity or enforce identity-aware access policies; they allow any device on the corporate network to reach the internal application",
+                  "Deploy Cloud Armor with a geo-IP policy that allows traffic only from countries where staff live.",
+                  "Place the VM in a private VPC and expose it through a Bastion host that enforces SSH key auth."
+                ],
+                "correctIndex": 0,
+                "explanation": "Identity-Aware Proxy is the BeyondCorp building block for context-aware access to HTTPS apps: users authenticate with Google identity, IAP checks IAM grants, and the backend never sees unauthenticated traffic. It removes the VPN entirely. IP-based restrictions are weak identity signals; geo policies do not authenticate users; a Bastion gives SSH, not HTTP app access."
+              },
+              {
+                "q": "A central security team must continuously inventory misconfigurations such as public Cloud Storage buckets, unrestricted firewall rules, and over-privileged service accounts across the entire organization. Which service provides this aggregated posture view?",
+                "choices": [
+                  "Cloud Asset Inventory exports paired with custom BigQuery scheduled queries that alert when organization-level misconfigurations appear — Cloud Asset Inventory can detect configuration issues but requires custom query authoring and does not provide continuous security health analytics across the organization",
+                  "Cloud Logging sinks aggregating Cloud Audit Logs into a central project for SIEM forwarding tasks.",
+                  "Security Command Center with Security Health Analytics enabled at the organization-node level.",
+                  "Recommender insights gathered through the gcloud recommender command-line interface daily here."
+                ],
+                "correctIndex": 2,
+                "explanation": "Security Command Center is GCP's posture and threat-management hub. Its Security Health Analytics module continuously detects high-impact misconfigurations (public buckets, open firewalls, weak IAM bindings) across every project in the organization. Asset Inventory exposes raw state but leaves detection to you; Cloud Logging is reactive on events, not posture; Recommender focuses on optimization hints, not security findings."
+              },
+              {
+                "q": "A compliance officer requires that no Compute Engine VM in any project under the organization can be created with an external IP address. The control must apply to every existing and future project without per-project firewall edits. Which mechanism enforces this?",
+                "choices": [
+                  "Apply the constraints/compute.vmExternalIpAccess organization policy at the org node with deny-all.",
+                  "Edit the default VPC in each project to remove the auto-mode subnets that assign external IPs — removing auto-mode subnets affects new resources but does not prevent administrators in each project from creating new VMs with external IPs through the API or console at the organization level",
+                  "Create a deny IAM policy on roles/compute.networkAdmin to block staff from attaching public IPs.",
+                  "Schedule a Cloud Function to scan all projects nightly and delete instances that hold public IPs."
+                ],
+                "correctIndex": 0,
+                "explanation": "Organization Policy with the constraints/compute.vmExternalIpAccess list constraint set to deny-all at the organization node blocks the creation of any VM with an external IP and is inherited by every child project, existing and future. Manually editing each project's VPC will not scale and does not prevent users from re-adding external IPs. Removing the role removes legitimate work too. A nightly cleanup job is reactive and leaves a window of exposure."
+              },
+              {
+                "q": "A security team must ensure that a sensitive Compute Engine workload's data is encrypted while it is being processed in memory, defending against a compromised hypervisor or a malicious cloud insider reading RAM. Which Google Cloud capability addresses this in-use protection requirement?",
+                "choices": [
+                  "Confidential VMs, which use hardware memory encryption to protect data while it is in use",
+                  "Customer-managed encryption keys (CMEK) on the instance's persistent disks via Cloud KMS",
+                  "Default Google-managed encryption of data at rest combined with TLS in transit",
+                  "VPC Service Controls perimeter around the project containing the instance"
+                ],
+                "correctIndex": 0,
+                "explanation": "Confidential VMs use AMD SEV (and similar) hardware-based memory encryption so that data in use (in RAM) stays encrypted and is inaccessible to the hypervisor or host operator — the specific 'data in use' protection asked for. CMEK and default at-rest encryption protect data at rest, and TLS protects data in transit, but neither encrypts memory during processing. VPC Service Controls limits API data movement across a perimeter; it does not encrypt RAM."
+              },
+              {
+                "q": "An organization wants to detect and alert on active threats such as cryptomining, malware on Compute Engine instances, and anomalous IAM behavior, going beyond static misconfiguration scanning. Which Security Command Center capability should they enable?",
+                "choices": [
+                  "Security Health Analytics, which scans for misconfigurations like public buckets and open firewall rules",
+                  "The built-in threat detection services (Event Threat Detection and related detectors) in Security Command Center Premium/Enterprise",
+                  "Access Transparency logs, which record when Google staff access customer content",
+                  "Cloud Asset Inventory feeds that stream resource configuration changes to Pub/Sub"
+                ],
+                "correctIndex": 1,
+                "explanation": "Security Command Center's threat detection services — Event Threat Detection, Container Threat Detection, and Virtual Machine Threat Detection — analyze logs and runtime signals to surface active threats such as cryptomining, malware, and anomalous IAM grants. Security Health Analytics only finds static misconfigurations, not live threats. Access Transparency records Google-staff access events, not customer-side attacks. Asset Inventory feeds report configuration state changes, not threat detections."
+              }
+            ]
+          },
+          "title": "Part 2 — Lightning Round"
+        },
+        {
+          "id": "c2-chest",
+          "type": "chest",
+          "title": "Treasure Chest",
+          "rewardXp": 30,
+          "cosmeticKey": "chapter-2"
+        }
+      ]
+    },
+    {
+      "id": "ch3",
+      "title": "Part 3",
+      "tag": "part-3",
+      "nodes": [
+        {
+          "id": "c3-concept",
+          "type": "concept",
+          "title": "Compliance frameworks: Key Ideas",
+          "content": "Compliance is the discipline of mapping your controls to an external framework (PCI, HIPAA, SOC 2, GDPR, ISO 27001) and proving it to an auditor. Most exam questions test which framework owns which scope, not the minutiae of each clause.",
+          "flashcards": [
+            {
+              "front": "PCI DSS — what's the scope?",
+              "back": "Payment Card Industry Data Security Standard. Applies to anyone who stores, processes, or transmits cardholder data (PAN, expiry, CVV). 12 high-level requirements: firewalls, no defaults, encrypted storage, encrypted transmission, antivirus, secure dev, restrict access, MFA, log, test, policy. Required by Visa/Mastercard, not by law."
+            },
+            {
+              "front": "HIPAA vs HITRUST — what's the difference?",
+              "back": "HIPAA is U.S. law for protected health information (PHI) — sets the legal requirements but is high-level on technical controls. HITRUST CSF is a certifiable framework that operationalizes HIPAA (plus ISO, NIST, PCI) into specific testable controls. Healthcare orgs are legally HIPAA-bound; many also pursue HITRUST cert to prove diligence."
+            },
+            {
+              "front": "SOC 2 — what's it certify?",
+              "back": "American Institute of CPAs report on a SaaS company's controls across five trust criteria: security, availability, processing integrity, confidentiality, privacy. Type I = controls designed at a point in time. Type II = controls operated effectively over 6-12 months. Enterprise customers ask for the Type II as proof you're not making it up."
+            },
+            {
+              "front": "GDPR — what does it require beyond US-style privacy laws?",
+              "back": "European General Data Protection Regulation. Requires explicit consent (not pre-ticked), right to access / deletion / portability, 72-hour breach notification, data protection officer (for large processors), data minimization, and Privacy Impact Assessments for high-risk processing. Fines: up to 4% of global revenue. Applies to anyone processing EU residents' data, regardless of company location."
+            }
+          ],
+          "source": "concept-library",
+          "sourceTag": "compliance"
+        },
+        {
+          "id": "c3-quiz1",
+          "type": "quiz",
+          "title": "Part 3 — Drill 1",
+          "questionIds": [
+            "pcse-015",
+            "pcse-016",
+            "pcse-013",
+            "pcse-014"
+          ]
+        },
+        {
+          "id": "c3-game",
+          "type": "minigame",
+          "gameType": "lightning",
+          "mode": "lightning-round",
+          "data": {
+            "secondsPerQuestion": 7,
+            "livesAllowed": 3,
+            "questions": [
+              {
+                "q": "A company grants engineers broad project access during incidents, but auditors require that high-privilege roles be held only for a limited, justified time window rather than standing permanently. Which Google Cloud feature provides time-bound, on-demand elevation of IAM access?",
+                "choices": [
+                  "Service account impersonation using the Service Account Token Creator role for the duration of the shift",
+                  "IAM Conditions limiting access by request.time so the binding only matches during business hours",
+                  "Privileged Access Manager (PAM), which grants temporary, just-in-time, time-bound elevated IAM roles with approval and audit",
+                  "Organization policy constraints that cap the number of Owners allowed per project"
+                ],
+                "correctIndex": 2,
+                "explanation": "Privileged Access Manager (PAM) provides just-in-time, time-bound privileged access: users request elevation, optionally route through approval, receive the grant for a bounded window, and every action is audited — exactly the on-demand temporary-elevation model auditors want. Service account impersonation shifts identity but is not a JIT request/approval/expiry workflow. IAM Conditions on request.time enforce a recurring schedule, not per-incident justified elevation. Org policy on Owner count restricts quantity, not duration of access."
+              },
+              {
+                "q": "Two backend microservices run as separate workloads in a GKE cluster. The security team wants only the 'orders' service to be allowed to send traffic to the 'payments' service on a specific port, with all other in-cluster traffic to 'payments' denied. Which mechanism enforces this east-west segmentation?",
+                "choices": [
+                  "VPC firewall rules targeting the node pool's network tags for the payments pods",
+                  "Kubernetes Network Policies that allow ingress to 'payments' only from the 'orders' workload on the required port",
+                  "Hierarchical firewall policies applied at the GKE cluster's folder in the resource hierarchy",
+                  "Cloud Armor security policies attached to the cluster's internal load balancer backend service"
+                ],
+                "correctIndex": 1,
+                "explanation": "Kubernetes Network Policies (enforced in GKE via the network policy/dataplane feature) control pod-to-pod east-west traffic by namespace/label selector and port — the right tool to allow only 'orders' to reach 'payments' and deny the rest inside the cluster. VPC firewall rules and hierarchical firewall policies operate on node/VM-level networking and cannot reliably distinguish pod-to-pod flows within a node. Cloud Armor protects HTTP(S) load-balanced ingress at the edge, not intra-cluster pod traffic."
+              },
+              {
+                "q": "An auditor needs an immutable record of every administrative change to IAM policies and resource configurations across all projects, and asks which logs capture these events and whether they can be disabled by project users. What is the correct statement?",
+                "choices": [
+                  "Data Access audit logs capture admin configuration changes and are enabled by default for all services",
+                  "VPC Flow Logs record IAM policy changes and are retained indefinitely unless a user turns them off",
+                  "Access Transparency logs record all customer administrative actions and are configurable per project",
+                  "Admin Activity audit logs record administrative writes such as IAM policy changes, are always enabled, and cannot be disabled by users"
+                ],
+                "correctIndex": 3,
+                "explanation": "Cloud Audit Logs' Admin Activity logs record administrative API calls that modify configuration or metadata — including IAM policy changes — are always written, and cannot be disabled by users, satisfying the immutable-admin-trail requirement. Data Access logs track data reads/writes (and are mostly disabled by default), not the always-on admin trail. VPC Flow Logs capture network 5-tuple metadata, not IAM changes. Access Transparency logs record Google personnel access to content, not the customer's own admin actions."
+              },
+              {
+                "q": "A team stores application secrets (API tokens, database passwords) in Secret Manager. The CISO requires that the secret payloads be encrypted with keys the organization controls and can revoke, rather than default Google-managed keys, and that all secret access be logged. What configuration meets this?",
+                "choices": [
+                  "Store the secrets in a private Cloud Storage bucket with uniform bucket-level access and rely on default encryption",
+                  "Configure the Secret Manager secrets with a customer-managed encryption key (CMEK) from Cloud KMS and enable Data Access audit logs",
+                  "Base64-encode the secrets and commit them to a private Artifact Registry repository with IAM restrictions",
+                  "Use Secret Manager with default encryption and restrict access solely through VPC Service Controls"
+                ],
+                "correctIndex": 1,
+                "explanation": "Secret Manager supports CMEK, letting the organization encrypt secret payloads with a Cloud KMS key it controls and can disable/revoke, and enabling Data Access audit logs records each secret access — meeting both requirements. A Cloud Storage bucket with default encryption does not give customer-controlled keys for the secret material. Base64 is encoding, not encryption, and Artifact Registry is for artifacts, not secrets. Default-encryption Secret Manager with only VPC SC still uses Google-managed keys and does not satisfy the customer-controlled-key revocation requirement."
+              }
+            ]
+          },
+          "title": "Part 3 — Lightning Round"
+        },
+        {
+          "id": "c3-boss",
+          "type": "subboss",
+          "title": "Boss: Part 3",
+          "questionIds": [
+            "pcse-015",
+            "pcse-016",
+            "pcse-013",
+            "pcse-014"
+          ]
+        },
+        {
+          "id": "c3-chest",
+          "type": "chest",
+          "title": "Treasure Chest",
+          "rewardXp": 30,
+          "cosmeticKey": "chapter-3"
+        }
+      ]
+    }
+  ],
+  "finalBoss": {
+    "id": "final-boss",
+    "type": "finalboss",
+    "title": "Final Exam: Google Cloud Professional Cloud Security Engineer",
+    "questionCount": 15,
+    "timeMinutes": 23
+  },
+  "meta": {
+    "generatedAt": "2026-06-01T06:04:11.702Z",
+    "totalNodes": 14,
+    "totalQuestions": 16,
+    "nodeTypes": [
+      "concept",
+      "quiz",
+      "minigame",
+      "subboss",
+      "finalboss"
+    ]
+  }
+}
