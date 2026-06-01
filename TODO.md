@@ -519,13 +519,21 @@ competition-driven, community-driven** layer. Highest-priority builds:
   client-side). A v1 can be rules-based (no LLM) using stats +
   concept-library before adding a model.
 
-#### 7.6 — Interview preparation (NEW)
+#### 7.6 — Interview preparation (NEW) ✅ v1 SHIPPED 2026-06-01
 
-- Per-cert / per-role interview question banks, behavioural + STAR
-  prompts, mock-interview drills, and an answer self-review. Could
-  reuse the quiz runtime for technical Q&A and the squid coach for
-  feedback. Today only a single `prompt-dungeon/tech-interview-prep/`
-  scenario exists — this is a real surface.
+- **Shipped:** `/interview/` — an interactive STAR-method behavioural
+  trainer plus a technical-practice hub. `data/interview/behavioral.json`
+  holds 18 behavioural questions in 6 themes (about-you, teamwork, challenge,
+  leadership, adaptability, communication), each with a STAR framing hint +
+  a "what interviewers look for" checklist. The page renders category
+  filters + a per-question STAR worksheet (Situation/Task/Action/Result
+  textareas) that autosaves drafts to `cq-interview-v1`, a progress counter,
+  a 🎲 random-question drill, and copy/clear per answer. The technical
+  section links the 10 existing `careers/<cert>-interview-questions` pages.
+  HowTo JSON-LD for the STAR steps. Drawer + sitemap + cache bump v113→v114.
+- **Deferred (v2):** LLM answer feedback via the squid coach (needs the
+  Pages Function from 7.5 v2); cloud-synced drafts; per-role question sets;
+  a timed mock-interview mode; more technical interview pages as packs grow.
 
 #### 7.7 — Job matching (NEW)
 
