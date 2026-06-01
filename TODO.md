@@ -517,15 +517,23 @@ competition-driven, community-driven** layer. Highest-priority builds:
   `/career-path/`. Data source TBD (job feed / partner API / curated)
   — first ticket scopes the feed.
 
-#### 7.8 — Skills portfolio + public profile (NEW)
+#### 7.8 — Skills portfolio + public profile (NEW) ✅ v1 SHIPPED 2026-06-01
 
-- A verifiable, **publicly shareable** profile URL (today's
-  `/profile.html` is private/local; the share PNG is a snapshot).
-  Shows certs in progress/earned, laurels, level, streak, guild,
-  rank, and a skills list documented from completed packs/nodes.
-- Steps: public-profile route reading Supabase by username/handle
-  (privacy opt-in, like the leaderboard toggle) → skills derived
-  from path completion + concept tags → share/embed.
+- **Shipped:** `/u/?u=<username>` — a publicly shareable skills profile.
+  Reads Supabase via the new `get_public_profile(handle)` RPC
+  (`docs/migrations/0005`, SECURITY DEFINER, anon-executable, gated on the
+  SAME `profiles.leaderboard_opt_in` toggle as the leaderboard). Shows
+  display name, level + stage emoji, XP, certs survived (laurels mapped to
+  pack names via `/data/index.json`), lessons cleared, and member-since.
+  Non-PII only — no email/user_id. Copy-link + "build your own" CTA.
+  `/profile.html` shows a "🔗 Your public profile" share row when opted in
+  (links `/u/?u=<username>`). Page is `noindex` (per-user dynamic) but in
+  the sitemap per the all-dirs convention.
+- **Deferred (v2):** a separate `public_profile_opt_in` (today reuses the
+  leaderboard toggle); skills derived from concept tags (today shows
+  laurels + node count); per-user OG image (needs server rendering);
+  guild/rank/streak (streak isn't a cloud column yet). Ties to 7.7 job
+  matching once a skills vector exists.
 
 #### 7.9 — Study groups + accountability (NEW)
 

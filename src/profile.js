@@ -434,7 +434,7 @@
     try {
       var r = await window.cqAuth._client
         .from('profiles')
-        .select('leaderboard_opt_in, display_name')
+        .select('leaderboard_opt_in, display_name, username')
         .eq('user_id', uid)
         .maybeSingle();
       if (r.error) {
@@ -452,6 +452,19 @@
       cb.checked = optIn;
       stateEl.textContent = optIn ? 'On' : 'Off';
       if (nameRow) nameRow.hidden = !optIn;
+      // Public-profile share link (Phase 7.8) — visible only when opted in,
+      // gated by the same toggle the /u/ page and get_public_profile RPC use.
+      var pubRow = $('profile-public-row');
+      var pubLink = $('profile-public-link');
+      var handle = r.data && r.data.username;
+      if (pubRow && pubLink) {
+        if (optIn && handle) {
+          pubLink.href = '/u/?u=' + encodeURIComponent(handle);
+          pubRow.hidden = false;
+        } else {
+          pubRow.hidden = true;
+        }
+      }
       if (optIn) loadLeaderboardRank();
     } catch (e) {
       if (window.cqDbg) window.cqDbg('[cq-profile] leaderboard load failed:', e.message);
@@ -521,6 +534,8 @@
     }
     stateEl.textContent = next ? 'On' : 'Off';
     if (nameRow) nameRow.hidden = !next;
+    // Refresh the public-profile share row (and rank) from the server.
+    loadLeaderboardOptIn();
   }
 
   async function editLeaderboardName() {
