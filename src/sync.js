@@ -368,13 +368,21 @@
     });
     writeKey('cq-laurels-v1', laurels);
 
-    // 4) cosmetics — single row
+    // 4) cosmetics — single row. unlocked hats are PERMANENT, so union the
+    //    cloud set with whatever this device already unlocked rather than
+    //    overwriting — otherwise a hat earned on the native app (or on the web
+    //    before this pull) would vanish when the other platform last wrote the
+    //    row. Mirrors the app's union merge (lib/sync/merge.ts). The next
+    //    pushCosmetics then writes the union back, healing the cloud row too.
     var cos = await c.from('user_cosmetics').select('unlocked,wearing').eq('user_id', uid).maybeSingle();
     if (stale()) return;
     if (cos.data) {
+      var localCos = readKey('cq-cosmetics-v1', { unlocked: [], wearing: null });
+      var cloudUnlocked = Array.isArray(cos.data.unlocked) ? cos.data.unlocked : [];
+      var localUnlocked = Array.isArray(localCos.unlocked) ? localCos.unlocked : [];
       writeKey('cq-cosmetics-v1', {
-        unlocked: Array.isArray(cos.data.unlocked) ? cos.data.unlocked : [],
-        wearing: cos.data.wearing || null,
+        unlocked: Array.from(new Set(localUnlocked.concat(cloudUnlocked))),
+        wearing: cos.data.wearing || localCos.wearing || null,
       });
     }
 
@@ -479,6 +487,10 @@
       // Returning user → pull cloud over local.
       dbg('[cq-sync] hydrating from cloud');
       await pullAll();
+      // pullAll unioned this device's unlocked cosmetics with the cloud's;
+      // push the union back so the cloud row converges (heals a row the other
+      // platform may have written with only its own unlocks).
+      await pushCosmetics();
     }
     // Establish the weekly-XP baseline for this session so subsequent
     // cq:stats-changed deltas accumulate into the current week.
