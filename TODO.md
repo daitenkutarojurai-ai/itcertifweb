@@ -1283,6 +1283,10 @@ competition-driven, community-driven** layer. Highest-priority builds:
         "Theranos deep dive standalone" ✅, "Juicero $400 fridge" ✅,
         "Pets.com 2000 IPO" ✅, "Stadia Google killed it again" ✅
         (2026-05-17: Theranos standalone post-mortem shipped — 5/5 datasets done).
+      - **+FTX post-mortem ✅ DONE 2026-06-01** —
+        `ftx-effondrement-crypto-2022.json`, 6 mistakes sourced on DOJ
+        SDNY + SEC + CFTC + CoinDesk + Kroll Restructuring registry.
+        FailBase cluster 9 → 10 entries.
       - **Affiliate slots:** book affiliates for "The Cult of We"
         (WeWork), "Bad Blood" (Theranos), "Operation Elop" (Nokia),
         etc. — natural Amazon affiliate fit per page.
@@ -1294,6 +1298,39 @@ competition-driven, community-driven** layer. Highest-priority builds:
         podcasts; consider TTS export.
 
 ---
+
+## 📦 Content expansion R10 (2026-06-01)
+
+Scheduled-agent run diversifying away from the comparator cluster (16/15
+already met) into FailBase — adding a high-value, abundantly-sourced
+business post-mortem the cluster was missing:
+
+- **+1 FailBase post-mortem** (cluster 9 → 10):
+  - `ftx-effondrement-crypto-2022` — l'effondrement à 32 G$ de FTX et
+    Alameda Research en 10 jours (novembre 2022), condamnation SBF à
+    25 ans + 11,02 G$ de confiscation (mars 2024). 6 erreurs rangées
+    par impact : commingling fonds clients FTX/Alameda (la fraude
+    centrale), collatéral circulaire FTT, zéro contrôle interne (cité
+    de John J. Ray III "never in my career…"), prêts personnels
+    massifs sur fonds clients (2,2 G$ à SBF), marketing Super
+    Bowl/Tom Brady/F1 avant fondamentaux audités, influence politique
+    via dons (40+ M$ au cycle 2022). Timeline 13 événements de
+    Novembre 2017 (création Alameda) au plan de réorganisation
+    octobre 2024.
+  - **Sources publiques uniquement** : DOJ SDNY press releases (verdict
+    2 nov 2023 + sentencing 28 mars 2024), SEC complaint 13 déc 2022,
+    CFTC charges 13 déc 2022, CoinDesk Alameda balance-sheet leak (Ian
+    Allison, 2 nov 2022), Kroll Restructuring (registre Chapter 11 +
+    déclarations John J. Ray III), DOJ acte d'accusation initial. Pas
+    de gossip Twitter ni de podcast non-vérifié.
+  - `metaTitle` 58 chars, `metaDescription` 155 chars, Article JSON-LD,
+    canonical, OG tags, cache-busted CSS (?v=106) — toutes les
+    contraintes du brief respectées.
+- `npm run gen-failbase` regenerated 10 pages + the `/failbase/` index
+  (only the new page + index changed — generator idempotent).
+  sitemap.xml +1 entry (priority 0.8, monthly changefreq).
+- 199/199 tests still pass. No cache version bump (new HTML data only,
+  no JS/CSS changes).
 
 ## 📦 Content expansion R9 (2026-05-30)
 
