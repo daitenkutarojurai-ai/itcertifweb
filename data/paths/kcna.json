@@ -12,28 +12,28 @@
         {
           "id": "c1-concept",
           "type": "concept",
-          "title": "Storage concepts: Key Ideas",
-          "content": "Cloud storage comes in three flavors with very different cost/perf trade-offs: object (think S3), block (think EBS / managed disks), and file (think EFS / Azure Files / Filestore). Pick wrong and you either overpay or hit performance ceilings.",
+          "title": "Kubernetes orchestration basics: Key Ideas",
+          "content": "Kubernetes orchestrates containers by maintaining a desired declared state across a cluster of nodes, handling scheduling, scaling, and self-healing. KCNA expects you to know the control-plane and node components plus the core workload objects.",
           "flashcards": [
             {
-              "front": "Object vs block vs file storage — when do you use each?",
-              "back": "Object (S3, Blob, GCS) for unstructured data, backups, static sites, data lakes — flat namespace, HTTP API, infinite scale. Block (EBS, managed disks) for OS disks and databases — low latency, single attach. File (EFS, NFS) when multiple VMs need a shared POSIX filesystem."
+              "front": "Name the four core control-plane components and their roles.",
+              "back": "kube-apiserver (the cluster's front-end API), etcd (consistent key-value store holding cluster state), kube-scheduler (assigns Pods to nodes), and kube-controller-manager (runs control loops that drive actual state toward desired state)."
             },
             {
-              "front": "What is a storage class / tier?",
-              "back": "Same data, different SLA and price. Hot tier (frequent access, expensive read, cheap retrieval). Cold/archive tier (rare access, cheap to store, expensive to read, retrieval latency from minutes to hours). Lifecycle policies move data between tiers automatically."
+              "front": "What runs on every worker node?",
+              "back": "The kubelet (registers the node and runs/monitors Pods), kube-proxy (maintains network rules for Service traffic), and a container runtime (e.g. containerd) that pulls images and runs containers."
             },
             {
-              "front": "Why use server-side encryption?",
-              "back": "Data is encrypted at rest by the storage service using either provider-managed keys (default, no extra config) or your own keys via KMS. This protects against physical disk theft and meets compliance baselines without changing your app code."
+              "front": "How do Pods, Deployments, and Services relate?",
+              "back": "A Pod is the smallest deployable unit (one or more containers sharing network/storage). A Deployment manages a ReplicaSet to keep a desired number of Pod replicas and handle rolling updates. A Service gives those Pods a stable network endpoint and load-balances across them."
             },
             {
-              "front": "What's storage durability vs availability?",
-              "back": "Durability is the chance your data won't be lost (object stores claim ~11 9s — 99.999999999%). Availability is the chance you can reach it right now (typically 4 9s — 99.99%). Durability is multi-region replication; availability is how many concurrent failures the service tolerates."
+              "front": "What is the difference between resource requests and limits?",
+              "back": "Requests are the minimum CPU/memory the scheduler guarantees and uses to place a Pod on a node; limits are the hard ceiling a container may consume. Exceeding a memory limit gets the container OOM-killed; CPU is throttled."
             }
           ],
           "source": "concept-library",
-          "sourceTag": "storage"
+          "sourceTag": "container-orchestration"
         },
         {
           "id": "c1-quiz1",
@@ -143,27 +143,28 @@
         {
           "id": "c2-concept",
           "type": "concept",
-          "title": "Part 2: Key Ideas",
-          "content": "Quick primer on Part 2. Tap to flip cards covering the most-asked exam ideas in this domain.",
+          "title": "Cloud-native architecture: Key Ideas",
+          "content": "Cloud-native is an approach (championed by the CNCF) to building scalable, resilient apps as loosely-coupled, declaratively-managed workloads running in containers on platforms like Kubernetes. The KCNA exam tests the core pillars: autoscaling, serverless, observability, and GitOps over immutable, declarative infrastructure.",
           "flashcards": [
             {
-              "front": "A workload's CPU usage varies sharply between business hours and overnight, and the team wants the number of Pod replicas to grow and shrink automatically based on observed CPU utilization. Which Kubernetes object provides this behavior?",
-              "back": "The Horizontal Pod Autoscaler is the controller that scales a target's replica count based on observed metrics — exactly the load-driven, scale-out behavior the question describes. The Vertical Pod Autoscaler changes per-Pod CPU/memory requests; it makes each Pod bigger or smaller but does not add or remove replicas. The Cluster Autoscaler operates one layer below: it scales the number of nodes in response to unschedulable Pods, so without an HPA driving Pod count first it never reacts to load. A PodDisruptionBudget only bounds how many replicas can be voluntarily evicted at once during maintenance; it never creates or removes Pods on its own."
+              "front": "How do the HPA, VPA, and Cluster Autoscaler differ?",
+              "back": "The Horizontal Pod Autoscaler adds/removes Pod replicas based on metrics like CPU; the Vertical Pod Autoscaler adjusts a Pod's CPU/memory requests and limits; the Cluster Autoscaler adds/removes worker nodes when Pods can't be scheduled or nodes are underused."
             },
             {
-              "front": "A team wants to run an HTTP function that wakes on request, scales out as traffic increases, and scales to zero replicas when idle, all on top of Kubernetes. Which CNCF project category is purpose-built for this serverless pattern?",
-              "back": "Knative Serving is the canonical CNCF serverless-on-Kubernetes project: it adds request-driven autoscaling, scale-to-zero when idle, and revision-based traffic splitting on top of standard Kubernetes primitives. Service meshes handle L7 routing, mTLS, and observability but have no scale-to-zero or request-activation primitive of their own. Container runtimes and kubelet feature gates do not control replica counts — that decision lives in workload controllers and autoscalers further up the stack. The Vertical Pod Autoscaler only changes resource requests on running Pods; it never drops the replica count to zero, so it cannot deliver the on-demand wake-up pattern the question requires."
+              "front": "What does 'scale-to-zero' mean, and which CNCF project provides it?",
+              "back": "Scale-to-zero means a workload runs no replicas (and consumes no compute) when idle, then spins up on the next request. Knative Serving provides this serverless behavior on Kubernetes."
             },
             {
-              "front": "A platform engineer must collect metrics, logs, and traces from heterogeneous services using a single vendor-neutral instrumentation library and pipeline that can export to multiple backends. Which CNCF project is designed for this unified telemetry use case?",
-              "back": "OpenTelemetry (OTel) is the CNCF project that merged OpenTracing and OpenCensus to provide a single vendor-neutral standard for metrics, logs, and traces. It defines an API and SDK for instrumentation plus the OTel Collector for routing telemetry to many backends. Prometheus is a metrics-only project — it scrapes and stores time-series data and has no first-class API for logs or traces. Fluentd is a log routing tool, not a unified metrics/logs/traces SDK; it does not emit traces from application code. Jaeger is a tracing backend with tracing-only client libraries; it does not provide a unified API for logs or metrics either."
+              "front": "What are the three pillars of observability, and what open standard unifies them?",
+              "back": "Metrics, logs, and traces. OpenTelemetry is the CNCF standard that provides vendor-neutral APIs and SDKs to generate and export this telemetry data."
             },
             {
-              "front": "A team adopts GitOps for application delivery using a controller such as Argo CD or Flux. Which statement best characterizes how a GitOps controller operates against a Kubernetes cluster?",
-              "back": "GitOps controllers such as Argo CD and Flux run inside the cluster, watch a Git repository for the desired state, and continuously reconcile cluster state to match — the model is pull-based and convergent. The first option describes ad-hoc imperative deployments from developer workstations; a GitOps controller does not just tail those applies, and there is no automatic rollback on failed manual applies. The CI-driven `kubectl apply` model is CIOps (push-based from a pipeline), which is exactly what GitOps replaces — there is no GitOps controller mediating a CI push. And in GitOps the source of truth is Git itself, not an internal registry; etcd only holds the live cluster state being reconciled against the Git manifests."
+              "front": "What is GitOps, and which CNCF tools implement it?",
+              "back": "GitOps uses a Git repository as the single source of truth for declarative infrastructure, with an agent continuously reconciling the cluster to match it. Argo CD and Flux are the leading implementations."
             }
           ],
-          "source": "auto-derived"
+          "source": "concept-library",
+          "sourceTag": "cloud-native-architecture"
         },
         {
           "id": "c2-quiz1",
@@ -273,27 +274,28 @@
         {
           "id": "c3-concept",
           "type": "concept",
-          "title": "Part 3: Key Ideas",
-          "content": "Quick primer on Part 3. Tap to flip cards covering the most-asked exam ideas in this domain.",
+          "title": "Helm (Kubernetes packaging): Key Ideas",
+          "content": "Helm is the package manager for Kubernetes, bundling related manifests into a versioned, templated unit called a chart. KCNA and other Kubernetes exams test what a chart contains, how values customize it, and how releases are managed.",
           "flashcards": [
             {
-              "front": "On a node, which Kubernetes component is responsible for watching the API server for Pods assigned to that node, then starting their containers through the container runtime and reporting their status back?",
-              "back": "The kubelet is the per-node agent: it watches the API server for Pods bound to its node, drives the container runtime over the CRI to start containers, runs probes, and reports status. kube-scheduler is a single control-plane component that decides which node a Pod lands on; it does not run per node or start containers. kube-proxy programs Service networking rules and does not launch containers. The controller-manager runs control loops in the control plane, not on each worker node."
+              "front": "What is a Helm chart?",
+              "back": "A package of templated Kubernetes manifests plus metadata (Chart.yaml) and default configuration (values.yaml). Installing a chart deploys all its resources together as one unit, simplifying distribution of complex applications."
             },
             {
-              "front": "A team needs to set CPU and memory `requests` and `limits` correctly. Which statement accurately describes how the Kubernetes scheduler and kubelet treat these values?",
-              "back": "The scheduler uses a Pod's resource requests to find a node with enough allocatable capacity; the kubelet enforces limits at runtime, throttling CPU that exceeds the limit and OOM-killing a container that exceeds its memory limit. Requests are not just billing data — they drive scheduling. Limits are enforced, not advisory, and Kubernetes does not live-migrate Pods between nodes. The scheduler never terminates running containers for exceeding CPU usage; CPU is compressible and throttled, not fatal."
+              "front": "What is a Helm release?",
+              "back": "A specific installed instance of a chart in a cluster, tracked by name. You can install the same chart multiple times as different releases, and upgrade or roll back each release independently."
             },
             {
-              "front": "An organization wants to compare and select CNCF projects based on their maturity and the level of adoption the foundation recognizes. Which sequence correctly lists the CNCF project maturity levels from earliest to most mature?",
-              "back": "The CNCF hosts projects at three maturity levels: Sandbox (early-stage, experimental), Incubating (growing adoption and a healthy contributor base), and Graduated (mature, widely adopted, production-proven — e.g., Kubernetes, Prometheus). The other orderings invert these stages or invent tiers such as 'Experimental/Stable/Core' that the CNCF does not use."
+              "front": "How does values.yaml customize a chart?",
+              "back": "Charts use Go templating with placeholders that pull from values.yaml; users override defaults at install/upgrade time (--set or -f myvalues.yaml) so one chart serves many environments without editing the templates."
             },
             {
-              "front": "A developer wants to package a Kubernetes application as a versioned, parameterizable artifact that bundles all its manifests and lets operators override values at install time. Which CNCF tool is purpose-built for this packaging and templating use case?",
-              "back": "Helm is the Kubernetes package manager: a chart bundles templated manifests, carries a version, and exposes a `values.yaml` so operators override parameters at install time, with charts distributed via repositories. `kubectl apply -k` invokes Kustomize for overlay-based customization but is not a versioned package manager with chart repositories. etcdctl is the etcd datastore client, unrelated to app packaging. containerd is a container runtime and does not package or template Kubernetes manifests."
+              "front": "What do helm upgrade and helm rollback do?",
+              "back": "helm upgrade applies a new chart version or changed values to an existing release, creating a new revision. helm rollback reverts a release to a previous revision, making it easy to undo a bad deploy."
             }
           ],
-          "source": "auto-derived"
+          "source": "concept-library",
+          "sourceTag": "helm"
         },
         {
           "id": "c3-quiz1",
@@ -392,7 +394,7 @@
     "timeMinutes": 23
   },
   "meta": {
-    "generatedAt": "2026-06-01T06:05:40.667Z",
+    "generatedAt": "2026-06-01T06:22:00.954Z",
     "totalNodes": 14,
     "totalQuestions": 16,
     "nodeTypes": [
