@@ -411,10 +411,29 @@
         sync.textContent = ready ? '✓ Synced to cloud' : 'Syncing…';
       }
       loadLeaderboardOptIn();
+      loadGuild();
     } else {
       anon.hidden = false;
       signed.hidden = true;
       usernameRow.hidden = true;
+    }
+  }
+
+  /* ── Guild chip (Phase 7.3) — current guild + rank for the signed-in user */
+  async function loadGuild() {
+    var row = $('profile-guild-row');
+    var badge = $('profile-guild-badge');
+    var link = $('profile-guild-link');
+    if (!row || !badge || !window.cqAuth || !window.cqAuth._client) return;
+    try {
+      var r = await window.cqAuth._client.rpc('get_my_guild');
+      if (r.error || !r.data || !r.data.length) { row.hidden = true; return; }
+      var g = r.data[0];
+      badge.textContent = '🛡️ ' + g.tag + ' · ' + g.name + ' · #' + g.rank;
+      if (link) link.href = '/guilds/?g=' + encodeURIComponent(g.slug);
+      row.hidden = false;
+    } catch (e) {
+      if (window.cqDbg) window.cqDbg('[cq-profile] guild load failed:', e.message);
     }
   }
 

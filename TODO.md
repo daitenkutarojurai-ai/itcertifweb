@@ -455,13 +455,22 @@ competition-driven, community-driven** layer. Highest-priority builds:
   + path surfaces). Phase 7 treats those as its ranking foundation;
   do not re-spec here.
 
-#### 7.3 — Guilds (guildes)
+#### 7.3 — Guilds (guildes) ✅ v1 SHIPPED 2026-06-01
 
-- Opt-in teams a user joins (by cert track, region, or invite).
-  Guild-level aggregate XP / streak / accuracy; a guild leaderboard;
-  a guild page with members and a shared goal.
-- Steps: `guilds` + `guild_members` tables (RLS) → create/join/leave
-  flow → guild page → guild ranking → guild chip on profile.
+- **Shipped:** `/guilds/` — create / join / leave a guild and climb a guild
+  leaderboard ranked by pooled member XP. DB (migration `0006`, applied):
+  additive `guilds` + `guild_members` tables (one guild per user; RLS reads
+  public, writes only via SECURITY DEFINER RPCs `create_guild` / `join_guild`
+  / `leave_guild` that check auth.uid()) + read RPCs `get_guild_leaderboard`,
+  `get_my_guild` (with rank), `get_guild(slug)` (header + roster). Guild XP =
+  sum of members' `user_profile.xp` (the unified cross-platform XP, so guild
+  totals include both web and app activity). `/guilds/index.html` serves both
+  the index (your-guild panel + create/join + leaderboard) and `?g=<slug>`
+  detail (roster + join/leave). Profile shows a 🛡️ guild chip (tag · name ·
+  rank); the hamburger drawer links Guilds. Additive — no app code change.
+- **Deferred (v2):** owner transfer / kick / rename; guild description edit
+  UI; guild-vs-guild challenges (pairs with 7.4); per-guild shared goal +
+  weekly guild XP (via `user_weekly_xp`); invite-only / private guilds; cap.
 
 #### 7.4 — Challenges (défis)
 

@@ -74,6 +74,9 @@
         '<a href="/leaderboard/">' +
           '<span class="mobile-menu-emoji">🏆</span>Leaderboard' +
         '</a>' +
+        '<a href="/guilds/">' +
+          '<span class="mobile-menu-emoji">🛡️</span>Guilds' +
+        '</a>' +
         '<a href="/news/">' +
           '<span class="mobile-menu-emoji">💡</span>Pro tips' +
         '</a>' +
