@@ -1,4 +1,4 @@
-/* CertQuests core bundle — generated 2026-06-02T14:15:40.217Z
+/* CertQuests core bundle — generated 2026-06-02T15:04:30.960Z
  *
  * This file is concatenated by scripts/build-core.js. Do not edit by hand;
  * edit the source modules in src/*.js and re-run `npm run build-core`.
@@ -2112,6 +2112,9 @@ if (typeof module !== 'undefined' && module.exports) {
         '</a>' +
         '<a href="/cheatsheets/">' +
           '<span class="mobile-menu-emoji">📋</span>Cheatsheets' +
+        '</a>' +
+        '<a href="/exam-radar/">' +
+          '<span class="mobile-menu-emoji">📡</span>Exam Radar' +
         '</a>' +
         '<a href="/leaderboard/">' +
           '<span class="mobile-menu-emoji">🏆</span>Leaderboard' +

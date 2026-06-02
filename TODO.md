@@ -1725,7 +1725,28 @@ verified). Only 6.13 Exam Radar deferred (depends on accumulating
 opted-in users via 6.7 before the topic-frequency pipeline is
 meaningful).
 
-### 6.13 — Exam Radar (community-sourced topic frequency)
+### 6.13 — Exam Radar (community-sourced topic frequency) ✅ v1 SHIPPED 2026-06-02
+
+- **Shipped:** `/exam-radar/` — pick a cert → see which topics the community
+  reports as most heavily tested vs the practice bank. The topic taxonomy is
+  DERIVED client-side from each pack's top ~10 question `tags` (no per-cert
+  content authoring). DB (migration `0010_exam_reports`, applied): additive
+  `exam_reports` table (per-user/pack/topic votes, public-read RLS, writes via
+  SECURITY DEFINER `set_exam_report` capped at 5 topics) + `get_exam_radar`
+  (anon, per-topic counts + distinct reporters) + `get_my_exam_report`. The
+  radar is **threshold-gated** (≥5 reporters) so a near-empty dataset is never
+  shown as fact — below threshold it shows only the practice-bank baseline + an
+  honest "help build this" note. Prominent "early community signal" disclaimer.
+  Signed-in users get a report form (top-topic checkboxes, max 5, pre-filled
+  from their prior report). RPCs functionally verified (simulated auth, rolled
+  back). Drawer 📡 + sitemap. Dependency (logged-in user base from 6.4/6.7) is
+  now met. **Completes Phase 6.**
+- **Deferred (v2):** per-cert static `/exam-radar/<cert>` pages for SEO (today
+  one dynamic page + `?pack=` deep-link, to avoid thin/fiction pages while data
+  is sparse); active community polling (Discord/Reddit) to seed reports; an
+  aggregation cron / vendor-affiliate + lead-gen layer.
+
+### 6.13-orig — Exam Radar (original spec)
 
 URL: `/exam-radar/<cert>`
 - **Priority:** P2 (data-dependent)

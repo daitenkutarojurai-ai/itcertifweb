@@ -83,6 +83,9 @@
         '<a href="/cheatsheets/">' +
           '<span class="mobile-menu-emoji">📋</span>Cheatsheets' +
         '</a>' +
+        '<a href="/exam-radar/">' +
+          '<span class="mobile-menu-emoji">📡</span>Exam Radar' +
+        '</a>' +
         '<a href="/leaderboard/">' +
           '<span class="mobile-menu-emoji">🏆</span>Leaderboard' +
         '</a>' +
