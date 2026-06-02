@@ -1,0 +1,345 @@
+{
+  "_doc": "Phase 8.3 v1 — hands-on guided labs for /labs/ (src/labs.js). Each lab is a realistic incident/troubleshooting scenario the learner works through as a sequence of decision points (one correct option each, with feedback on every choice) ending in a takeaway. cert = pack id for the train/path deep-link; the runner surfaces labs matching the learner's weak/started packs first. Static, client-side, no LLM.",
+  "difficulties": ["intro", "intermediate", "advanced"],
+  "labs": [
+    {
+      "id": "s3-public-exposure",
+      "title": "An S3 bucket is leaking customer files",
+      "domain": "cloud",
+      "difficulty": "intermediate",
+      "cert": "aws-scs-c02",
+      "estMin": 6,
+      "scenario": "A security researcher emails: objects in your `prod-customer-uploads` S3 bucket are downloadable without auth. You confirm a public URL returns a file. Contain it without breaking the app that legitimately reads the bucket.",
+      "steps": [
+        {
+          "prompt": "What's your FIRST move?",
+          "options": [
+            { "text": "Enable S3 Block Public Access at the bucket level", "correct": true, "feedback": "Right — Block Public Access overrides public ACLs/policies immediately and is the fastest safe containment." },
+            { "text": "Delete the bucket and restore from backup", "correct": false, "feedback": "Destructive and slow — you'd break the app and risk data loss before understanding the cause." },
+            { "text": "Rotate your AWS account root credentials", "correct": false, "feedback": "The leak is a bucket-policy/ACL problem, not stolen credentials. This wastes time." }
+          ],
+          "hint": "You want the fastest action that stops public reads without touching the data."
+        },
+        {
+          "prompt": "Block Public Access is on. How did it become public in the first place?",
+          "options": [
+            { "text": "Inspect the bucket policy and object ACLs for a public grant", "correct": true, "feedback": "Correct — a `Principal: \"*\"` policy statement or `public-read` ACLs are the usual culprits." },
+            { "text": "Assume it was a zero-day in S3", "correct": false, "feedback": "S3 doesn't expose private data by default — exposure is almost always misconfiguration." },
+            { "text": "Check CloudFront only", "correct": false, "feedback": "CloudFront may sit in front, but the public read came from the bucket's own policy/ACL." }
+          ],
+          "hint": "Public S3 access comes from either a bucket policy or object ACLs."
+        },
+        {
+          "prompt": "The legit app reads via an EC2 role. How should it keep access now that public reads are blocked?",
+          "options": [
+            { "text": "Grant the app's IAM role `s3:GetObject` on the bucket via a scoped policy", "correct": true, "feedback": "Exactly — authorize the specific principal with least privilege instead of making the bucket public." },
+            { "text": "Re-enable public read just for that app", "correct": false, "feedback": "Public is public — you can't scope 'public' to one app. Use IAM." },
+            { "text": "Embed an access key in the app config", "correct": false, "feedback": "Long-lived keys in config are a credential-leak risk. Prefer the instance role." }
+          ],
+          "hint": "Authorize a known principal, not the whole internet."
+        },
+        {
+          "prompt": "Final step before you close the incident?",
+          "options": [
+            { "text": "Enable access logging / CloudTrail data events and review who downloaded what", "correct": true, "feedback": "Right — you must scope the breach: which objects were accessed, by whom, and notify per policy." },
+            { "text": "Nothing — it's fixed", "correct": false, "feedback": "Containment isn't closure. You owe an impact assessment and possibly disclosure." },
+            { "text": "Turn off CloudTrail to reduce noise", "correct": false, "feedback": "The opposite — you need the audit trail to assess impact." }
+          ],
+          "hint": "Containment ≠ done. You still need scope + disclosure."
+        }
+      ],
+      "takeaway": "S3 leaks are config, not magic: Block Public Access to contain, fix the policy/ACL, re-grant the real principal with least privilege, then assess impact from the access logs. Default-private + IAM beats 'make it public'."
+    },
+    {
+      "id": "app-cant-reach-rds",
+      "title": "The app can't connect to its database",
+      "domain": "cloud",
+      "difficulty": "intermediate",
+      "cert": "aws-saa-c03",
+      "estMin": 6,
+      "scenario": "After moving RDS into a private subnet, your EC2 app times out connecting to the database. No code changed. Find why and restore connectivity the right way.",
+      "steps": [
+        {
+          "prompt": "Where do you look first?",
+          "options": [
+            { "text": "The RDS security group's inbound rules", "correct": true, "feedback": "Right — a timeout (not 'auth failed') screams network/SG, and the SG is the most common block." },
+            { "text": "The database username and password", "correct": false, "feedback": "Bad credentials give an auth error, not a connection timeout." },
+            { "text": "The application's logging level", "correct": false, "feedback": "Logging verbosity won't fix a network path." }
+          ],
+          "hint": "A timeout is a network-reachability symptom, not an auth one."
+        },
+        {
+          "prompt": "The RDS SG allows 5432 only from your office IP. What's the fix?",
+          "options": [
+            { "text": "Allow 5432 from the EC2 app's security group", "correct": true, "feedback": "Correct — reference the app SG as the source so only those instances can reach the DB." },
+            { "text": "Allow 5432 from 0.0.0.0/0", "correct": false, "feedback": "That opens the DB to the whole internet — never do this for a database." },
+            { "text": "Move RDS back to a public subnet", "correct": false, "feedback": "Private is correct for a DB. The subnet isn't the problem; the SG rule is." }
+          ],
+          "hint": "Source a rule from the app's SG, not a wide CIDR."
+        },
+        {
+          "prompt": "Connectivity works. Same subnet, same AZ — what should you also verify for resilience?",
+          "options": [
+            { "text": "RDS Multi-AZ and that the app uses the RDS endpoint, not a raw IP", "correct": true, "feedback": "Right — the endpoint follows failover; a hard-coded IP breaks when the standby is promoted." },
+            { "text": "Pin the app to the current RDS IP for speed", "correct": false, "feedback": "IPs change on failover/maintenance. Always use the DNS endpoint." },
+            { "text": "Disable Multi-AZ to save cost", "correct": false, "feedback": "For prod, you want the standby. Don't trade resilience here." }
+          ],
+          "hint": "Connect via the endpoint so failover stays transparent."
+        }
+      ],
+      "takeaway": "DB connection timeouts are almost always security groups, not credentials. Authorize the app SG as the source, keep the DB private and Multi-AZ, and always connect through the RDS endpoint so failover is transparent."
+    },
+    {
+      "id": "crashloopbackoff",
+      "title": "A pod won't stay up: CrashLoopBackOff",
+      "domain": "devops",
+      "difficulty": "intermediate",
+      "cert": "cka",
+      "estMin": 7,
+      "scenario": "After a deploy, one pod cycles `CrashLoopBackOff`. The previous version was fine. Diagnose and fix it methodically.",
+      "steps": [
+        {
+          "prompt": "First command?",
+          "options": [
+            { "text": "kubectl logs <pod> --previous", "correct": true, "feedback": "Right — the crashed container's previous logs usually show the actual error (stack trace, missing env)." },
+            { "text": "kubectl delete pod <pod> and hope it schedules clean", "correct": false, "feedback": "It'll just crash again — you haven't found the cause." },
+            { "text": "Scale the deployment to 10 replicas", "correct": false, "feedback": "Ten crashing pods isn't progress." }
+          ],
+          "hint": "The crash already happened — read the previous container's logs."
+        },
+        {
+          "prompt": "Logs show: 'cannot find env DB_HOST'. Where is that set?",
+          "options": [
+            { "text": "Check the Deployment's env / ConfigMap / Secret references", "correct": true, "feedback": "Correct — a renamed or missing ConfigMap key is a classic post-deploy break." },
+            { "text": "Edit /etc/hosts inside the image", "correct": false, "feedback": "Config belongs in the manifest, not baked ad-hoc into a running container." },
+            { "text": "Add DB_HOST to your laptop's shell", "correct": false, "feedback": "Your shell has nothing to do with the pod's environment." }
+          ],
+          "hint": "Env comes from the Deployment spec — ConfigMap/Secret refs."
+        },
+        {
+          "prompt": "The ConfigMap key was renamed `db_host` but the Deployment still references `DB_HOST`. Best fix?",
+          "options": [
+            { "text": "Align the names and roll out — update the Deployment ref (or the ConfigMap key) and apply", "correct": true, "feedback": "Right — fix the mismatch in source, apply, and let a fresh rollout pick it up." },
+            { "text": "kubectl exec in and export the var by hand", "correct": false, "feedback": "It won't survive a restart and isn't declarative. The next pod crashes again." },
+            { "text": "Roll back and never touch ConfigMaps", "correct": false, "feedback": "Rollback is a fine stopgap, but you must fix the reference to move forward." }
+          ],
+          "hint": "Make the reference and the key match — declaratively."
+        },
+        {
+          "prompt": "Pod is Running. What guards against this class of failure next time?",
+          "options": [
+            { "text": "A readiness probe + CI check that required config keys exist", "correct": true, "feedback": "Right — probes stop bad pods taking traffic, and a config check catches the mismatch before deploy." },
+            { "text": "Disable liveness probes so it never restarts", "correct": false, "feedback": "That hides crashes; it doesn't prevent them." },
+            { "text": "Run everything as a single static pod", "correct": false, "feedback": "That removes the controller's self-healing — wrong direction." }
+          ],
+          "hint": "Catch it earlier (CI) and stop bad pods serving (probes)."
+        }
+      ],
+      "takeaway": "CrashLoopBackOff = the container starts then exits. `logs --previous` first, then trace env back to ConfigMap/Secret refs. Fix declaratively, and add readiness probes + a CI config check so a key rename can't reach prod."
+    },
+    {
+      "id": "ci-secret-leak",
+      "title": "A secret got committed to the repo",
+      "domain": "devops",
+      "difficulty": "intermediate",
+      "cert": "github-actions",
+      "estMin": 5,
+      "scenario": "A teammate pushed `config.yml` containing a live cloud API key to the default branch. CI ran and the key is now in build logs too. Respond correctly.",
+      "steps": [
+        {
+          "prompt": "First action?",
+          "options": [
+            { "text": "Revoke/rotate the leaked key at the provider", "correct": true, "feedback": "Right — assume it's compromised the moment it's public. Rotation kills its value immediately." },
+            { "text": "Force-push to delete the commit and move on", "correct": false, "feedback": "Rewriting history doesn't un-leak a key that's already been cloned/logged. Rotate first." },
+            { "text": "Make the repo private", "correct": false, "feedback": "It may already be cloned/forked, and CI logged it. Privacy doesn't undo exposure." }
+          ],
+          "hint": "Once a secret is public, treat it as burned. What removes its power?"
+        },
+        {
+          "prompt": "Key rotated. How should the pipeline get the new key?",
+          "options": [
+            { "text": "Store it as an encrypted CI secret and inject at runtime", "correct": true, "feedback": "Correct — secrets belong in the CI secret store / a vault, referenced as env at run time, never in the repo." },
+            { "text": "Commit the new key but to a .gitignore'd file", "correct": false, "feedback": ".gitignore prevents new commits but the value still lives on disk/in history risk. Use a secret store." },
+            { "text": "Hard-code it but base64-encode it", "correct": false, "feedback": "base64 is encoding, not encryption — it's trivially reversible. Not a secret." }
+          ],
+          "hint": "Secrets are injected at runtime from a managed store, not stored in git."
+        },
+        {
+          "prompt": "What prevents the next accidental commit?",
+          "options": [
+            { "text": "A pre-commit/CI secret scanner (e.g. gitleaks) blocking the push", "correct": true, "feedback": "Right — automated secret scanning catches the key before it ever lands." },
+            { "text": "Ask everyone to be more careful", "correct": false, "feedback": "Hope isn't a control. Automate the guardrail." },
+            { "text": "Disable CI logs entirely", "correct": false, "feedback": "You need logs; you need them to not contain secrets — that's what scanning + masking do." }
+          ],
+          "hint": "Automate the guardrail so a human slip can't reach the remote."
+        }
+      ],
+      "takeaway": "A committed secret is a burned secret: rotate first, then move it to an encrypted CI/vault store injected at runtime, and add a secret scanner so the next slip is blocked at the push, not discovered in logs."
+    },
+    {
+      "id": "phishing-account-compromise",
+      "title": "A user clicked a phishing link",
+      "domain": "security",
+      "difficulty": "intro",
+      "cert": "comptia-security-plus",
+      "estMin": 6,
+      "scenario": "A finance user reports they entered their password on a fake login page. The SIEM shows a successful sign-in from a new country 12 minutes ago. Triage as the on-call analyst.",
+      "steps": [
+        {
+          "prompt": "Highest-priority containment action?",
+          "options": [
+            { "text": "Force a session revoke + password reset on the account", "correct": true, "feedback": "Right — kill active sessions and the stolen password in one move; this evicts the attacker." },
+            { "text": "Email the user to ask what happened first", "correct": false, "feedback": "Every minute the session stays live, damage grows. Contain, then interview." },
+            { "text": "Block the phishing domain at the proxy and stop", "correct": false, "feedback": "Worth doing, but it doesn't evict the attacker already inside the account." }
+          ],
+          "hint": "The attacker has a live session. What ends it fastest?"
+        },
+        {
+          "prompt": "Sessions revoked. What do you check to scope the intrusion?",
+          "options": [
+            { "text": "Sign-in logs, mailbox rules, and any MFA-device or OAuth-grant changes", "correct": true, "feedback": "Correct — attackers add inbox forwarding rules and rogue MFA/OAuth grants to persist. Check those." },
+            { "text": "Only whether the password was changed", "correct": false, "feedback": "Too narrow — persistence often hides in mail rules and app grants, not the password." },
+            { "text": "Nothing — the reset fixed it", "correct": false, "feedback": "Reset evicts the session but not planted persistence. Keep scoping." }
+          ],
+          "hint": "Attackers plant persistence: forwarding rules, OAuth grants, extra MFA devices."
+        },
+        {
+          "prompt": "Which control would most reduce the impact of the NEXT phishing click?",
+          "options": [
+            { "text": "Phishing-resistant MFA (FIDO2/hardware keys)", "correct": true, "feedback": "Right — a phished password alone can't sign in, and FIDO2 resists relay/AitM phishing that defeats OTP." },
+            { "text": "A longer minimum password length", "correct": false, "feedback": "Length doesn't help when the user hands the password over. MFA does." },
+            { "text": "Monthly password expiry", "correct": false, "feedback": "Forced rotation is largely deprecated guidance and wouldn't stop a same-day phish." }
+          ],
+          "hint": "If the password is given away, what still blocks the login?"
+        }
+      ],
+      "takeaway": "Account-compromise triage: contain first (revoke sessions + reset), then scope persistence (mail rules, OAuth grants, MFA devices), not just the password. Phishing-resistant MFA is the control that defangs the next click."
+    },
+    {
+      "id": "inter-vlan-routing",
+      "title": "Two VLANs can't talk to each other",
+      "domain": "network",
+      "difficulty": "intermediate",
+      "cert": "ccna",
+      "estMin": 6,
+      "scenario": "VLAN 10 (staff) and VLAN 20 (printers) work fine within themselves, but staff can't print. Same switch, same building. Find the gap.",
+      "steps": [
+        {
+          "prompt": "Intra-VLAN works, inter-VLAN doesn't. What does that tell you?",
+          "options": [
+            { "text": "Layer-2 is fine; routing between the VLANs is missing or misconfigured", "correct": true, "feedback": "Right — devices reach peers in their own VLAN, so switching works; crossing VLANs needs L3 routing." },
+            { "text": "The switch is failing", "correct": false, "feedback": "A failing switch would break intra-VLAN too. It's specifically the L3 path." },
+            { "text": "It's a DNS problem", "correct": false, "feedback": "Printing by IP would also fail — this is reachability, below DNS." }
+          ],
+          "hint": "Same-VLAN works, cross-VLAN fails — which layer crosses VLANs?"
+        },
+        {
+          "prompt": "You use a router-on-a-stick / L3 switch. What's the likely missing piece?",
+          "options": [
+            { "text": "A routed interface (SVI or subinterface) with an IP for each VLAN", "correct": true, "feedback": "Correct — each VLAN needs a gateway interface at L3 for traffic to be routed between them." },
+            { "text": "More access ports in VLAN 10", "correct": false, "feedback": "Port count doesn't create an inter-VLAN route." },
+            { "text": "A second physical switch", "correct": false, "feedback": "Hardware isn't the gap; the L3 gateway config is." }
+          ],
+          "hint": "Each VLAN needs a gateway IP at layer 3."
+        },
+        {
+          "prompt": "SVIs exist and are up, but hosts still can't cross. What do you check on the hosts?",
+          "options": [
+            { "text": "Their default gateway points at the SVI for their VLAN", "correct": true, "feedback": "Right — without the correct default gateway, hosts never hand off-subnet traffic to the router." },
+            { "text": "Their MAC addresses are unique", "correct": false, "feedback": "MAC uniqueness is a given on a working LAN; not the issue." },
+            { "text": "Cable category (Cat5e vs Cat6)", "correct": false, "feedback": "Cabling that carries intra-VLAN traffic isn't the problem." }
+          ],
+          "hint": "A host only routes off-subnet traffic if its default gateway is set right."
+        }
+      ],
+      "takeaway": "Intra-VLAN OK + inter-VLAN broken = a layer-3 problem. Crossing VLANs needs a routed gateway per VLAN (SVI/subinterface), and each host's default gateway must point at it. Switching moves frames inside a VLAN; routing moves packets between them."
+    },
+    {
+      "id": "linux-disk-full",
+      "title": "Production server: 'No space left on device'",
+      "domain": "linux",
+      "difficulty": "intro",
+      "cert": "rhcsa",
+      "estMin": 5,
+      "scenario": "A web app starts throwing 500s. SSH in and the shell complains it can't even write a temp file. Restore service without nuking anything important.",
+      "steps": [
+        {
+          "prompt": "First command to orient yourself?",
+          "options": [
+            { "text": "df -h to see which filesystem is full", "correct": true, "feedback": "Right — df -h shows mount usage so you fix the right filesystem, not a guess." },
+            { "text": "reboot and hope it clears", "correct": false, "feedback": "A reboot rarely frees disk and drops the service longer. Diagnose first." },
+            { "text": "rm -rf /tmp/*", "correct": false, "feedback": "Blind deletion is risky and may not even be the full mount." }
+          ],
+          "hint": "Find which mount is full before deleting anything."
+        },
+        {
+          "prompt": "`/var` is 100%. How do you find the offender?",
+          "options": [
+            { "text": "du -xh /var | sort -h | tail to find the biggest dirs", "correct": true, "feedback": "Correct — drill down to the largest consumers (often /var/log) before acting." },
+            { "text": "Delete /var entirely", "correct": false, "feedback": "/var holds logs, spool, databases — deleting it can destroy the system." },
+            { "text": "Format the disk", "correct": false, "feedback": "Catastrophic and unnecessary for a full-log situation." }
+          ],
+          "hint": "Drill into the full mount to find the biggest directories."
+        },
+        {
+          "prompt": "A 40 GB `app.log` is the culprit. df still shows full after you `rm` it — why?",
+          "options": [
+            { "text": "A process holds the file open; space frees only when it's closed/truncated", "correct": true, "feedback": "Right — deleting an open file keeps the inode until the process releases it. Truncate it or restart the writer." },
+            { "text": "The disk is physically broken", "correct": false, "feedback": "Classic open-file-handle behavior, not hardware." },
+            { "text": "rm didn't run", "correct": false, "feedback": "It ran — but an open handle keeps the blocks allocated." }
+          ],
+          "hint": "Deleting a file a process still has open doesn't free the blocks."
+        },
+        {
+          "prompt": "Service is back. What stops a repeat?",
+          "options": [
+            { "text": "Configure logrotate (size/time) + a disk-usage alert", "correct": true, "feedback": "Right — rotate/compress logs automatically and alert before 100% so you act early." },
+            { "text": "Manually delete logs each morning", "correct": false, "feedback": "Toil that fails the one day you're off. Automate it." },
+            { "text": "Disable application logging", "correct": false, "feedback": "You need logs — you need them rotated, not gone." }
+          ],
+          "hint": "Automate rotation + alert before the disk fills."
+        }
+      ],
+      "takeaway": "Disk-full: df -h to find the mount, du to find the offender, and remember a deleted-but-open file doesn't free space until the writer is truncated/restarted. Then logrotate + a usage alert so it never hits 100% silently again."
+    },
+    {
+      "id": "autoscaling-not-scaling",
+      "title": "Load is spiking but Auto Scaling isn't adding instances",
+      "domain": "cloud",
+      "difficulty": "advanced",
+      "cert": "aws-saa-c03",
+      "estMin": 7,
+      "scenario": "Traffic tripled, latency is climbing, but the Auto Scaling Group is stuck at 2 instances. The scaling policy 'looks fine'. Work out why it isn't reacting.",
+      "steps": [
+        {
+          "prompt": "Where do you start?",
+          "options": [
+            { "text": "Check the ASG's max size and the scaling policy's metric/threshold", "correct": true, "feedback": "Right — if max size is 2, or the alarm threshold never trips, the group can't or won't grow." },
+            { "text": "Restart the application", "correct": false, "feedback": "That drops capacity further and doesn't address scaling config." },
+            { "text": "Switch instance type to something bigger by hand", "correct": false, "feedback": "Manual vertical scaling defeats the point and masks the broken policy." }
+          ],
+          "hint": "Two reasons a group won't grow: it's capped, or the alarm never fires."
+        },
+        {
+          "prompt": "Max size is 8, so capacity isn't the cap. The CloudWatch alarm is on CPU but CPU sits at 30%. What's likely true?",
+          "options": [
+            { "text": "The bottleneck isn't CPU — scale on the metric that actually saturates (e.g. request count / latency / queue depth)", "correct": true, "feedback": "Correct — a CPU alarm won't fire for an I/O- or connection-bound app. Scale on the saturating signal." },
+            { "text": "CloudWatch is broken", "correct": false, "feedback": "The alarm is doing exactly what it was told; the metric choice is wrong." },
+            { "text": "Lower max size to force action", "correct": false, "feedback": "That reduces headroom — the opposite of what you need." }
+          ],
+          "hint": "If CPU is low under load, CPU isn't the constraint you should scale on."
+        },
+        {
+          "prompt": "You switch to target-tracking on ALB request-count-per-target. New instances launch but fail health checks and get terminated. Why the loop?",
+          "options": [
+            { "text": "Health-check grace period is too short for app boot, so warming instances are killed", "correct": true, "feedback": "Right — give the health-check grace period enough time for the app to start, or the ASG churns." },
+            { "text": "The AMI is corrupt", "correct": false, "feedback": "Possible but the symptom (killed right after launch) fits a grace-period/health-check timing issue." },
+            { "text": "ALB is incompatible with ASG", "correct": false, "feedback": "They're designed to work together; this is a timing/health-check config issue." }
+          ],
+          "hint": "New instances need time to boot before health checks judge them."
+        }
+      ],
+      "takeaway": "Auto Scaling that won't react usually means the wrong trigger or a timing trap: confirm max size, scale on the metric that actually saturates (not reflexive CPU), use target-tracking, and set a health-check grace period long enough for the app to warm up so new instances aren't killed on launch."
+    }
+  ]
+}

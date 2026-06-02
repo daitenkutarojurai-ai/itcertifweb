@@ -71,6 +71,9 @@
         '<a href="/jobs/">' +
           '<span class="mobile-menu-emoji">🎯</span>Job Match' +
         '</a>' +
+        '<a href="/labs/">' +
+          '<span class="mobile-menu-emoji">🧪</span>Hands-on Labs' +
+        '</a>' +
         '<a href="/courses/">' +
           '<span class="mobile-menu-emoji">📚</span>Free courses' +
         '</a>' +

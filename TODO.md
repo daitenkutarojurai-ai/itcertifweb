@@ -648,7 +648,23 @@ competition-driven, community-driven** layer. Highest-priority builds:
   add a class picker, equipment slots, and RPG copy across the path/
   profile. Not a separate build; mostly client-side + Supabase.
 
-### 8.3 — AI-generated Labs 🟡 doable scoped-down
+### 8.3 — AI-generated Labs 🟡 v1 SHIPPED 2026-06-02 (build-time bank)
+
+- **Shipped (v1 build-time):** `/labs/` — a hands-on guided-lab runner.
+  Each lab (`data/labs/labs.json`, 8 labs across cloud / devops / security /
+  network / linux) is a realistic incident worked as a sequence of decision
+  points; every option gives correct/incorrect feedback, the FIRST pick per
+  step scores, and the lab ends with a takeaway + train/path deep-links.
+  `src/labs.js` (page-only, pure dual-export `gradeLab` / `rankLabs` + a
+  browser runner) adaptively surfaces labs whose `cert` maps to the
+  learner's weak / started packs (from `cq-stats-v1` perPack). +9 unit
+  tests. Drawer 🧪 + sitemap. Static, client-side, no LLM, on-device.
+- **Deferred (v2):** runtime AI-generated labs (a unique scenario per
+  request — needs the 7.5/8.3 LLM Pages Function); free-text task
+  validation (today is multiple-choice decision points); more labs as
+  packs grow; a per-lab share card.
+
+### 8.3-orig — AI-generated Labs 🟡 doable scoped-down
 
 - Unique hands-on labs, incidents, infra puzzles, debugging
   scenarios, difficulty-adapted exercises — a different experience
