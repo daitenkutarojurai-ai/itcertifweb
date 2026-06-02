@@ -1,7 +1,7 @@
 'use strict';
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { computeAdvice, prettyPack } = require('../src/coach.js');
+const { computeAdvice, prettyPack, applyPersona, PERSONAS } = require('../src/coach.js');
 
 const TODAY = '2026-06-01';
 const YESTERDAY = '2026-05-31';
@@ -92,4 +92,43 @@ test('respects maxTips and returns priority-sorted tips', () => {
   assert.strictEqual(tips.length, 3);
   for (let i = 1; i < tips.length; i++) assert.ok(tips[i - 1].weight >= tips[i].weight);
   assert.strictEqual(tips[0].id, 'streak-risk');
+});
+
+/* ── Mentor personas (8.6) ──────────────────────────────────────────── */
+test('there are 4 personas, chill is the default/first', () => {
+  assert.strictEqual(PERSONAS.length, 4);
+  assert.strictEqual(PERSONAS[0].id, 'chill');
+  assert.ok(PERSONAS.every((p) => p.id && p.name && p.emoji && p.accent && p.intro));
+});
+
+test('chill / unknown persona leaves base copy untouched', () => {
+  const base0 = computeAdvice(base({ stats: { sessionsCount: 0, perPack: {} } }), 3, 'chill');
+  const none = computeAdvice(base({ stats: { sessionsCount: 0, perPack: {} } }), 3);
+  const bogus = computeAdvice(base({ stats: { sessionsCount: 0, perPack: {} } }), 3, 'nope');
+  assert.strictEqual(base0[0].title, none[0].title);
+  assert.strictEqual(bogus[0].title, none[0].title);
+});
+
+test('sergeant persona re-voices the cold-start tip but keeps the CTA', () => {
+  const chill = computeAdvice(base({ stats: { sessionsCount: 0, perPack: {} } }), 3, 'chill');
+  const sgt = computeAdvice(base({ stats: { sessionsCount: 0, perPack: {} } }), 3, 'sergeant');
+  assert.notStrictEqual(sgt[0].title, chill[0].title);
+  assert.match(sgt[0].title, /MOVE/);
+  assert.strictEqual(sgt[0].cta.href, chill[0].cta.href); // CTA unchanged
+  assert.strictEqual(sgt[0].id, 'cold-start');
+});
+
+test('persona interpolates dynamic vars (streak count, pack name)', () => {
+  const ctx = base({ stats: { sessionsCount: 5, streakDays: 9, lastSessionDate: YESTERDAY, perPack: {} } });
+  const senior = computeAdvice(ctx, 3, 'senior');
+  const t = senior.find((x) => x.id === 'streak-risk');
+  assert.ok(t);
+  assert.match(t.title, /9-day/);
+});
+
+test('applyPersona never mutates the input tips', () => {
+  const tips = computeAdvice(base({ stats: { sessionsCount: 0, perPack: {} } }), 3, 'chill');
+  const before = tips[0].title;
+  applyPersona(tips, 'faang');
+  assert.strictEqual(tips[0].title, before);
 });

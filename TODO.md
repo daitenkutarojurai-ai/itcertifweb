@@ -665,7 +665,27 @@ competition-driven, community-driven** layer. Highest-priority builds:
   lab-runner page (scenario, tasks, validate-answer, hints) →
   adaptive picker keyed to `cq-stats-v1` weak tags.
 
-### 8.4 — Real-time Interview Arena 🟡 doable scoped-down
+### 8.4 — Real-time Interview Arena 🟡 v1 SHIPPED 2026-06-02 (solo voice drill)
+
+- **Shipped (v1 solo drill):** a "Mock interview drill (BETA)" section on
+  `/interview/`. Pick a track (Behavioural / Cloud / DevOps / Security /
+  Network / Linux), a length (3/5/7 Q) and time/question (1–3 min); each
+  question is read aloud (`speechSynthesis`, toggleable), a countdown bar
+  runs, and you answer by **voice** (`SpeechRecognition` live transcript
+  where supported) **or by typing** — graceful typed-only fallback on
+  Firefox/Safari. At the end: a transparent heuristic self-check per
+  answer (answered 40% + substance 30% + keyword coverage 30%), hit/missed
+  keyword chips, the model-answer hint, an overall score and a squid
+  debrief; copy-transcript + restart. `src/mock-interview.js` (page-only,
+  pure dual-export scorer + browser UI), `data/interview/mock.json` (6
+  tracks × 6 Qs with scoring keywords + hints). +9 unit tests. Nothing
+  leaves the device; no LLM, no key.
+- **Deferred (v2):** dynamic AI questioning + spoken AI feedback (needs the
+  8.3/7.5 LLM Pages Function); per-cert technical tracks tied to packs;
+  cloud-saved attempt history; the Twitch-style live spectating is dropped
+  for this stack (replace with async shareable replays if ever revisited).
+
+### 8.4-orig — Real-time Interview Arena (original spec) 🟡 doable scoped-down
 
 - Live technical-interview simulation: dynamic questions, time
   pressure, voice, feedback, scoring. "LeetCode + Twitch + AI".
@@ -700,7 +720,21 @@ competition-driven, community-driven** layer. Highest-priority builds:
   pipeline — the repo's standing call is schematic-first); per-view OG
   image (needs an image pipeline). Registered in sitemap + llms.txt.
 
-### 8.6 — AI Mentor Personality System ✅ doable (merge into Phase 7.5)
+### 8.6 — AI Mentor Personality System ✅ v1 SHIPPED 2026-06-02
+
+- **Shipped:** a mentor-persona selector over the 7.5 coach. Four voices —
+  🦑 Chill Coach (default), 🛠️ Senior Engineer, 🎯 FAANG Interviewer,
+  🎖️ Drill Sergeant — re-voice the SAME computed tips in a chosen tone,
+  each with an intro line + accent colour. Pure copy layer in `src/coach.js`
+  (`applyPersona` + per-persona, per-tip-id rewrites interpolating the
+  tip's `vars`); persona persists to `cq-coach-persona-v1` via
+  `window.cqCoachPersona`. The `/profile.html` coach panel renders the
+  persona chips + intro and re-renders on click. No LLM — later the persona
+  becomes a system-prompt preset for the model coach. +5 unit tests.
+- **Deferred (v2):** persona reflected in the floating squid mascot tips +
+  cheer copy; persona-specific CTA phrasing; an LLM-backed voice.
+
+### 8.6-orig — AI Mentor Personality System ✅ doable (merge into Phase 7.5)
 
 - Choose a mentor persona: brutal senior engineer / chill coach /
   FAANG interviewer / military-discipline mode — learning gets an

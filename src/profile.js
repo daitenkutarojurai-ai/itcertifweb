@@ -91,7 +91,24 @@
         return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
       });
     }
-    host.innerHTML = tips.map(function (t) {
+
+    var personas = (window.cqCoachPersona && window.cqCoachPersona.list()) || [];
+    var activeId = (window.cqCoachPersona && window.cqCoachPersona.get()) || 'chill';
+    var active = (window.cqCoachPersona && window.cqCoachPersona.current()) || personas[0] || { intro: '', accent: '#34d399' };
+
+    var personaBar = personas.length ? '<div class="coach-personas" role="tablist" aria-label="Mentor persona">' +
+      personas.map(function (p) {
+        return '<button type="button" class="coach-persona' + (p.id === activeId ? ' is-active' : '') + '" data-persona="' + esc(p.id) + '"' +
+          ' role="tab" aria-selected="' + (p.id === activeId ? 'true' : 'false') + '"' +
+          ' style="--p-accent:' + esc(p.accent) + '">' +
+          '<span aria-hidden="true">' + esc(p.emoji) + '</span> ' + esc(p.name) +
+        '</button>';
+      }).join('') + '</div>' : '';
+
+    var intro = active.intro ? '<p class="coach-intro" style="border-color:' + esc(active.accent) + '55">' +
+      '<span aria-hidden="true">' + esc(active.emoji || '🦑') + '</span> ' + esc(active.intro) + '</p>' : '';
+
+    host.innerHTML = personaBar + intro + tips.map(function (t) {
       return '<div class="coach-tip">' +
         '<span class="coach-tip-icon" aria-hidden="true">' + esc(t.icon) + '</span>' +
         '<div class="coach-tip-body">' +
@@ -101,6 +118,16 @@
         (t.cta ? '<a class="coach-tip-cta" href="' + esc(t.cta.href) + '">' + esc(t.cta.label) + '</a>' : '') +
       '</div>';
     }).join('');
+
+    var bar = host.querySelector('.coach-personas');
+    if (bar && window.cqCoachPersona) {
+      bar.addEventListener('click', function (e) {
+        var b = e.target.closest('.coach-persona');
+        if (!b) return;
+        window.cqCoachPersona.set(b.getAttribute('data-persona'));
+        renderCoach();
+      });
+    }
     if (section) section.hidden = false;
   }
 
