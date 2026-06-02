@@ -1,0 +1,63 @@
+{
+  "slug": "kubernetes-debug",
+  "title": "Kubernetes Debug Coach",
+  "tldr": "Battle-tested prompts to debug a misbehaving Kubernetes cluster — CrashLoopBackOff, pending pods, broken services, OOMKilled, mystery YAML. Paste your kubectl output, get a root-cause diagnosis and a fix you can run.",
+  "vendor": "Kubernetes",
+  "icon": "☸️",
+  "color": "#326ce5",
+  "lastReviewed": "2026-06",
+  "tags": ["kubernetes", "debug", "ops", "cloud"],
+  "models": ["Claude 4.7 Opus", "GPT-5", "Gemini 2.5 Pro"],
+  "affiliate": null,
+  "disclaimer": "These prompts diagnose what kubectl is already telling you — they don't replace cluster access. Always re-run the suggested kubectl commands yourself; never apply a YAML the LLM writes without diffing it against your live manifests first. Behaviour also drifts between Kubernetes minor versions (1.28 vs 1.31 RBAC, sidecar containers, gateway-api, etc.) — name your version in the prompt.",
+  "prompts": [
+    {
+      "id": "crashloopbackoff",
+      "title": "Diagnose a CrashLoopBackOff in 60 seconds",
+      "use_case": "Your pod is restarting in a loop. You have a `kubectl describe pod` and the logs from the failing container, but the root cause isn't obvious.",
+      "model_tested": ["Claude 4.7 Opus (2026-06)", "GPT-5 (2026-05)"],
+      "prompt": "You are a senior Kubernetes SRE. Diagnose this CrashLoopBackOff.\n\nKubernetes version: <K8S_VERSION_E_G_1_30>\nNamespace: <NAMESPACE>\n\n--- kubectl describe pod <POD> ---\n<PASTE_DESCRIBE_OUTPUT>\n\n--- kubectl logs <POD> -c <CONTAINER> --previous ---\n<PASTE_PREVIOUS_LOGS>\n\nDo this, in order:\n1. **Root cause** in one sentence — the exact reason the container exited non-zero. Distinguish image/entrypoint bugs from runtime bugs from config bugs.\n2. **Three pieces of evidence** from the inputs that prove your root cause (quote the line + explain why it's diagnostic).\n3. **The fix** — the smallest possible change (one of: image tag, command/args, env var, volumeMount, resources, probe). Show the diff against the current Pod spec, not a from-scratch YAML.\n4. **The 2-command verification** to run after applying the fix.\n5. **If you are <70% confident**, list the single kubectl command I should run next to disambiguate — don't guess.\n\nNo \"it could be many things\" hedging. Pick the most likely cause from the evidence and commit.",
+      "tips": "Always include `--previous` logs — they're the logs from the run that just crashed, not the one currently starting. 80% of CrashLoopBackOff diagnoses come from those logs."
+    },
+    {
+      "id": "pending-pod",
+      "title": "Why is my Pod stuck in Pending?",
+      "use_case": "Pod has been Pending for minutes. Scheduler isn't placing it. You need to know if it's resources, taints, nodeSelector, PVC, or the cluster autoscaler.",
+      "model_tested": ["Claude 4.7 Opus (2026-06)", "GPT-5 (2026-05)", "Gemini 2.5 Pro (2026-05)"],
+      "prompt": "Diagnose why this pod is stuck Pending.\n\nKubernetes version: <K8S_VERSION>\nManaged or self-hosted: <EKS|AKS|GKE|KUBEADM|K3S|OTHER>\n\n--- kubectl describe pod <POD> ---\n<PASTE_DESCRIBE>\n\n--- kubectl get nodes -o wide ---\n<PASTE_NODES>\n\n--- (optional) kubectl describe node <SUSPECT_NODE> ---\n<PASTE_NODE_DESCRIBE_OR_LEAVE_EMPTY>\n\nWalk the standard Pending checklist and tell me which step fails:\n1. Are there schedulable nodes at all? (Ready, no SchedulingDisabled, no NotReady taints I don't tolerate)\n2. Does the pod's requests.cpu / requests.memory fit any node's Allocatable? Show the math.\n3. nodeSelector / nodeAffinity / required topology constraints — does any node satisfy them?\n4. Taints I'm not tolerating? List the taint and the tolerations I'm missing.\n5. PVC bound? If WaitForFirstConsumer, is the chosen zone schedulable?\n6. Pod Topology Spread / anti-affinity blocking placement?\n7. Cluster Autoscaler — would it scale up? If no, why (max-size hit, ASG mismatch, scale-down hold).\n\nFor the step that fails, give me the fix as a `kubectl patch` or a 5-line YAML diff. End with the one command that proves the fix worked.",
+      "tips": "If the FailedScheduling event already names the reason (\"0/3 nodes are available: 3 Insufficient cpu\"), you don't need this prompt — just resize. Use this when the event message is vague or contradictory."
+    },
+    {
+      "id": "service-not-reachable",
+      "title": "Why can't traffic reach my Service / Pod?",
+      "use_case": "Pod is Running and Ready but requests time out, or hit the wrong pod. Diagnose Service selector, EndpointSlice, NetworkPolicy, kube-proxy, or DNS.",
+      "model_tested": ["Claude 4.7 Opus (2026-06)", "GPT-5 (2026-05)"],
+      "prompt": "Traffic isn't reaching my Service. Diagnose where it breaks.\n\nKubernetes version: <K8S_VERSION>\nCNI: <CALICO|CILIUM|FLANNEL|AWS_VPC_CNI|OTHER>\nIs a NetworkPolicy in use in this namespace? <YES|NO|UNKNOWN>\n\n--- kubectl get svc <SVC> -o yaml ---\n<PASTE_SVC_YAML>\n\n--- kubectl get endpointslice -l kubernetes.io/service-name=<SVC> -o yaml ---\n<PASTE_EPS_YAML>\n\n--- kubectl get pods -l <SAME_LABELS_AS_SVC_SELECTOR> -o wide ---\n<PASTE_POD_LIST>\n\n--- symptom (from client) ---\n<PASTE_CLIENT_ERROR_OR_CURL_OUTPUT>\n\nWalk this path top-down and identify the FIRST broken link:\n1. Does Service.spec.selector match labels on at least one Ready pod?\n2. EndpointSlice — are there `addresses` populated? Are they Ready? Does the port match Service.targetPort?\n3. If headless (`clusterIP: None`) — is the client doing DNS SRV lookups correctly?\n4. NetworkPolicy — is there an egress rule on the client and an ingress rule on the server allowing this Service?\n5. kube-proxy mode (iptables / ipvs) — any obvious stale rules? (skip if you can't tell from the inputs)\n6. If the client is cross-namespace — `<svc>.<ns>.svc.cluster.local` actually resolving?\n\nGive me: (a) the one broken link, (b) the exact kubectl command to fix it, (c) the curl/nslookup I run to prove it's fixed.",
+      "tips": "Run `kubectl run debug --rm -it --image=nicolaka/netshoot -- bash` to get a shell with curl + dig + nslookup + tcpdump in-cluster — half the diagnosis is doing it from a pod, not from your laptop."
+    },
+    {
+      "id": "oomkilled",
+      "title": "Diagnose OOMKilled / right-size resources",
+      "use_case": "Container is being killed for memory. Decide: raise limits, fix a leak, or move to a different workload type.",
+      "model_tested": ["Claude 4.7 Opus (2026-06)", "GPT-5 (2026-05)"],
+      "prompt": "Container is being OOMKilled. Help me decide between raising limits, fixing a leak, or changing the deployment shape.\n\nLanguage / runtime: <NODE|JAVA|PYTHON|GO|RUST|OTHER>\nWorkload type: <STATELESS_API|BATCH_JOB|STREAM_CONSUMER|CRON|DAEMONSET>\n\n--- container resources block ---\n<PASTE_RESOURCES>\n\n--- kubectl top pod <POD> (over a few minutes if possible) ---\n<PASTE_TOP>\n\n--- last lines before kill (logs) ---\n<PASTE_LOGS>\n\n--- (optional) heap / GC config or runtime flags ---\n<PASTE_RUNTIME_FLAGS_OR_LEAVE_EMPTY>\n\nDo this:\n1. Decide the category: **memory leak** / **undersized limit** / **JVM-or-runtime heap mis-tuned** / **batch with spiky peak** / **wrong workload shape**. One sentence justification from the inputs.\n2. If leak — name the most likely culprit pattern for this runtime (unbounded cache, never-closed connection, growing in-memory queue, leaked goroutines) and how to confirm with a profiler.\n3. If undersized — recommend a new requests/limits pair using the rule **requests = p95 usage, limits = ~1.5× requests** (show the math from `kubectl top`).\n4. If JVM/Node/Python heap — give the specific flag to set (e.g. `-XX:MaxRAMPercentage=75`, `--max-old-space-size`, `MALLOC_ARENA_MAX`) and why the default fights the cgroup limit.\n5. If it's actually a spiky batch — recommend Job/VPA/burstable QoS or a queue, not bigger pods.\n\nAvoid the lazy answer of \"just double the limits\" — name the category first.",
+      "tips": "JVM apps OOM-killed under 2 GiB are almost always a `MaxRAMPercentage` issue, not a memory leak. Node.js apps under 512 MiB are almost always `--max-old-space-size` defaults fighting the cgroup. Diagnose the runtime before raising limits."
+    },
+    {
+      "id": "kubectl-output-reader",
+      "title": "Decode a wall of kubectl output",
+      "use_case": "You ran `kubectl describe`, `kubectl get events --sort-by=.lastTimestamp`, or `kubectl logs` and got a page of dense output. You want the 3 lines that matter.",
+      "model_tested": ["Claude 4.7 Opus (2026-06)", "GPT-5 (2026-05)", "Gemini 2.5 Pro (2026-05)"],
+      "prompt": "Read this kubectl output and surface only the diagnostically important lines.\n\nCommand that produced it: <KUBECTL_COMMAND>\nWhat I'm trying to figure out: <ONE_SENTENCE_GOAL>\n\n--- output ---\n<PASTE_OUTPUT>\n\nDo this:\n1. Quote the **3 most diagnostic lines** verbatim (no paraphrasing). For each, 1 sentence on why it matters for my goal.\n2. List anything you'd normally call out but which is **noise here** (default events like Scheduled / Pulled / Started, normal probe successes, deprecated-API warnings unrelated to my goal) — one bullet, no more than 5 items.\n3. Name the next single command I should run to confirm the diagnosis. Exactly one command, with arguments.\n4. If the output answers my question fully, say so explicitly and skip step 3.\n\nNo bullet-listing every event. No \"in summary, your pod is having issues\". Be ruthless about signal-to-noise.",
+      "tips": "This is the prompt to use when you're tired and the output is 200 lines. It also works on Helm output, `kubectl get events -A`, and audit logs."
+    },
+    {
+      "id": "cka-yaml-from-scratch",
+      "title": "Write the YAML for the CKA / CKAD task (no shortcuts)",
+      "use_case": "Studying for CKA / CKAD. You need to write a Deployment / Service / Ingress / NetworkPolicy / RBAC role from scratch under exam time pressure.",
+      "model_tested": ["Claude 4.7 Opus (2026-06)", "GPT-5 (2026-05)"],
+      "prompt": "Coach me on writing this Kubernetes manifest from scratch the way I'd have to on the CKA / CKAD exam.\n\nTask in plain English: <DESCRIBE_TASK_EXACTLY_AS_THE_EXAM_WOULD_E_G_DEPLOY_NGINX_2_REPLICAS_EXPOSE_PORT_80_IN_NAMESPACE_WEB>\nExam: <CKA|CKAD|CKS>\nKubernetes version: <K8S_VERSION>\n\nDo this in order:\n1. **The fastest `kubectl create` / `kubectl run` one-liner with `--dry-run=client -o yaml`** that gets me 80% of the manifest. Real exam-day muscle memory — no helm, no kustomize, no `apply -f https://...`.\n2. The handful of fields I have to add by hand on top of step 1 (the things `create` doesn't generate — resources, probes, env from secret, securityContext, NetworkPolicy podSelector, RBAC verbs).\n3. The **final manifest**, ready to `kubectl apply -f -`. Properly indented, no comments mid-YAML, kind + apiVersion correct for my K8s version.\n4. The **single verification command** I run after applying to prove the task is done (e.g. `kubectl get deploy -n web` showing the right replicas).\n5. The **1 exam trap** for this kind of question (e.g. forgetting `-n <namespace>` on the verify step, using `Deployment` apiVersion `extensions/v1beta1`, missing `selector.matchLabels` matching template labels).\n\nNo lectures on what a Deployment is. Treat me like I've passed the practice quizzes and I'm drilling speed.",
+      "tips": "Add `alias k=kubectl`, `export do='--dry-run=client -o yaml'`, `export now='--grace-period=0 --force'` to your shell on exam day. Half the time saving on CKA is muscle memory, not theory."
+    }
+  ]
+}

@@ -1216,6 +1216,14 @@ competition-driven, community-driven** layer. Highest-priority builds:
   salary negotiation, post-interview debrief) and `homelab-architect`
   (lab design, graded exercises, debug-as-learning, portfolio project,
   tooling decision). Both target the cert → job pipeline. sitemap.xml +2.
+- **2026-06-02:** +1 workflow dataset (PromptDungeon 9 → 10) —
+  `kubernetes-debug` (CrashLoopBackOff diagnosis, Pending-pod scheduling
+  checklist, Service/Endpoint/NetworkPolicy traffic chase, OOMKilled +
+  right-sizing, kubectl-output reader, CKA/CKAD YAML-from-scratch).
+  Targets the CKA/CKAD/CKS audience — no K8s prompts existed before.
+  Also de-staled `scripts/gen-prompt-pages.js` (`CACHE_BUST` v=106 →
+  v=114) so regeneration no longer downgrades the 9 sibling pages.
+  sitemap.xml +1.
 
 ### 6.11 — ToolRadar ✅ SHIPPED 2026-05-15
 
