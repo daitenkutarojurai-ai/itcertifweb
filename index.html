@@ -562,7 +562,7 @@
     }
     .cert-exam {
       display: grid;
-      grid-template-columns: 1fr auto auto;
+      grid-template-columns: 1fr auto auto auto;
       align-items: center;
       gap: 10px;
       padding: 9px 10px;
@@ -625,6 +625,22 @@
       color: var(--brand-color, var(--accent-train));
       transform: translateX(3px);
     }
+    /* Difficulty pill — injected per exam by the enhancer below from
+       data/index.json (Section 5). Foundational / Associate / Professional. */
+    .cert-exam-level {
+      font-family: var(--font-mono);
+      font-size: 9px;
+      font-weight: 600;
+      letter-spacing: 0.07em;
+      text-transform: uppercase;
+      padding: 2px 7px;
+      border-radius: 999px;
+      white-space: nowrap;
+      border: 1px solid transparent;
+    }
+    .cert-exam-level[data-level="foundational"] { color: #6ee7b7; background: rgba(52,211,153,0.10); border-color: rgba(52,211,153,0.22); }
+    .cert-exam-level[data-level="associate"]    { color: #fbbf24; background: rgba(251,191,36,0.10); border-color: rgba(251,191,36,0.22); }
+    .cert-exam-level[data-level="professional"] { color: #f87171; background: rgba(248,113,113,0.10); border-color: rgba(248,113,113,0.22); }
     .cert-card-cta {
       display: inline-flex;
       align-items: center;
@@ -4485,6 +4501,36 @@
   </script>
   <!-- Mobile homepage overrides — extracted from former inline block. -->
   <link rel="stylesheet" href="/src/styles/home-mobile.css?v=120" />
+
+  <!-- Section 5: data-driven difficulty pill on each cert-exam row. Reads
+       data/index.json (single source of truth) and labels by pack difficulty
+       — beginner→Foundational, intermediate→Associate, advanced→Professional.
+       Injected at runtime so no exam-link href/structure is touched. -->
+  <script>
+  (function () {
+    var rows = document.querySelectorAll('.cert-exam[href*="pack="]');
+    if (!rows.length) return;
+    var LABEL = { beginner: ['foundational', 'Foundational'], intermediate: ['associate', 'Associate'], advanced: ['professional', 'Professional'] };
+    fetch('/data/index.json', { cache: 'force-cache' }).then(function (r) { return r.ok ? r.json() : null; }).then(function (idx) {
+      if (!idx || !Array.isArray(idx.brands)) return;
+      var diff = {};
+      idx.brands.forEach(function (b) { (b.packs || []).forEach(function (p) { if (p && p.id && p.difficulty) diff[p.id] = p.difficulty; }); });
+      rows.forEach(function (a) {
+        if (a.querySelector('.cert-exam-level')) return;
+        var m = /[?&]pack=([^&]+)/.exec(a.getAttribute('href') || '');
+        var lv = m && diff[decodeURIComponent(m[1])];
+        var meta = lv && LABEL[lv];
+        if (!meta) return;
+        var pill = document.createElement('span');
+        pill.className = 'cert-exam-level';
+        pill.setAttribute('data-level', meta[0]);
+        pill.textContent = meta[1];
+        var code = a.querySelector('.cert-exam-code');
+        if (code) a.insertBefore(pill, code); else a.appendChild(pill);
+      });
+    }).catch(function () {});
+  })();
+  </script>
 
   <script src="/src/cq-core.js?v=120" defer></script>
   <script src="/src/mascot-loader.js?v=120" defer></script>
