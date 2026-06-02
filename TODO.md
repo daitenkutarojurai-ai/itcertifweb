@@ -535,13 +535,30 @@ competition-driven, community-driven** layer. Highest-priority builds:
   Pages Function from 7.5 v2); cloud-synced drafts; per-role question sets;
   a timed mock-interview mode; more technical interview pages as packs grow.
 
-#### 7.7 — Job matching (NEW)
+#### 7.7 — Job matching (NEW) ✅ v1 SHIPPED 2026-06-02
 
-- Match a user's roadmap progress + skills portfolio to relevant IT
-  roles; surface openings or role profiles ranked by fit ("you meet
-  8/10 requirements for Cloud Engineer"). Ties into `/salaire/` and
-  `/career-path/`. Data source TBD (job feed / partner API / curated)
-  — first ticket scopes the feed.
+- **Shipped:** `/jobs/` — "Job Match" ranks 13 curated IT role profiles
+  (Cloud Engineer/Architect, Azure Admin, DevOps, Platform/K8s, SRE,
+  Network Engineer/Architect, SOC Analyst, Security/Pentester, Linux
+  Sysadmin, Data Engineer) by **fit to the certs you've validated**.
+  `data/jobs/roles.json` holds each role's signature certs (weighted),
+  salary range, informational skill chips, demand hint, and a
+  `cpDomain`/`cpSituation` pair that seeds `/roadmap/#{…}` +
+  `/career-path/#{…}` deep-links. `src/jobmatch.js` (page-only — read
+  only, no events, so NOT in the cq-core bundle) is a pure dual-export
+  (browser + Node) scorer: a laurel = full weight, a started pack
+  (path node done or answered Qs) = half weight; `rankRoles` sorts by
+  fit then roadmap-domain match then demand. The page renders a fit
+  bar + cert checklist (✅ validé / 🟡 en cours / ⬜ manquant, missing
+  ones deep-link to train + path), skill chips, and salary/roadmap/
+  career-path CTAs; re-renders on `cq:stats-changed` / `cq:laurel-earned`
+  / `cq:roadmap-changed`. Cold-start shows a demand-ranked list with a
+  nudge. Node-CJS + 10 unit tests (229 total). Drawer 🎯 + sitemap.
+  All client-side — no external job feed (the deferred part).
+- **Deferred (v2):** a live job feed / partner API (Indeed, France
+  Travail) behind a Pages Function; skills vector from concept tags
+  (today fit is cert-based only); "add role to roadmap" one-click;
+  per-role openings count; tie to 7.8 public profile.
 
 #### 7.8 — Skills portfolio + public profile (NEW) ✅ v1 SHIPPED 2026-06-01
 

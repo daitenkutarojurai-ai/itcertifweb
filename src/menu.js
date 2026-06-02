@@ -68,6 +68,9 @@
         '<a href="/interview/">' +
           '<span class="mobile-menu-emoji">🎤</span>Interview prep' +
         '</a>' +
+        '<a href="/jobs/">' +
+          '<span class="mobile-menu-emoji">🎯</span>Job Match' +
+        '</a>' +
         '<a href="/courses/">' +
           '<span class="mobile-menu-emoji">📚</span>Free courses' +
         '</a>' +
