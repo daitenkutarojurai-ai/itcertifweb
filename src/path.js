@@ -1296,9 +1296,11 @@
 
       /* Free heart — only meaningful if not already at MAX. We still
          show the pill either way (full health users see "♥ Already at
-         full health" so the chest doesn't feel cheap). */
-      var heartsBefore = window.cqHearts ? window.cqHearts.get().hearts : null;
-      if (window.cqHearts && heartsBefore < window.cqHearts.MAX) window.cqHearts.gain(1);
+         full health" so the chest doesn't feel cheap). Skipped entirely
+         when hearts are disabled on the web (Audit S6). */
+      var heartsOn = !!(window.cqHearts && window.cqHearts.enabled !== false);
+      var heartsBefore = heartsOn ? window.cqHearts.get().hearts : null;
+      if (heartsOn && heartsBefore < window.cqHearts.MAX) window.cqHearts.gain(1);
 
       cosmeticPromise.then(function () {
         var totalXp = baseXp + bonusXp;

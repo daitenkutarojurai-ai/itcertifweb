@@ -1,4 +1,4 @@
-/* CertQuests core bundle — generated 2026-06-02T11:08:02.109Z
+/* CertQuests core bundle — generated 2026-06-02T14:13:16.937Z
  *
  * This file is concatenated by scripts/build-core.js. Do not edit by hand;
  * edit the source modules in src/*.js and re-run `npm run build-core`.
@@ -750,6 +750,15 @@ if (typeof module !== 'undefined' && module.exports) {
   var MAX = 5;
   var REGEN_MS = 30 * 60 * 1000; /* 30 min per heart */
 
+  /* Audit S6 — hearts removed from the certification/quiz flow ON THE WEB.
+     When disabled: no header chip, lives never decrement, no out-of-lives
+     game-over gate, canPlay() always true. The state machine + Supabase
+     user_hearts sync stay intact (kept full) so the cross-repo schema and
+     cosmetics are untouched. Kept ON inside the live Capacitor app (which
+     wraps this bundle and relies on hearts as its lives economy) — gated on
+     window.Capacitor, injected before any page script runs. */
+  var HEARTS_ENABLED = IS_BROWSER && !!(window.Capacitor && typeof window.Capacitor.getPlatform === 'function');
+
   /* ──────────────── Pure state helpers (testable, no I/O) ──────────────── */
 
   /* Coerce arbitrary parsed JSON into a valid {hearts, lastLostAt} shape. */
@@ -810,6 +819,7 @@ if (typeof module !== 'undefined' && module.exports) {
      Visual feedback: flag the chip for a damage flash via class, CSS
      drives the shake + red flare. */
   function lose() {
+    if (!HEARTS_ENABLED) return false; /* S6: wrong answers cost nothing, no game-over */
     var s = get();
     if (s.hearts <= 0) return false;
     s.hearts -= 1;
@@ -840,7 +850,7 @@ if (typeof module !== 'undefined' && module.exports) {
     set(s);
   }
   function reset() { save({ hearts: MAX, lastLostAt: 0 }); render(); }
-  function canPlay() { return get().hearts > 0; }
+  function canPlay() { return !HEARTS_ENABLED || get().hearts > 0; }
   function nextRegenMs() { return nextRegenMsFor(load(), Date.now()); }
 
   /* ──────────────────────── UI ──────────────────────── */
@@ -926,6 +936,7 @@ if (typeof module !== 'undefined' && module.exports) {
   }
 
   ready(function () {
+    if (!HEARTS_ENABLED) return; /* S6: no hearts chip in the header */
     var header = document.querySelector('.web-header');
     // train.html runs the SPA's own (itcertif_hearts) hearts system, which is the
     // authoritative quiz-gating counter there. Suppress this decorative cq-hearts
@@ -965,6 +976,7 @@ if (typeof module !== 'undefined' && module.exports) {
      elapses (≥1 heart regenerated), it auto-dismisses. Re-entering a node
      while empty re-opens it. Idempotent: only one overlay in the DOM. */
   function showCooldownGate() {
+    if (!HEARTS_ENABLED) return; /* S6: no out-of-lives game-over gate */
     if (document.getElementById('cq-out-of-life')) return;
     var msLeft = nextRegenMs();
     var overlay = document.createElement('div');
@@ -1036,6 +1048,7 @@ if (typeof module !== 'undefined' && module.exports) {
   }
 
   window.cqHearts = {
+    enabled: HEARTS_ENABLED,
     get: get,
     lose: lose,
     gain: gain,
@@ -2282,10 +2295,12 @@ if (typeof module !== 'undefined' && module.exports) {
   }
 
   function renderHealth(hud) {
+    var bar = hud.querySelector('#cq-hud-health');
+    /* Audit S6 — hearts removed from the quiz flow: hide the health bar. */
+    if (window.cqHearts && window.cqHearts.enabled === false) { if (bar) bar.hidden = true; return; }
     var hearts = window.cqHearts && window.cqHearts.get && window.cqHearts.get();
     if (!hearts) return;
     var count = hearts.hearts;
-    var bar = hud.querySelector('#cq-hud-health');
     bar.dataset.count = count;
     var segs = '';
     for (var i = 0; i < MAX_HEARTS; i++) {

@@ -80,10 +80,12 @@
   }
 
   function renderHealth(hud) {
+    var bar = hud.querySelector('#cq-hud-health');
+    /* Audit S6 — hearts removed from the quiz flow: hide the health bar. */
+    if (window.cqHearts && window.cqHearts.enabled === false) { if (bar) bar.hidden = true; return; }
     var hearts = window.cqHearts && window.cqHearts.get && window.cqHearts.get();
     if (!hearts) return;
     var count = hearts.hearts;
-    var bar = hud.querySelector('#cq-hud-health');
     bar.dataset.count = count;
     var segs = '';
     for (var i = 0; i < MAX_HEARTS; i++) {

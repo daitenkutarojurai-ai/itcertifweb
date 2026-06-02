@@ -175,7 +175,15 @@ const HEARTS_KEY     = 'itcertif_hearts';
 const HEARTS_TS_KEY  = 'itcertif_hearts_ts';
 const HEARTS_REGEN_MS = 30 * 60 * 1000; // 1 heart every 30 min
 
+// Audit S6 — hearts removed from the quiz flow ON THE WEB (no display, no
+// game-over: a quiz runs until all questions are answered). Kept ON inside the
+// live Capacitor app, which wraps this bundle and relies on hearts as its lives
+// economy — gated on window.Capacitor (injected before any page script).
+export const HEARTS_ENABLED = typeof window !== 'undefined'
+  && !!(window.Capacitor && typeof window.Capacitor.getPlatform === 'function');
+
 export function getHearts() {
+  if (!HEARTS_ENABLED) return MAX_HEARTS; // web: always full → never gates a quiz start
   regenHearts();
   return parseInt(localStorage.getItem(HEARTS_KEY) ?? String(MAX_HEARTS), 10);
 }
@@ -183,6 +191,7 @@ export function getHearts() {
 export function getMaxHearts() { return MAX_HEARTS; }
 
 export function loseHeart() {
+  if (!HEARTS_ENABLED) return MAX_HEARTS; // web: wrong answers cost nothing
   const h = Math.max(0, getHearts() - 1);
   localStorage.setItem(HEARTS_KEY, String(h));
   // Start regen timer whenever hearts are below max

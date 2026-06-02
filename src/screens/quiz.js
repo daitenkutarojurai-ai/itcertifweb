@@ -14,7 +14,7 @@ import { playCorrect, playWrong, playTick, playTimeout, playCombo, playLevelUp, 
 import {
   onCorrectAnswer, onWrongAnswer, resetSessionCombo, checkAchievements,
   getHearts, loseHeart, getMaxHearts, refillHearts, addDailyXP, updatePackMastery,
-  getSessionXP,
+  getSessionXP, HEARTS_ENABLED,
 } from '../engine/gamification.js';
 
 let quiz               = null;
@@ -583,6 +583,7 @@ function showLevelUpOverlay(container, level) {
 }
 
 function renderHearts(count) {
+  if (!HEARTS_ENABLED) return ''; // Audit S6 — no hearts shown in the web quiz flow
   const max = getMaxHearts();
   return Array.from({ length: max }, (_, i) =>
     `<span class="heart ${i < count ? 'heart-full' : 'heart-empty'}">${i < count ? '❤️' : '🖤'}</span>`
