@@ -313,10 +313,17 @@ function renderQuestion(container) {
         </button>
       </div>
 
+      <!-- Hint Buddy (S8) — the squid gives a contextual hint for this question -->
+      <div class="cq-hint-bubble" id="cq-hint-bubble" role="status" aria-live="polite" hidden></div>
+      <button type="button" class="cq-hint-buddy" id="cq-hint-buddy" aria-label="Get a hint for this question">
+        <span class="cq-hint-squid" aria-hidden="true">🦑</span>
+      </button>
+
     </div>
   `;
 
   attachQuizListeners(container);
+  setupHintBuddy(container, q);
   if (!isStudyMode()) startTimer(container);
 
   // Entrance animations
@@ -462,6 +469,13 @@ function revealAnswers(container, selected, type, combo = 0) {
 }
 
 function showFeedbackPanel(container, q, type, combo) {
+  /* Hint Buddy (S8) — the hint is a pre-answer aid, so retire the squid
+     once the question is answered (also keeps it clear of the Continue button). */
+  const buddy = container.querySelector('#cq-hint-buddy');
+  if (buddy) buddy.classList.add('is-gone');
+  const bubble = container.querySelector('#cq-hint-bubble');
+  if (bubble) bubble.hidden = true;
+
   const panel  = container.querySelector('#feedback-panel');
   const icon   = container.querySelector('#feedback-icon');
   const title  = container.querySelector('#feedback-title');
@@ -580,6 +594,54 @@ function showLevelUpOverlay(container, level) {
   el.innerHTML = `<div class="levelup-card"><div class="levelup-icon">${level.icon}</div><div class="levelup-label">LEVEL UP!</div><div class="levelup-title">${level.title}</div></div>`;
   document.body.appendChild(el);
   setTimeout(() => el.remove(), 2200);
+}
+
+/* ── Hint Buddy (S8) ──────────────────────────────────────────────────
+   The squid gives a per-question hint: q.hint if authored, else the
+   question's tags, else 2-3 derived keywords from the question text. It
+   wiggles while a hint is unused, then goes "tired" after one use. A
+   localStorage counter (cq-hint-used) tracks usage for future stats. */
+const HINT_STOP = { which: 1, what: 1, when: 1, where: 1, would: 1, should: 1, could: 1, about: 1, these: 1, those: 1, their: 1, there: 1, after: 1, before: 1, following: 1, configure: 1, configured: 1, using: 1, given: 1, while: 1, being: 1 };
+function deriveKeywords(text) {
+  const seen = {};
+  return String(text || '').toLowerCase().replace(/[^a-z0-9\s-]/g, ' ').split(/\s+/)
+    .filter((w) => w.length >= 5 && !HINT_STOP[w] && !seen[w] && (seen[w] = 1))
+    .sort((a, b) => b.length - a.length)
+    .slice(0, 3);
+}
+function hintForQuestion(q) {
+  if (q && typeof q.hint === 'string' && q.hint.trim()) return q.hint.trim();
+  const kw = (q && Array.isArray(q.tags) && q.tags.length ? q.tags.slice(0, 3) : deriveKeywords(q && q.question));
+  return kw.length
+    ? 'Re-read the question carefully. Focus on the keywords: ' + kw.join(', ') + '.'
+    : 'Re-read the question carefully — rule out the options you know are wrong first.';
+}
+function setupHintBuddy(container, q) {
+  const buddy = container.querySelector('#cq-hint-buddy');
+  const bubble = container.querySelector('#cq-hint-bubble');
+  if (!buddy || !bubble) return;
+  const hint = hintForQuestion(q);
+  let used = false;
+  buddy.classList.add('is-eager'); // wiggle while a fresh hint is available
+  buddy.addEventListener('click', () => {
+    if (bubble.hidden) {
+      bubble.textContent = hint;
+      bubble.hidden = false;
+      buddy.setAttribute('aria-expanded', 'true');
+      if (!used) {
+        used = true;
+        buddy.classList.remove('is-eager');
+        buddy.classList.add('is-tired');
+        try {
+          const n = (parseInt(localStorage.getItem('cq-hint-used') || '0', 10) || 0) + 1;
+          localStorage.setItem('cq-hint-used', String(n));
+        } catch (_) {}
+      }
+    } else {
+      bubble.hidden = true;
+      buddy.setAttribute('aria-expanded', 'false');
+    }
+  });
 }
 
 function renderHearts(count) {

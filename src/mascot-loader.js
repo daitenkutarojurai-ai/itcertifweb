@@ -13,6 +13,11 @@
   if (window.__cqMascotLoaderInit) return;
   window.__cqMascotLoaderInit = true;
 
+  /* On train.html the squid is the per-question "Hint Buddy" (rendered by
+     the quiz screen), so don't also load the floating tip-mascot there —
+     one squid, one job. (Audit S8.) */
+  try { if (/\/train\.html$/.test(location.pathname)) return; } catch (_) {}
+
   var SRC = '/src/mascot.js?v=120';
   var IDLE_TIMEOUT = 8000;
   var triggered = false;
