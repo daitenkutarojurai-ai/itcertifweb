@@ -668,7 +668,24 @@ competition-driven, community-driven** layer. Highest-priority builds:
 - **Deferred (v2):** true 3D (Three.js/WebGL); per-view OG image.
   Registered in sitemap + llms.txt.
 
-### 8.2 — Career RPG ✅ doable (merge into Phase 7)
+### 8.2 — Career RPG ✅ v1 SHIPPED 2026-06-02 (class system)
+
+- **Shipped:** a Career RPG **class** layer over the existing gamification.
+  `src/rpgclass.js` (in the cq-core bundle, pure dual-export) defines 6
+  classes (Cloud Engineer ☁️ / DevOps Alchemist 🔧 / Security Sentinel 🛡️ /
+  Network Ranger 🌐 / Linux Monk 🐧 / Data Sage 📊), each with a playstyle
+  blurb, signature certs, and a 5-tier TITLE that levels up with your
+  CertQuests level (tiers at Lv 1/5/15/30/50). Surfaced as a "⚔️ Class"
+  section on `/profile.html` (picker chips + current title + next-rank hint
+  + signature-cert path deep-links). Complements — not duplicates — the
+  roadmap: with no explicit pick it AUTO-SUGGESTS the class matching the
+  roadmap's domain. Store `cq-class-v1` / `window.cqClass`, dispatches
+  `cq:class-changed`. +8 unit tests (260 total). Local-first.
+- **Deferred (v2):** "equipment slots" as a cosmetics/hat reframing; class
+  chip on the header avatar + the path map; class shown on the public
+  `/u/` profile (needs a cloud column); per-class quest lines.
+
+### 8.2-orig — Career RPG ✅ doable (merge into Phase 7)
 
 - Pick a class (Cloud Engineer / DevOps / Security Analyst), then
   quests, boss fights, certifications, XP, equipment, guilds.

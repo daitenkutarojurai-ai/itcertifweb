@@ -131,6 +131,58 @@
     if (section) section.hidden = false;
   }
 
+  function renderClass(stats) {
+    var host = $('profile-class');
+    if (!host || !window.cqClass) return;
+    function esc(s) {
+      return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) {
+        return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+      });
+    }
+    var level = (stats && stats.level) ? stats.level : 1;
+    var list = window.cqClass.list();
+    var active = window.cqClass.current(); // explicit pick, else roadmap-domain suggestion, else null
+    var explicit = !!window.cqClass.get();
+
+    var chips = list.map(function (c) {
+      var on = active && c.id === active.id;
+      return '<button type="button" class="class-chip' + (on ? ' is-active' : '') + '" data-class="' + esc(c.id) + '"' +
+        ' style="--c-accent:' + esc(c.accent) + '"><span aria-hidden="true">' + esc(c.emoji) + '</span> ' + esc(c.name) + '</button>';
+    }).join('');
+
+    var body;
+    if (!active) {
+      body = '<p class="class-empty">Pick a class to give your journey an identity — your title levels up as you do.</p>';
+    } else {
+      var title = window.cqClass.titleFor(active, level);
+      var nextAt = window.cqClass.nextTierAt(level);
+      var certLinks = (active.certs || []).map(function (id) {
+        return '<a class="class-cert" href="/path.html?pack=' + esc(id) + '">' + esc(id.toUpperCase().replace(/-/g, ' ')) + '</a>';
+      }).join('');
+      body =
+        '<div class="class-hero" style="--c-accent:' + esc(active.accent) + '">' +
+          '<span class="class-emoji" aria-hidden="true">' + esc(active.emoji) + '</span>' +
+          '<div class="class-hero-body">' +
+            '<div class="class-title">' + esc(title) + '</div>' +
+            '<div class="class-sub">' + esc(active.name) + ' · Lv ' + level +
+              (nextAt ? ' · next rank at Lv ' + nextAt : ' · max rank') + '</div>' +
+          '</div>' +
+        '</div>' +
+        '<p class="class-blurb">' + esc(active.blurb) + '</p>' +
+        (certLinks ? '<div class="class-certs"><span class="class-certs-lbl">Signature certs</span>' + certLinks + '</div>' : '') +
+        (!explicit ? '<p class="class-suggest">Suggested from your roadmap — tap a class above to lock it in.</p>' : '');
+    }
+    host.innerHTML = '<div class="class-chips">' + chips + '</div>' + body;
+
+    var chipsEl = host.querySelector('.class-chips');
+    if (chipsEl) chipsEl.addEventListener('click', function (e) {
+      var b = e.target.closest('.class-chip');
+      if (!b) return;
+      window.cqClass.set(b.getAttribute('data-class'));
+      renderClass(stats);
+    });
+  }
+
   function renderRoadmap() {
     var host = $('profile-roadmap');
     if (!host) return;
@@ -677,6 +729,7 @@
     renderHeatmap(stats);
     renderMilestones(stats);
     renderCoach();
+    renderClass(stats);
     renderRoadmap();
     renderHats();
     renderLaurels();
