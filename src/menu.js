@@ -55,6 +55,9 @@
           '<span class="mobile-menu-auth-label">Sign in</span>' +
         '</button>' +
         '<div class="mobile-menu-eyebrow">Explore</div>' +
+        '<a href="/">' +
+          '<span class="mobile-menu-emoji">🏠</span>Home' +
+        '</a>' +
         '<a href="/path.html" class="mobile-menu-new">' +
           '<span class="mobile-menu-emoji">🗺️</span>Cert Quest' +
           '<span class="mobile-menu-pill">NEW</span>' +
@@ -98,6 +101,9 @@
         '<a href="/news/">' +
           '<span class="mobile-menu-emoji">💡</span>Pro tips' +
         '</a>' +
+        '<a href="/profile.html">' +
+          '<span class="mobile-menu-emoji">👤</span>Profile' +
+        '</a>' +
         '<div class="mobile-menu-divider"></div>' +
         '<a href="/contact.html">' +
           '<span class="mobile-menu-emoji">✉️</span>Contact' +
@@ -107,6 +113,15 @@
         '</a>' +
       '</nav>';
     document.body.appendChild(menu);
+
+    /* Active-page highlight — mark the drawer link matching the current path. */
+    (function () {
+      var here = location.pathname.replace(/index\.html$/, '').replace(/\/$/, '') || '/';
+      menu.querySelectorAll('.mobile-menu-panel a[href^="/"]').forEach(function (a) {
+        var path = (a.getAttribute('href') || '').split(/[?#]/)[0].replace(/index\.html$/, '').replace(/\/$/, '') || '/';
+        if (path === here) { a.classList.add('is-active'); a.setAttribute('aria-current', 'page'); }
+      });
+    })();
 
     var prevOverflow = '';
     var backId = null;
@@ -132,6 +147,11 @@
     btn.addEventListener('click', open);
     menu.querySelector('.mobile-menu-close').addEventListener('click', function () { close(); });
     menu.addEventListener('click', function (e) { if (e.target === menu) close(); });
+    /* Close on nav-link tap (S7) — matters for a link to the current page. */
+    menu.querySelector('.mobile-menu-panel').addEventListener('click', function (e) {
+      var link = e.target.closest('a[href]');
+      if (link && !link.classList.contains('mobile-menu-auth')) close();
+    });
     document.addEventListener('keydown', function (e) { if (!menu.hidden && e.key === 'Escape') close(); });
 
     /* ── Sticky header scrolled-state toggle ── */
