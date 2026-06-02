@@ -838,7 +838,32 @@ competition-driven, community-driven** layer. Highest-priority builds:
   Modeled on the InfraCost page. Result-card OG image is the default
   (custom per-result OG deferred — needs an image pipeline).
 
-### 8.9 — AI-generated Tech Universe 🌟 north-star
+### 8.9 — AI-generated Tech Universe 🌟 v1 SHIPPED 2026-06-02 (the map slice)
+
+- **Shipped:** `/tech-universe/` — the north-star's first concrete slice: the
+  whole cert world as an explorable **galaxy**. Overview = 6 domain
+  constellation cards (Cloud / DevOps / Security / Network / Data&AI / Linux),
+  each with a conquest ring + a glowing starfield (one star per cert, lit when
+  conquered). Click a domain → a **tier constellation** (Foundational →
+  Associate → Pro/Boss columns, progression edges, ♛ on advanced "boss" certs)
+  where each star is a cert you can click for a detail panel (status + deep
+  links to train / path / roadmap). All 87 certs across 17 brands, classified
+  into the 6 domains by a per-pack heuristic; player progress overlaid from
+  `cq-laurels` (conquered) + `cq-stats`/`cq-path-progress` (in orbit). Pure
+  client-side SVG, no runtime LLM, no new state — built entirely from
+  `data/index.json` + local progress. Header shows X/87 stars conquered +
+  domains explored. Drawer 🌌 + sitemap. Cache v122 → v123.
+- **Why this is the right 8.9 v1:** the TODO defines 8.9 as the *vision* the
+  concrete tickets ladder up to ("a global progression map … career as an
+  MMORPG"). This is that map — the connective visual over 8.1/8.2/Phase-3
+  maps/Phase-7 — without the deferred "fully AI-generated living universe"
+  (runtime LLM + heavy state).
+- **Deferred (v2):** runtime-AI-generated lore/bosses (needs an LLM endpoint);
+  cross-domain progression edges (prereqs that span brands); animated
+  pan/zoom physics galaxy; per-domain OG share images; cloud-synced conquest so
+  the map matches across web + app.
+
+### 8.9-orig — AI-generated Tech Universe 🌟 north-star
 
 - The whole career world gamified — companies, certs, skills, tech
   "bosses", a global progression map. Career as an MMORPG.

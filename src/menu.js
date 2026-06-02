@@ -65,6 +65,9 @@
         '<a href="/certifications/">' +
           '<span class="mobile-menu-emoji">🏅</span>Certifications' +
         '</a>' +
+        '<a href="/tech-universe/">' +
+          '<span class="mobile-menu-emoji">🌌</span>Tech Universe' +
+        '</a>' +
         '<a href="/careers/">' +
           '<span class="mobile-menu-emoji">🚀</span>Careers' +
         '</a>' +
