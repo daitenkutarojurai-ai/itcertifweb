@@ -2780,12 +2780,19 @@
         regs.forEach(function(r){ try { r.update(); } catch(e){} });
       }).catch(function(){});
 
-      var SW_RELOADED_KEY = '__sw_reloaded_v10';
-      navigator.serviceWorker.addEventListener('controllerchange', function(){
-        if (sessionStorage.getItem(SW_RELOADED_KEY)) return;
-        sessionStorage.setItem(SW_RELOADED_KEY, '1');
-        window.location.reload();
-      });
+      /* Only reload when an UPDATED SW takes over — i.e. the page was ALREADY
+         controlled at load. On a first visit there is no controller yet, so the
+         install→clients.claim()→controllerchange must NOT reload (that was the
+         "landing page loads twice on first visit" flash). Versioned ?v=N asset
+         URLs already prevent the stale-CSS issue this used to guard against. */
+      if (navigator.serviceWorker.controller) {
+        var SW_RELOADED_KEY = '__sw_reloaded_v10';
+        navigator.serviceWorker.addEventListener('controllerchange', function(){
+          if (sessionStorage.getItem(SW_RELOADED_KEY)) return;
+          sessionStorage.setItem(SW_RELOADED_KEY, '1');
+          window.location.reload();
+        });
+      }
     }
   </script>
 </head>
@@ -4470,8 +4477,10 @@
     el.querySelector('.mobile-prompt-dismiss').addEventListener('click', close);
     el.addEventListener('click', function (e) { if (e.target === el) close(); });
     document.addEventListener('keydown', function (e) { if (!el.hidden && e.key === 'Escape') close(); });
-    /* Show after a short delay so the page paints first */
-    setTimeout(open, 900);
+    /* Disabled — the auto-opening install modal locked body scroll on mobile
+       load (a blocking timer popup). Kept dormant for now; re-enable by
+       restoring `setTimeout(open, 900)`. */
+    void open;
   })();
   </script>
   <!-- Mobile homepage overrides — extracted from former inline block. -->
