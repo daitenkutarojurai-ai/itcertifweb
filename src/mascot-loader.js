@@ -18,7 +18,7 @@
      one squid, one job. (Audit S8.) */
   try { if (/\/train\.html$/.test(location.pathname)) return; } catch (_) {}
 
-  var SRC = '/src/mascot.js?v=120';
+  var SRC = '/src/mascot.js?v=121';
   var IDLE_TIMEOUT = 8000;
   var triggered = false;
   var idleTimer = null;
