@@ -578,12 +578,27 @@ competition-driven, community-driven** layer. Highest-priority builds:
   guild/rank/streak (streak isn't a cloud column yet). Ties to 7.7 job
   matching once a skills vector exists.
 
-#### 7.9 — Study groups + accountability (NEW)
+#### 7.9 — Study groups + accountability (NEW) ✅ v1 SHIPPED 2026-06-02
 
-- Smaller than guilds: study groups are cohorts working the same
-  cert with shared deadlines; accountability pairs/check-ins ("your
-  partner studied today — your turn"). Lightweight — can build on
-  the guild tables with a `type` discriminator.
+- **Shipped:** `/study-groups/` — cert-focused cohorts with an optional
+  shared deadline and a once-per-day accountability check-in. DB (migration
+  `0009_study_groups`, applied): additive `study_groups` (slug, name,
+  pack_id, target_date) + `study_group_members` (many-to-many, unlike
+  guilds' one-per-user; carries `last_checkin` + `checkin_count`) with
+  public-read RLS, writes only via SECURITY DEFINER RPCs. RPCs:
+  `create_study_group` / `join_study_group` / `leave_study_group`
+  (12-group cap), `study_group_checkin` (idempotent per day → returns the
+  streak count), `get_study_groups(pack?)` + `get_study_group(slug)`
+  (anon-readable discovery + roster with check-in state) and
+  `get_my_study_groups`. Page (authed, mirrors the guilds client): your
+  groups with a Check-in button, a create form (name + cert picker from
+  `data/index.json` + optional deadline), and a discoverable list filtered
+  by cert; `?g=slug` detail shows the roster sorted by check-ins + a path
+  deep-link. Drawer 📓 + sitemap. **Phase 7 (Career OS) is now complete.**
+- **Deferred (v2):** accountability *pairs* / "your partner studied — your
+  turn" nudges; group chat/wall; per-group shared goal progress bar;
+  longest-streak highlighting; owner moderation (kick/rename/close);
+  notifications when the deadline nears.
 
 #### 7.10 — Social layer + community feed (NEW) ✅ v1 SHIPPED 2026-06-02
 

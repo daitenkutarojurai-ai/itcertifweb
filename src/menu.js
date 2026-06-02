@@ -92,6 +92,9 @@
         '<a href="/community/">' +
           '<span class="mobile-menu-emoji">👥</span>Community' +
         '</a>' +
+        '<a href="/study-groups/">' +
+          '<span class="mobile-menu-emoji">📓</span>Study groups' +
+        '</a>' +
         '<a href="/news/">' +
           '<span class="mobile-menu-emoji">💡</span>Pro tips' +
         '</a>' +
