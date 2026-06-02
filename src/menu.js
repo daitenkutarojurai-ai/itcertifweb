@@ -89,6 +89,9 @@
         '<a href="/challenges/">' +
           '<span class="mobile-menu-emoji">⚡</span>Challenges' +
         '</a>' +
+        '<a href="/community/">' +
+          '<span class="mobile-menu-emoji">👥</span>Community' +
+        '</a>' +
         '<a href="/news/">' +
           '<span class="mobile-menu-emoji">💡</span>Pro tips' +
         '</a>' +

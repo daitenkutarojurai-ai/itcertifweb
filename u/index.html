@@ -25,8 +25,8 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700;800&family=DM+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet" />
 
-  <link rel="stylesheet" href="/src/styles/main.css?v=117" />
-  <link rel="stylesheet" href="/src/styles/desktop.css?v=117" />
+  <link rel="stylesheet" href="/src/styles/main.css?v=118" />
+  <link rel="stylesheet" href="/src/styles/desktop.css?v=118" />
 
   <style>
     .pp-page { max-width: 720px; margin: 0 auto; padding: 0 20px 80px; }
@@ -68,6 +68,13 @@
       padding: 13px 26px; border-radius: 13px; text-decoration:none; transition: filter .15s, transform .15s;
     }
     .pp-cta a:hover { filter: brightness(1.1); transform: translateY(-1px); }
+    .pp-follow {
+      display:inline-flex; align-items:center; gap:6px; margin-bottom:12px;
+      background:#a855f7; color:#fff; border:none; font-family:'Space Grotesk',sans-serif; font-weight:700; font-size:14px;
+      padding:12px 24px; border-radius:13px; cursor:pointer; transition: filter .15s, transform .15s;
+    }
+    .pp-follow:hover { filter: brightness(1.1); transform: translateY(-1px); }
+    .pp-follow.is-following { background:transparent; color:#c4b5fd; border:1px solid rgba(168,85,247,.5); }
     .pp-share { margin-top: 12px; }
     .pp-share button {
       background: transparent; border:1px solid rgba(255,255,255,.14); color:#cfd6e6;
@@ -161,6 +168,56 @@
     }
     function prettyPack(id) { return String(id || '').split('-').map(function (s) { return s.toUpperCase(); }).join(' '); }
 
+    function authClient() { return window.cqAuth && window.cqAuth._client; }
+    function myUsername() { try { return (localStorage.getItem('cq-profile-username') || '').trim(); } catch (_) { return ''; } }
+
+    /* Follow button (Phase 7.10): hidden by default; shown when this isn't
+       your own profile. Signed-out clicks open the sign-in modal. */
+    function wireFollow(targetHandle) {
+      var btn = document.getElementById('pp-follow');
+      if (!btn) return;
+      var following = false;
+
+      function paint() {
+        btn.hidden = false;
+        btn.textContent = following ? '✓ Following' : '＋ Follow';
+        btn.classList.toggle('is-following', following);
+      }
+      function ready() {
+        // Hide on your own profile.
+        if (myUsername() && myUsername().toLowerCase() === targetHandle.toLowerCase()) { btn.hidden = true; return; }
+        var c = authClient();
+        if (c && window.cqAuth.getUser && window.cqAuth.getUser()) {
+          c.rpc('social_search_users', { p_q: targetHandle, limit_n: 12 }).then(function (r) {
+            var rows = (r && r.data) || [];
+            var match = rows.filter(function (u) { return u.username && u.username.toLowerCase() === targetHandle.toLowerCase(); })[0];
+            following = !!(match && match.following);
+            paint();
+          }).catch(function () { paint(); });
+        } else {
+          paint(); // signed out — show Follow; click will prompt sign-in
+        }
+      }
+
+      btn.addEventListener('click', function () {
+        var c = authClient();
+        if (!c || !(window.cqAuth.getUser && window.cqAuth.getUser())) {
+          if (window.cqAuthUi && window.cqAuthUi.openSignIn) window.cqAuthUi.openSignIn();
+          return;
+        }
+        btn.disabled = true;
+        c.rpc('social_follow', { p_username: targetHandle, p_follow: !following }).then(function (r) {
+          btn.disabled = false;
+          if (r && r.error) return;
+          if (r && r.data === false) return;
+          following = !following; paint();
+        }).catch(function () { btn.disabled = false; });
+      });
+
+      window.addEventListener('cq:auth-changed', ready);
+      setTimeout(ready, 120);
+    }
+
     Promise.all([
       fetch(SUPABASE_URL + '/rest/v1/rpc/get_public_profile', {
         method: 'POST',
@@ -202,9 +259,12 @@
           '<div class="pp-laurels">' + laurelsHtml + '</div>' +
         '</div>' +
         '<div class="pp-cta">' +
+          '<button type="button" id="pp-follow" class="pp-follow" hidden>＋ Follow</button>' +
           '<a href="/certifications/">Build your own profile — free →</a>' +
           '<div class="pp-share"><button type="button" id="pp-copy">🔗 Copy link to this profile</button></div>' +
         '</div>';
+
+      wireFollow(handle);
 
       var copyBtn = document.getElementById('pp-copy');
       if (copyBtn) copyBtn.addEventListener('click', function () {
@@ -219,7 +279,9 @@
   })();
   </script>
 
-  <script src="/src/cq-core.js?v=117" defer></script>
-  <script src="/src/mascot-loader.js?v=117" defer></script>
+  <script src="/src/cq-core.js?v=118" defer></script>
+  <script type="module" src="/src/auth.js?v=118"></script>
+  <script src="/src/auth-ui.js?v=118" defer></script>
+  <script src="/src/mascot-loader.js?v=118" defer></script>
 </body>
 </html>

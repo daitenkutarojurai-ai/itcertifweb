@@ -585,12 +585,29 @@ competition-driven, community-driven** layer. Highest-priority builds:
   partner studied today — your turn"). Lightweight — can build on
   the guild tables with a `type` discriminator.
 
-#### 7.10 — Social layer + community feed (NEW)
+#### 7.10 — Social layer + community feed (NEW) ✅ v1 SHIPPED 2026-06-02
 
-- The connective tissue: an activity feed (friend/guild events —
-  level-ups, laurels, challenge wins), follow/friend, reactions.
-  Makes streaks, challenges, and ranks visible to peers — that
-  visibility is what drives the competition flywheel.
+- **Shipped:** `/community/` — follow other learners, race them on a
+  friends-only XP leaderboard, and watch their wins in an activity feed.
+  DB (migration `0008_social`, applied): additive `follows` table (RLS:
+  read rows where you're either side; writes only via RPC) + five
+  SECURITY DEFINER RPCs, all `authenticated`-only (default PUBLIC execute
+  revoked): `social_follow(username, on)`, `social_search_users(q)`,
+  `social_graph` (you + followees ranked by the unified cross-platform
+  XP), `social_feed` (DERIVED from `user_achievements.earned_at` +
+  `user_path_progress` boss-node `completed_at` — no new events table),
+  `social_counts`. Privacy: you can only follow PUBLIC
+  (`leaderboard_opt_in`) users, and every read RPC re-checks opt_in, so an
+  opt-out silently drops you from others' feeds/boards; no PII leaves the
+  RPCs. Page (authed, mirrors the guilds client) = counts + user search
+  with follow toggles + friends leaderboard + feed. A 💜 Follow button on
+  the `/u/?u=` public profile is the per-person entry point. Drawer 👥 +
+  sitemap. Additive — no app code change.
+- **Deferred (v2):** reactions/likes on feed items; a global (not just
+  followees) discovery feed; guild-event items (level-ups, challenge
+  wins) once those are timestamped cloud-side; follower-of notifications;
+  mutual-follow "friends" distinction; cloud laurels in the feed once the
+  web mirrors final-boss laurels to `user_achievements`.
 
 ### Cross-cutting
 
