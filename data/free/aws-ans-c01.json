@@ -4,10 +4,10 @@
     "name": "AWS Advanced Networking Specialty ANS-C01",
     "vendor": "Amazon Web Services",
     "tier": "free",
-    "version": "1.0.5",
+    "version": "1.0.6",
     "question_count": 60,
-    "last_updated": "2026-05-28",
-    "notes": " [hardening pass: cleaned garbled options, rebalanced position+length tells, sharper distractors and explanations] [hardening 2026-05-28: removed formulaic distractor filler tell (231 occurrences, all on wrong answers), rewrote distractors as plausible length-matched concepts, correct-answer-longest reduced to chance level]"
+    "last_updated": "2026-06-03",
+    "notes": " [hardening pass: cleaned garbled options, rebalanced position+length tells, sharper distractors and explanations] [hardening 2026-05-28: removed formulaic distractor filler tell (231 occurrences, all on wrong answers), rewrote distractors as plausible length-matched concepts, correct-answer-longest reduced to chance level] [hardening 2026-06-03: rewrote 19 short-distractor pairs across high-delta questions to length-match the correct option with plausible technical content; correct-vs-wrong avg-length gap closed from 12.8 to 2.6 chars]"
   },
   "questions": [
     {
@@ -318,8 +318,8 @@
       "question": "A company is deploying a new architecture where security inspection must cover east-west traffic between VPCs, and traffic must symmetrically hit the same firewall regardless of direction. Which design best achieves this?",
       "options": [
         "Centralize a GWLB-based inspection VPC attached to the TGW, with appliance mode enabled on the attachment for flow symmetry",
-        "Use VPC Lattice service network policies to inspect the east-west service-to-service traffic",
-        "Use AWS Firewall Manager to push NACLs to every spoke subnet for east-west inspection",
+        "Use VPC Lattice service network auth and access policies to inspect each east-west service-to-service flow at packet level",
+        "Use AWS Firewall Manager to push NACL and security-group baselines to every spoke subnet for stateful east-west inspection",
         "Place firewall appliances behind an NLB in each spoke VPC and peer every spoke through that shared appliance fleet"
       ],
       "correct": 0,
@@ -479,8 +479,8 @@
       "options": [
         "Place the ALB in a private subnet with neither a NAT Gateway nor an internet gateway route, assuming that only CloudFront can then reach it",
         "Configure CloudFront to add a custom HTTP header with a secret value and add a WAF rule on the ALB that allows only requests carrying that header",
-        "Deploy a Gateway Load Balancer in front of the ALB to transparently inspect and drop any non-CloudFront source traffic",
-        "Run a scheduled Lambda that keeps the ALB security group updated with the CloudFront edge IPs parsed from ip-ranges.json"
+        "Deploy a Gateway Load Balancer in front of the ALB to transparently inspect every request and drop any traffic whose source IP is not a CloudFront edge",
+        "Run a scheduled Lambda that keeps the ALB security group ingress rules updated with the published CloudFront edge IP ranges parsed from ip-ranges.json"
       ],
       "correct": 1,
       "explanation": "The maintenance-light, AWS-recommended patterns are (a) the AWS Managed Prefix List for CloudFront origin-facing IPs in the ALB SG, or (b) CloudFront injecting a custom secret header and a WAF rule on the ALB validating it. The custom-header + WAF approach is robust and has no Lambda or IP-list to maintain. Maintaining IPs via Lambda is brittle and outdated. GWLB is not the right tool. A private ALB with no NAT isn't reachable from CloudFront either, so it would block legitimate traffic too.",
@@ -498,8 +498,8 @@
       "options": [
         "AWS prefers the route carrying the longest AS_PATH toward the customer specifically in order to avoid hot-potato routing across its own backbone",
         "AWS selects by longest-prefix match first, then local_preference (influenced by communities like 7224:7100/7200/7300), then shortest AS_PATH, then MED",
-        "AWS ignores all inbound BGP attributes and always load-balances with ECMP across every available path equally",
-        "AWS evaluates only BGP community tags and disregards prefix length entirely when choosing the outbound path"
+        "AWS ignores all inbound BGP attributes and always load-balances using ECMP across every available DX and VPN path equally regardless of metric",
+        "AWS evaluates only BGP community tags from the customer and disregards prefix length entirely when choosing the outbound forwarding path"
       ],
       "correct": 1,
       "explanation": "BGP route selection on the AWS side follows: longest prefix match first, then local_preference (which customers influence via AWS-published BGP communities such as 7224:7100/7200/7300 for low/medium/high preference), then shortest AS_PATH, then MED, then other tiebreakers. The 'longest AS_PATH' option inverts the rule. AWS does honor prefix length, and it doesn't ignore attributes for ECMP unless paths are otherwise equal.",
@@ -566,9 +566,9 @@
       "question": "A company operates 3 VPCs (A, B, C) with CIDRs 10.1.0.0/16, 10.2.0.0/16, and 10.1.0.0/16 respectively. They want to connect all three. Which limitation applies?",
       "options": [
         "VPC peering does support overlapping CIDRs between VPC A and VPC C as long as the route tables declare which side wins per prefix",
-        "AWS Cloud WAN automatically resolves overlapping CIDRs by applying built-in NAT inside the core network",
+        "AWS Cloud WAN automatically resolves overlapping CIDRs between attached VPCs by applying built-in source NAT inside the core network policy",
         "Native peering, TGW, and Cloud WAN require non-overlapping CIDRs, so VPC A and C cannot both connect without re-CIDR or PrivateLink",
-        "Transit Gateway automatically resolves overlapping CIDRs by applying implicit NAT on the VPC attachment"
+        "Transit Gateway automatically resolves overlapping CIDRs by applying implicit source-NAT on the VPC attachment with the conflict"
       ],
       "correct": 2,
       "explanation": "All native AWS L3 VPC connectivity options — peering, Transit Gateway, Cloud WAN, Direct Connect, VPN — require non-overlapping CIDRs because routing is destination-IP based. The only way to bridge overlapping CIDRs without re-IP is service-level abstraction such as PrivateLink (consumer accesses the producer via an ENI in the consumer's CIDR) or self-managed NAT appliances. None of peering/TGW/Cloud WAN performs implicit NAT.",
@@ -603,9 +603,9 @@
       "question": "A company needs to perform packet capture for forensic analysis on an EC2 instance suspected of compromise. The instance should be isolated from the network but kept running for analysis. Which action preserves forensic integrity and isolates the instance?",
       "options": [
         "Swap the instance's security groups for a restrictive quarantine SG and mirror its live traffic to a forensics NLB via VPC Traffic Mirroring",
-        "Detach the instance's primary ENI to immediately and completely cut it off from all network access",
+        "Detach the instance's primary ENI immediately to cut it off from all network access, preserving the running EC2 process tree for memory analysis",
         "Stop the instance and snapshot all of its attached EBS volumes so the full disk image can be analyzed offline by the forensics team afterwards",
-        "Terminate the instance after first capturing an AMI and EBS snapshots that preserve its current disk state"
+        "Terminate the instance after first capturing an AMI plus point-in-time EBS snapshots and a memory dump uploaded to a forensic S3 bucket"
       ],
       "correct": 0,
       "explanation": "Forensic best practice keeps the instance running so volatile state (memory, in-flight connections) is preserved, while isolating it from production by swapping in a restrictive quarantine security group; VPC Traffic Mirroring then captures live packets to an analysis appliance via an NLB. Detaching the ENI cuts the instance off entirely (killing forensic processes that need network). Stopping/terminating destroys volatile memory state — the exact thing forensics needs.",
@@ -638,9 +638,9 @@
       "question": "A company wants to enforce that all VPC endpoints created in member accounts must use an endpoint policy restricting access to specific S3 buckets. Which AWS service can enforce this at scale across accounts?",
       "options": [
         "AWS Resource Access Manager (RAM) distributing shared endpoint-policy templates to every one of the member accounts in the organization",
-        "AWS Shield Advanced protection policies applied at the VPC endpoint level within each member account",
+        "AWS Shield Advanced protection policies applied at the VPC endpoint level inside each member account so that bucket access is restricted",
         "AWS Organizations SCPs (to deny non-compliant endpoint creation) combined with AWS Config rules (to detect drift) and remediation",
-        "AWS Firewall Manager endpoint policies pushed organization-wide to every member account automatically"
+        "AWS Firewall Manager endpoint-policy templates pushed organization-wide to every member account automatically with no per-account work"
       ],
       "correct": 2,
       "explanation": "Organization-wide endpoint-policy enforcement is achieved by combining SCPs (deny the creation of endpoints without the required policy condition), AWS Config rules (continuously detect non-compliant endpoints), and automated remediation via SSM/Lambda. Firewall Manager covers SG, WAF, Network Firewall, and DNS Firewall policies — not generic endpoint policies. RAM shares resources; it does not enforce policy compliance. Shield Advanced is DDoS-only.",
@@ -657,8 +657,8 @@
       "options": [
         "Global Accelerator requires an operator to manually trigger a CLI failover whenever one of the application Regions becomes unhealthy or unreachable",
         "Global Accelerator uses endpoint group health checks and the traffic dial to shift traffic automatically to healthy endpoint groups",
-        "Global Accelerator relies on customer-side BGP advertisements to fail over between the two Regions",
-        "Global Accelerator uses Route 53 public hosted zones internally to perform cross-Region failover"
+        "Global Accelerator relies on customer-managed BGP advertisements at the edge to fail over the published anycast prefixes between the two Regions",
+        "Global Accelerator internally provisions Route 53 public hosted zones and uses DNS failover records to drive cross-Region failover for the anycast IPs"
       ],
       "correct": 1,
       "explanation": "Global Accelerator continuously health-checks endpoints; on failure, traffic is shifted within seconds to healthy endpoint groups based on the traffic dial and weight settings. Because the anycast IPs stay the same, clients don't need DNS re-resolution. It is not a manual failover model, it is not exposed as customer-controlled BGP, and it does not use Route 53 internally for failover.",
@@ -743,9 +743,9 @@
       "id": "ans-042",
       "question": "A company has a private ALB in a VPC and wants to expose it to customers over PrivateLink (Interface Endpoints). What must the company configure?",
       "options": [
-        "Use Amazon API Gateway private endpoints to expose the ALB to the consumer VPCs",
+        "Use Amazon API Gateway private endpoints in front of the ALB and share those private API stages with each of the consumer VPCs requiring access",
         "Create a Network Load Balancer with ALB-type targets pointing at the ALB, then create a VPC Endpoint Service on the NLB",
-        "Configure PrivateLink directly at the ALB listener level without any intermediate NLB",
+        "Configure PrivateLink directly at the ALB listener level by attaching a VPC endpoint service ID, without any intermediate NLB to back the service",
         "Create a VPC Endpoint Service directly from the ALB itself and share it with each of the consumer accounts that needs to reach the service"
       ],
       "correct": 1,
@@ -781,8 +781,8 @@
       "question": "A company uses AWS WAF on an ALB and wants to enable challenge-based protection for bot traffic. When a suspicious request is detected, WAF should issue a cryptographic challenge to the client before allowing the request through. Which feature provides this?",
       "options": [
         "AWS Shield Advanced bot-signature mitigations that are applied automatically to all of the ALB's inbound traffic at the edge before it reaches the targets",
-        "AWS WAF geo-match rules with a BLOCK action targeting the high-risk source countries",
-        "AWS WAF rate-based rules with the action set to COUNT to throttle the suspected bots",
+        "AWS WAF geo-match rules with a BLOCK action targeting high-risk source countries identified by the threat-intelligence team for inbound HTTPS requests",
+        "AWS WAF rate-based rules with the action set to COUNT to throttle the suspected bot traffic while emitting CloudWatch metrics for triage",
         "AWS WAF Bot Control managed rule group, which applies Challenge (silent cryptographic) or CAPTCHA actions based on bot classification"
       ],
       "correct": 3,
@@ -814,9 +814,9 @@
       "id": "ans-046",
       "question": "A company uses AWS Network Firewall in distributed mode in each VPC. They want to centralize egress inspection in a hub VPC to reduce cost and improve consistency. What deployment pattern should they implement?",
       "options": [
-        "Deploy AWS WAF at the edge of every VPC with geo-block rules in an attempt to centralize the inspection",
+        "Deploy AWS WAF at the edge of every spoke VPC with geo-block, IP-set, and managed rule groups to centralize the egress inspection at the perimeter",
         "Deploy AWS Network Firewall in a dedicated inspection VPC on the TGW and route all spoke egress through it before the egress VPC's NAT Gateway",
-        "Deploy a Gateway Load Balancer in each spoke VPC pointing to one shared Network Firewall over GENEVE",
+        "Deploy a Gateway Load Balancer in each spoke VPC pointing over GENEVE to a single shared central Network Firewall endpoint for all egress flows",
         "Deploy one AWS Network Firewall per Availability Zone in every spoke VPC and shuttle traffic between all of those firewalls using the Transit Gateway"
       ],
       "correct": 1,
@@ -852,8 +852,8 @@
       "options": [
         "NLB TLS listeners are usable only when they are paired with self-signed certificates that have been loaded directly into IAM, never into ACM",
         "NLB TLS listeners terminate TLS at the load balancer and support SNI with multiple certificates per listener, integrated with ACM and IAM",
-        "NLB TLS listeners are available only when the NLB is run in Classic Load Balancer compatibility mode",
-        "NLB TLS listeners cannot terminate TLS and only support pure pass-through straight to the targets"
+        "NLB TLS listeners are only available when the NLB is launched in Classic Load Balancer compatibility mode and inherit its cipher suite policy",
+        "NLB TLS listeners cannot terminate TLS at all; they only support pure pass-through directly to the registered targets at Layer 4"
       ],
       "correct": 1,
       "explanation": "NLB TLS listeners terminate TLS at the load balancer using ACM/IAM-managed certificates and support Server Name Indication (SNI) so a single listener can serve multiple hostnames. If you do not want termination at the NLB, you can instead use a TCP listener for pure pass-through. There is no Classic Load Balancer 'compatibility mode'. Self-signed certs and IAM-only loading are not the only option — ACM is fully supported.",
@@ -868,8 +868,8 @@
       "question": "A company uses AWS Firewall Manager to centrally manage security policies. Which of the following can be managed via Firewall Manager?",
       "options": [
         "VPC route tables and subnet route associations managed and audited centrally across the whole AWS Organization estate",
-        "AWS Backup vault access policies and lifecycle rules enforced across the member accounts",
-        "IAM Identity Center permission sets and SCP attachments managed across the whole Organization",
+        "AWS Backup vault access policies, vault lock configurations, and lifecycle rules enforced organization-wide across all member accounts",
+        "IAM Identity Center permission sets and SCP attachments managed centrally and pushed to OUs and accounts across the whole Organization",
         "AWS WAF web ACLs, Shield Advanced, VPC security group policies, Network Firewall policies, and DNS Firewall rule groups"
       ],
       "correct": 3,
@@ -886,9 +886,9 @@
       "id": "ans-050",
       "question": "An organization requires that all outbound internet traffic from EKS pods in a VPC originate from specific static IPs so that SaaS vendors can allowlist them. Which architecture accomplishes this?",
       "options": [
-        "Assign an Elastic IP directly to each EKS worker node and have the SaaS vendors allowlist every node IP",
-        "Place a Network Load Balancer in front of all outbound pod traffic and present its associated IP addresses to the SaaS vendors for allowlisting",
-        "Route all pod egress through CloudFront and give the SaaS vendors the published CloudFront IP ranges",
+        "Assign an Elastic IP directly to each EKS worker node and have the SaaS vendors allowlist every worker node IP as it scales in and out",
+        "Place a Network Load Balancer in front of all outbound pod traffic and present its associated subnet IP addresses to the SaaS vendors for allowlisting",
+        "Route all pod egress through a CloudFront distribution and give the SaaS vendors the published CloudFront edge IP ranges to allowlist on their side",
         "Use a NAT Gateway in each public subnet (each with an Elastic IP) and route pod egress through it; the NAT EIPs are the static outbound IPs"
       ],
       "correct": 3,
@@ -905,8 +905,8 @@
       "options": [
         "TGW peering is supported strictly within a single Region and cannot connect Transit Gateways that are located in different Regions at all",
         "TGW inter-Region peering rides the encrypted AWS backbone, but routing is static — you add explicit static routes on both route tables",
-        "TGW inter-Region peering requires a Direct Connect Gateway to serve as the transit between the Regions",
-        "TGW peering exchanges routes dynamically using BGP between the two peered Transit Gateways"
+        "TGW inter-Region peering requires a Direct Connect Gateway to serve as the transit between the Regions and to advertise the cross-Region prefixes",
+        "TGW peering attachments exchange VPC and VPN prefixes dynamically using BGP sessions established between the two peered Transit Gateways"
       ],
       "correct": 1,
       "explanation": "Inter-Region TGW peering traffic rides the AWS global backbone and is encrypted. Crucially, there is no BGP between peered TGWs: you must add static routes pointing at the peering attachment on both sides — a frequent exam trap. It works across Regions (that's the whole point), does not need a Direct Connect Gateway, and does not use dynamic routing between TGWs.",
@@ -921,10 +921,10 @@
       "id": "ans-052",
       "question": "A company needs high availability for outbound traffic from a VPC with two private subnets across two AZs. Which NAT Gateway design ensures AZ-level fault isolation?",
       "options": [
-        "Deploy a single NAT Gateway in AZ-A and route both of the private subnets to it to save on cost",
+        "Deploy a single NAT Gateway in AZ-A and route both private subnets to it via 0.0.0.0/0 to save on hourly NAT Gateway charges and data-processing fees",
         "Deploy one NAT Gateway per AZ in a public subnet of that AZ, and route each private subnet to the NAT Gateway in its own AZ via 0.0.0.0/0",
         "Run NAT instances in an Auto Scaling group that spans both Availability Zones with automatic health-based failover configured between them",
-        "Route the private subnets straight to an Internet Gateway without using any NAT at all"
+        "Route the private subnets straight to an Internet Gateway via 0.0.0.0/0 without using any NAT, so outbound traffic exits via the IGW directly"
       ],
       "correct": 1,
       "explanation": "NAT Gateways are AZ-scoped. For AZ fault isolation, deploy one NAT Gateway per AZ in that AZ's public subnet and route each private subnet to the NAT Gateway in the same AZ — losing one AZ doesn't affect the other. A single NAT Gateway creates a cross-AZ SPOF and incurs cross-AZ data-transfer charges. NAT instances are legacy. IGW directly from private subnets does not provide outbound source NAT (and private subnets by definition aren't routed to an IGW).",
@@ -939,9 +939,9 @@
       "question": "A company operates a VPC with CIDR 10.0.0.0/16 and needs to launch a new service that requires more than 65,000 IPs. Rather than re-architect, they want to add more address space. Which approach is correct?",
       "options": [
         "You cannot extend a VPC's address space at all; you must build an entirely new VPC and migrate every existing workload over to it instead",
-        "You must convert the VPC into a RAM-shared VPC to unlock the additional IP address capacity",
+        "You must convert the VPC into a RAM-shared VPC owned by the Organization management account to unlock additional usable IP address capacity",
         "VPCs support secondary CIDR blocks (up to 5 by default, raisable to 50), so add a secondary CIDR and create new subnets there",
-        "Cloud WAN automatically expands the CIDR ranges of attached VPCs on demand as they fill up"
+        "Cloud WAN automatically expands the primary CIDR range of attached VPCs on demand as the subnet IP addresses fill up across the segments"
       ],
       "correct": 2,
       "explanation": "A VPC supports secondary CIDR blocks (5 by default, raisable to 50), which is exactly the mechanism for extending IP space without creating a new VPC. Shared VPC (RAM-shared subnets) is about cross-account subnet sharing, not capacity expansion. Cloud WAN orchestrates connectivity; it doesn't grow CIDRs. The 'must create a new VPC' claim is false — secondary CIDRs make that unnecessary.",
@@ -956,8 +956,8 @@
       "question": "A healthcare provider operates an ALB that must only accept traffic from a specific set of on-premises CIDR ranges connecting via Direct Connect. How can they enforce this at the network layer?",
       "options": [
         "Front the ALB with CloudFront and apply country-level geo restrictions to limit which regions are permitted to connect to the application",
-        "Use AWS WAF rate-based rules on the ALB to throttle any source that is not on the approved allowlist",
-        "Disable the ALB's public DNS record so that external clients are simply unable to resolve its hostname",
+        "Use AWS WAF rate-based rules on the ALB to throttle any source that is not on the approved IP-set allowlist of on-premises CIDR ranges",
+        "Disable the ALB's public DNS record so that external clients on the internet are simply unable to resolve its hostname and reach the application",
         "Create an internal-scheme ALB in private subnets and restrict its security group to the on-premises CIDRs reachable via Direct Connect"
       ],
       "correct": 3,
@@ -1009,8 +1009,8 @@
       "question": "A company has an S3 bucket with Block Public Access enabled and wants to allow only one specific VPC to access it, while explicitly denying requests from any other VPC or the internet. Which policy configuration enforces this?",
       "options": [
         "Enable S3 object-level ACLs and set every object's ACL to private so that only the single approved VPC is able to read the bucket contents",
-        "Use a VPC Endpoint Policy that allows access to every S3 bucket from the endpoint's own VPC",
-        "Use network ACLs to restrict the S3-bound traffic at the subnet level to the one approved VPC",
+        "Use a VPC Endpoint Policy on the gateway endpoint that allows access to every S3 bucket only from principals inside the endpoint's own VPC",
+        "Use network ACLs on the S3 subnets to restrict the S3-bound traffic at the subnet level so it only originates from the one approved VPC CIDR",
         "Use a bucket policy with an aws:SourceVpce (or aws:SourceVpc) condition that allows the specific endpoint/VPC and denies everything else"
       ],
       "correct": 3,
@@ -1027,9 +1027,9 @@
       "question": "A company configures a Client VPN endpoint with mutual certificate authentication. Users connect successfully, but they cannot reach targets in the associated VPC. Which additional configuration is typically missing?",
       "options": [
         "A wildcard ACM certificate is required on the Client VPN endpoint's server certificate slot before any client can reach the VPC",
-        "The client must set its DNS to 8.8.8.8 so that the VPC's internal hostnames resolve",
+        "The client must set its DNS resolver to 8.8.8.8 so that the VPC's internal Route 53 private hostnames resolve over the established VPN session",
         "Authorization rules on the Client VPN endpoint that grant access to specific destination CIDRs (plus routes to those CIDRs)",
-        "The endpoint must be switched into split-tunnel mode before any VPC traffic can be reached"
+        "The endpoint must be switched from full-tunnel into split-tunnel mode before any traffic destined for the VPC can be reached by the client"
       ],
       "correct": 2,
       "explanation": "AWS Client VPN requires both authorization rules (which users/groups can reach which destination CIDRs) and matching routes on the Client VPN endpoint. A successful connection only proves authentication; without authorization rules, all in-VPC traffic is dropped. DNS server choice doesn't unblock IP reachability. The certificate doesn't need to be a wildcard. Split-tunnel is an optimization (only VPC-destined traffic uses the tunnel), not a prerequisite for reachability.",
@@ -1043,10 +1043,10 @@
       "id": "ans-059",
       "question": "A company has a VPC endpoint (Interface) for an AWS service and wants to restrict which IAM principals can use it. Which mechanism enforces this at the endpoint level?",
       "options": [
-        "AWS Organizations SCPs scoped specifically to the individual VPC endpoint's resource ID",
+        "AWS Organizations SCPs scoped specifically to the individual VPC endpoint's resource ID and attached to the OU containing the consuming account",
         "An AWS RAM resource share whose permission list explicitly enumerates the IAM principals that are allowed to use the interface endpoint",
         "A VPC Endpoint Policy — a resource-based policy attached to the endpoint that restricts the principals and actions through it",
-        "Security group rules on the endpoint that match traffic against the caller's IAM principal ARN"
+        "Security group ingress rules on the endpoint ENI that match incoming traffic against the caller's IAM principal ARN before allowing the call"
       ],
       "correct": 2,
       "explanation": "VPC Endpoint Policies are resource-based policies attached directly to the endpoint and are the right tool to restrict which IAM principals can perform which actions via the endpoint. Security groups operate on network attributes (IPs/ports), not IAM principals. SCPs are organization-level guardrails on identities, not endpoint configuration. RAM is for resource sharing across accounts, not access control on an endpoint.",
@@ -1062,8 +1062,8 @@
       "options": [
         "Amazon CloudWatch Internet Monitor, which uses AWS global observability to detect ISP-level disruptions and tie them to the workloads",
         "AWS Global Accelerator endpoint health checks that run continuously against each of the application's regional endpoint groups worldwide",
-        "Amazon CloudWatch Synthetics canaries probing the application from a set of selected Regions",
-        "AWS Config managed rules evaluating the configuration of the internet-facing resources"
+        "Amazon CloudWatch Synthetics canaries probing the application's public endpoints from a set of selected Regions and emitting failure alerts",
+        "AWS Config managed rules and conformance packs evaluating the configuration of every internet-facing resource and flagging drift events"
       ],
       "correct": 0,
       "explanation": "Amazon CloudWatch Internet Monitor uses AWS's global observability data to detect ISP-level and internet-wide performance disruptions, and correlates them automatically with the customer's workloads (CloudFront, ALB, NLB, EC2, WorkSpaces, VPCs). Synthetics canaries probe specific endpoints but don't aggregate ISP-level signals. Global Accelerator health checks monitor endpoint availability, not ISP health. AWS Config evaluates configuration compliance — not internet path performance.",
