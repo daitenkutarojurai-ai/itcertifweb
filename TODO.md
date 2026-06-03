@@ -1495,6 +1495,46 @@ competition-driven, community-driven** layer. Highest-priority builds:
 
 ---
 
+## 📦 Content expansion R11 (2026-06-03)
+
+Scheduled-agent run extending the FailBase cluster (10 → 11 entries) with
+the canonical SoftBank/Vision-Fund post-mortem the dataset was missing:
+
+- **+1 FailBase post-mortem** (cluster 10 → 11):
+  - `wework-47-milliards-fiasco` — Adam Neumann + Masayoshi Son, ~47 Md $
+    de valorisation en janvier 2019 → S-1 d'IPO en août → retrait en 33
+    jours → bailout SoftBank 9,5 Md $ → SPAC 2021 → Chapter 11 le 6
+    novembre 2023 → ~14,3 Md $ de write-downs totaux côté SoftBank
+    (la plus grosse single-position loss du Vision Fund). 5 erreurs
+    rangées par impact : (1) vendre du real-estate comme de la tech
+    pour justifier un multiple 26x, (2) mismatch de duration radical
+    (baux 10-15 ans côté actif vs contrats 30 jours côté passif),
+    (3) gouvernance Neumann (super-voting 20x + transactions de
+    complaisance), (4) le pump SoftBank (valorisations en escalier
+    sans test de marché public), (5) expansion sans unit economics
+    validés. Timeline 11 événements d'avril 2010 (fondation SoHo) à
+    juin 2024 (sortie de Chapter 11).
+  - **Sources publiques uniquement** : SEC (S-1 filing, le document qui a
+    tout révélé), NYT (post-mortems + bailout coverage), WSJ ("$700M
+    cashed out"), Reuters (filing + record Vision Fund losses), Scott
+    Galloway "WeWTF" (analyse pré-IPO d'août 2019). Pas de gossip, pas
+    de rumeurs Twitter, pas de podcast non-vérifié.
+  - Article JSON-LD, canonical, OG tags, cache-busted CSS (?v=123) —
+    contraintes du brief respectées. `tldr` ramené à ~190 chars pour
+    rapprocher la `<meta description>` du seuil 160 (le template
+    failbase l'enrobe légèrement).
+- `scripts/gen-failbase-pages.js` `CACHE_BUST` bumped v=106 → v=123 to
+  align with the current global `?v=` key — regeneration no longer
+  downgrades the 10 sibling pages' cache-bust (same drift recorded in
+  R9 for `gen-compare-pages.js`).
+- `npm run gen-failbase` regenerated 11 pages + the `/failbase/` index
+  (only the new page + index changed — generator idempotent). The grid
+  index auto-incorporated "WeWork" into its meta description.
+- sitemap.xml +1 entry (priority 0.8, monthly changefreq, lastmod
+  2026-06-03).
+- 260/260 tests still pass. No cache version bump (new HTML data only,
+  no JS/CSS changes).
+
 ## 📦 Content expansion R10 (2026-06-01)
 
 Scheduled-agent run diversifying away from the comparator cluster (16/15
