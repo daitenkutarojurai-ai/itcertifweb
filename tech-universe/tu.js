@@ -79,6 +79,27 @@
   function packsIn(domId){ return PACKS.filter(function(p){return p.domain===domId;}); }
   function domName(id){ var d=DOMAINS.filter(function(x){return x.id===id;})[0]; return d?d.name:id; }
 
+  /* Recommend the best non-conquered certs to attempt next, from the prereq
+     graph + the player's progress. Ranked: continue-in-progress > unlocked by a
+     conquered prereq > a sensible entry point; nudged toward touched domains. */
+  function recommend(ctx){
+    var recs=[];
+    PACKS.forEach(function(p){
+      if(ctx.laurels[p.id]) return;                       // already conquered
+      var pre=PREREQ_OF[p.id]||[];
+      var preConq=pre.filter(function(id){return ctx.laurels[id];});
+      var score=0, reason='';
+      if(ctx.started[p.id]){ score=100; reason='Continue where you left off'; }
+      else if(preConq.length){ score=80+preConq.length*3; var q=PACK_BY[preConq[0]]; reason='Unlocked by '+(q?q.short:'a cert you cleared'); }
+      else if(!pre.length && p.difficulty==='beginner'){ score=40; reason='Great starting point'; }
+      else return;                                        // not ready yet
+      if(packsIn(p.domain).some(function(x){return ctx.laurels[x.id]||ctx.started[x.id];})) score+=10;
+      recs.push({ p:p, score:score, reason:reason });
+    });
+    recs.sort(function(a,b){ return b.score-a.score; });
+    return recs.slice(0,6);
+  }
+
   /* ── Universe overview ── */
   function renderUniverse(){
     var ctx = buildContext();
@@ -98,14 +119,28 @@
       '</a>';
     }).join('');
 
+    var recos = recommend(ctx);
+    var recoHtml = recos.length ?
+      '<div class="tu-reco-wrap">'+
+        '<div class="tu-reco-h">🧭 Your next conquest</div>'+
+        '<div class="tu-recos">'+ recos.map(function(r){
+          return '<button type="button" class="tu-reco" data-goto="'+esc(r.p.id)+'" style="--d:'+DCOLOR[r.p.domain]+'">'+
+            '<span class="tu-reco-top"><span class="tu-reco-dot" style="background:'+DCOLOR[r.p.domain]+'"></span><span class="tu-reco-name">'+esc(r.p.short)+'</span></span>'+
+            '<span class="tu-reco-reason">'+esc(r.reason)+'</span>'+
+          '</button>';
+        }).join('') +'</div>'+
+      '</div>' : '';
+
     root.innerHTML =
       '<div class="tu-stat">'+
         '<div><div class="tu-stat-big"><b>'+totalConq+'</b> / '+total+'</div><div class="tu-stat-sub">stars conquered</div></div>'+
         '<div class="tu-stat-bar"><i style="width:'+(total?Math.round(totalConq/total*100):0)+'%"></i></div>'+
         '<div><div class="tu-stat-big">'+domsExplored+'/6</div><div class="tu-stat-sub">domains explored</div></div>'+
       '</div>'+
+      recoHtml+
       '<div class="tu-grid">'+cards+'</div>';
     root.querySelectorAll('.tu-dom').forEach(function(c){ c.addEventListener('click', function(e){ e.preventDefault(); renderDomain(c.getAttribute('data-dom')); window.scrollTo({top:0,behavior:'smooth'}); }); });
+    root.querySelectorAll('.tu-reco[data-goto]').forEach(function(b){ b.addEventListener('click', function(){ gotoPack(b.getAttribute('data-goto')); }); });
   }
 
   /* Decorative starfield for an overview card — one dot per cert, lit if conquered. */
