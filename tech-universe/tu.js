@@ -7,6 +7,8 @@
   if (!root) return;
   var INITIAL = window.__TU_DOMAIN || null;          // set by a static subpage
   var IS_SUBPAGE = !!INITIAL;
+  // self-detect cache version from this file's own ?v= so data fetches stay in sync
+  var TUV = (function(){ try{ var s=document.querySelector('script[src*="/tech-universe/tu.js"]'); var m=s&&/[?&]v=([^&"]+)/.exec(s.getAttribute('src')||''); return m?m[1]:'1'; }catch(_){ return '1'; } })();
 
   var DOMAINS = [
     { id:'cloud',    name:'Cloud',          emoji:'☁️', color:'#60a5fa' },
@@ -51,15 +53,31 @@
   function isBoss(pack){ return pack.difficulty === 'advanced'; }
 
   var PACKS = []; // {id, name, short, difficulty, domain, brandName, brandColor, brandIcon}
+  var PACK_BY = {};
+  var PREREQ_OF = {};  // packId -> [prereq packIds]  ("build up from")
+  var LEADS_TO  = {};  // packId -> [next packIds]     ("unlocks next")
+  var currentDomain = null;
   function loadPacks(){
-    return fetch('/data/index.json',{cache:'force-cache'}).then(function(r){return r.ok?r.json():null;}).then(function(idx){
+    return Promise.all([
+      fetch('/data/index.json',{cache:'force-cache'}).then(function(r){return r.ok?r.json():null;}),
+      fetch('/data/tech-universe-prereqs.json?v=' + TUV,{cache:'force-cache'}).then(function(r){return r.ok?r.json():null;}).catch(function(){return null;})
+    ]).then(function(res){
+      var idx=res[0], pr=res[1];
       (idx&&idx.brands||[]).forEach(function(b){ (b.packs||[]).forEach(function(p){ if(p&&p.id&&p.available!==false){
-        PACKS.push({ id:p.id, name:p.name||p.id, short:p.short||p.name||p.id, difficulty:p.difficulty||'intermediate',
-          domain:domainOf(p.id), brandName:b.name||'', brandColor:b.color||'#60a5fa', brandIcon:b.icon||'' });
+        var rec={ id:p.id, name:p.name||p.id, short:p.short||p.name||p.id, difficulty:p.difficulty||'intermediate',
+          domain:domainOf(p.id), brandName:b.name||'', brandColor:b.color||'#60a5fa', brandIcon:b.icon||'' };
+        PACKS.push(rec); PACK_BY[rec.id]=rec;
       }}); });
+      ((pr&&pr.edges)||[]).forEach(function(e){
+        var from=e[0], to=e[1];
+        if(!PACK_BY[from]||!PACK_BY[to]) return;       // drop dangling edges defensively
+        (PREREQ_OF[to]=PREREQ_OF[to]||[]).push(from);
+        (LEADS_TO[from]=LEADS_TO[from]||[]).push(to);
+      });
     });
   }
   function packsIn(domId){ return PACKS.filter(function(p){return p.domain===domId;}); }
+  function domName(id){ var d=DOMAINS.filter(function(x){return x.id===id;})[0]; return d?d.name:id; }
 
   /* ── Universe overview ── */
   function renderUniverse(){
@@ -111,6 +129,7 @@
   /* ── Domain detail constellation ── */
   function renderDomain(domId){
     var d = DOMAINS.filter(function(x){return x.id===domId;})[0]; if(!d) return renderUniverse();
+    currentDomain = domId;
     if(!IS_SUBPAGE){ try{ history.replaceState(null,'','/tech-universe/'+domId+'/'); }catch(_){} }
     var ctx = buildContext();
     var ps = packsIn(domId);
@@ -121,18 +140,20 @@
     var totalW = colW*3;
     function nodeXY(ci, ri, n){ var x=colW*ci+colW/2; var y=H/(n+1)*(ri+1); return [x,y]; }
 
-    // edges: link each node to the nearest node in the previous tier
+    // edges: real prerequisite links between same-domain certs (prereq → next).
+    // A conquered→conquered edge glows brighter so a cleared path reads at a glance.
     var pos={}; cols.forEach(function(col,ci){ col.forEach(function(p,ri){ pos[p.id]=nodeXY(ci,ri,col.length); }); });
-    var edges='';
-    for(var ci=1; ci<3; ci++){
-      cols[ci].forEach(function(p){
-        if(!cols[ci-1].length) return;
-        // nearest previous-tier node by y
-        var me=pos[p.id], best=null, bd=1e9;
-        cols[ci-1].forEach(function(q){ var dy=Math.abs(pos[q.id][1]-me[1]); if(dy<bd){bd=dy;best=q;} });
-        if(best){ var a=pos[best.id]; edges+='<path d="M'+a[0]+','+a[1]+' C'+((a[0]+me[0])/2)+','+a[1]+' '+((a[0]+me[0])/2)+','+me[1]+' '+me[0]+','+me[1]+'" stroke="'+d.color+'" stroke-opacity="0.18" fill="none" stroke-width="1.4"/>'; }
+    var inDom={}; ps.forEach(function(p){ inDom[p.id]=1; });
+    var edges='', drawn={};
+    ps.forEach(function(p){
+      (PREREQ_OF[p.id]||[]).forEach(function(qid){
+        if(!inDom[qid] || !pos[qid] || !pos[p.id]) return;   // cross-domain edges live in the panel
+        var key=qid+'>'+p.id; if(drawn[key]) return; drawn[key]=1;
+        var a=pos[qid], me=pos[p.id];
+        var both = ctx.laurels[qid] && ctx.laurels[p.id];
+        edges+='<path d="M'+a[0]+','+a[1]+' C'+((a[0]+me[0])/2)+','+a[1]+' '+((a[0]+me[0])/2)+','+me[1]+' '+me[0]+','+me[1]+'" stroke="'+d.color+'" stroke-opacity="'+(both?0.6:0.2)+'" fill="none" stroke-width="'+(both?2:1.4)+'"/>';
       });
-    }
+    });
     var nodes='';
     cols.forEach(function(col){ col.forEach(function(p){
       var xy=pos[p.id], st=statusOf(p,ctx), boss=isBoss(p);
@@ -173,7 +194,28 @@
     });
   }
 
+  /* A progression chip linking to a related cert. Same-domain → in-page jump;
+     cross-domain → labelled with the other domain's colour and routed there. */
+  function progChip(q, ctx){
+    var cross = q.domain !== currentDomain;
+    var st = statusOf(q, ctx);
+    var dot = cross ? '<span class="tu-pdot" style="background:'+DCOLOR[q.domain]+'"></span>' : (st==='conquered'?'<span class="tu-pdot" style="background:#34d399"></span>':'');
+    var label = esc(q.short) + (cross ? ' <em class="tu-pcross">↗ '+esc(domName(q.domain))+'</em>' : '');
+    if(cross && IS_SUBPAGE){
+      return '<a class="tu-prog" href="/tech-universe/'+q.domain+'/" style="--d:'+DCOLOR[q.domain]+'">'+dot+label+'</a>';
+    }
+    return '<button type="button" class="tu-prog" data-goto="'+esc(q.id)+'" style="--d:'+DCOLOR[q.domain]+'">'+dot+label+'</button>';
+  }
+  function progRow(label, ids, ctx){
+    if(!ids || !ids.length) return '';
+    var chips = ids.map(function(id){ return PACK_BY[id]; }).filter(Boolean)
+      .map(function(q){ return progChip(q, ctx); }).join('');
+    if(!chips) return '';
+    return '<div class="tu-prog-row"><span class="tu-prog-lbl">'+label+'</span><div class="tu-prog-chips">'+chips+'</div></div>';
+  }
+
   function showDetail(packId, ctx){
+    ctx = ctx || buildContext();
     var p = PACKS.filter(function(x){return x.id===packId;})[0]; if(!p) return;
     var host = document.getElementById('tu-detail'); if(!host) return;
     var st = statusOf(p, ctx), boss = isBoss(p);
@@ -185,13 +227,25 @@
           '<span class="tu-chip">'+esc(p.brandName)+'</span>'+
           '<span class="tu-chip">'+esc(p.difficulty)+'</span>'+
           (boss?'<span class="tu-chip boss">♛ boss</span>':'')+'</div>'+
+        progRow('Build up from', PREREQ_OF[p.id], ctx)+
+        progRow('Unlocks next', LEADS_TO[p.id], ctx)+
         '<div class="tu-dp-actions">'+
           '<a class="tu-act primary" href="/train.html?pack='+esc(p.id)+'&autostart=quick">'+(st==='conquered'?'Re-challenge →':'Start a 5-Q quiz →')+'</a>'+
           '<a class="tu-act ghost" href="/path.html?pack='+esc(p.id)+'">Open the path</a>'+
           '<a class="tu-act ghost" href="/roadmap/">Add to roadmap</a>'+
         '</div>'+
       '</div>';
+    host.querySelectorAll('.tu-prog[data-goto]').forEach(function(btn){
+      btn.addEventListener('click', function(){ gotoPack(btn.getAttribute('data-goto')); });
+    });
     host.scrollIntoView({behavior:'smooth', block:'nearest'});
+  }
+
+  /* Navigate to a related cert: switch domain if needed, then open its panel. */
+  function gotoPack(packId){
+    var q = PACK_BY[packId]; if(!q) return;
+    if(q.domain !== currentDomain && !IS_SUBPAGE){ renderDomain(q.domain); window.scrollTo({top:0,behavior:'smooth'}); }
+    showDetail(packId);
   }
 
   function openUniverse(){
