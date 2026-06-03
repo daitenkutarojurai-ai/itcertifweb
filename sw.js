@@ -10,7 +10,7 @@
  * Bump CACHE_VERSION to invalidate clients on next visit.
  */
 
-const CACHE_VERSION = 'v138-2026-06-03-techuniverse-domains-v124';
+const CACHE_VERSION = 'v139-2026-06-03-techuniverse-prereqs-v125';
 const RUNTIME_CACHE = `cq-runtime-${CACHE_VERSION}`;
 const PRECACHE      = `cq-precache-${CACHE_VERSION}`;
 
