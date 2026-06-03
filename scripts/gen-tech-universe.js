@@ -30,7 +30,7 @@ const DOMAINS = [
 function domainOf(id){
   const x = String(id).toLowerCase();
   if (/sec|cysa|pentest|cissp|ccsp|isc2-cc|sc-100|sc-200|sc-900|scs-|az-500|cks|cyberops|ccnp-security|nse|pcnsa|pcnse|pccse|prisma|splunk|okta|gcp-pcse/.test(x)) return 'security';
-  if (/^dp-|dea-|^ai-|aif|mla-|pmle|gcp-pde|snowpro|pl-300|pl-400/.test(x)) return 'data';
+  if (/^dp-|dea-|^ai-|aif|mla-|pmle|gcp-pde|snowpro|pl-300|pl-400|pl-600/.test(x)) return 'data';
   if (/ck[asd]|kcna|kcsa|terraform|docker|vault|consul|github|az-400|dop-|devnet/.test(x)) return 'devops';
   if (/rhc|lpic|comptia-linux|comptia-server/.test(x)) return 'linux';
   if (/ccn|comptia-network|^f5|aws-ans|gcp-pcne|az-700|cloudflare/.test(x)) return 'network';
