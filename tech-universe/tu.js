@@ -5,8 +5,9 @@
 (function () {
   var root = document.getElementById('tu-root');
   if (!root) return;
-  var INITIAL = window.__TU_DOMAIN || null;          // set by a static subpage
-  var IS_SUBPAGE = !!INITIAL;
+  var INITIAL = window.__TU_DOMAIN || null;          // set by a static per-domain subpage
+  var INITIAL_VIEW = window.__TU_VIEW || null;       // 'galaxy' on the static galaxy subpage
+  var IS_SUBPAGE = !!(INITIAL || INITIAL_VIEW);
   // self-detect cache version from this file's own ?v= so data fetches stay in sync
   var TUV = (function(){ try{ var s=document.querySelector('script[src*="/tech-universe/tu.js"]'); var m=s&&/[?&]v=([^&"]+)/.exec(s.getAttribute('src')||''); return m?m[1]:'1'; }catch(_){ return '1'; } })();
 
@@ -235,7 +236,7 @@
      edges drawn as dashed "wormholes" between the lanes. ── */
   function renderGalaxy(){
     currentDomain = '*';
-    if(!IS_SUBPAGE){ try{ history.replaceState(null,'','/tech-universe/?view=galaxy'); }catch(_){} }
+    if(!IS_SUBPAGE){ try{ history.replaceState(null,'','/tech-universe/galaxy/'); }catch(_){} }
     var ctx = buildContext();
     var labelW=72, colW=150, nodeGap=30, lanePad=24, padTop=10;
     var pos={}, posDom={}, lanes=[], y=padTop;
@@ -381,14 +382,14 @@
     try{ history.replaceState(null,'','/tech-universe/'); }catch(_){} renderUniverse();
   }
   function start(){
-    if(IS_SUBPAGE) return renderDomain(INITIAL);
-    if(/[?&]view=galaxy/.test(location.search)) return renderGalaxy();
+    if(IS_SUBPAGE) return INITIAL_VIEW==='galaxy' ? renderGalaxy() : renderDomain(INITIAL);
+    if(/[?&]view=galaxy/.test(location.search)) return renderGalaxy();   // back-compat for old ?view= links
     var m=/[?&]domain=([a-z]+)/.exec(location.search);
     if(m && DOMAINS.some(function(d){return d.id===m[1];})) renderDomain(m[1]); else renderUniverse();
   }
   loadPacks().then(start).catch(function(){ root.innerHTML='<div class="tu-state">Couldn\'t chart the galaxy. Try a refresh.</div>'; });
   window.addEventListener('cq:stats-changed', function(){
-    if(IS_SUBPAGE){ renderDomain(INITIAL); return; }
+    if(IS_SUBPAGE){ INITIAL_VIEW==='galaxy' ? renderGalaxy() : renderDomain(INITIAL); return; }
     if(currentDomain==='*') return renderGalaxy();
     if(!document.getElementById('tu-back')) renderUniverse();
   });

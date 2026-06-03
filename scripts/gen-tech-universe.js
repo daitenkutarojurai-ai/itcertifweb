@@ -209,8 +209,139 @@ function pageHtml(d, count, bosses){
 `;
 }
 
+/* Whole-galaxy OG card: six domain-coloured clusters wired by dashed wormholes. */
+function galaxyOgSvg(total){
+  const W=1200, H=630, rand=rng(101);
+  const centers = DOMAINS.map((d,i)=>({ d, x: 690 + (i%3)*170, y: 150 + Math.floor(i/3)*230 }));
+  let stars='', cores='', lines='';
+  const pairs=[[0,1],[1,2],[1,4],[4,3],[0,3],[2,5]];
+  pairs.forEach(([a,b])=>{ const A=centers[a], B=centers[b];
+    lines += `<line x1="${A.x}" y1="${A.y}" x2="${B.x}" y2="${B.y}" stroke="#8093b0" stroke-opacity="0.20" stroke-width="1.3" stroke-dasharray="4 4"/>`; });
+  centers.forEach(c=>{
+    for(let k=0;k<15;k++){
+      const ang=rand()*6.283, r=12+rand()*66;
+      const x=c.x+Math.cos(ang)*r, y=c.y+Math.sin(ang)*r*0.82, lit=rand()<0.5;
+      stars += `<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="${(lit?1.6+rand()*2:0.8+rand()).toFixed(2)}" fill="${c.d.color}" opacity="${(lit?0.9:0.4).toFixed(2)}"${lit?' filter="url(#g)"':''}/>`;
+    }
+    cores += `<circle cx="${c.x}" cy="${c.y}" r="6.5" fill="${c.d.color}" filter="url(#g)"/>`;
+  });
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}">
+  <defs>
+    <radialGradient id="bg" cx="70%" cy="30%" r="90%">
+      <stop offset="0%" stop-color="#101a33"/><stop offset="55%" stop-color="#070b15"/><stop offset="100%" stop-color="#04060c"/>
+    </radialGradient>
+    <linearGradient id="title" x1="0" y1="0" x2="1" y2="0"><stop offset="0%" stop-color="#60a5fa"/><stop offset="50%" stop-color="#34d399"/><stop offset="100%" stop-color="#a78bfa"/></linearGradient>
+    <filter id="g" x="-80%" y="-80%" width="260%" height="260%"><feGaussianBlur stdDeviation="2.2" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+  </defs>
+  <rect width="${W}" height="${H}" fill="url(#bg)"/>
+  ${lines}${stars}${cores}
+  <g font-family="Liberation Sans, DejaVu Sans, Arial, sans-serif">
+    <text x="64" y="250" font-size="26" font-weight="700" letter-spacing="4" fill="#7c90ae">CERTQUESTS · TECH UNIVERSE</text>
+    <text x="60" y="350" font-size="76" font-weight="800" fill="url(#title)">The whole galaxy</text>
+    <text x="64" y="410" font-size="29" font-weight="600" fill="#aebbd2">Every IT certification as one map</text>
+    <text x="64" y="470" font-size="26" font-weight="600" fill="#cfd8e8">${total} certifications · 6 domains · linked by real paths</text>
+    <text x="64" y="520" font-size="22" font-weight="500" fill="#8fa0bd">Light up the ones you conquer.</text>
+  </g>
+</svg>`;
+}
+
+function galaxyPageHtml(total){
+  const url = 'https://certquests.com/tech-universe/galaxy/';
+  return `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="theme-color" content="#06080f" />
+
+  <title>The whole galaxy — every IT certification on one map · CertQuests</title>
+  <meta name="description" content="Every IT certification on one explorable map: ${total} certs across six domains, linked by real prerequisite paths and cross-domain jumps. Light up the ones you conquer." />
+  <meta name="keywords" content="IT certification map, all certifications, certification skill tree, cloud security devops data certifications galaxy" />
+  <meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large" />
+  <link rel="canonical" href="${url}" />
+
+  <meta property="og:type" content="website" />
+  <meta property="og:url" content="${url}" />
+  <meta property="og:title" content="The whole galaxy — every IT certification on one map" />
+  <meta property="og:description" content="${total} certs across six domains as one explorable galaxy, linked by real paths. Light up the ones you conquer. Free." />
+  <meta property="og:image" content="https://certquests.com/src/assets/og/tech-universe-galaxy.png?v=${CACHE_V}" />
+  <meta property="og:image:width" content="1200" />
+  <meta property="og:image:height" content="630" />
+  <meta name="twitter:card" content="summary_large_image" />
+
+  <link rel="manifest" href="/manifest.json" />
+  <link rel="icon" href="/favicon.ico?v=4" sizes="any" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700;800&family=DM+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet" />
+
+  <link rel="stylesheet" href="/src/styles/main.css?v=${CACHE_V}" />
+  <link rel="stylesheet" href="/src/styles/desktop.css?v=${CACHE_V}" />
+
+  <script type="application/ld+json">
+  {"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[
+    {"@type":"ListItem","position":1,"name":"Home","item":"https://certquests.com/"},
+    {"@type":"ListItem","position":2,"name":"Tech Universe","item":"https://certquests.com/tech-universe/"},
+    {"@type":"ListItem","position":3,"name":"The whole galaxy","item":"${url}"}]}
+  </script>
+
+  ${HEAD_STYLE}
+</head>
+<body>
+  <a href="#main-content" class="skip-to-main" style="position:absolute;left:-9999px;top:8px;z-index:9999;background:#3b82f6;color:#fff;padding:8px 16px;border-radius:8px;font-weight:700;font-size:14px;text-decoration:none" onfocus="this.style.left='16px'" onblur="this.style.left='-9999px'">Skip to main content</a>
+
+  <header class="web-header">
+    <a href="/" class="web-header-logo">
+      <img src="/src/assets/icons/favicon-96.png?v=4" alt="CertQuests" class="web-header-bolt" width="32" height="32">
+      CertQuests
+    </a>
+    <nav class="web-header-links" aria-label="Main navigation">
+      <a href="/path.html" class="web-header-link-new">Cert Quest<span class="web-header-link-pill">NEW</span></a>
+      <a href="/certifications/">Certifications</a>
+      <a href="/courses/">Courses</a>
+      <a href="/careers/">Careers</a>
+    </nav>
+  </header>
+
+  <main id="main-content" class="tu-page">
+    <nav class="breadcrumb" aria-label="Breadcrumb">
+      <a href="/">Home</a><span>/</span><a href="/tech-universe/">Tech Universe</a><span>/</span>The whole galaxy
+    </nav>
+
+    <section class="tu-hero">
+      <h1>The whole <span class="grad">galaxy</span></h1>
+      <p>Every IT certification on one map — ${total} certs across six domains, linked by real prerequisite paths and cross-domain jumps. Conquer a cert and its star lights up. Part of the <a href="/tech-universe/" style="color:#7c90ae">CertQuests Tech Universe</a>.</p>
+    </section>
+
+    <div id="tu-root"><div class="tu-state">Charting the galaxy…</div></div>
+  </main>
+
+  <footer class="web-footer">
+    <div class="web-footer-inner">
+      <div class="web-footer-links">
+        <a href="/">Home</a>
+        <a href="/tech-universe/">Tech Universe</a>
+        <a href="/certifications/">Training</a>
+        <a href="/path.html">Cert Quest</a>
+        <a href="/roadmap/">My roadmap</a>
+        <a href="/contact.html">Contact</a>
+      </div>
+      <div class="web-footer-text">CertQuests — Free IT certification practice tests</div>
+    </div>
+  </footer>
+
+  <script>window.__TU_VIEW = 'galaxy';</script>
+  <script src="/tech-universe/tu.js?v=${CACHE_V}" defer></script>
+  <script src="/src/cq-core.js?v=${CACHE_V}" defer></script>
+  <script src="/src/mascot-loader.js?v=${CACHE_V}" defer></script>
+</body>
+</html>
+`;
+}
+
 async function main(){
   const { c, boss } = countDomains();
+  const total = Object.values(c).reduce((a,b)=>a+b,0);
   const ogDir = path.join(ROOT, 'src/assets/og');
   for (const d of DOMAINS){
     const count = c[d.id], bosses = boss[d.id];
@@ -223,6 +354,13 @@ async function main(){
     fs.writeFileSync(path.join(dir, 'index.html'), pageHtml(d, count, bosses));
     console.log(`✓ ${d.id}: ${count} certs (${bosses} boss) → OG + /tech-universe/${d.id}/`);
   }
+  // whole-galaxy OG + static page
+  const gpng = await sharp(Buffer.from(galaxyOgSvg(total))).png().toBuffer();
+  fs.writeFileSync(path.join(ogDir, 'tech-universe-galaxy.png'), gpng);
+  const gdir = path.join(ROOT, 'tech-universe', 'galaxy');
+  fs.mkdirSync(gdir, { recursive: true });
+  fs.writeFileSync(path.join(gdir, 'index.html'), galaxyPageHtml(total));
+  console.log(`✓ galaxy: ${total} certs → OG + /tech-universe/galaxy/`);
   console.log(`\nDone. Cache version baked: v${CACHE_V}.`);
 }
 main().catch(e => { console.error(e); process.exit(1); });
