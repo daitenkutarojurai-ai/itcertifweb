@@ -136,11 +136,13 @@
         '<div><div class="tu-stat-big"><b>'+totalConq+'</b> / '+total+'</div><div class="tu-stat-sub">stars conquered</div></div>'+
         '<div class="tu-stat-bar"><i style="width:'+(total?Math.round(totalConq/total*100):0)+'%"></i></div>'+
         '<div><div class="tu-stat-big">'+domsExplored+'/6</div><div class="tu-stat-sub">domains explored</div></div>'+
+        '<button type="button" class="tu-galaxy-btn" id="tu-galaxy">🌌 See the whole galaxy →</button>'+
       '</div>'+
       recoHtml+
       '<div class="tu-grid">'+cards+'</div>';
     root.querySelectorAll('.tu-dom').forEach(function(c){ c.addEventListener('click', function(e){ e.preventDefault(); renderDomain(c.getAttribute('data-dom')); window.scrollTo({top:0,behavior:'smooth'}); }); });
     root.querySelectorAll('.tu-reco[data-goto]').forEach(function(b){ b.addEventListener('click', function(){ gotoPack(b.getAttribute('data-goto')); }); });
+    var gb=document.getElementById('tu-galaxy'); if(gb) gb.addEventListener('click', function(){ renderGalaxy(); window.scrollTo({top:0,behavior:'smooth'}); });
   }
 
   /* Decorative starfield for an overview card — one dot per cert, lit if conquered. */
@@ -229,12 +231,102 @@
     });
   }
 
+  /* ── The whole galaxy: all six domains in one map, cross-domain prereq
+     edges drawn as dashed "wormholes" between the lanes. ── */
+  function renderGalaxy(){
+    currentDomain = '*';
+    if(!IS_SUBPAGE){ try{ history.replaceState(null,'','/tech-universe/?view=galaxy'); }catch(_){} }
+    var ctx = buildContext();
+    var labelW=72, colW=150, nodeGap=30, lanePad=24, padTop=10;
+    var pos={}, posDom={}, lanes=[], y=padTop;
+    // lane order groups the heavily cross-linked domains adjacently (cloud ↔
+    // network/data, data ↔ security) so cross-domain "wormholes" stay short.
+    var ORDER=['network','cloud','data','security','devops','linux'];
+    var GDOMS=ORDER.map(function(id){return DOMAINS.filter(function(x){return x.id===id;})[0];}).filter(Boolean);
+    GDOMS.forEach(function(d){
+      var ps=packsIn(d.id);
+      var cols=[[],[],[]];
+      ps.forEach(function(p){ cols[TIER[p.difficulty]!=null?TIER[p.difficulty]:1].push(p); });
+      var maxK=Math.max(cols[0].length,cols[1].length,cols[2].length,1);
+      var laneH=Math.max(60, maxK*nodeGap+8);
+      cols.forEach(function(col,ci){ col.forEach(function(p,ri){
+        pos[p.id]=[labelW + ci*colW + colW/2, y + laneH/(col.length+1)*(ri+1)];
+        posDom[p.id]=d.id;
+      }); });
+      lanes.push({d:d, y:y, h:laneH});
+      y += laneH + lanePad;
+    });
+    var totalH=y+4, totalW=labelW + 3*colW + 14;
+
+    var bands='';
+    lanes.forEach(function(L){
+      bands += '<rect x="0" y="'+(L.y-6)+'" width="'+totalW+'" height="'+(L.h+12)+'" rx="12" fill="'+L.d.color+'" fill-opacity="0.045"/>'+
+        '<text x="7" y="'+(L.y+13)+'" font-size="13">'+L.d.emoji+'</text>'+
+        '<text x="7" y="'+(L.y+27)+'" font-family="JetBrains Mono,monospace" font-size="7.5" font-weight="600" fill="'+L.d.color+'">'+esc(L.d.id.toUpperCase())+'</text>';
+    });
+
+    var edges='', drawn={};
+    PACKS.forEach(function(p){
+      (PREREQ_OF[p.id]||[]).forEach(function(qid){
+        if(!pos[qid]||!pos[p.id]) return;
+        var key=qid+'>'+p.id; if(drawn[key]) return; drawn[key]=1;
+        var cross = posDom[qid]!==posDom[p.id];
+        var a=pos[qid], me=pos[p.id], mx=(a[0]+me[0])/2;
+        var col = DCOLOR[posDom[p.id]];
+        var both = ctx.laurels[qid] && ctx.laurels[p.id];
+        var op = both ? 0.7 : (cross ? 0.12 : 0.24);   // cross-domain edges recede; cleared paths glow
+        edges += '<path d="M'+a[0]+','+a[1]+' C'+mx+','+a[1]+' '+mx+','+me[1]+' '+me[0]+','+me[1]+'" stroke="'+col+'" stroke-opacity="'+op+'" fill="none" stroke-width="'+(both?2:(cross?1:1.4))+'"'+(cross?' stroke-dasharray="3 4"':'')+'/>';
+      });
+    });
+
+    var nodes='';
+    PACKS.forEach(function(p){
+      if(!pos[p.id]) return;
+      var xy=pos[p.id], st=statusOf(p,ctx), boss=isBoss(p), dc=DCOLOR[posDom[p.id]];
+      var fill=st==='conquered'?dc:(st==='progress'?'#1c2740':'#141c30');
+      var stroke=st==='conquered'?dc:(st==='progress'?'#cfd6e6':'#33415c');
+      var r=boss?9:6.5;
+      nodes += '<g class="tu-node is-'+st+'" data-pack="'+esc(p.id)+'" role="button" tabindex="0">'+
+        '<circle cx="'+xy[0]+'" cy="'+xy[1]+'" r="'+r+'" fill="'+fill+'" stroke="'+stroke+'" stroke-width="'+(st==='conquered'?1.8:1.2)+'"'+(st==='conquered'?' filter="url(#tuglowg)"':'')+'/>'+
+        (boss?'<text x="'+xy[0]+'" y="'+(xy[1]+3)+'" text-anchor="middle" font-size="8">♛</text>':(st==='conquered'?'<text x="'+xy[0]+'" y="'+(xy[1]+2.8)+'" text-anchor="middle" font-size="7.5" fill="#04241a">✓</text>':''))+
+        '<text x="'+xy[0]+'" y="'+(xy[1]+r+9)+'" text-anchor="middle" font-size="7.5">'+esc(p.short)+'</text>'+
+      '</g>';
+    });
+
+    var totalConq = PACKS.filter(function(p){return ctx.laurels[p.id];}).length;
+    root.innerHTML =
+      (IS_SUBPAGE
+        ? '<a class="tu-back" href="/tech-universe/">← Back to the universe</a>'
+        : '<button type="button" class="tu-back" id="tu-back">← Back to the universe</button>')+
+      '<div class="tu-detail-head"><span style="font-size:30px">🌌</span><h2>The whole galaxy</h2></div>'+
+      '<div class="tu-stat-sub" style="margin-left:2px">'+totalConq+' / '+PACKS.length+' stars conquered · dashed lines cross between domains · click a star for details</div>'+
+      '<div class="tu-map-wrap">'+
+        '<svg viewBox="0 0 '+totalW+' '+totalH+'" style="width:100%;min-width:'+totalW+'px;height:auto" role="img" aria-label="The whole certification galaxy across all six domains">'+
+          '<defs><filter id="tuglowg" x="-60%" y="-60%" width="220%" height="220%"><feGaussianBlur stdDeviation="2.2" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter></defs>'+
+          bands+edges+nodes+
+        '</svg>'+
+        '<div class="tu-legend"><span class="k">solid = same domain</span><span class="k">— — dashed = cross-domain</span><span class="k">♛ Boss</span></div>'+
+      '</div>'+
+      '<div id="tu-detail"></div>';
+
+    if(!IS_SUBPAGE){
+      var back=document.getElementById('tu-back');
+      if(back) back.addEventListener('click', function(){ openUniverse(); window.scrollTo({top:0,behavior:'smooth'}); });
+    }
+    root.querySelectorAll('.tu-node').forEach(function(g){
+      function open(){ showDetail(g.getAttribute('data-pack'), ctx); }
+      g.addEventListener('click', open);
+      g.addEventListener('keydown', function(e){ if(e.key==='Enter'||e.key===' '){ e.preventDefault(); open(); } });
+    });
+  }
+
   /* A progression chip linking to a related cert. Same-domain → in-page jump;
      cross-domain → labelled with the other domain's colour and routed there. */
   function progChip(q, ctx){
-    var cross = q.domain !== currentDomain;
+    var galaxy = currentDomain === '*';
+    var cross = !galaxy && q.domain !== currentDomain;   // in the galaxy every cert is on-screen → always in-page
     var st = statusOf(q, ctx);
-    var dot = cross ? '<span class="tu-pdot" style="background:'+DCOLOR[q.domain]+'"></span>' : (st==='conquered'?'<span class="tu-pdot" style="background:#34d399"></span>':'');
+    var dot = (cross || galaxy) ? '<span class="tu-pdot" style="background:'+DCOLOR[q.domain]+'"></span>' : (st==='conquered'?'<span class="tu-pdot" style="background:#34d399"></span>':'');
     var label = esc(q.short) + (cross ? ' <em class="tu-pcross">↗ '+esc(domName(q.domain))+'</em>' : '');
     if(cross && IS_SUBPAGE){
       return '<a class="tu-prog" href="/tech-universe/'+q.domain+'/" style="--d:'+DCOLOR[q.domain]+'">'+dot+label+'</a>';
@@ -276,10 +368,11 @@
     host.scrollIntoView({behavior:'smooth', block:'nearest'});
   }
 
-  /* Navigate to a related cert: switch domain if needed, then open its panel. */
+  /* Navigate to a related cert: switch domain if needed, then open its panel.
+     In galaxy mode ('*') every cert is already on-screen, so just open it. */
   function gotoPack(packId){
     var q = PACK_BY[packId]; if(!q) return;
-    if(q.domain !== currentDomain && !IS_SUBPAGE){ renderDomain(q.domain); window.scrollTo({top:0,behavior:'smooth'}); }
+    if(currentDomain!=='*' && q.domain!==currentDomain && !IS_SUBPAGE){ renderDomain(q.domain); window.scrollTo({top:0,behavior:'smooth'}); }
     showDetail(packId);
   }
 
@@ -289,12 +382,14 @@
   }
   function start(){
     if(IS_SUBPAGE) return renderDomain(INITIAL);
+    if(/[?&]view=galaxy/.test(location.search)) return renderGalaxy();
     var m=/[?&]domain=([a-z]+)/.exec(location.search);
     if(m && DOMAINS.some(function(d){return d.id===m[1];})) renderDomain(m[1]); else renderUniverse();
   }
   loadPacks().then(start).catch(function(){ root.innerHTML='<div class="tu-state">Couldn\'t chart the galaxy. Try a refresh.</div>'; });
   window.addEventListener('cq:stats-changed', function(){
     if(IS_SUBPAGE){ renderDomain(INITIAL); return; }
+    if(currentDomain==='*') return renderGalaxy();
     if(!document.getElementById('tu-back')) renderUniverse();
   });
 })();
