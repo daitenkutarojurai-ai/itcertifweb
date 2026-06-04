@@ -1,11 +1,11 @@
 # Question-bank audit
 
-Generated: 2026-06-04T14:42:38.855Z
+Generated: 2026-06-04T21:12:29.241Z
 Packs scanned: **85** · questions: **3226**
 
-- **Structural issues: 5** (0.2%) — recall-only stems, under-tagged, self-defeating distractors. Reliable, no false positives, fix these first (selfDefeat: 4).
-- Heuristic tells: lengthTell 413, shortTell 740, keywordTell 928 — review hints only.
-- Any-signal flagged: 1775 (55.0%).
+- **Structural issues: 6** (0.2%) — recall-only stems, under-tagged, self-defeating distractors. Reliable, no false positives, fix these first (selfDefeat: 4).
+- Heuristic tells: lengthTell 406, shortTell 743, keywordTell 922 — review hints only.
+- Any-signal flagged: 1772 (54.9%).
 
 ## Methodology
 
@@ -29,9 +29,9 @@ answer, so do NOT auto-"fix" a tell without reading the question):
 
 | Pack | Total | Struct | self | length | short | keyword | recall | tags |
 |---|---:|---:|---:|---:|---:|---:|---:|---:|
+| `terraform-003` | 161 | 3 | 1 | 89 | 15 | 92 | 2 | 0 |
 | `nse4` | 61 | 1 | 1 | 0 | 40 | 4 | 0 | 0 |
 | `cks` | 61 | 1 | 1 | 0 | 19 | 15 | 0 | 0 |
-| `terraform-003` | 161 | 2 | 1 | 96 | 12 | 98 | 1 | 0 |
 | `ccnp` | 101 | 1 | 1 | 39 | 22 | 49 | 0 | 0 |
 | `dp-600` | 12 | 0 | 0 | 7 | 1 | 4 | 0 | 0 |
 | `ms-102` | 12 | 0 | 0 | 10 | 0 | 7 | 0 | 0 |

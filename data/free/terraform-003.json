@@ -92,15 +92,15 @@
     },
     {
       "id": "tf-005",
-      "question": "Terraform tracks the mapping between configuration resources and real-world infrastructure IDs in a STATE file (default `terraform.tfstate`). Without state, Terraform couldn't (a) know what's already created, (b) detect drift, (c) plan deletions. Best practice: store state REMOTELY (S3, Terraform Cloud) with locking + encryption. Which describes state?",
+      "question": "How does Terraform know which real-world infrastructure already exists, detect drift, and plan deletions between runs?",
       "options": [
-        "Just a log file",
-        "JSON file mapping config resources →",
-        "Provider cache",
-        "Config backup"
+        "By re-discovering every resource through the provider API on each run",
+        "From the `.terraform/` provider-plugin cache in the working directory",
+        "From the state file, which maps configuration resources to real infrastructure IDs",
+        "From a log file Terraform appends to after each apply"
       ],
-      "correct": 1,
-      "explanation": "State: Terraform's source of truth. Contains: resource IDs (aws_instance.web → i-1234567890), dependencies, provider metadata, module structure. Remote state (S3+DynamoDB, Terraform Cloud) enables team collaboration and locking. Never manually edit state — use terraform state commands.",
+      "correct": 2,
+      "explanation": "The state file records the mapping from each configuration resource to its real-world ID, which is how Terraform detects drift and plans changes. Terraform does not re-discover all resources each run, the .terraform/ cache only holds provider plugins, and there is no apply log that serves as the source of truth.",
       "tags": [
         "state",
         "fundamentals",
@@ -1046,15 +1046,15 @@
     },
     {
       "id": "tf-053",
-      "question": "A data-source query may return 0 OR 1 results. Accessing it directly errors if empty. The `one()` function takes a list with 0 or 1 elements: returns `null` if empty, or the single element. Useful for optional / conditional resources. Which describes `one`?",
+      "question": "A data-source query may return 0 or 1 results, and accessing it directly errors when empty. Which function returns `null` for an empty list, or the single element for a one-item list?",
       "options": [
-        "Takes a list with 0 or 1 elements",
-        "Math function",
-        "First of any-sized list",
-        "Min"
+        "`element(list, 0)`, which wraps the index instead of returning null",
+        "`one(list)`",
+        "`coalesce(a, b, ...)`, which returns the first non-null argument",
+        "`length(list)`, which returns the number of elements"
       ],
-      "correct": 0,
-      "explanation": "one(): one([]) = null, one(['value']) = 'value', one(['a','b']) = error (more than 1). Use when count-based resource creates 0 or 1 instances: one(aws_eip.nat[*].public_ip) — gets IP if NAT exists, null if count=0. Replaces index 0 access which errors if empty. Also: flatten, toset, tolist for collection manipulation.",
+      "correct": 1,
+      "explanation": "one() is built for exactly the 0-or-1 case: null when empty, the element when single, an error if more. element wraps the index and errors on an empty list. coalesce takes individual arguments, not a 0-or-1 list. length only returns a count.",
       "tags": [
         "expressions",
         "one-function",
@@ -1388,15 +1388,15 @@
     },
     {
       "id": "tf-070",
-      "question": "Terraform expression `can(var.config.deeply.nested.value)` returns TRUE if the expression can be evaluated without error (path exists, types match), FALSE if it raises. Complement to `try()`. Used in variable validation conditions to check feasibility before evaluating. Which describes `can`?",
+      "question": "Inside a variable validation you want to test whether `var.config.deeply.nested.value` evaluates WITHOUT error (true/false), as a complement to `try()`. Which function does that?",
       "options": [
-        "Type-check",
-        "Permission check",
-        "IAM policy",
-        "Returns TRUE if the expression"
+        "`can(expression)`",
+        "`try(expression, fallback)`, which returns the value or a fallback",
+        "`contains(list, value)`, which tests list membership",
+        "`lookup(map, key, default)`, which reads a map key safely"
       ],
-      "correct": 3,
-      "explanation": "can(): can(data.aws_eks_cluster.main.endpoint) returns true if cluster exists and has endpoint, false if expression errors. Use in ternary: can(module.optional_component.id) ? module.optional_component.id : '' — safely get optional module output. Used with try() for safe attribute access patterns.",
+      "correct": 0,
+      "explanation": "can() evaluates an expression and returns true if it succeeds, false if it errors — ideal in validation conditions. try() returns the value or a fallback (not a boolean). contains tests membership in a collection, and lookup reads a key from a map with a default.",
       "tags": [
         "expressions",
         "can",
@@ -1831,15 +1831,15 @@
     },
     {
       "id": "tf-092",
-      "question": "A configuration has `var.subnets = \"10.0.1.0/24,10.0.2.0/24,10.0.3.0/24\"` (CSV string from CI). The team uses `split(\",\", var.subnets)` to convert it into a list. The inverse: `join(\",\", list)` produces the CSV back. Which describes the pair?",
+      "question": "A CI variable arrives as a CSV string `\"10.0.1.0/24,10.0.2.0/24\"`, but the configuration needs a list of CIDRs. Which function converts the string into a list (with `join` doing the reverse)?",
       "options": [
-        "`split(sep, str)` splits a",
-        "CSV only",
-        "Deprecated",
-        "Network only"
+        "`csvdecode(var.subnets)`, which parses CSV header rows into a list of maps",
+        "`split(\",\", var.subnets)`, which splits a string into a list on a separator",
+        "`tolist(var.subnets)`, which converts an existing value to list type",
+        "`element(var.subnets, 0)`, which returns one item from a list"
       ],
-      "correct": 0,
-      "explanation": "split/join: split(',', var.cidr_list_string) → list to use with for_each. join(',', aws_subnet.private[*].id) → comma-separated IDs for AWS resource argument. Parse ARN: split(':', arn)[4] extracts account ID. Useful for interop between string-based and list-based configurations.",
+      "correct": 1,
+      "explanation": "split(sep, str) breaks a string into a list on the separator; join reverses it. csvdecode expects tabular CSV with a header and yields a list of maps, not a flat list. tolist changes a value's type but won't break a string apart. element only retrieves one item from an existing list.",
       "tags": [
         "expressions",
         "split-join",
@@ -2070,15 +2070,15 @@
     },
     {
       "id": "tf-104",
-      "question": "An expression `regexall(\"[0-9]+\", \"foo123bar456\")` returns `[\"123\", \"456\"]`. Unlike `regex` (which returns ONE match), `regexall` returns a LIST of all matches. Useful for extracting all IPs / IDs / numbers from a string. Which describes it?",
+      "question": "You need to extract ALL numeric matches from `\"foo123bar456\"` as `[\"123\",\"456\"]`. Which function returns a list of every regex match (rather than one)?",
       "options": [
-        "Replaces regex",
-        "Performance test",
-        "Returns LIST of all matches of a regex",
-        "Validates regex"
+        "`regex(pattern, string)`, which returns only the first match",
+        "`replace(string, pattern, \"\")`, which substitutes matches in the string",
+        "`regexall(pattern, string)`, which returns a list of all matches",
+        "`can(regex(pattern, string))`, which tests whether the pattern matches"
       ],
       "correct": 2,
-      "explanation": "regexall: returns list (empty if no matches, never errors). length(regexall('[a-z]+', var.name)) > 0: check if name contains lowercase. regex: returns first match or errors. can(regex(pattern, string)): safe match test. Variable validation: condition = can(regex('^[a-z][a-z0-9-]*$', var.name)). Used for: input validation, pattern extraction.",
+      "explanation": "regexall returns every match as a list; regex returns a single match (and errors on none). replace edits the string rather than extracting. can(regex(...)) only returns a boolean indicating whether there was a match.",
       "tags": [
         "expressions",
         "regexall",
@@ -2170,15 +2170,15 @@
     },
     {
       "id": "tf-109",
-      "question": "A CI/CD pipeline runs `terraform plan` and needs to KNOW whether the plan contains changes — to skip apply if there are none, or fail-fast on errors. Without intervention `plan` always exits 0 (success). The `-detailed-exitcode` flag changes this: 0 = no changes, 1 = error, 2 = success with changes. Which describes it?",
+      "question": "A CI pipeline must tell whether `terraform plan` found changes (to skip apply) or errored — but plan normally exits 0 either way. Which flag makes the exit code 0 = no changes, 1 = error, 2 = changes?",
       "options": [
-        "Debug logging",
-        "More verbose",
-        "Changes exit codes to 0 (no",
-        "Timeout"
+        "`terraform plan -json`, which emits machine-readable plan output",
+        "`terraform plan -compact-warnings`, which shortens warning output",
+        "`terraform show -no-color` on the saved plan file",
+        "`terraform plan -detailed-exitcode`"
       ],
-      "correct": 2,
-      "explanation": "-detailed-exitcode: standard exit=0 (success/no-changes or success/changes — can't distinguish). Detailed: 0=no changes, 1=error, 2=changes needed. CI script: terraform plan -detailed-exitcode; if [ $? -eq 2 ]; then terraform apply; fi. Automates: skip apply when no changes needed. Common in GitOps pipelines.",
+      "correct": 3,
+      "explanation": "-detailed-exitcode replaces the always-0 exit with 0/1/2 so a pipeline can branch on it. -json only changes the output format, -compact-warnings only affects warning display, and terraform show just renders a plan with no exit-code semantics.",
       "tags": [
         "cli",
         "plan-detailed-exitcode",
@@ -2453,15 +2453,15 @@
     },
     {
       "id": "tf-123",
-      "question": "`null_resource` is a resource that implements the standard Terraform lifecycle (create / destroy / triggers) but DOES NOT create real infrastructure. Used as a hook for `local-exec` / `remote-exec` provisioners, or as a synthetic resource for `depends_on` / `triggers`. Terraform 1.4+ introduces `terraform_data` as a cleaner replacement for many use cases. Which describes it?",
+      "question": "You need a resource that runs the standard lifecycle and acts as a hook for provisioners or `triggers`/`depends_on`, but creates NO real infrastructure. Which is it (with `terraform_data` as the modern replacement)?",
       "options": [
-        "Deleted placeholder",
-        "No attributes",
-        "A resource that implements the standard",
-        "Empty variable"
+        "`null_resource` — a lifecycle-only resource that creates nothing real",
+        "A `data` source, which reads existing infrastructure without creating it",
+        "A `locals` block holding the provisioner commands",
+        "An empty `module` containing no resources"
       ],
-      "correct": 2,
-      "explanation": "null_resource: triggers = {} map to control when it re-runs. Provisioner executes on create (or destroy). Use cases: run a script after infrastructure is created, create a dependency between resources without a direct reference, trigger provisioners conditionally. terraform-provider-null required.",
+      "correct": 0,
+      "explanation": "null_resource implements create/destroy/triggers without provisioning anything, so it's a place to attach provisioners or force re-runs. A data source only reads and can't host create-time provisioners. locals are values, and an empty module is not a provisioner hook.",
       "tags": [
         "resources",
         "null-resource",
@@ -2494,15 +2494,15 @@
     },
     {
       "id": "tf-125",
-      "question": "Provisioning a managed DB takes ~5 min for the cluster to fully become available — the resource is 'created' but not yet 'usable'. A downstream resource that depends on the DB might fail. The `time_sleep` resource (from `hashicorp/time` provider) introduces a configurable delay between resource creations: `resource \"time_sleep\" \"wait_5m\" { depends_on = [aws_db_instance.main]; create_duration = \"5m\" }`. Which describes it?",
+      "question": "A managed DB takes ~5 minutes to become usable after it reports 'created', and a dependent resource fails if it proceeds too early. Which inserts a fixed delay between resource creations?",
       "options": [
-        "From `hashicorp/time` provider",
-        "Debug pause",
-        "Timeout config",
-        "Rate limit"
+        "A `timeouts { create = \"5m\" }` block on the DB resource",
+        "A `retry` block that re-runs the dependent resource until the DB is ready",
+        "Raising `-parallelism` so the DB finishes before its dependents",
+        "The `time_sleep` resource from the `hashicorp/time` provider, with `create_duration`"
       ],
-      "correct": 0,
-      "explanation": "time_sleep.wait_30_seconds { create_duration = '30s' depends_on = [aws_instance.db] }. Other resources depend on this sleep. Use sparingly — prefer proper readiness checks. time_static: captures current time as a static value for tagging/versioning. creates a delay between resource creation steps. Use when: a resource needs time to become available after creation (e.g., wait 30s after creating a database before creating a dependent service)",
+      "correct": 3,
+      "explanation": "time_sleep (hashicorp/time) creates a resource whose only effect is a configurable delay, wired with depends_on. A timeouts block caps how long Terraform waits for the DB's own creation, not an extra delay for dependents. Terraform has no retry block, and -parallelism controls concurrency, not ordering delays.",
       "tags": [
         "providers",
         "time-sleep",
@@ -2575,15 +2575,15 @@
     },
     {
       "id": "tf-129",
-      "question": "A `check` block at root configuration level runs ASSERTIONS about infrastructure AFTER apply (not blocking — produces warnings, not errors). Example: assert `data.http.lb_health.status_code == 200`. The check runs on every plan/apply. Different from preconditions (which block resource creation). Which describes check blocks?",
+      "question": "You want post-apply assertions about live infrastructure (e.g. `data.http.lb_health.status_code == 200`) that produce WARNINGS (not errors), run on every plan/apply, and never block resource creation. Which Terraform 1.5+ construct?",
       "options": [
-        "Pre-plan validation",
-        "Unit test",
-        "Syntax",
-        "Terraform 1.5+ `check` block"
+        "A resource `precondition`, which blocks creation when it fails",
+        "A variable `validation` block on the input",
+        "A resource `postcondition`, which errors after the resource is created",
+        "A root-level `check` block with `assert` conditions"
       ],
       "correct": 3,
-      "explanation": "check 'website_reachable' { data 'http' 'healthcheck' { url = 'https://example.com' } assert { condition = data.http.healthcheck.status_code == 200 error_message = 'Website returned unexpected status.' } }. Run every plan/apply. Failures are warnings, not errors. Continuous compliance checking.",
+      "explanation": "A check block runs assertions and emits warnings without blocking anything, and can include its own data sources. preconditions and postconditions are per-resource and raise errors (blocking), and variable validation gates inputs at plan time — none are the non-blocking, infrastructure-level check.",
       "tags": [
         "validation",
         "check-block",
@@ -2914,15 +2914,15 @@
     },
     {
       "id": "tf-146",
-      "question": "A regulated bank uses Terraform Cloud and must enforce policies AT PLAN TIME: no public S3 buckets, no instances larger than xlarge, mandatory tagging. Plans that violate policy must HARD-FAIL before reaching apply. The solution: Sentinel — HashiCorp's policy-as-code framework (Terraform Cloud / Enterprise feature) — write `.sentinel` policies that gate plan output. Which describes Sentinel?",
+      "question": "A regulated bank on Terraform Cloud must HARD-FAIL plans that violate policy (public S3, oversized instances, missing tags) before apply. Which HashiCorp policy-as-code framework gates plans?",
       "options": [
-        "HashiCorp policy-as-code framework (Terraform",
-        "Validation feature",
-        "Open source addon",
-        "Replacement for OPA"
+        "`terraform validate`, which checks configuration validity",
+        "Sentinel — HashiCorp's policy-as-code framework in Terraform Cloud/Enterprise",
+        "A `precondition` block added to every regulated resource",
+        "Checkov run as a local pre-commit hook"
       ],
-      "correct": 0,
-      "explanation": "Sentinel: policies run after plan, before apply. Hard-mandatory: block apply if policy fails. Soft-mandatory: allow override with explanation. Advisory: warn only. Use cases: require all resources tagged, block creation in certain regions, enforce instance type limits. Sentinel language: Python-like, purpose-built for policy.",
+      "correct": 1,
+      "explanation": "Sentinel policies run in Terraform Cloud/Enterprise between plan and apply and can hard-fail non-compliant plans org-wide. terraform validate only checks config validity, preconditions are per-resource (not an org-wide plan gate), and Checkov is a third-party local scanner, not the TFC plan-stage gate.",
       "tags": [
         "governance",
         "sentinel",
