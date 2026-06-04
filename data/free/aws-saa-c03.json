@@ -3,10 +3,10 @@
     "id": "aws-saa-c03",
     "name": "AWS Solutions Architect Associate (SAA-C03)",
     "vendor": "Amazon AWS",
-    "version": "2.1.0",
+    "version": "2.2.0",
     "question_count": 60,
-    "last_updated": "2026-05-26",
-    "notes": "[2026-05-13 phase5-rewrite: keyword-tell neutralization for 5 worst-offender Qs] [batch 2: saa-016/017/041/042/059 keyword-tell rebalance] [batch 3: secondary-tell cleanup on saa-017/041/042] [batch 3.1: complete multi-keyword fix on saa-017 + saa-042] [batch 4: saa-003/011/053/054/060 multi-keyword rebalance] [batch 4: saa-005/025/036/044/057] [batch 5: saa-006/030/032/036/045/056] [2026-05-26 hardening: rebalance correct-position distribution toward 15/15/15/15, strip Option-letter references in explanations, ensure each explanation covers all four options]"
+    "last_updated": "2026-06-04",
+    "notes": "[2026-05-13 phase5-rewrite: keyword-tell neutralization for 5 worst-offender Qs] [batch 2: saa-016/017/041/042/059 keyword-tell rebalance] [batch 3: secondary-tell cleanup on saa-017/041/042] [batch 3.1: complete multi-keyword fix on saa-017 + saa-042] [batch 4: saa-003/011/053/054/060 multi-keyword rebalance] [batch 4: saa-005/025/036/044/057] [batch 5: saa-006/030/032/036/045/056] [2026-05-26 hardening: rebalance correct-position distribution toward 15/15/15/15, strip Option-letter references in explanations, ensure each explanation covers all four options] [2026-06-04 v2.2.0 hardening: strengthen distractors on 12 Qs; eliminate length tells on saa-017/022/032; re-tighten explanations to keep distractor refutations balanced in length]"
   },
   "questions": [
     {
@@ -15,11 +15,11 @@
       "options": [
         "Pre-scale with Scheduled Scaling set to business hours on weekdays",
         "Configure an Auto Scaling Group with a CPU target tracking policy at 60%",
-        "Migrate to Spot Instances across the fleet to reduce baseline cost",
-        "Run a fixed fleet at peak size using Reserved Instances to lower hourly cost"
+        "Run the entire fleet on Spot Instances with a mixed-instance allocation strategy across pools",
+        "Operate a fixed peak-sized fleet on 1-year Reserved Instances and accept the overnight idle"
       ],
       "correct": 1,
-      "explanation": "Target tracking auto-scaling dynamically adjusts fleet size to keep average CPU near the target, shrinking the fleet overnight to cut idle spend and adding instances as sales traffic surges — no manual intervention required. Scheduled Scaling fires on a calendar trigger; flash sales that arrive outside the configured window will overwhelm an under-provisioned fleet, so it does not handle genuinely unpredictable spikes. Spot Instances reduce per-hour pricing but can be reclaimed by AWS with two minutes' notice at peak demand, creating unacceptable availability risk for a customer-facing retail site. A fixed Reserved-Instance fleet sized for peak removes auto-scaling entirely, leaving the overnight idle cost the team explicitly wanted to eliminate.",
+      "explanation": "Target-tracking auto-scaling adjusts fleet size to keep average CPU near the configured target, shrinking the fleet overnight to cut idle spend and adding instances reactively when a flash sale arrives — no calendar pre-knowledge required. Scheduled Scaling fires on a fixed calendar trigger; flash sales that hit outside the configured window will overwhelm an under-provisioned fleet. A pure Spot fleet (even with a mixed-instance allocation strategy) is subject to capacity reclamation with two minutes' notice during demand surges — exactly when the retail checkout must stay up. A fixed Reserved-Instance fleet sized for peak removes auto-scaling entirely, leaving the overnight idle cost the team explicitly wanted to eliminate.",
       "tags": [
         "auto-scaling",
         "cost-optimization",
@@ -77,13 +77,13 @@
       "id": "saa-004",
       "question": "An e-commerce site runs EC2 instances behind an ALB, with all instances in a single subnet in us-east-1a. During an AWS maintenance event affecting that Availability Zone, the application returns 503 errors for 40 minutes. The architecture team must ensure no future single-AZ event causes a full outage. What change addresses the root cause?",
       "options": [
-        "Enable a second AZ on the ALB and deploy instances in us-east-1b",
-        "Reduce the ALB health check interval to 5 s and enable EC2 Auto Recovery on each instance to restart failed instances",
-        "Create a second Region failover stack in us-west-2 using Route 53 health checks",
-        "Schedule AMI snapshots hourly and restore into us-east-1b when outages occur"
+        "Enable a second AZ on the ALB and distribute the Auto Scaling Group across us-east-1a and us-east-1b",
+        "Reduce the ALB health-check interval to 5 s and enable EC2 Auto Recovery to restart failed instances",
+        "Build a second-Region failover stack in us-west-2 with Route 53 health-check-driven DNS failover",
+        "Take cross-AZ EBS snapshots every 15 minutes and restore into us-east-1b after the next outage detected"
       ],
       "correct": 0,
-      "explanation": "Deploying instances across two Availability Zones and enabling both AZs on the ALB ensures the load balancer continues routing traffic to healthy instances in the surviving AZ when the other AZ is impaired — the minimum change that removes the single-AZ dependency. EC2 Auto Recovery restarts a failed instance on healthy hardware within the same Availability Zone; it protects against individual hardware failure but cannot mitigate an event that impairs the entire AZ. A second-Region failover stack is overkill for a single-AZ fault domain and adds cross-region complexity, cost, and data-replication challenges the question does not call for. Hourly AMI snapshots with manual restore require operator action during the outage window, making recovery time unpredictable and far longer than an automated multi-AZ design.",
+      "explanation": "Spreading the Auto Scaling Group across two AZs and enabling both AZs on the ALB ensures the load balancer keeps routing traffic to healthy targets in the surviving zone when the other zone is impaired — the minimum change that removes the single-AZ dependency. EC2 Auto Recovery only restarts a failed instance on healthy hardware inside the same Availability Zone, so it cannot help when the entire AZ is impaired. A second-Region failover stack is overkill for a single-AZ fault domain and adds cross-region replication and DNS-TTL complexity the question does not call for. Cross-AZ EBS snapshots still require an operator-driven restore and instance launch during the outage window, making RTO unpredictable and far worse than an automated multi-AZ topology.",
       "tags": [
         "high-availability",
         "ec2",
@@ -268,13 +268,13 @@
       "id": "saa-013",
       "question": "A financial application processes wire transfer instructions from an SQS queue using a Lambda function. After a code deployment, certain message formats cause the Lambda function to throw an unhandled exception. These messages are returned to the queue, immediately retried, and continue failing — consuming Lambda invocations while delaying valid messages. What should the solutions architect implement?",
       "options": [
-        "Configure a Dead Letter Queue with maxReceiveCount=3 and a depth alarm",
-        "Enable FIFO ordering so wire transfers are processed in strict sequence with a Dead Letter Queue retry policy",
-        "Increase the visibility timeout to 5 minutes so Lambda has sufficient time to process each message",
-        "Extend the message retention period to 14 days so failed messages are not permanently deleted"
+        "Configure a Dead Letter Queue with maxReceiveCount=3 and a CloudWatch alarm on DLQ depth",
+        "Switch the source queue to FIFO so wire transfers are processed in strict order with the same retry policy",
+        "Increase the visibility timeout to 5 minutes so Lambda has more time to process each message",
+        "Extend the message retention period to 14 days so failing messages are not deleted automatically"
       ],
       "correct": 0,
-      "explanation": "A Dead Letter Queue (DLQ) receives messages that have exceeded maxReceiveCount processing attempts, permanently removing them from the main queue so they stop consuming Lambda invocations and blocking valid messages. A CloudWatch alarm on DLQ depth alerts the team when failures accumulate, enabling rapid root-cause investigation. FIFO ordering preserves message sequence but does not stop a poison-pill message from cycling endlessly — strict ordering actually makes the blockage worse, because a single failing message halts every subsequent message in the same group. Increasing the visibility timeout only delays retries; the bad message still cycles back once the timeout expires. Extending message retention to 14 days lengthens the failure window rather than stopping it.",
+      "explanation": "A Dead Letter Queue receives messages that exceed maxReceiveCount processing attempts, permanently removing them from the main queue so they stop consuming Lambda invocations and blocking healthy traffic. A CloudWatch alarm on DLQ depth alerts the team when failures accumulate, enabling rapid root-cause investigation. Switching to a FIFO source preserves message order but does nothing to stop a poison-pill message from cycling endlessly — strict ordering actually makes the problem worse, because a single failing message halts every later message in the same MessageGroupId. Increasing the visibility timeout just delays each retry; the bad message still cycles back once the timeout expires. Extending retention to 14 days lengthens the failure window rather than terminating it.",
       "tags": [
         "sqs",
         "dlq",
@@ -310,13 +310,13 @@
       "id": "saa-015",
       "question": "A company needs to migrate 50 TB of data to S3. Their internet connection is 100 Mbps and is needed for business operations. The data must be transferred within 5 days. Which service should they use?",
       "options": [
-        "AWS Snowball Edge",
-        "AWS DataSync over the existing internet connection",
-        "S3 Transfer Acceleration",
-        "Direct Connect with 1 Gbps port"
+        "AWS Snowball Edge shipped to the data center and physically returned to AWS",
+        "AWS DataSync agent over the existing 100 Mbps link with incremental sync enabled",
+        "S3 Transfer Acceleration tuned for parallel multipart uploads of every file",
+        "A new AWS Direct Connect 1 Gbps port provisioned and used to push the 50 TB in a single window"
       ],
       "correct": 0,
-      "explanation": "50 TB over a 100 Mbps connection takes roughly 46 days at full utilization, well beyond the 5-day deadline — and the link is needed for business operations, so it cannot be saturated. AWS Snowball Edge is a physical device shipped to your location: data is loaded locally and the device is shipped back to AWS for ingestion into S3, finishing within the deadline. DataSync still uses the existing internet link and would face the same 46-day calendar wall. S3 Transfer Acceleration speeds up uploads through CloudFront edges but the local pipe remains the bottleneck, so it cannot beat the deadline either. Direct Connect provisioning physically takes weeks to install, even after order, making it impossible to complete within 5 days.",
+      "explanation": "50 TB over a 100 Mbps link takes roughly 46 days at full utilization — and the link must keep serving the business, so it cannot be saturated. Snowball Edge bypasses the link entirely: data is loaded onto the device locally and shipped to AWS for ingest into S3, comfortably inside the 5-day window. DataSync optimizes file-level transfers and supports incremental sync, but it still runs through the same 100 Mbps pipe and hits the same calendar wall. S3 Transfer Acceleration speeds up uploads via CloudFront edges, but the local pipe remains the bottleneck. A new Direct Connect port takes weeks to provision (cross-connect order + LOA-CFA + circuit turn-up), making it impossible to complete within 5 days.",
       "tags": [
         "snowball",
         "data-migration",
@@ -351,13 +351,13 @@
       "id": "saa-017",
       "question": "A media sharing platform lets users upload large video files from a browser. Currently all uploads pass through the application server tier before being written to S3, creating bandwidth bottlenecks and high EC2 costs during peak hours. The security team requires that upload credentials expire no more than 15 minutes after issuance. Which solution removes the application server from the upload data path while meeting the security requirement?",
       "options": [
-        "Deploy AWS Transfer Family with SFTP on the application server fleet to receive browser uploads",
-        "Route uploads through an API Gateway integration that proxies browser data via the application server",
-        "Open the S3 bucket for public PUT access; bypass the application server with a static 15-minute token",
-        "Have the application server generate a presigned S3 PUT URL (15-minute TTL) and return it to the browser"
+        "Deploy AWS Transfer Family with SFTP fronting the application fleet to handle every browser upload at scale",
+        "Route every upload through API Gateway as a binary passthrough that the application server still proxies internally",
+        "Open the S3 bucket for public PUT access and rely on a static 15-minute token shared with the browser",
+        "Have the application server return a 15-minute presigned S3 PUT URL so the browser uploads directly"
       ],
       "correct": 3,
-      "explanation": "A presigned PUT URL embeds the uploader's identity and an expiry timestamp into a cryptographically signed request URL. The application server generates the URL without touching any file data, then returns it to the browser; the browser PUTs the file directly to S3 — no upload data flows through EC2 — and setting the expiry to 15 minutes satisfies the credential-lifetime requirement. AWS Transfer Family on the existing application fleet still terminates the upload on the same EC2 instances, so it does not remove them from the data path. An API Gateway proxy replaces the EC2 bottleneck with an API Gateway bottleneck — the full file still transits a server, and API Gateway's 10 MB request-body limit makes it unsuitable for large video. Public PUT access on the bucket violates least privilege and gives anyone with the URL the ability to overwrite any object.",
+      "explanation": "A presigned PUT URL embeds the uploader's identity and expiry into a signed request URL. The application server generates the URL without ever touching file bytes, hands it to the browser, and the browser PUTs the file straight to S3 — eliminating the EC2 bandwidth bottleneck. Setting the URL TTL to 15 minutes satisfies the credential-lifetime requirement. AWS Transfer Family fronting the existing fleet still terminates uploads on the same EC2 instances, so the bottleneck remains. API Gateway as a binary passthrough imposes a 10 MB request-body cap and re-introduces a server hop for every byte. Public PUT access on the bucket violates least privilege and lets any URL holder overwrite arbitrary objects.",
       "tags": [
         "s3",
         "presigned-urls",
@@ -456,13 +456,13 @@
       "id": "saa-022",
       "question": "A data analytics pipeline ingests hundreds of thousands of events per second from IoT devices. Events need to be processed in real time and stored in S3 for later batch analysis. Which AWS service should anchor the ingestion layer?",
       "options": [
-        "Amazon SQS Standard Queue feeding a Lambda data consumer",
-        "Amazon Kinesis Data Streams with a Lambda or Firehose consumer",
-        "Amazon SNS fan-out with an S3 data subscription",
-        "Amazon MQ for ActiveMQ acting as the IoT data broker"
+        "Amazon SQS Standard with a Lambda consumer fronting the IoT device fleet for ingestion",
+        "Amazon Kinesis Data Streams with a Lambda or Firehose consumer for real-time ingestion",
+        "Amazon EventBridge default bus receiving IoT PutEvents calls with a Lambda processor target",
+        "Amazon MQ for ActiveMQ acting as the IoT message broker for hundreds of thousands of events"
       ],
       "correct": 1,
-      "explanation": "Kinesis Data Streams is designed for real-time ingestion of massive event volumes, supporting up to ~1,000 records per second (or 1 MB/s) per shard with shard counts scaling horizontally to hundreds of thousands of records per second. Records can be processed in real time by Lambda or Kinesis Data Analytics while Kinesis Data Firehose delivers a durable copy to S3. SQS Standard is excellent for decoupled work queues but does not retain a replayable, ordered log for streaming analytics, and its per-message cost makes it expensive at IoT-stream scale. SNS is a pub/sub broker without durable replay — once delivered or filtered, messages are not retained for downstream re-processing. Amazon MQ runs traditional broker software (ActiveMQ/RabbitMQ) which is not architected for hundreds of thousands of events per second.",
+      "explanation": "Kinesis Data Streams is designed for real-time ingestion of massive event volumes — each shard handles up to 1,000 records/second (or 1 MB/s) and shard count scales horizontally to hundreds of thousands of records per second. Records are processed in real time by Lambda or Kinesis Data Analytics while Kinesis Data Firehose ships a durable copy to S3 for batch analysis. SQS Standard is a work queue without an ordered replayable log for streaming analytics, and its per-message cost balloons at IoT-stream volumes. EventBridge enforces a 10,000 PutEvents/sec default quota and is engineered for SaaS/system events, not IoT telemetry at six-figure throughput. Amazon MQ runs traditional broker software (ActiveMQ/RabbitMQ) that is not architected to sustain hundreds of thousands of events per second.",
       "tags": [
         "kinesis",
         "streaming",
@@ -540,13 +540,13 @@
       "id": "saa-026",
       "question": "An operations team at a regional bank runs a critical MySQL database on Amazon RDS in a single Availability Zone. During a DR test, they simulate a hardware failure in the primary AZ — recovery requires a manual restore from a daily snapshot, which takes 45 minutes and requires updating the database connection string in the application. The team's SLA mandates a 5-minute RTO with no application code changes. Which RDS configuration change achieves both requirements?",
       "options": [
-        "RDS Read Replica promoted manually when the primary instance fails",
-        "RDS automated backup with point-in-time recovery to a new instance",
-        "RDS Cross-Region Replica with CloudWatch alarm-triggered promotion",
-        "RDS Multi-AZ with a synchronous standby replica in a second AZ"
+        "Promote an RDS Read Replica manually when the operations team detects the primary instance is down",
+        "RDS automated backups with point-in-time recovery to a brand-new instance after failure is detected",
+        "RDS Cross-Region Read Replica with a CloudWatch alarm that triggers a Lambda-driven promotion",
+        "RDS Multi-AZ with a synchronous standby replica in a second AZ and automatic CNAME failover"
       ],
       "correct": 3,
-      "explanation": "RDS Multi-AZ maintains a synchronous standby that mirrors every committed write from the primary. When the primary AZ becomes unavailable, RDS automatically promotes the standby and updates the DNS CNAME within 60–120 seconds — the application reconnects using the same endpoint with no code changes, meeting the 5-minute RTO. A Read Replica requires a manual promotion step, extending recovery time beyond the RTO and the application must be updated to use the new endpoint. Point-in-time recovery to a new instance still takes tens of minutes for a non-trivial database and produces a new endpoint that the app must be reconfigured to use. A Cross-Region Replica with alarm-triggered promotion crosses regions (adding latency overhead) and still requires an endpoint change, so it does not meet the 'no code change' requirement.",
+      "explanation": "RDS Multi-AZ maintains a synchronous standby that mirrors every committed write. When the primary AZ becomes unavailable, RDS automatically promotes the standby and repoints the existing DNS CNAME within 60–120 seconds — the application reconnects through the same endpoint with no code change, meeting the 5-minute RTO. A manually promoted Read Replica requires a human-driven step and exposes a new endpoint the app must be reconfigured to use. Point-in-time recovery provisions a new instance from scratch, which routinely takes tens of minutes for a non-trivial database — and the new instance has a new endpoint, again breaking the no-code-change requirement. A cross-Region replica with alarm-triggered promotion adds replication lag plus an endpoint change, so it satisfies neither RTO nor the no-change constraint.",
       "tags": [
         "rds",
         "multi-az",
@@ -582,13 +582,13 @@
       "id": "saa-028",
       "question": "A DevOps engineer with full console access accidentally runs `aws cloudformation delete-stack --stack-name prod-infra` during routine maintenance, taking the production environment offline for four hours. The team wants to ensure this cannot happen again without an explicit override step. Which CloudFormation safeguard directly prevents this?",
       "options": [
-        "CloudFormation StackSets for immutable multi-account deployments",
-        "AWS Config rule monitoring CloudFormation stack events",
-        "CloudFormation drift detection on all stack resources",
-        "Enable termination protection on the stack"
+        "Convert the stack to a StackSet so deletion has to be coordinated across multiple targets",
+        "Add an AWS Config rule that emits a finding when CloudFormation stack-deletion events occur",
+        "Enable drift detection on the stack so unauthorized resource changes are surfaced quickly",
+        "Enable termination protection on the production stack"
       ],
       "correct": 3,
-      "explanation": "Termination protection causes a delete-stack API call to fail immediately — the request is rejected until an authorized user explicitly disables protection on the stack. This is the simplest direct guard against accidental stack deletion. StackSets are intended for multi-account deployment of the same template; they do not add a delete guard to a single stack. AWS Config can detect a deletion after it happens, but it is a detective control, not a preventive one. Drift detection identifies configuration differences between live resources and the stack template but does not intercept or block delete-stack commands.",
+      "explanation": "Termination protection causes a delete-stack API call to fail immediately — the request is rejected until an authorized user explicitly disables protection. It is the simplest direct guard against accidental stack deletion. Converting the stack to a StackSet does not gate deletion; the StackSet operations API still happily tears down stack instances. AWS Config is a detective control: it reports on deletions after they occur but cannot prevent them. Drift detection only surfaces configuration differences between live resources and the template — it has no veto on delete-stack commands.",
       "tags": [
         "cloudformation",
         "stack-protection",
@@ -645,13 +645,13 @@
       "id": "saa-031",
       "question": "An image-processing service is triggered by S3 uploads and runs on AWS Lambda. High-resolution RAW camera files have started arriving that require 22 minutes of CPU-intensive processing — seven minutes beyond Lambda's hard 15-minute execution limit. The team wants to keep a serverless approach. What is the BEST architectural fix?",
       "options": [
-        "ECS Fargate task definition to sidestep Lambda time limits",
-        "EC2 Auto Scaling group to replace the Lambda function",
-        "Lambda at maximum 10 GB memory to reduce CPU execution time",
-        "Step Functions orchestrating chunked Lambda invocations"
+        "Replace the Lambda function with an ECS Fargate task that runs the same image to bypass the timeout",
+        "Move the workload to an EC2 Auto Scaling Group with a queue-driven job pattern for long-running jobs",
+        "Increase Lambda memory to 10,240 MB and rely on the proportional vCPU bump to finish under 15 minutes",
+        "Use AWS Step Functions to orchestrate Lambda invocations that each process a chunk of the image"
       ],
       "correct": 3,
-      "explanation": "AWS Step Functions can split a large job into stages — each Lambda invocation processes a chunk of the image within the 15-minute window, and Step Functions manages sequencing, state, and retries. This preserves the serverless model while working around Lambda's hard timeout. ECS Fargate would solve the timeout but is not Lambda; the team explicitly wants to keep a serverless approach without managing tasks. EC2 Auto Scaling replaces the Lambda function with managed VMs, again abandoning the serverless approach. Maxing out Lambda memory to 10 GB speeds up CPU-bound work but cannot extend the maximum execution limit beyond 15 minutes, so a 22-minute job still fails.",
+      "explanation": "Step Functions splits a long job into stages that each fit inside Lambda's 15-minute ceiling, while the state machine handles sequencing, retries, and intermediate state — preserving the serverless model and getting around the hard timeout. ECS Fargate would also clear the timeout, but it abandons the serverless approach the team wants to keep (tasks, networking, and scaling rules now have to be managed). An EC2 Auto Scaling Group is an even larger step away from serverless and requires AMI / OS lifecycle ownership. Maxing Lambda memory to 10,240 MB speeds CPU-bound work but cannot extend the 15-minute execution ceiling, so a 22-minute job still fails.",
       "tags": [
         "lambda",
         "step-functions",
@@ -666,13 +666,13 @@
       "id": "saa-032",
       "question": "A startup operates 50 Lambda functions and an EC2 Auto Scaling group, all of which retrieve database credentials and API keys at startup. The security team requires KMS encryption per value, individual CloudTrail access logging, and version history for rollback. The team must store 500 config values and wants to minimize monthly AWS spend. Which service best meets all three requirements?",
       "options": [
-        "AWS Systems Manager Parameter Store with SecureString — KMS-encrypted, versioned, audited",
-        "AWS Secrets Manager — store each value as a secret ($0.40/secret/month)",
-        "Amazon S3 store with server-side SSE-KMS and object versioning per config value",
-        "Amazon DynamoDB table acting as a config store, encrypted with a customer-managed KMS key"
+        "AWS Systems Manager Parameter Store SecureString — KMS encryption, versioning, and CloudTrail audit",
+        "AWS Secrets Manager with automatic rotation, KMS encryption, and $0.40 per secret per month for all 500 entries",
+        "Amazon S3 backing store with SSE-KMS encryption and per-object versioning enabled for each individual config value",
+        "Amazon DynamoDB table acting as the config store, encrypted with a customer-managed KMS key for each value"
       ],
       "correct": 0,
-      "explanation": "AWS Systems Manager Parameter Store SecureString parameters are encrypted with KMS, every access call is logged in CloudTrail (including caller identity and parameter name), and each parameter keeps a full version history — all at no charge in the standard tier, meaning zero additional monthly cost for 500 values. AWS Secrets Manager also provides KMS encryption and audit logging, but charges $0.40 per secret per month — about $200/month for 500 secrets, missing the minimum-cost requirement. S3 with SSE-KMS and versioning can store encrypted files but lacks parameter-level access control and audit logging tuned for secrets retrieval. DynamoDB with a CMK is a generic key-value store; teams must build their own versioning, audit instrumentation, and access-control plumbing on top of it, multiplying operational cost.",
+      "explanation": "Systems Manager Parameter Store SecureString parameters are encrypted with KMS, every access is logged in CloudTrail with caller identity and parameter name, and each parameter keeps full version history — all free in the standard tier, meaning $0/month for 500 values. AWS Secrets Manager offers the same KMS encryption and audit logging plus automatic rotation, but bills $0.40 per secret per month — roughly $200/month for 500 secrets, missing the cost-minimization requirement. S3 with SSE-KMS and versioning can hold encrypted files but lacks the parameter-level fetch API, fine-grained IAM, and per-access audit semantics that secret retrieval expects. DynamoDB with a CMK is a generic key-value store; teams must build their own versioning, audit instrumentation, and access plumbing on top, multiplying operational cost.",
       "tags": [
         "security",
         "ssm-parameter-store",
@@ -834,13 +834,13 @@
       "id": "saa-040",
       "question": "A genomics company runs a batch analysis pipeline on EC2 that processes 3 TB of sequencing data per job, taking 8-12 hours. The pipeline saves progress to S3 every 15 minutes and resumes from the last checkpoint after any failure. Jobs must complete eventually but have no hard deadline. Which EC2 purchasing option minimizes compute cost for this workload?",
       "options": [
-        "Spot Instances (up to 90% discount versus On-Demand pricing)",
-        "On-Demand Instances billed by the second with no commitment",
-        "Reserved Instances with a 1-year no-upfront payment plan",
-        "Dedicated Hosts reserved for a 1-year term to ensure capacity"
+        "Spot Instances with restart-from-checkpoint after any reclamation event",
+        "On-Demand Instances billed per second with no commitment so capacity is always available immediately",
+        "Standard Reserved Instances with a 3-year all-upfront payment plan for the deepest committed-use discount",
+        "Dedicated Hosts under a 1-year term to guarantee dedicated underlying capacity for the batch fleet always"
       ],
       "correct": 0,
-      "explanation": "Spot Instances are priced up to ~90% below On-Demand rates, and the pipeline's 15-minute checkpointing makes it tolerant of the 2-minute Spot interruption notice — if the instance is reclaimed, the job restarts from the last S3 checkpoint with minimal rework. On-Demand pays full per-second pricing with no discount; it works but is the most expensive option for an interruptible workload. Reserved Instances reduce cost for predictable, steady-state usage but are poorly suited to intermittent batch jobs that only run when triggered. Dedicated Hosts are reserved physical servers intended for software licensing compliance and are the most expensive per-hour option.",
+      "explanation": "Spot Instances are priced up to ~90% below On-Demand rates, and the pipeline's 15-minute checkpointing makes it tolerant of the 2-minute Spot reclamation notice — when an instance is reclaimed, the job resumes from the last S3 checkpoint with minimal rework. On-Demand pays full per-second pricing with no discount; it works but is the most expensive option for an interruptible workload. Standard Reserved Instances offer steep savings on steady-state usage but commit the bill regardless of whether the batch is running, leaving idle reservations between jobs. Dedicated Hosts are reserved physical servers priced for software-licensing compliance, the most expensive per-hour option here.",
       "tags": [
         "ec2",
         "spot-instances",
@@ -1087,13 +1087,13 @@
       "id": "saa-052",
       "question": "A media company built a proprietary transcoding engine that runs as a Docker container. Videos averaging 15 minutes of processing time are uploaded to S3 at a rate of several thousand per day. The team wants transcoding workers to scale automatically with upload volume and pay only for compute used while jobs run. Which architecture best meets these requirements?",
       "options": [
-        "Lambda functions triggered by S3 upload events per video",
-        "Auto-scaling EC2 On-Demand instances pulling from an SQS queue",
-        "ECS Fargate tasks consuming an SQS queue, scaled by queue depth",
-        "Step Functions parallel states spinning up an EC2 instance per video"
+        "Trigger a Lambda function from each S3 upload event and stream the transcode output back to S3",
+        "EC2 On-Demand Auto Scaling group pulling jobs from an SQS queue with a custom AMI per worker",
+        "ECS Fargate tasks consuming an SQS queue, with Application Auto Scaling driven by queue depth",
+        "Step Functions parallel states that launch one EC2 instance per upload and tear it down after the transcode"
       ],
       "correct": 2,
-      "explanation": "S3 event notifications publish to SQS; ECS Fargate tasks dequeue and process jobs, with Application Auto Scaling adjusting task count based on ApproximateNumberOfMessages. Fargate handles 15-minute (and much longer) jobs and bills per second of vCPU/memory while tasks run. Lambda is unsuitable here because the 15-minute invocation limit equals the average transcoding job — longer videos would time out. Auto-scaling EC2 On-Demand can run the workload but requires managing the EC2 fleet, AMI patching, and idle capacity between scaling events. Step Functions launching an EC2 instance per video carries minutes of provisioning latency per job and is hugely expensive at thousands of videos per day.",
+      "explanation": "S3 event notifications publish to SQS; ECS Fargate tasks dequeue and process jobs, with Application Auto Scaling adjusting task count based on ApproximateNumberOfMessages. Fargate comfortably handles 15-minute (and much longer) jobs and bills per second of vCPU/memory while tasks run — paying only for compute used. Lambda's 15-minute invocation ceiling equals the average job duration, so longer videos time out outright. EC2 On-Demand Auto Scaling can run the workload but introduces AMI lifecycle, OS patching, and idle-fleet cost between scaling events. Step Functions launching an EC2 per video pays minutes of provisioning latency per job and is hugely expensive at thousands of videos per day.",
       "tags": [
         "sqs",
         "ecs",
@@ -1257,13 +1257,13 @@
       "id": "saa-060",
       "question": "A development team is decomposing a monolithic order platform into ECS Fargate microservices. The checkout flow must call an inventory service to verify stock and a payments service to charge the customer—in sequence—before returning a confirmation to the user. Both downstream calls must complete before the response is sent, and the end-to-end latency budget is 80 ms within the same VPC. Which communication architecture should the team adopt?",
       "options": [
-        "Use an internal Application Load Balancer routing HTTP requests to the ECS services by URL path",
-        "Use Amazon SQS FIFO queues between each ECS service pair with a correlation ID and reply queue",
-        "Publish each request to an Amazon SNS topic and subscribe the downstream ECS service to receive it",
-        "Use Amazon Kinesis Data Streams with a shard per ECS service to pass ordered messages"
+        "Expose both downstream services behind an internal Application Load Balancer with path-based routing",
+        "Connect each service pair with an Amazon SQS FIFO queue using a correlation ID and a reply queue",
+        "Publish each request to an SNS topic and let the downstream service deliver the result via a second topic",
+        "Stream calls through Amazon Kinesis Data Streams with one shard per service to preserve ordering"
       ],
       "correct": 0,
-      "explanation": "An internal Application Load Balancer provides synchronous request-response semantics within the VPC, with path-based routing to separate ECS target groups for inventory and payments. Round-trips over an internal ALB are typically single-digit milliseconds, comfortably within the 80 ms budget for two sequential calls. SQS is asynchronous — achieving request-response with SQS requires a correlation ID and polling a reply queue, adding latency and complexity that breaks the tight budget. SNS is a pub/sub fan-out system, not a request-response mechanism, and provides no built-in reply path. Kinesis is designed for ordered event streaming with consumer polling, not synchronous RPC-style calls between microservices.",
+      "explanation": "An internal Application Load Balancer provides synchronous request-response semantics inside the VPC, with path-based routing to separate ECS target groups for inventory and payments. Round-trips over an internal ALB are typically single-digit milliseconds, comfortably within the 80 ms budget for two sequential calls. SQS is asynchronous — bolting on a correlation ID and reply queue introduces polling and queue latency that blows the budget. SNS is pub/sub fan-out, not request-response, and a two-topic acknowledgment dance still relies on polling. Kinesis is built for ordered event streaming with consumer-driven polling, not synchronous RPC-style calls between microservices.",
       "tags": [
         "alb",
         "microservices",
