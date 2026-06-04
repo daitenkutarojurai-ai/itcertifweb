@@ -254,6 +254,36 @@ function escapeTag(s) {
   }[c]));
 }
 
+// ─── Coach debrief (Phase 7.5 v2) ──────────────────────────────────────────────
+/**
+ * The squid 🦑 surfaces its single top "next move" right after the session.
+ * cqCoach reads fresh stats because cq:session-complete fired synchronously
+ * before this screen rendered (see quiz.js finishQuiz). Persona-aware via
+ * cqCoachPersona. No-op (empty string) if the coach bundle isn't loaded.
+ */
+function buildCoachDebriefHTML() {
+  const coach = (typeof window !== 'undefined' && window.cqCoach) || null;
+  if (!coach || typeof coach.getAdvice !== 'function') return '';
+  let tip;
+  try { tip = (coach.getAdvice(1) || [])[0]; } catch (_) { return ''; }
+  if (!tip) return '';
+  const persona = (window.cqCoachPersona && window.cqCoachPersona.current())
+    || { emoji: '🦑', name: 'Coach', accent: '#34d399' };
+  const href  = (tip.cta && tip.cta.href)  || '/profile.html';
+  const label = (tip.cta && tip.cta.label) || 'Open coach';
+  const icon  = tip.icon ? tip.icon + ' ' : '';
+  return `
+    <div class="results-coach-card" style="--coach-accent:${escapeTag(persona.accent || '#34d399')}">
+      <div class="results-coach-head">
+        <span class="results-coach-emoji" aria-hidden="true">${escapeTag(persona.emoji || '🦑')}</span>
+        <span class="results-coach-eyebrow">${escapeTag(persona.name || 'Coach')} — your next move</span>
+      </div>
+      <div class="results-coach-title">${escapeTag(icon + tip.title)}</div>
+      <div class="results-coach-text">${escapeTag(tip.text)}</div>
+      <a class="cta-primary results-coach-cta" href="${escapeTag(href)}">${escapeTag(label)}</a>
+    </div>`;
+}
+
 // ─── Email cheatsheet card (shared by standard + diagnostic flows) ─────────────
 
 /**
@@ -468,6 +498,8 @@ function buildHTML(pack, results, mode, newAchievements) {
 
       <!-- Achievements (populated by JS) -->
       <div id="achievements-container"></div>
+
+      ${buildCoachDebriefHTML()}
 
       <div class="section-label">Answer Review</div>
       <div class="review-list">

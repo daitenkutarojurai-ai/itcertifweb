@@ -634,14 +634,17 @@
         }}));
       } catch (_) {}
 
-      var summary = el('div', { class: 'node-sheet-inline pquiz-summary' }, [
+      var summaryKids = [
         el('div', { class: 'pquiz-summary-score', text: correct + ' / ' + questions.length }),
         el('div', { class: 'pquiz-summary-label', text:
           score === 100 ? 'Perfect run!' :
           score >= 70 ? 'Nicely cleared.' :
-          score >= 50 ? 'Passed — keep drilling.' : 'Tough one — try again to lock it in.' }),
-        el('button', { class: 'cta-primary pquiz-continue', type: 'button', text: 'Continue →' })
-      ]);
+          score >= 50 ? 'Passed — keep drilling.' : 'Tough one — try again to lock it in.' })
+      ];
+      var coachCard = buildCoachDebrief();
+      if (coachCard) summaryKids.push(coachCard);
+      summaryKids.push(el('button', { class: 'cta-primary pquiz-continue', type: 'button', text: 'Continue →' }));
+      var summary = el('div', { class: 'node-sheet-inline pquiz-summary' }, summaryKids);
       wrap.replaceWith(summary);
       summary.querySelector('.pquiz-continue').addEventListener('click', function () {
         closeNodeSheet();
@@ -718,6 +721,26 @@
       var cur = $('#path-map').querySelector('.path-node.is-current');
       if (cur) walkTo(cur);
     }, 250);
+  }
+
+  /* Post-session coach debrief (Phase 7.5 v2) — the squid's top "next move"
+     surfaced right after an inline session. Persona-aware via cqCoachPersona.
+     cqCoach reads fresh stats because cq:session-complete fired synchronously
+     before this is built. Returns null (no-op) if the coach isn't loaded. */
+  function buildCoachDebrief() {
+    if (!window.cqCoach || typeof window.cqCoach.getAdvice !== 'function') return null;
+    var tip;
+    try { tip = (window.cqCoach.getAdvice(1) || [])[0]; } catch (_) { return null; }
+    if (!tip) return null;
+    var persona = (window.cqCoachPersona && window.cqCoachPersona.current()) || { emoji: '🦑', accent: '#34d399' };
+    var href = (tip.cta && tip.cta.href) || '/profile.html';
+    var card = el('a', { class: 'pquiz-coach', href: href, 'aria-label': 'Coach — your next move: ' + tip.title }, [
+      el('div', { class: 'pquiz-coach-head', text: (persona.emoji || '🦑') + ' Coach — your next move' }),
+      el('div', { class: 'pquiz-coach-title', text: (tip.icon ? tip.icon + ' ' : '') + tip.title }),
+      el('div', { class: 'pquiz-coach-text', text: tip.text })
+    ]);
+    try { card.style.setProperty('--coach-accent', persona.accent || '#34d399'); } catch (_) {}
+    return card;
   }
 
   /* ───── Combo flash overlay (used by both mini-game types) ───── */
