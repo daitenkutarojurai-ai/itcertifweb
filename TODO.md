@@ -2834,7 +2834,21 @@ tripped it, so good scenario questions read as "flagged". Fixes:
   STRUCTURAL signal (`selfDefeat`) plus a symmetric `shortTell` ("pick the
   shortest"). Fix = strip the self-defeating tail from each distractor (the
   base claim stays a valid wrong answer); low-risk + scriptable with
-  verification. **Next workstream: the selfDefeat strip.**
+  verification.
+- **selfDefeat strip SHIPPED 2026-06-04 (owner-approved tradeoff).** Stripped
+  **1 424 self-defeating tails across 612 questions in 25 packs** — only the
+  judgment tail of a DISTRACTOR is removed (never the correct option, never a
+  multi-correct question), leaving the base claim as a clean plausible-wrong
+  answer ("Stub blocks all routing — false; …" → "Stub blocks all routing").
+  Guards refused 4 would-empty strips and reverted 1 would-duplicate question.
+  **selfDefeat 498 → 4** (the 4 residual = 3 multi-correct questions skipped +
+  1 dup-guard revert, `terraform-003/tf-102`). Integrity perfect (0 empty / 0
+  dup / 0 bad-index), content audit valid, 265 tests pass.
+  - **Known tradeoff (accepted):** shortening distractors pushed the soft
+    heuristic tells up — `lengthTell` 194 → 433, `keywordTell` 673 → 934 — and
+    left some terse bare-label distractors. These packs now need a
+    **length-balance + distractor-substance follow-up** (the answer-text-trim
+    method, per pack); the audit tracks the new `lengthTell` worklist.
 
 ### How to track progress
 

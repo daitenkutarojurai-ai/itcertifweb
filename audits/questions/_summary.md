@@ -1,11 +1,11 @@
 # Question-bank audit
 
-Generated: 2026-06-04T11:07:32.742Z
+Generated: 2026-06-04T11:50:13.881Z
 Packs scanned: **84** · questions: **3214**
 
-- **Structural issues: 498** (15.5%) — recall-only stems, under-tagged, self-defeating distractors. Reliable, no false positives, fix these first (selfDefeat: 498).
-- Heuristic tells: lengthTell 194, shortTell 971, keywordTell 673 — review hints only.
-- Any-signal flagged: 1857 (57.8%).
+- **Structural issues: 4** (0.1%) — recall-only stems, under-tagged, self-defeating distractors. Reliable, no false positives, fix these first (selfDefeat: 4).
+- Heuristic tells: lengthTell 433, shortTell 737, keywordTell 934 — review hints only.
+- Any-signal flagged: 1776 (55.3%).
 
 ## Methodology
 
@@ -29,39 +29,28 @@ answer, so do NOT auto-"fix" a tell without reading the question):
 
 | Pack | Total | Struct | self | length | short | keyword | recall | tags |
 |---|---:|---:|---:|---:|---:|---:|---:|---:|
-| `terraform-003` | 161 | 131 | 131 | 0 | 54 | 3 | 0 | 0 |
-| `ccnp` | 101 | 81 | 81 | 1 | 64 | 19 | 0 | 0 |
-| `docker-dca` | 61 | 40 | 40 | 0 | 53 | 3 | 0 | 0 |
-| `splunk-core` | 66 | 40 | 40 | 1 | 51 | 8 | 0 | 0 |
-| `comptia-a-plus` | 101 | 59 | 59 | 0 | 83 | 11 | 0 | 0 |
-| `rhcsa` | 61 | 31 | 31 | 0 | 25 | 14 | 0 | 0 |
-| `cks` | 61 | 17 | 17 | 0 | 20 | 3 | 0 | 0 |
-| `gcp-ace` | 56 | 15 | 15 | 0 | 18 | 3 | 0 | 0 |
-| `comptia-network-plus` | 91 | 24 | 24 | 0 | 84 | 4 | 0 | 0 |
-| `ccnp-encor` | 40 | 10 | 10 | 0 | 6 | 27 | 0 | 0 |
-| `kcsa` | 16 | 3 | 3 | 0 | 1 | 4 | 0 | 0 |
-| `comptia-pentest` | 61 | 9 | 9 | 0 | 8 | 6 | 0 | 0 |
-| `az-305` | 61 | 7 | 7 | 0 | 22 | 5 | 0 | 0 |
-| `nse4` | 61 | 6 | 6 | 0 | 43 | 3 | 0 | 0 |
-| `ccna` | 112 | 11 | 11 | 0 | 26 | 14 | 0 | 0 |
-| `aws-soa-c02` | 60 | 5 | 5 | 0 | 27 | 2 | 0 | 0 |
-| `servicenow-csa` | 61 | 4 | 4 | 0 | 38 | 2 | 0 | 0 |
-| `dp-700` | 16 | 1 | 1 | 0 | 1 | 8 | 0 | 0 |
-| `comptia-cysa` | 66 | 2 | 2 | 0 | 18 | 3 | 0 | 0 |
-| `pcnsa` | 61 | 1 | 1 | 0 | 25 | 1 | 0 | 0 |
-| `comptia-security-plus` | 92 | 1 | 1 | 0 | 26 | 3 | 0 | 0 |
+| `nse4` | 61 | 1 | 1 | 0 | 40 | 4 | 0 | 0 |
+| `cks` | 61 | 1 | 1 | 0 | 19 | 15 | 0 | 0 |
+| `ccnp` | 101 | 1 | 1 | 39 | 22 | 49 | 0 | 0 |
+| `terraform-003` | 161 | 1 | 1 | 116 | 9 | 110 | 0 | 0 |
 | `dp-600` | 12 | 0 | 0 | 7 | 1 | 4 | 0 | 0 |
 | `ms-102` | 12 | 0 | 0 | 10 | 0 | 7 | 0 | 0 |
 | `pl-400` | 12 | 0 | 0 | 11 | 0 | 7 | 0 | 0 |
+| `comptia-network-plus` | 91 | 0 | 0 | 6 | 69 | 12 | 0 | 0 |
+| `ccnp-encor` | 40 | 0 | 0 | 5 | 2 | 33 | 0 | 0 |
 | `f5-201-tmos` | 12 | 0 | 0 | 8 | 1 | 5 | 0 | 0 |
 | `gcp-pmle` | 12 | 0 | 0 | 9 | 0 | 7 | 0 | 0 |
 | `okta-certified-professional` | 12 | 0 | 0 | 9 | 1 | 4 | 0 | 0 |
 | `pcnse` | 12 | 0 | 0 | 7 | 1 | 6 | 0 | 0 |
-| `aws-clf-c02` | 98 | 0 | 0 | 10 | 9 | 74 | 0 | 0 |
+| `aws-clf-c02` | 98 | 0 | 0 | 10 | 8 | 74 | 0 | 0 |
+| `comptia-a-plus` | 101 | 0 | 0 | 21 | 49 | 31 | 0 | 0 |
 | `comptia-server` | 12 | 0 | 0 | 7 | 0 | 5 | 0 | 0 |
 | `dp-100` | 12 | 0 | 0 | 7 | 1 | 5 | 0 | 0 |
 | `gcp-pcse` | 16 | 0 | 0 | 5 | 5 | 8 | 0 | 0 |
+| `splunk-core` | 66 | 0 | 0 | 12 | 30 | 20 | 0 | 0 |
+| `docker-dca` | 61 | 0 | 0 | 6 | 22 | 19 | 0 | 0 |
 | `az-900` | 91 | 0 | 0 | 19 | 20 | 43 | 0 | 0 |
+| `rhcsa` | 61 | 0 | 0 | 18 | 9 | 30 | 0 | 0 |
 | `ccnp-security` | 60 | 0 | 0 | 0 | 0 | 41 | 0 | 0 |
 | `comptia-cloud` | 12 | 0 | 0 | 7 | 0 | 3 | 0 | 0 |
 | `devnet` | 12 | 0 | 0 | 5 | 0 | 6 | 0 | 0 |
@@ -72,6 +61,7 @@ answer, so do NOT auto-"fix" a tell without reading the question):
 | `az-104` | 56 | 0 | 0 | 9 | 13 | 22 | 0 | 0 |
 | `ccsp` | 16 | 0 | 0 | 0 | 4 | 6 | 0 | 0 |
 | `kcna` | 16 | 0 | 0 | 1 | 0 | 9 | 0 | 0 |
+| `servicenow-csa` | 61 | 0 | 0 | 0 | 36 | 2 | 0 | 0 |
 | `gcp-pde` | 60 | 0 | 0 | 0 | 35 | 3 | 0 | 0 |
 | `az-800` | 12 | 0 | 0 | 3 | 3 | 3 | 0 | 0 |
 | `consul-003` | 12 | 0 | 0 | 6 | 0 | 3 | 0 | 0 |
@@ -80,6 +70,7 @@ answer, so do NOT auto-"fix" a tell without reading the question):
 | `pccse-prisma-cloud` | 12 | 0 | 0 | 4 | 0 | 5 | 0 | 0 |
 | `pl-900` | 12 | 0 | 0 | 5 | 2 | 2 | 0 | 0 |
 | `cloudflare-cass` | 16 | 0 | 0 | 0 | 0 | 9 | 0 | 0 |
+| `dp-700` | 16 | 0 | 0 | 0 | 0 | 9 | 0 | 0 |
 | `sc-200` | 16 | 0 | 0 | 0 | 5 | 6 | 0 | 0 |
 | `snowpro-core` | 16 | 0 | 0 | 1 | 1 | 7 | 0 | 0 |
 | `aws-dva-c02` | 61 | 0 | 0 | 0 | 0 | 33 | 0 | 0 |
@@ -88,21 +79,30 @@ answer, so do NOT auto-"fix" a tell without reading the question):
 | `aws-sap-c02` | 16 | 0 | 0 | 0 | 3 | 5 | 0 | 0 |
 | `az-140` | 12 | 0 | 0 | 2 | 0 | 5 | 0 | 0 |
 | `aws-scs-c02` | 61 | 0 | 0 | 0 | 1 | 29 | 0 | 0 |
+| `aws-soa-c02` | 60 | 0 | 0 | 1 | 26 | 3 | 0 | 0 |
 | `aws-ans-c01` | 60 | 0 | 0 | 2 | 0 | 25 | 0 | 0 |
 | `gcp-pca` | 61 | 0 | 0 | 0 | 19 | 9 | 0 | 0 |
 | `dp-900` | 16 | 0 | 0 | 1 | 2 | 5 | 0 | 0 |
 | `gcp-cdl` | 16 | 0 | 0 | 5 | 1 | 2 | 0 | 0 |
 | `gcp-pcne` | 16 | 0 | 0 | 2 | 3 | 2 | 0 | 0 |
 | `sc-100` | 16 | 0 | 0 | 1 | 0 | 7 | 0 | 0 |
+| `ccna` | 112 | 0 | 0 | 12 | 24 | 22 | 0 | 0 |
 | `az-700` | 12 | 0 | 0 | 2 | 3 | 0 | 0 | 0 |
 | `az-801` | 12 | 0 | 0 | 3 | 0 | 4 | 0 | 0 |
+| `gcp-ace` | 56 | 0 | 0 | 0 | 12 | 14 | 0 | 0 |
+| `pcnsa` | 61 | 0 | 0 | 1 | 24 | 1 | 0 | 0 |
 | `cissp` | 25 | 0 | 0 | 0 | 7 | 3 | 0 | 0 |
+| `az-305` | 61 | 0 | 0 | 1 | 16 | 6 | 0 | 0 |
 | `az-400` | 16 | 0 | 0 | 0 | 0 | 6 | 0 | 0 |
+| `comptia-cysa` | 66 | 0 | 0 | 1 | 18 | 5 | 0 | 0 |
 | `ai-900` | 20 | 0 | 0 | 0 | 1 | 6 | 0 | 0 |
 | `aws-aif-c01` | 20 | 0 | 0 | 1 | 3 | 3 | 0 | 0 |
+| `comptia-pentest` | 61 | 0 | 0 | 0 | 7 | 14 | 0 | 0 |
 | `ms-900` | 60 | 0 | 0 | 0 | 19 | 1 | 0 | 0 |
 | `vault-002` | 51 | 0 | 0 | 0 | 13 | 4 | 0 | 0 |
-| `isc2-cc` | 16 | 0 | 0 | 0 | 1 | 4 | 0 | 0 |
+| `comptia-security-plus` | 92 | 0 | 0 | 1 | 26 | 3 | 0 | 0 |
+| `isc2-cc` | 16 | 0 | 0 | 1 | 1 | 4 | 0 | 0 |
+| `kcsa` | 16 | 0 | 0 | 0 | 0 | 5 | 0 | 0 |
 | `cka` | 61 | 0 | 0 | 0 | 14 | 7 | 0 | 0 |
 | `ckad` | 61 | 0 | 0 | 0 | 16 | 3 | 0 | 0 |
 | `aws-saa-c03` | 60 | 0 | 0 | 0 | 14 | 5 | 0 | 0 |
