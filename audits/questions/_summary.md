@@ -1,11 +1,11 @@
 # Question-bank audit
 
-Generated: 2026-06-04T11:53:27.216Z
+Generated: 2026-06-04T13:02:32.419Z
 Packs scanned: **85** · questions: **3226**
 
 - **Structural issues: 4** (0.1%) — recall-only stems, under-tagged, self-defeating distractors. Reliable, no false positives, fix these first (selfDefeat: 4).
-- Heuristic tells: lengthTell 438, shortTell 737, keywordTell 940 — review hints only.
-- Any-signal flagged: 1784 (55.3%).
+- Heuristic tells: lengthTell 433, shortTell 737, keywordTell 940 — review hints only.
+- Any-signal flagged: 1783 (55.3%).
 
 ## Methodology
 
@@ -49,7 +49,7 @@ answer, so do NOT auto-"fix" a tell without reading the question):
 | `gcp-pcse` | 16 | 0 | 0 | 5 | 5 | 8 | 0 | 0 |
 | `splunk-core` | 66 | 0 | 0 | 12 | 30 | 20 | 0 | 0 |
 | `docker-dca` | 61 | 0 | 0 | 6 | 22 | 19 | 0 | 0 |
-| `az-900` | 91 | 0 | 0 | 19 | 20 | 43 | 0 | 0 |
+| `az-900` | 91 | 0 | 0 | 14 | 20 | 43 | 0 | 0 |
 | `rhcsa` | 61 | 0 | 0 | 18 | 9 | 30 | 0 | 0 |
 | `ccnp-security` | 60 | 0 | 0 | 0 | 0 | 41 | 0 | 0 |
 | `comptia-cloud` | 12 | 0 | 0 | 7 | 0 | 3 | 0 | 0 |

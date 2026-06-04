@@ -2849,6 +2849,21 @@ tripped it, so good scenario questions read as "flagged". Fixes:
     left some terse bare-label distractors. These packs now need a
     **length-balance + distractor-substance follow-up** (the answer-text-trim
     method, per pack); the audit tracks the new `lengthTell` worklist.
+- **az-900 length pass 2026-06-04** (high-traffic Azure Fundamentals, NOT
+  strip-affected). Fixed the 6 genuinely-trimmable verbose-comparison answers
+  (answer-text only, 0 index changes): `lengthTell` 19 → 14.
+- **Finding — `lengthTell` is now dominated by two non-mechanical classes:**
+  (1) **unavoidable service-name tells** — the correct option is a proper
+  noun ("Azure Container Registry", "Azure Database for MySQL / PostgreSQL")
+  that's simply longer than the distractor service names; can't be trimmed
+  without mangling the answer (the 13 residual in az-900 are all this). (2)
+  **strip-induced stubs** — the heavily-stripped packs (`terraform-003` 116,
+  `ccnp` 39, `comptia-a-plus` 21, …) now have stub distractors ("Output",
+  "Plugin", "Sorts") that need **distractor re-enrichment (redesign)**, not
+  correct-answer trimming. Both are the large, human-directed distractor-
+  redesign workstream, NOT more mechanical passes. Mechanical question-quality
+  work (recall, position, selfDefeat, genuine verbose-answer length-tells) is
+  essentially complete.
 
 ### How to track progress
 
