@@ -330,15 +330,15 @@
     },
     {
       "id": "tf-017",
-      "question": "A Terraform configuration creates a VPC and a downstream config (deploying ECS) needs the VPC ID. The producing configuration declares `output \"vpc_id\" { value = aws_vpc.main.id }`. The consuming config reads it via `terraform_remote_state` data source. Which describes outputs?",
+      "question": "A configuration creates a VPC, and a separate config (deploying ECS) needs that VPC's ID via the `terraform_remote_state` data source. How does the producing configuration expose the value?",
       "options": [
-        "A log message",
-        "State file export",
-        "Monitoring metric",
-        "Outputs expose values from the configuration"
+        "Declare an `output` block whose `value` references the VPC attribute",
+        "Declare a `variable` block holding the VPC ID for consumers to read",
+        "Store the VPC ID in a `locals` value at the configuration root",
+        "Add the VPC ID to the `backend` block so consumers can read it"
       ],
-      "correct": 3,
-      "explanation": "Outputs: expose values from configuration. Uses: display IP addresses after deploy, pass values between modules (child module outputs accessible as module.child.output_name), share data between workspaces via terraform_remote_state. Mark sensitive: output 'password' { value=..., sensitive=true } — redacted in CLI output but visible in state.",
+      "correct": 0,
+      "explanation": "Outputs are how a configuration (or module) publishes values for other configs to consume via terraform_remote_state. Variables are inputs, not outputs. locals are internal and not exported. The backend block configures state storage and exposes nothing to consumers.",
       "tags": [
         "outputs",
         "terraform-003"
@@ -486,15 +486,15 @@
     },
     {
       "id": "tf-025",
-      "question": "The `terraform state` subcommand family provides operations on the state file: list resources, show attributes, move (rename) resources, remove a resource from state, pull (download from remote), push (overwrite remote). Used for refactoring + recovery from broken state. Which describes it?",
+      "question": "You need to list tracked resources, show one's attributes, rename an address, and remove a resource from tracking — for refactoring and recovery. Which command family provides these?",
       "options": [
-        "Backup",
-        "Replaces plan",
-        "Only show",
-        "Family of state operations"
+        "`terraform plan`, with its diff and `-target` options",
+        "`terraform console`, for evaluating expressions interactively",
+        "`terraform state` (list, show, mv, rm, pull, push)",
+        "`terraform providers`, for inspecting provider requirements"
       ],
-      "correct": 3,
-      "explanation": "State commands: state list (all resources), state show aws_instance.web (full attributes), state mv aws_instance.old aws_instance.new (rename without destroying), state rm aws_instance.web (stop managing, resource persists), state pull (download remote state), state push (upload local state to remote — dangerous). Use carefully, always backup first.",
+      "correct": 2,
+      "explanation": "The terraform state subcommands operate directly on the state file (list/show/mv/rm/pull/push). plan previews changes but does not edit state. console evaluates expressions. providers inspects provider requirements — none manipulate state entries.",
       "tags": [
         "cli",
         "state-subcommand",
@@ -725,15 +725,15 @@
     },
     {
       "id": "tf-037",
-      "question": "Two Terraform configuration block types. (A) RESOURCE — Terraform manages full lifecycle (create, read, update, delete) of the underlying real-world infrastructure. (B) DATA SOURCE — Terraform only READS information from existing infrastructure or external systems; never mutates. Both declare types + names (`aws_vpc` for both); the keyword (`resource` vs `data`) decides the lifecycle scope. Which describes them?",
+      "question": "Two block types both declare a type and name (e.g. `aws_vpc`), but one manages the full create/read/update/delete lifecycle while the other only reads existing infrastructure. Which mapping is correct?",
       "options": [
-        "Data sources create resources",
-        "Resource = Terraform manages full lifecycle (create / read /",
-        "Resources read-only",
-        "Identical syntax"
+        "`data` manages the full lifecycle; `resource` only reads existing infrastructure",
+        "`resource` manages the full lifecycle; `data` only reads existing infrastructure",
+        "Both manage the lifecycle; the keyword only changes the output format",
+        "`resource` is read-only; `data` creates and destroys infrastructure"
       ],
       "correct": 1,
-      "explanation": "Resource: resource 'aws_instance' 'web' { ami = ... } → Terraform creates, updates, and destroys this. Data: data 'aws_ami' 'ubuntu' { ... filter ... } → queries existing AMIs, returns attributes, no management. Data sources: always read on plan, can use existing values. data.aws_ami.ubuntu.id references the result. update, destroy) — changes are applied to infrastructure. Data source: read-only query of existing infrastructure — returns information without managing lifecycle. Resource: 'resource TYPE NAME', Data: 'data TYPE NAME'",
+      "explanation": "A resource block has Terraform create, update, and destroy the real object; a data block only queries existing infrastructure and never mutates it. The other options reverse or conflate the two keywords.",
       "tags": [
         "fundamentals",
         "resource-vs-data",
@@ -1590,15 +1590,15 @@
     },
     {
       "id": "tf-080",
-      "question": "A VPC with CIDR `10.0.0.0/16` needs to be split into FOUR /18 subnets. Terraform's `cidrsubnet(prefix, newbits, netnum)` calculates child subnets: `cidrsubnet(\"10.0.0.0/16\", 2, 0)` = `10.0.0.0/18`; `cidrsubnet(\"10.0.0.0/16\", 2, 1)` = `10.64.0.0/18`; etc. Which describes it?",
+      "question": "A `10.0.0.0/16` VPC must be split into four `/18` subnets, computing each child block (`10.0.0.0/18`, `10.64.0.0/18`, …). Which Terraform function calculates a subnet address inside a CIDR block?",
       "options": [
-        "Calculates a subnet address within a CIDR block",
-        "Routing function",
-        "CIDR validator",
-        "VPC creation function"
+        "`cidrhost(prefix, hostnum)`, which returns a single host IP in a block",
+        "`cidrnetmask(prefix)`, which returns the netmask in dotted-decimal form",
+        "`pow(2, newbits)`, which computes how many subnets fit",
+        "`cidrsubnet(prefix, newbits, netnum)`"
       ],
-      "correct": 0,
-      "explanation": "cidrsubnet: essential for VPC design in Terraform. cidrsubnet('10.0.0.0/8', 8, 0) = '10.0.0.0/16'. cidrsubnet('10.0.0.0/16', 8, 2) = '10.0.2.0/24'. cidrsubnet('10.0.0.0/16', 4, 1) = '10.0.16.0/20'. Related: cidrhost (specific IP in CIDR), cidrnetmask, cidrrange. Use in for expressions to generate subnet CIDRs dynamically.",
+      "correct": 3,
+      "explanation": "cidrsubnet extends a prefix by newbits and selects the netnum-th child subnet. cidrhost returns one host address, not a subnet. cidrnetmask converts a prefix to a dotted-decimal mask. pow is plain arithmetic and computes a count, not an address.",
       "tags": [
         "expressions",
         "cidrsubnet",
@@ -1950,15 +1950,15 @@
     },
     {
       "id": "tf-098",
-      "question": "A Terraform configuration needs to inject a shell script as EC2 user-data. The script lives in a separate file `userdata.sh` for readability. `file(\"${path.module}/userdata.sh\")` reads the file at plan time, returns its contents as a string. Which describes `file`?",
+      "question": "A shell script lives in `userdata.sh` and must be injected as EC2 user-data, read as a string at plan time. Which Terraform function reads the file's contents?",
       "options": [
-        "Binary only",
-        "Data source",
-        "Creates file",
-        "Reads a local file at plan time"
+        "`fileexists(path)`, which returns whether the file is present",
+        "`file(\"${path.module}/userdata.sh\")`, which returns the file contents as a string",
+        "`filebase64(path)`, which returns the contents base64-encoded",
+        "`pathexpand(path)`, which expands a `~` in a filesystem path"
       ],
-      "correct": 3,
-      "explanation": "file: file('${path.module}/policies/assume-role.json'). filebase64: base64-encode (for binary). filebase64sha256: checksum for change detection. fileexists: check if file exists before reading. path.module: ensures relative path from module location. Files must exist: Terraform errors at plan time if file not found.",
+      "correct": 1,
+      "explanation": "file() reads a local file at plan time and returns its text. fileexists() returns a boolean. filebase64() returns base64-encoded bytes, not the plain string needed here. pathexpand() only resolves a leading ~ in a path and reads nothing.",
       "tags": [
         "expressions",
         "file",
@@ -2130,15 +2130,15 @@
     },
     {
       "id": "tf-107",
-      "question": "Each Terraform workspace has its OWN state file. Resources / outputs / data in workspace A are invisible to workspace B. They DO share the configuration code (same .tf files). State isolation is per-workspace: local backend stores in `terraform.tfstate.d/<name>/`; remote backends use prefixed keys. Which describes state isolation?",
+      "question": "Two Terraform workspaces use the SAME `.tf` files, yet resources created in workspace A are invisible to workspace B. What is isolated per workspace?",
       "options": [
-        "Workspaces share variables",
-        "Each workspace has a completely separate state file",
-        "Share state",
-        "Enterprise required"
+        "The state file — each workspace has its own separate state",
+        "The configuration code — each workspace keeps its own copy of the `.tf` files",
+        "The provider plugins — each workspace downloads its own provider versions",
+        "The variable values — each workspace requires a different `variables.tf`"
       ],
-      "correct": 1,
-      "explanation": "Workspace state isolation: fundamentally separate states. Same configuration, different state = different infrastructure instances (dev database and prod database). terraform.workspace in code: customize per workspace. Variable values: set per workspace in Terraform Cloud, or use separate .tfvars files per workspace.",
+      "correct": 0,
+      "explanation": "Workspaces share one configuration but each gets its own state (local: terraform.tfstate.d/<name>/; remote: a prefixed key), so their resources don't see each other. The code, providers, and variable declarations are shared across workspaces.",
       "tags": [
         "workspaces",
         "state-isolation",
@@ -2615,15 +2615,15 @@
     },
     {
       "id": "tf-131",
-      "question": "A monorepo has many subdirectories, each with .tf files. The team wants to FORMAT them all in one shot from the repo root. `terraform fmt` only formats the current directory; the `-recursive` flag descends into subdirectories. Which describes it?",
+      "question": "A monorepo has `.tf` files in many subdirectories. The team wants to canonically format ALL of them from the repo root in one command. Which does that?",
       "options": [
-        "Recursively formats all .tf + .tfvars",
-        "Validates",
-        "Current dir only",
-        "Removes unused"
+        "`terraform fmt -recursive`, which formats the current directory and all subdirectories",
+        "`terraform fmt`, which formats only the files in the current directory",
+        "`terraform fmt -check`, which lists misformatted files but changes nothing",
+        "`terraform validate`, which checks configuration validity, not formatting"
       ],
       "correct": 0,
-      "explanation": "terraform fmt: enforces canonical style. -recursive: all subdirectories. -check: return non-zero if files need formatting (for CI/CD gates). -diff: show what would change. Always run before commits in team projects. Formatting is deterministic — same code always formats the same way.",
+      "explanation": "terraform fmt -recursive descends into every subdirectory and rewrites files to canonical style. Plain terraform fmt only touches the current directory. -check reports formatting problems without fixing them. validate checks syntax and internal consistency, not formatting.",
       "tags": [
         "cli",
         "fmt-recursive",
@@ -2794,15 +2794,15 @@
     },
     {
       "id": "tf-140",
-      "question": "A platform team builds complex infrastructure by COMPOSING focused modules: a `vpc` module, `eks` module, `rds` module, `monitoring` module — each handles ONE concern with clean inputs / outputs. Composition (not inheritance) is the canonical Terraform pattern. Modules can call other modules. Which describes composition?",
+      "question": "A platform team builds infrastructure from focused modules — `vpc`, `eks`, `rds`, `monitoring` — each owning one concern with clean inputs/outputs, with modules calling other modules. What is this canonical Terraform pattern?",
       "options": [
-        "Registry feature",
-        "Provider composition",
-        "Building complex infrastructure by composing multiple FOCUSED",
-        "Using modules inside modules"
+        "Inheritance — child modules automatically extend a base module's resources",
+        "Workspaces — isolating each concern in its own state file",
+        "Composition — assembling focused, single-purpose modules that can call one another",
+        "Provider aliasing — running several configured instances of one provider"
       ],
       "correct": 2,
-      "explanation": "Root module uses: module 'network' { source = './modules/network' } module 'compute' { source = './modules/compute', vpc_id = module.network.vpc_id }. Modules pass outputs to other modules. Flat module structure preferred over deep nesting. Each module: focused, independently testable, documented.",
+      "explanation": "Terraform favours composition: small modules with clear interfaces, wired together (and nested). It has no module inheritance — modules don't extend a base. Workspaces isolate state, not module structure. Provider aliasing runs multiple instances of a provider and is unrelated to module design.",
       "tags": [
         "modules",
         "composition",
@@ -2814,15 +2814,15 @@
     },
     {
       "id": "tf-141",
-      "question": "Two state-related files. `terraform.tfstate` — current state of infrastructure (live source of truth used by plan / apply). `terraform.tfstate.backup` — automatic copy of the PREVIOUS state, written before each state-mutating operation. One level of automatic backup. Restore via copying. Which describes them?",
+      "question": "Terraform keeps both `terraform.tfstate` and `terraform.tfstate.backup`. What is the relationship between them?",
       "options": [
-        "One encrypted",
-        "`terraform.tfstate` = current",
-        "Manual copy",
-        "Identical"
+        "`terraform.tfstate` is the previous state; `.backup` is the current live state",
+        "Both hold the current state; one is encrypted and the other plaintext",
+        "`terraform.tfstate` is the current state; `.backup` is the previous state, saved before each change",
+        "`.backup` is a manual copy you create with `terraform state pull`"
       ],
-      "correct": 1,
-      "explanation": "State backup: created automatically before every apply. One backup per state file. If apply fails midway, state may be partially updated — backup helps restore. For team use: remote backends handle state with locking and versioning automatically. Local state: only for solo dev or learning.",
+      "correct": 2,
+      "explanation": "Before each state-mutating operation Terraform copies the existing state to terraform.tfstate.backup, then writes the new current state to terraform.tfstate — one level of automatic backup. The reversed mapping, the encryption claim, and the manual-copy claim are all incorrect.",
       "tags": [
         "state",
         "tfstate-vs-backup",
@@ -2874,15 +2874,15 @@
     },
     {
       "id": "tf-144",
-      "question": "An EC2 instance has `tags = { Name = var.name; ManagedBy = \"terraform\" }`. Out-of-band a colleague adds a third tag via the AWS console. Terraform plan shows DRIFT + wants to remove the new tag. To IGNORE this specific drift: `lifecycle { ignore_changes = [tags] }`. Terraform stops detecting drift on the listed attributes (still tracks them, but doesn't act on changes). Which describes it?",
+      "question": "A colleague adds a tag to an EC2 instance out-of-band, and `terraform plan` now wants to remove it on every run. Which setting tells Terraform to stop acting on changes to a specific attribute?",
       "options": [
-        "Tells Terraform to IGNORE changes to specific",
-        "Marks unmanaged",
-        "Prevents deletion",
-        "Skips validation"
+        "`lifecycle { prevent_destroy = true }`, which blocks the instance from being deleted",
+        "`lifecycle { create_before_destroy = true }`, which recreates before deleting the old one",
+        "Removing the `tags` argument so Terraform no longer manages tags at all",
+        "`lifecycle { ignore_changes = [tags] }`, which ignores out-of-band changes to those attributes"
       ],
-      "correct": 0,
-      "explanation": "lifecycle { ignore_changes = [tags, user_data] }. Terraform still creates/destroys the resource but won't update it when these attributes change outside Terraform. Use carefully — ignoring too much defeats the purpose of IaC. ignore_changes = all: never update (use for imported resources temporarily).",
+      "correct": 3,
+      "explanation": "ignore_changes lists attributes whose drift Terraform should leave alone. prevent_destroy only blocks deletion. create_before_destroy controls replacement ordering. Removing the tags argument would make Terraform try to clear all tags — still drift, not an ignore.",
       "tags": [
         "lifecycle",
         "ignore-changes",
