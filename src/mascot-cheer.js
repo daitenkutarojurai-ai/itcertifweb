@@ -59,12 +59,22 @@
 
   window.addEventListener('cq:session-complete', function (e) {
     var mode = (e && e.detail && e.detail.mode) || '';
-    // Skip path nodes (their reward is the chest); skip the daily-reward
-    // synthetic event; only celebrate real quiz / exam / study completions.
-    if (mode === 'daily-quest-reward') return;
+    // Skip path nodes (their reward is the chest); skip synthetic *-reward
+    // events (daily / challenge — they have their own feedback); only
+    // celebrate real quiz / exam / study completions.
+    if (/-reward$/.test(mode)) return;
     if (mode.startsWith('path-')) return;
     // Tiny delay so the results-screen score animation gets a beat before
     // the toast lands — otherwise both move at once and read as noise.
     setTimeout(function () { show(pickMessage()); }, 650);
+  });
+
+  // Dedicated cheer when a weekly challenge completes (Phase 7.4 v2 reward) —
+  // immediate feedback wherever the user is training when it lands.
+  window.addEventListener('cq:challenge-completed', function (e) {
+    var d = (e && e.detail) || {};
+    if (!d.title) return;
+    var xp = (d.reward | 0) ? ' · +' + (d.reward | 0) + ' XP' : '';
+    setTimeout(function () { show((d.icon || '🎁') + ' ' + d.title + ' complete!' + xp); }, 300);
   });
 })();

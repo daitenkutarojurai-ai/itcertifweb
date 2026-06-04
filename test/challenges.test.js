@@ -48,3 +48,31 @@ test('activeChallenges returns one entry per template with progress + target', (
     assert.strictEqual(c.completed, false);
   }
 });
+
+test('every WEEKLY template carries a positive XP reward', () => {
+  for (const t of ch.WEEKLY) assert.ok(t.reward > 0, t.id + ' has a reward');
+});
+
+test('activeChallenges surfaces the reward amount', () => {
+  const sprint = ch.activeChallenges({}).find((c) => c.id === 'weekly-sprint');
+  const tmpl = ch.WEEKLY.find((t) => t.id === 'weekly-sprint');
+  assert.strictEqual(sprint.reward, tmpl.reward);
+});
+
+test('rewardsToPay returns completed challenges not yet claimed', () => {
+  const active = ch.activeChallenges({ counts: { 'weekly-sprint': 100, 'path-crawler': 15 }, streakDays: 0 });
+  const pay = ch.rewardsToPay(active, {});
+  const ids = pay.map((p) => p.id).sort();
+  assert.deepStrictEqual(ids, ['path-crawler', 'weekly-sprint']);
+  assert.ok(pay.every((p) => p.reward > 0));
+});
+
+test('rewardsToPay skips already-claimed challenges (one-time payout)', () => {
+  const active = ch.activeChallenges({ counts: { 'weekly-sprint': 100 }, streakDays: 0 });
+  assert.deepStrictEqual(ch.rewardsToPay(active, { 'weekly-sprint': true }), []);
+});
+
+test('rewardsToPay pays nothing when no challenge is complete', () => {
+  const active = ch.activeChallenges({ counts: { 'weekly-sprint': 99 }, streakDays: 6 });
+  assert.deepStrictEqual(ch.rewardsToPay(active, {}), []);
+});

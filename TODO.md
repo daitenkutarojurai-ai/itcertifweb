@@ -485,11 +485,19 @@ competition-driven, community-driven** layer. Highest-priority builds:
   opt-in-gated) ranks players per challenge; the page shows my progress bars
   + a top-10 board each. Node-CJS pure core + 6 unit tests. Hamburger drawer
   + sitemap + footer links. Non-breaking for the app.
-- **Deferred (v2):** reward payout (XP/cosmetics on completion — held back to
-  avoid double-counting against the monotonic-XP guard; daily.js's
-  bonusXp pattern can wire it); head-to-head duels & guild-vs-guild (builds
-  on 7.3 guild tables); user-created / seasonal challenges; a results/history
-  board after a week closes.
+- **XP reward payout SHIPPED 2026-06-04:** each weekly challenge now pays a
+  one-time-per-ISO-week bonus on completion (Sprint +100, Crawler +75, Streak
+  +50 XP) via the daily.js monotonic-safe `bonusXp` synthetic-session pattern
+  — XP only increases, so the cloud guard is never tripped. `evaluate()` in
+  `src/challenges.js` pays unclaimed completed challenges (pure `rewardsToPay`
+  + a per-week `claimed` map prevents double-pay) and fires `cq:challenge-
+  completed`; `mascot-cheer.js` shows a dedicated "🎁 X complete · +N XP"
+  toast; `daily.js` now ignores ALL `*-reward` synthetic events so a challenge
+  payout can't advance the daily quest; the `/challenges/` cards show the
+  prize. +5 unit tests (265 total).
+- **Deferred (v2):** cosmetic/hat rewards on completion; head-to-head duels &
+  guild-vs-guild (builds on 7.3 guild tables); user-created / seasonal
+  challenges; a results/history board after a week closes.
 
 #### 7.5 — IA coach (squid mascot 🦑) ✅ v1 SHIPPED 2026-06-01 (rules-based)
 

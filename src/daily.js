@@ -113,7 +113,10 @@
      not the daily-quest-reward itself to avoid recursive bumping) */
   window.addEventListener('cq:session-complete', function (e) {
     var mode = (e && e.detail && e.detail.mode) || '';
-    if (mode === 'daily-quest-reward') return;
+    /* Skip ALL synthetic reward events (daily-quest-reward, challenge-reward,
+       …) — they carry bonus XP, not a real node clear, so they must not
+       advance the daily quest. */
+    if (/-reward$/.test(mode)) return;
     bump();
   });
 

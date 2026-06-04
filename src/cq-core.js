@@ -1,4 +1,4 @@
-/* CertQuests core bundle — generated 2026-06-02T15:12:54.107Z
+/* CertQuests core bundle — generated 2026-06-04T06:45:15.863Z
  *
  * This file is concatenated by scripts/build-core.js. Do not edit by hand;
  * edit the source modules in src/*.js and re-run `npm run build-core`.
@@ -1744,9 +1744,9 @@ if (typeof module !== 'undefined' && module.exports) {
   var IS_BROWSER = typeof window !== 'undefined' && typeof document !== 'undefined';
 
   var WEEKLY = [
-    { id: 'weekly-sprint', icon: '⚡', title: 'Weekly Sprint', desc: 'Answer 100 questions this week.', type: 'count', target: 100 },
-    { id: 'path-crawler', icon: '🗺️', title: 'Path Crawler', desc: 'Clear 15 learning-path nodes this week.', type: 'nodes', target: 15 },
-    { id: 'streak-keeper', icon: '🔥', title: 'Streak Keeper', desc: 'Reach a 7-day study streak.', type: 'streak', target: 7 }
+    { id: 'weekly-sprint', icon: '⚡', title: 'Weekly Sprint', desc: 'Answer 100 questions this week.', type: 'count', target: 100, reward: 100 },
+    { id: 'path-crawler', icon: '🗺️', title: 'Path Crawler', desc: 'Clear 15 learning-path nodes this week.', type: 'nodes', target: 15, reward: 75 },
+    { id: 'streak-keeper', icon: '🔥', title: 'Streak Keeper', desc: 'Reach a 7-day study streak.', type: 'streak', target: 7, reward: 50 }
   ];
 
   function isoWeek(d) {
@@ -1771,13 +1771,22 @@ if (typeof module !== 'undefined' && module.exports) {
   function activeChallenges(ctx) {
     return WEEKLY.map(function (t) {
       var p = progressFor(t, ctx);
-      return { id: t.id, icon: t.icon, title: t.title, desc: t.desc, type: t.type, target: t.target, progress: p, completed: p >= t.target };
+      return { id: t.id, icon: t.icon, title: t.title, desc: t.desc, type: t.type, target: t.target, reward: t.reward | 0, progress: p, completed: p >= t.target };
     });
+  }
+
+  /* Pure: which completed challenges still owe a reward, given a claimed map
+     ({ [id]: true }). Drives the one-time-per-week bonus-XP payout. */
+  function rewardsToPay(active, claimed) {
+    claimed = claimed || {};
+    return (active || [])
+      .filter(function (a) { return a.completed && !claimed[a.id]; })
+      .map(function (a) { return { id: a.id, reward: a.reward | 0, title: a.title, icon: a.icon }; });
   }
 
   if (!IS_BROWSER) {
     if (typeof module !== 'undefined' && module.exports) {
-      module.exports = { WEEKLY: WEEKLY, progressFor: progressFor, activeChallenges: activeChallenges, isoWeek: isoWeek };
+      module.exports = { WEEKLY: WEEKLY, progressFor: progressFor, activeChallenges: activeChallenges, rewardsToPay: rewardsToPay, isoWeek: isoWeek };
     }
     return;
   }
@@ -1789,8 +1798,9 @@ if (typeof module !== 'undefined' && module.exports) {
     var s;
     try { s = JSON.parse(localStorage.getItem(KEY) || 'null'); } catch (_) { s = null; }
     if (!s || s.iso_week !== wk || typeof s.counts !== 'object' || !s.counts) {
-      s = { iso_week: wk, counts: {} }; // new week → fresh counters
+      s = { iso_week: wk, counts: {}, claimed: {} }; // new week → fresh counters + rewards
     }
+    if (!s.claimed || typeof s.claimed !== 'object') s.claimed = {};
     return s;
   }
   function save(s) { try { localStorage.setItem(KEY, JSON.stringify(s)); } catch (_) {} }
@@ -1828,6 +1838,34 @@ if (typeof module !== 'undefined' && module.exports) {
     if (changed) { save(s); scheduleSync(); }
   }
 
+  /* One-time-per-week reward payout. Pays unclaimed completed challenges via a
+     synthetic bonus-XP session-complete (same monotonic-safe path daily.js uses
+     — XP only ever increases, so the cloud sync guard is never tripped). The
+     claimed map (reset each ISO week with the counters) prevents double-pay.
+     Idempotent: the reward event is REWARD_MODES-filtered so it never re-counts,
+     and a re-entrant evaluate() finds the challenge already claimed. */
+  function evaluate() {
+    var s = load();
+    var stats = (window.cqStats && window.cqStats.get) ? window.cqStats.get() : {};
+    var active = activeChallenges({ counts: s.counts, streakDays: stats.streakDays || 0 });
+    var pay = rewardsToPay(active, s.claimed);
+    if (!pay.length) return;
+    pay.forEach(function (p) {
+      s.claimed[p.id] = true;
+      try {
+        window.dispatchEvent(new CustomEvent('cq:session-complete', { detail: {
+          packId: 'challenge:' + p.id, secondsSpent: 0, questionsAnswered: 0,
+          correct: 0, mode: 'challenge-reward', bonusXp: p.reward
+        }}));
+      } catch (_) {}
+      try {
+        window.dispatchEvent(new CustomEvent('cq:challenge-completed', { detail: p }));
+      } catch (_) {}
+    });
+    save(s);
+    scheduleSync();
+  }
+
   var REWARD_MODES = { 'daily-quest-reward': 1, 'challenge-reward': 1 };
   window.addEventListener('cq:session-complete', function (e) {
     var d = (e && e.detail) || {};
@@ -1836,17 +1874,24 @@ if (typeof module !== 'undefined' && module.exports) {
     if (qa > 0) bump('count', qa);
     // streak-type challenges derive from stats; just resync so the cloud row tracks it
     scheduleSync();
+    evaluate();
   });
 
-  window.addEventListener('cq:path-progress-changed', function () { bump('nodes', 1); });
+  window.addEventListener('cq:path-progress-changed', function () { bump('nodes', 1); evaluate(); });
+  // streak-keeper completes off stats.streakDays, which lands via cq:stats-changed.
+  window.addEventListener('cq:stats-changed', evaluate);
   // Re-sync once signed in (push this device's current week progress).
   window.addEventListener('cq:auth-changed', function (e) {
     if (e && e.detail && e.detail.session) scheduleSync();
   });
+  // Pay any challenge already at 100% from earlier this week (e.g. completed
+  // before this payout shipped, or hydrated from the cloud on sign-in).
+  evaluate();
 
   window.cqChallenges = {
     getActive: function () { return activeChallenges(ctxNow()); },
     isoWeek: isoWeek,
+    evaluate: evaluate,
     sync: syncCloud
   };
 })();
@@ -1968,7 +2013,10 @@ if (typeof module !== 'undefined' && module.exports) {
      not the daily-quest-reward itself to avoid recursive bumping) */
   window.addEventListener('cq:session-complete', function (e) {
     var mode = (e && e.detail && e.detail.mode) || '';
-    if (mode === 'daily-quest-reward') return;
+    /* Skip ALL synthetic reward events (daily-quest-reward, challenge-reward,
+       …) — they carry bonus XP, not a real node clear, so they must not
+       advance the daily quest. */
+    if (/-reward$/.test(mode)) return;
     bump();
   });
 
@@ -2507,13 +2555,23 @@ if (typeof module !== 'undefined' && module.exports) {
 
   window.addEventListener('cq:session-complete', function (e) {
     var mode = (e && e.detail && e.detail.mode) || '';
-    // Skip path nodes (their reward is the chest); skip the daily-reward
-    // synthetic event; only celebrate real quiz / exam / study completions.
-    if (mode === 'daily-quest-reward') return;
+    // Skip path nodes (their reward is the chest); skip synthetic *-reward
+    // events (daily / challenge — they have their own feedback); only
+    // celebrate real quiz / exam / study completions.
+    if (/-reward$/.test(mode)) return;
     if (mode.startsWith('path-')) return;
     // Tiny delay so the results-screen score animation gets a beat before
     // the toast lands — otherwise both move at once and read as noise.
     setTimeout(function () { show(pickMessage()); }, 650);
+  });
+
+  // Dedicated cheer when a weekly challenge completes (Phase 7.4 v2 reward) —
+  // immediate feedback wherever the user is training when it lands.
+  window.addEventListener('cq:challenge-completed', function (e) {
+    var d = (e && e.detail) || {};
+    if (!d.title) return;
+    var xp = (d.reward | 0) ? ' · +' + (d.reward | 0) + ' XP' : '';
+    setTimeout(function () { show((d.icon || '🎁') + ' ' + d.title + ' complete!' + xp); }, 300);
   });
 })();
 
