@@ -73,16 +73,32 @@ function wordCount(s) {
 /* ─── Signal scorers ─────────────────────────────────────────────────── */
 function scoreLengthTell(q) {
   const opts = q.options || [];
-  if (opts.length < 2) return { hit: false, ratio: 0 };
+  if (opts.length < 2) return { hit: false, ratio: 0, shortHit: false };
   const lens = opts.map(o => String(o || '').length);
   const correctLen = lens[q.correct] ?? 0;
   const maxLen = Math.max(...lens);
+  const minLen = Math.min(...lens);
   const mean = lens.reduce((a,b)=>a+b,0) / lens.length;
   const ratio = mean > 0 ? correctLen / mean : 0;
   return {
-    hit: correctLen === maxLen && correctLen > mean * 1.15,
+    // length is a tell in EITHER direction: a candidate can "pick the longest"
+    // OR "pick the shortest" when the correct option is the conspicuous outlier.
+    hit:      correctLen === maxLen && correctLen > mean * 1.15,
+    shortHit: correctLen === minLen && correctLen < mean * 0.85,
     ratio: Number(ratio.toFixed(2))
   };
+}
+
+/* Self-defeating distractors: an option that argues against itself in-line
+   ("X — wrong category", "Static VPN — false; …", "Encrypts MPLS — wrong
+   concern"). The correct option is then the only one without a put-down, which
+   gives the answer away. A known anti-pattern from machine-generated banks. */
+const SELF_DEFEAT = /[—-]\s*(false|wrong|incorrect|not the|does not|doesn't|isn't|different (feature|concern|shape|category|protocol)|wrong (category|concern|protocol|layer|tool)|context-dependent)\b/i;
+function scoreSelfDefeat(q) {
+  const opts = q.options || [];
+  const bad = [];
+  opts.forEach((o, i) => { if (i !== q.correct && SELF_DEFEAT.test(String(o))) bad.push(i); });
+  return { hit: bad.length > 0, count: bad.length };
 }
 
 /* Pack-level document frequency: how many questions contain each token
@@ -145,8 +161,9 @@ function auditQuestion(q, df, n) {
   const kw   = scoreKeywordTell(q, df, n);
   const rec  = scoreRecallOnly(q);
   const tag  = scoreUnderTagged(q);
-  const hits = [len.hit, kw.hit, rec.hit, tag.hit].filter(Boolean).length;
-  return { len, kw, rec, tag, hits };
+  const self = scoreSelfDefeat(q);
+  const hits = [len.hit, len.shortHit, kw.hit, rec.hit, tag.hit, self.hit].filter(Boolean).length;
+  return { len, kw, rec, tag, self, hits };
 }
 
 /* ─── Per-pack audit ─────────────────────────────────────────────────── */
@@ -162,10 +179,12 @@ function auditPack(packPath) {
       id: q.id,
       hits: a.hits,
       lengthTell:   a.len.hit  ? 'Y' : '',
+      shortTell:    a.len.shortHit ? 'Y' : '',
       lengthRatio:  a.len.ratio,
       keywordTell:  a.kw.hit   ? 'Y' : '',
       keywordWord:  a.kw.sharedWord,
       keywordAll:   a.kw.allWords.join('|'),
+      selfDefeat:   a.self.hit ? 'Y' : '',
       recallOnly:   a.rec.hit  ? 'Y' : '',
       stemWords:    a.rec.wordCount,
       underTagged:  a.tag.hit  ? 'Y' : '',
@@ -196,14 +215,17 @@ for (const f of packs) {
   const offenders = pack.rows.filter(r => r.hits > 0);
   const byHit = {
     lengthTell:  pack.rows.filter(r => r.lengthTell).length,
+    shortTell:   pack.rows.filter(r => r.shortTell).length,
     keywordTell: pack.rows.filter(r => r.keywordTell).length,
+    selfDefeat:  pack.rows.filter(r => r.selfDefeat).length,
     recallOnly:  pack.rows.filter(r => r.recallOnly).length,
     underTagged: pack.rows.filter(r => r.underTagged).length
   };
-  // Structural issues are reliable + directly actionable (a short stem or a
-  // missing tag is unambiguous); the length/keyword "tells" are heuristic
-  // hints that still carry false positives on good scenario questions.
-  byHit.structural = pack.rows.filter(r => r.recallOnly || r.underTagged).length;
+  // Structural issues are reliable + directly actionable: a short stem, a
+  // missing tag, or a distractor that argues against itself are all
+  // unambiguous. The length/keyword "tells" are heuristic hints that still
+  // carry false positives on good scenario questions.
+  byHit.structural = pack.rows.filter(r => r.recallOnly || r.underTagged || r.selfDefeat).length;
   // Answer-position bias: if correct answers cluster on one slot ("always pick
   // C"), that's an exploitable structural tell. posTop = share of the most
   // common correct slot (0.25 = perfectly balanced across 4 options).
@@ -221,7 +243,9 @@ const totalQs = summary.reduce((a, p) => a + p.total, 0);
 const totalOff = summary.reduce((a, p) => a + p.offenders, 0);
 const totalStruct = summary.reduce((a, p) => a + p.structural, 0);
 const totalLen = summary.reduce((a, p) => a + p.lengthTell, 0);
+const totalShort = summary.reduce((a, p) => a + p.shortTell, 0);
 const totalKw  = summary.reduce((a, p) => a + p.keywordTell, 0);
+const totalSelf = summary.reduce((a, p) => a + p.selfDefeat, 0);
 // Rank by STRUCTURAL issues first (the actionable, false-positive-free signal),
 // then by overall flagged % as a tiebreaker.
 summary.sort((a, b) => (b.structural / b.total) - (a.structural / a.total)
@@ -232,8 +256,8 @@ const md = [
   `Generated: ${new Date().toISOString()}`,
   `Packs scanned: **${summary.length}** · questions: **${totalQs}**`,
   '',
-  `- **Structural issues: ${totalStruct}** (${((totalStruct/totalQs)*100).toFixed(1)}%) — recall-only stems + under-tagged. Reliable, no false positives, fix these first.`,
-  `- Heuristic tells: lengthTell ${totalLen}, keywordTell ${totalKw} — review hints only.`,
+  `- **Structural issues: ${totalStruct}** (${((totalStruct/totalQs)*100).toFixed(1)}%) — recall-only stems, under-tagged, self-defeating distractors. Reliable, no false positives, fix these first (selfDefeat: ${totalSelf}).`,
+  `- Heuristic tells: lengthTell ${totalLen}, shortTell ${totalShort}, keywordTell ${totalKw} — review hints only.`,
   `- Any-signal flagged: ${totalOff} (${((totalOff/totalQs)*100).toFixed(1)}%).`,
   '',
   '## Methodology',
@@ -249,14 +273,16 @@ const md = [
   '|---|---|---|',
   '| `recallOnly`  | structural | stem has < 18 words (tests recall, not scenario reasoning) |',
   '| `underTagged` | structural | question has < 2 tags (no domain × sub-topic) |',
-  '| `lengthTell`  | heuristic  | correct option is the longest AND > 1.15× the mean option length |',
+  '| `selfDefeat`  | structural | a distractor argues against itself in-line ("X — wrong category", "… — false") — the correct option is the only one without a put-down |',
+  '| `lengthTell`  | heuristic  | correct option is the longest AND > 1.15× the mean option length ("pick the longest") |',
+  '| `shortTell`   | heuristic  | correct option is the shortest AND < 0.85× the mean option length ("pick the shortest") |',
   '| `keywordTell` | heuristic  | correct option echoes a DISTINCTIVE stem word (low pack document-frequency, non-numeric) that no distractor uses |',
   '',
   '## Pack ranking (worst-first by structural issues)',
   '',
-  '| Pack | Total | Struct | length | keyword | recall | tags |',
-  '|---|---:|---:|---:|---:|---:|---:|',
-  ...summary.map(p => `| \`${p.id}\` | ${p.total} | ${p.structural} | ${p.lengthTell} | ${p.keywordTell} | ${p.recallOnly} | ${p.underTagged} |`),
+  '| Pack | Total | Struct | self | length | short | keyword | recall | tags |',
+  '|---|---:|---:|---:|---:|---:|---:|---:|---:|',
+  ...summary.map(p => `| \`${p.id}\` | ${p.total} | ${p.structural} | ${p.selfDefeat} | ${p.lengthTell} | ${p.shortTell} | ${p.keywordTell} | ${p.recallOnly} | ${p.underTagged} |`),
   '',
   '## Answer-position bias',
   '',

@@ -2817,6 +2817,24 @@ tripped it, so good scenario questions read as "flagged". Fixes:
   scale the approach to the next length-tell packs** (`ccnp-encor` 73%,
   `pl-400` 92%, and the other 12-Q packs). Method: trim verbose correct answers
   to land mid-pack, preserve the discriminating fact, never touch the index.
+- **Second length-tell pack: `ccnp-encor` 2026-06-04.** 29 verbose correct
+  options (a full definition vs terse distractors) tightened to concise
+  name+discriminator form; answer text/index preserved (0 index changes).
+  `lengthTell` 29 → 0, correct-is-longest 73% → 3%.
+- **BIGGER FINDING — self-defeating distractors (498 across 21 packs).**
+  Extending the audit to detect distractors that argue against themselves
+  in-line ("X — wrong category", "Same thing — false; an image is…", "Block
+  image pulls — wrong concept") surfaced the bank's single most objective,
+  most embarrassing quality bug: **498 distractors** where the correct option
+  is the ONLY one without a built-in put-down — a glaring give-away. Worst:
+  `terraform-003` (131), `ccnp` (81), `comptia-a-plus` (59), `docker-dca`
+  (40), `splunk-core` (40), `rhcsa` (31), `comptia-network-plus` (24),
+  `cks` (17), `gcp-ace` (15), `ccna` (11), `ccnp-encor` (10), …. Higher
+  priority than the remaining length-tells. The audit now tracks it as a
+  STRUCTURAL signal (`selfDefeat`) plus a symmetric `shortTell` ("pick the
+  shortest"). Fix = strip the self-defeating tail from each distractor (the
+  base claim stays a valid wrong answer); low-risk + scriptable with
+  verification. **Next workstream: the selfDefeat strip.**
 
 ### How to track progress
 
