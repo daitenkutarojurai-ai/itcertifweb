@@ -1495,6 +1495,32 @@ competition-driven, community-driven** layer. Highest-priority builds:
 
 ---
 
+## 📦 Content expansion R12 (2026-06-04)
+
+Scheduled-agent run extending the comparator cluster (16 → 17 entries) with the
+canonical AWS Architect progression decision the dataset was missing:
+
+- **+1 Cert Comparator page** (cluster 16 → 17):
+  - `aws-sap-c02-vs-aws-saa-c03` — the classic AWS Architect Associate →
+    Professional progression decision. 9 verdict rows covering: débutants AWS
+    (SAA d'abord), Cloud Engineer / Architect junior-à-mid en France (SAA), SAA
+    + 1-2 ans prod cherchant un boost TJM (SAP), architectes en poste AWS-shop
+    (SAP), consulting AWS / ESN AWS Partner / TJM 600€+ (SAP), budget formation
+    serré 150-300$ (SAA), trifecta SAA + SOA/DVA + SAP (SAA en premier),
+    préparation de migration AWS d'envergure (SAP), "passer les deux en 6 mois"
+    (SAA — risque de bachotage SAP sans expérience).
+  - `salaryAlias: "aws-saa"` résout la médiane France (65k€ senior) ; la SAP n'a
+    pas encore de fiche salaire donc la cellule affiche "—" proprement.
+  - Data + generator pattern matches `_schema.md` (no schema drift).
+- `scripts/gen-compare-pages.js` `CACHE_BUST` bumped v=106 → v=128 to align with
+  the current global `?v=` key — regeneration no longer downgrades the 16
+  sibling pages' cache-bust (the recurring generator-drift documented in 6.x
+  cross-cutting).
+- `npm run gen-compare` regenerated 17 comparator pages + the `/compare/` index
+  (idempotent — only the new page + index changed after the CACHE_BUST bump).
+- sitemap.xml +1 entry (priority 0.85, monthly changefreq, lastmod 2026-06-04).
+- 260/260 tests still pass. No CSS/JS cache version bump (new HTML data only).
+
 ## 📦 Content expansion R11 (2026-06-03)
 
 Scheduled-agent run extending the FailBase cluster (10 → 11 entries) with
