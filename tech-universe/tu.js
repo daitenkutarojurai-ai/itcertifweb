@@ -164,6 +164,35 @@
       dots+'</svg>';
   }
 
+  /* Zoom controls for a map. Scales the SVG by setting an explicit width so the
+     wrap's overflow:auto pans it natively (no transform, no pointer-drag — node
+     clicks and keyboard focus stay intact). 1× clears the override, restoring
+     the original responsive sizing. */
+  function attachZoom(wrap){
+    if(!wrap) return;
+    var svg = wrap.querySelector('svg'); if(!svg) return;
+    var base = svg.getBoundingClientRect().width || wrap.clientWidth || 520;
+    var zoom = 1;
+    function apply(){
+      if(zoom<=1){ svg.style.width=''; svg.style.minWidth=''; }
+      else { var w=Math.round(base*zoom)+'px'; svg.style.width=w; svg.style.minWidth=w; }
+    }
+    var bar = document.createElement('div');
+    bar.className = 'tu-zoombar';
+    bar.innerHTML = '<button type="button" data-z="out" aria-label="Zoom out" title="Zoom out">−</button>'+
+                    '<button type="button" data-z="reset" aria-label="Reset zoom" title="Fit to width">⤢</button>'+
+                    '<button type="button" data-z="in" aria-label="Zoom in" title="Zoom in">+</button>';
+    bar.addEventListener('click', function(e){
+      var b=e.target.closest('button'); if(!b) return;
+      var z=b.getAttribute('data-z');
+      if(z==='in') zoom=Math.min(3, zoom+0.25);
+      else if(z==='out') zoom=Math.max(1, zoom-0.25);
+      else zoom=1;
+      apply();
+    });
+    wrap.insertBefore(bar, wrap.firstChild);
+  }
+
   /* ── Domain detail constellation ── */
   function renderDomain(domId){
     var d = DOMAINS.filter(function(x){return x.id===domId;})[0]; if(!d) return renderUniverse();
@@ -230,6 +259,7 @@
       g.addEventListener('click', open);
       g.addEventListener('keydown', function(e){ if(e.key==='Enter'||e.key===' '){ e.preventDefault(); open(); } });
     });
+    attachZoom(root.querySelector('.tu-map-wrap'));
   }
 
   /* ── The whole galaxy: all six domains in one map, cross-domain prereq
@@ -319,6 +349,7 @@
       g.addEventListener('click', open);
       g.addEventListener('keydown', function(e){ if(e.key==='Enter'||e.key===' '){ e.preventDefault(); open(); } });
     });
+    attachZoom(root.querySelector('.tu-map-wrap'));
   }
 
   /* A progression chip linking to a related cert. Same-domain → in-page jump;
