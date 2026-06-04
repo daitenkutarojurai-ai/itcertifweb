@@ -7,8 +7,13 @@
  * questions":
  *
  *   1. length-tell:    correct answer is the longest option
- *   2. keyword-tell:   correct option contains a content word from the stem
- *                      that no distractor uses
+ *   2. keyword-tell:   correct option echoes a DISTINCTIVE stem word that no
+ *                      distractor uses. "Distinctive" = the word is rare in the
+ *                      pack (low document-frequency); common domain vocabulary
+ *                      shared between a scenario and its answer (data / aws /
+ *                      service / network …) is NOT a tell, so it's excluded by
+ *                      DF-weighting. This keeps genuine giveaways and drops the
+ *                      false positives that swamped the v1 heuristic.
  *   3. recall-only:    stem is short (< 18 words) → likely tests recall
  *                      instead of scenario reasoning
  *   4. under-tagged:   < 2 tags (no domain × sub-topic breakdown)
@@ -41,7 +46,14 @@ const STOP = new Set([
   'less','one','two','three','four','five','first','second','third','last',
   'following','above','below','over','under','between','within','without',
   'they','them','he','she','i','we','you','us','me','him','using','use',
-  'used','uses'
+  'used','uses',
+  /* Near-stop function words that leaked through v1 and produced meaningless
+     keyword-tells ("only", "same", "via" are not giveaways). */
+  'only','same','both','via','into','onto','off','out','also','such','per',
+  'plus','etc','either','neither','whether','across','among','toward',
+  'towards','upon','near','far','default','new','old','only','via','only',
+  'set','sets','make','makes','made','need','needs','want','wants','give',
+  'gives','get','gets','put','puts','keep','keeps','run','runs','only'
 ]);
 
 /* Tokeniser — extract content words longer than 2 chars, lower-cased,
@@ -73,19 +85,42 @@ function scoreLengthTell(q) {
   };
 }
 
-function scoreKeywordTell(q) {
+/* Pack-level document frequency: how many questions contain each token
+   anywhere (stem or any option). A word that recurs across the pack is common
+   vocabulary; a word seen in only a question or two is distinctive — and a
+   distinctive word shared by the stem and ONLY the correct option is the kind
+   of giveaway a candidate can exploit without knowing the material. */
+function buildDocFreq(qs) {
+  const df = new Map();
+  for (const q of qs) {
+    const seen = new Set(tokens(q.question));
+    (q.options || []).forEach(o => tokens(o).forEach(t => seen.add(t)));
+    for (const t of seen) df.set(t, (df.get(t) || 0) + 1);
+  }
+  return df;
+}
+
+function scoreKeywordTell(q, df, n) {
   const opts = q.options || [];
   if (opts.length < 2) return { hit: false, sharedWord: '', allWords: [] };
+  // Distinctive = appears in at most ~10% of the pack (and never more than a
+  // small absolute count). Common domain words (data/aws/service/network…)
+  // have high DF and fall out here — that's the whole false-positive class.
+  const dfMax = Math.max(2, Math.ceil(0.10 * (n || 1)));
   const stemSet = new Set(tokens(q.question));
   const correctTokens = new Set(tokens(opts[q.correct]));
   const distractorTokens = new Set();
   opts.forEach((o, i) => { if (i !== q.correct) tokens(o).forEach(t => distractorTokens.add(t)); });
-  /* Collect EVERY word present in stem AND correct option, absent from every
-     distractor. Single-word reporting was a whack-a-mole footgun: rewriting
-     the surfaced word often exposed a second leak that was already there. */
+  /* Collect every DISTINCTIVE word present in stem AND correct option, absent
+     from every distractor. Reporting all of them (not just the first) avoids
+     the whack-a-mole where fixing one leak exposes the next. */
   const all = [];
   for (const t of correctTokens) {
-    if (stemSet.has(t) && !distractorTokens.has(t)) all.push(t);
+    // Pure numbers (admin distances, ports, IP octets, HTTP codes) shared
+    // between a stem and its answer are reasoning data, not a vocabulary
+    // giveaway — never a keyword tell.
+    if (/^\d+$/.test(t)) continue;
+    if (stemSet.has(t) && !distractorTokens.has(t) && (df.get(t) || 0) <= dfMax) all.push(t);
   }
   return {
     hit: all.length > 0,
@@ -105,9 +140,9 @@ function scoreUnderTagged(q) {
 }
 
 /* ─── Aggregate score: how many anti-patterns this question hits ─────── */
-function auditQuestion(q) {
+function auditQuestion(q, df, n) {
   const len  = scoreLengthTell(q);
-  const kw   = scoreKeywordTell(q);
+  const kw   = scoreKeywordTell(q, df, n);
   const rec  = scoreRecallOnly(q);
   const tag  = scoreUnderTagged(q);
   const hits = [len.hit, kw.hit, rec.hit, tag.hit].filter(Boolean).length;
@@ -119,9 +154,10 @@ function auditPack(packPath) {
   const data = JSON.parse(readFileSync(packPath, 'utf-8'));
   const id = data.meta?.id || basename(packPath, '.json');
   const qs = data.questions || [];
+  const df = buildDocFreq(qs);
 
   const rows = qs.map(q => {
-    const a = auditQuestion(q);
+    const a = auditQuestion(q, df, qs.length);
     return {
       id: q.id,
       hits: a.hits,
@@ -164,40 +200,61 @@ for (const f of packs) {
     recallOnly:  pack.rows.filter(r => r.recallOnly).length,
     underTagged: pack.rows.filter(r => r.underTagged).length
   };
+  // Structural issues are reliable + directly actionable (a short stem or a
+  // missing tag is unambiguous); the length/keyword "tells" are heuristic
+  // hints that still carry false positives on good scenario questions.
+  byHit.structural = pack.rows.filter(r => r.recallOnly || r.underTagged).length;
   writeFileSync(join(OUT_DIR, pack.id + '.csv'), csv(pack.rows));
   summary.push({ id: pack.id, total: pack.total, offenders: offenders.length, ...byHit });
 }
 
 /* ─── Markdown summary ───────────────────────────────────────────────── */
-summary.sort((a, b) => (b.offenders / b.total) - (a.offenders / a.total));
 const totalQs = summary.reduce((a, p) => a + p.total, 0);
 const totalOff = summary.reduce((a, p) => a + p.offenders, 0);
+const totalStruct = summary.reduce((a, p) => a + p.structural, 0);
+const totalLen = summary.reduce((a, p) => a + p.lengthTell, 0);
+const totalKw  = summary.reduce((a, p) => a + p.keywordTell, 0);
+// Rank by STRUCTURAL issues first (the actionable, false-positive-free signal),
+// then by overall flagged % as a tiebreaker.
+summary.sort((a, b) => (b.structural / b.total) - (a.structural / a.total)
+  || (b.offenders / b.total) - (a.offenders / a.total));
 const md = [
   '# Question-bank audit',
   '',
   `Generated: ${new Date().toISOString()}`,
-  `Packs scanned: **${summary.length}** · questions scanned: **${totalQs}** · flagged: **${totalOff}** (${((totalOff/totalQs)*100).toFixed(1)}%)`,
+  `Packs scanned: **${summary.length}** · questions: **${totalQs}**`,
+  '',
+  `- **Structural issues: ${totalStruct}** (${((totalStruct/totalQs)*100).toFixed(1)}%) — recall-only stems + under-tagged. Reliable, no false positives, fix these first.`,
+  `- Heuristic tells: lengthTell ${totalLen}, keywordTell ${totalKw} — review hints only.`,
+  `- Any-signal flagged: ${totalOff} (${((totalOff/totalQs)*100).toFixed(1)}%).`,
   '',
   '## Methodology',
   '',
-  '4 signals per question (TODO.md "Rewrite all 2,520 questions"):',
+  '4 signals per question (TODO.md "Rewrite all 2,520 questions"). Split into',
+  '**structural** (reliable, directly actionable) and **heuristic tells**',
+  '(useful hints, but they still carry false positives on well-written scenario',
+  'questions — the correct answer to a precise question is often legitimately the',
+  'longest, and a scenario legitimately shares distinctive vocabulary with its',
+  'answer, so do NOT auto-"fix" a tell without reading the question):',
   '',
-  '| Signal | Hit when… |',
-  '|---|---|',
-  '| `lengthTell`  | correct option is the longest AND > 1.15× the mean option length |',
-  '| `keywordTell` | correct option shares a content word with the stem that no distractor uses |',
-  '| `recallOnly`  | stem has < 18 words (likely tests recall, not scenario reasoning) |',
-  '| `underTagged` | question has < 2 tags |',
+  '| Signal | Kind | Hit when… |',
+  '|---|---|---|',
+  '| `recallOnly`  | structural | stem has < 18 words (tests recall, not scenario reasoning) |',
+  '| `underTagged` | structural | question has < 2 tags (no domain × sub-topic) |',
+  '| `lengthTell`  | heuristic  | correct option is the longest AND > 1.15× the mean option length |',
+  '| `keywordTell` | heuristic  | correct option echoes a DISTINCTIVE stem word (low pack document-frequency, non-numeric) that no distractor uses |',
   '',
-  '## Pack ranking (worst-first by flagged %)',
+  '## Pack ranking (worst-first by structural issues)',
   '',
-  '| Pack | Total | Flagged | % | length | keyword | recall | tags |',
-  '|---|---:|---:|---:|---:|---:|---:|---:|',
-  ...summary.map(p => `| \`${p.id}\` | ${p.total} | ${p.offenders} | ${((p.offenders/p.total)*100).toFixed(0)}% | ${p.lengthTell} | ${p.keywordTell} | ${p.recallOnly} | ${p.underTagged} |`),
+  '| Pack | Total | Struct | length | keyword | recall | tags |',
+  '|---|---:|---:|---:|---:|---:|---:|',
+  ...summary.map(p => `| \`${p.id}\` | ${p.total} | ${p.structural} | ${p.lengthTell} | ${p.keywordTell} | ${p.recallOnly} | ${p.underTagged} |`),
   '',
   '## Per-pack CSVs',
   '',
-  'See `audits/questions/<packId>.csv` — sorted worst-to-best, ready for the rewrite team to start at the top.',
+  'See `audits/questions/<packId>.csv` — sorted worst-to-best. Start at the top:',
+  'fix `recallOnly` / `underTagged` rows first (unambiguous), then sanity-check',
+  'the `lengthTell` / `keywordTell` hints by hand.',
   ''
 ].join('\n');
 writeFileSync(join(OUT_DIR, '_summary.md'), md);

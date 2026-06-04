@@ -2766,6 +2766,30 @@ the first rewrite, but as a tool only. Use it to pick the next
 batch — do not treat its scores as ground truth, treat them as a
 suggestion ranked worst-first.
 
+**🔧 RECALIBRATED + recall sweep 2026-06-04.** The v1 `keywordTell` fired on
+ANY content word shared by stem + correct option, which swamped the report
+with false positives — common vocabulary (`data`/`aws`/`service`/`network`),
+numbers (admin distances, ports, IP octets), and leaked function words all
+tripped it, so good scenario questions read as "flagged". Fixes:
+- `keywordTell` now requires the shared word to be **distinctive** — low
+  pack document-frequency (≤ ~10 % of questions) and non-numeric — so only a
+  genuine giveaway term counts; expanded the stop-list for the leaked words.
+- `_summary.md` now separates **structural** signals (`recallOnly` +
+  `underTagged` — reliable, false-positive-free, fix first) from **heuristic
+  tells** (`lengthTell` / `keywordTell` — review hints; never auto-"fix" one
+  without reading the question) and ranks packs by structural issues.
+- **Honest current state (84 packs · 3 214 Qs): structural issues = 13 →
+  now 0.** `underTagged` 0 (every Q already has ≥ 2 tags); `lengthTell` 250
+  (7.8 %, well under the 30 % target); `keywordTell` 678 (heuristic, mostly
+  residual false positives on legitimate scenario questions). The bank is in
+  far better shape than the old 77.7 % headline implied — most packs were
+  already rewritten to scenario form in earlier passes.
+- **Recall sweep applied:** the 13 genuine `recallOnly` stems (< 18 words)
+  across `ai-900`, `consul-003`, `f5-201-tmos` (×4), `oci-foundations` (×3),
+  `okta-certified-professional` (×2), `pl-900` were expanded into scenario
+  frames (≥ 31 words) — stems only, options / correct index / explanation
+  untouched, no new tells introduced. `recallOnly` is now 0 across all packs.
+
 ### How to track progress
 
 Per-pack progress lives in `data/index.json` — add a field
