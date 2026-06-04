@@ -1,11 +1,11 @@
 # Question-bank audit
 
-Generated: 2026-06-04T09:00:07.786Z
+Generated: 2026-06-04T10:55:04.576Z
 Packs scanned: **84** · questions: **3214**
 
 - **Structural issues: 0** (0.0%) — recall-only stems + under-tagged. Reliable, no false positives, fix these first.
-- Heuristic tells: lengthTell 250, keywordTell 678 — review hints only.
-- Any-signal flagged: 789 (24.5%).
+- Heuristic tells: lengthTell 223, keywordTell 677 — review hints only.
+- Any-signal flagged: 775 (24.1%).
 
 ## Methodology
 
@@ -37,7 +37,6 @@ answer, so do NOT auto-"fix" a tell without reading the question):
 | `comptia-server` | 12 | 0 | 7 | 5 | 0 | 0 |
 | `okta-certified-professional` | 12 | 0 | 9 | 4 | 0 | 0 |
 | `pcnse` | 12 | 0 | 7 | 6 | 0 | 0 |
-| `aws-scs-c02` | 61 | 0 | 27 | 30 | 0 | 0 |
 | `ccnp-security` | 60 | 0 | 0 | 41 | 0 | 0 |
 | `comptia-cloud` | 12 | 0 | 7 | 3 | 0 | 0 |
 | `devnet` | 12 | 0 | 5 | 6 | 0 | 0 |
@@ -58,6 +57,7 @@ answer, so do NOT auto-"fix" a tell without reading the question):
 | `az-140` | 12 | 0 | 2 | 5 | 0 | 0 |
 | `dp-700` | 16 | 0 | 0 | 8 | 0 | 0 |
 | `snowpro-core` | 16 | 0 | 1 | 7 | 0 | 0 |
+| `aws-scs-c02` | 61 | 0 | 0 | 29 | 0 | 0 |
 | `aws-ans-c01` | 60 | 0 | 2 | 25 | 0 | 0 |
 | `az-104` | 56 | 0 | 9 | 22 | 0 | 0 |
 | `sc-100` | 16 | 0 | 1 | 7 | 0 | 0 |

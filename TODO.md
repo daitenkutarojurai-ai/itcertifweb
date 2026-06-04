@@ -2805,6 +2805,18 @@ tripped it, so good scenario questions read as "flagged". Fixes:
   filter). 75 swaps total; every pack now ≤ 40% top slot (most exactly 25%).
   Re-audit confirms the four question signals are unchanged (reordering is
   position-independent), content audit valid, 265 tests pass.
+- **First length-tell rewrite pack: `aws-scs-c02` (AWS Security Specialty)
+  2026-06-04.** The highest-traffic length-tell offender. Tightened 33
+  correct-answer options that were the longest choice — **only the correct
+  option's text was edited; the `correct` index is byte-identical** (verified:
+  0 index changes in the diff), so every answer key is preserved. `lengthTell`
+  27 → 0, `keywordTell` 46 → 29 (trims removed stem-echoes too),
+  correct-is-longest 46% → **25%** (under the TODO's ≤30% target) with
+  correct-is-shortest at 21% (balanced — neither rank is exploitable). Content
+  audit valid, 265 tests pass. **Owner: please spot-check this pack before I
+  scale the approach to the next length-tell packs** (`ccnp-encor` 73%,
+  `pl-400` 92%, and the other 12-Q packs). Method: trim verbose correct answers
+  to land mid-pack, preserve the discriminating fact, never touch the index.
 
 ### How to track progress
 
