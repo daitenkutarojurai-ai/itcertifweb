@@ -112,15 +112,15 @@
     },
     {
       "id": "tf-006",
-      "question": "Two related Terraform files: (A) DECLARES input variables — their type, default, description, validation, sensitivity. (B) ASSIGNS values to those variables (or `*.auto.tfvars` files auto-load). The pair lets configurations be reusable across environments. Which mapping?",
+      "question": "A reusable module separates WHERE input variables are declared (type, default, validation) from WHERE their values are assigned per environment. Which mapping is correct?",
       "options": [
-        "`variables.tf` DECLARES variables (type, default, description, validation, sensitive)",
-        "variables.tf assigns default values",
-        "Same file different names",
-        "tfvars only for secrets"
+        "`variables.tf` assigns values; `*.tfvars` declares the variables",
+        "`outputs.tf` declares the variables; `terraform.tfstate` assigns them",
+        "Both files declare variables; values can come only from the CLI",
+        "`variables.tf` declares the variables; `*.tfvars` files assign their values"
       ],
-      "correct": 0,
-      "explanation": "Variables: declared in variables.tf (or any .tf file): variable 'region' { type=string, default='us-east-1' }. Values in: terraform.tfvars (auto-loaded), *.auto.tfvars (auto-loaded), -var flag, TF_VAR_name env var, interactive prompt. .tfvars not committed to git if contains secrets. descriptions, defaults, and validation rules. terraform.tfvars: assigns actual values to those variables. Separation of concerns: declare structure separately from values. .tfvars files can be environment-specific (dev.tfvars, prod.tfvars)",
+      "correct": 3,
+      "explanation": "variables.tf holds variable blocks (type, default, description, validation); *.tfvars (and *.auto.tfvars) supply concrete values per environment. The reversed mapping is wrong. outputs.tf exports values and state is not an input source. Values can come from tfvars, -var, or env vars — not only the CLI.",
       "tags": [
         "variables",
         "terraform-003"
@@ -229,15 +229,15 @@
     },
     {
       "id": "tf-012",
-      "question": "Two ways to create MULTIPLE instances of a resource in Terraform. (A) `count = 3` — creates 3 identical instances indexed by [0], [1], [2]. Removing from the MIDDLE renumbers and DESTROYS-RECREATES instances. (B) `for_each = toset([\"a\",\"b\",\"c\"])` — creates 3 instances keyed by string; removing a specific key removes ONLY that instance. Which describes count vs for_each?",
+      "question": "Resources created with `count = 3` renumber and destroy/recreate the others when you remove a middle item. Which approach keys instances stably so removing one affects only that instance?",
       "options": [
-        "count = N indexed by [0..N-1] (removing from middle",
-        "count deprecated",
-        "Identical",
-        "for_each maps only"
+        "`count` with a higher value, leaving gaps in the index sequence",
+        "A `dynamic` block, which iterates without indexing the resource",
+        "`for_each` over a map or set, where each instance has a stable key",
+        "Separate copy-pasted `resource` blocks, one per instance"
       ],
-      "correct": 0,
-      "explanation": "count: simple when creating identical resources. Issues: remove index 0 of 3 → destroys index 0, updates index 1 to 0, updates index 2 to 1. for_each with map: remove key 'web' → only removes web instance. Use for_each with toset() for sets. for_each cannot use unknown values at plan time (count sometimes can).",
+      "correct": 2,
+      "explanation": "for_each keys each instance by map key or set value, so removing one key touches only that instance. count is always a contiguous 0..N-1 index — you cannot leave gaps, and removing a middle index shifts the rest. dynamic blocks generate nested blocks, not resource instances. Copy-pasting resources is not scalable and is exactly what count/for_each replace.",
       "tags": [
         "meta-arguments",
         "count-vs-for-each",
@@ -269,15 +269,15 @@
     },
     {
       "id": "tf-014",
-      "question": "An AWS S3 bucket was created in the AWS console MANUALLY before the team started using Terraform. Now they want Terraform to MANAGE it without recreating it. The command WRITES the existing resource's state into Terraform's state file under the specified address. The configuration block must still be written by hand (Terraform 1.5+ adds `import` blocks for the config too). Which command?",
+      "question": "An S3 bucket was created manually in the AWS console. The team wants Terraform to manage it WITHOUT recreating it — writing the existing object into state under a chosen address. Which command?",
       "options": [
-        "Creates a new resource",
-        "`terraform import aws_s3_bucket.legacy my-existing-bucket`",
-        "Exports state",
-        "Downloads a module"
+        "`terraform apply -replace=aws_s3_bucket.legacy`",
+        "`terraform state mv aws_s3_bucket.old aws_s3_bucket.legacy`",
+        "`terraform refresh -target=aws_s3_bucket.legacy`",
+        "`terraform import aws_s3_bucket.legacy my-existing-bucket`"
       ],
-      "correct": 1,
-      "explanation": "Import: terraform import aws_instance.web i-1234567890. After import: resource exists in state. Must manually write matching resource config (future: terraform import with config generation in v1.5+). Use for: adopting existing infrastructure, migrating from manual to IaC. Verify: terraform plan should show no changes after import + config writing.",
+      "correct": 3,
+      "explanation": "terraform import writes an existing external resource into state under the given address (you still author the matching config). apply -replace forces destroy-and-recreate. state mv only renames an address already in state. refresh updates state for resources already tracked — none of which bring an unmanaged bucket under management.",
       "tags": [
         "cli",
         "import",
@@ -1630,15 +1630,15 @@
     },
     {
       "id": "tf-082",
-      "question": "Two lists `[\"a\",\"b\"]` and `[\"c\",\"d\"]` need to be COMBINED into one list `[\"a\",\"b\",\"c\",\"d\"]`. `concat(list1, list2, …)` does this for ANY number of lists. Different from `merge` (which is for MAPS, not lists) and from `+` (which is arithmetic). Which describes it?",
+      "question": "Two lists `[\"a\",\"b\"]` and `[\"c\",\"d\"]` must be combined into a single list `[\"a\",\"b\",\"c\",\"d\"]`. Which Terraform function does this?",
       "options": [
-        "Merges maps",
-        "Appends to string",
-        "String concat",
-        "Combines two or more lists into a single list"
+        "`merge()` — combines maps, with later keys overriding earlier ones",
+        "`concat()` — joins two or more lists into one",
+        "`setunion()` — returns the union of sets, dropping order and duplicates",
+        "`join()` — concatenates list elements into a single string"
       ],
-      "correct": 3,
-      "explanation": "concat: combine lists. concat(var.public_subnets, var.private_subnets) → all subnets. For maps: merge() or can use for expressions. For strings: format() or interpolation. concat(['a'], []) = ['a'] (handles empty). Not to be confused with string interpolation: '${var.a}${var.b}'.",
+      "correct": 1,
+      "explanation": "concat() appends lists in order, preserving duplicates and order. merge() operates on maps, not lists. setunion() treats inputs as sets, so it drops ordering and de-duplicates. join() collapses a list into one string with a separator.",
       "tags": [
         "expressions",
         "concat",
@@ -1650,15 +1650,15 @@
     },
     {
       "id": "tf-083",
-      "question": "A Terraform configuration's `terraform { required_providers { aws = { source = \"hashicorp/aws\"; version = \"~> 5.0\" } } }` declares which providers the configuration needs + their source + version constraint. Terraform reads this at init to download + lock. Required for non-default providers (anything besides historical built-ins). Which describes required_providers?",
+      "question": "A configuration uses the `aws` provider plus a custom third-party provider. Where do you declare each provider's source address and version constraint so `terraform init` can download and lock them?",
       "options": [
-        "Third-party only",
-        "Same as provider block",
-        "Optional",
-        "Declares required providers and their sources / versions inside the `terraform`"
+        "In a `provider` block, one per provider, at the configuration root",
+        "In a `required_providers` block inside the `terraform` block",
+        "In the `backend` block alongside the state-storage settings",
+        "In the generated `.terraform.lock.hcl`, edited by hand"
       ],
-      "correct": 3,
-      "explanation": "required_providers: terraform { required_providers { aws = { source='hashicorp/aws', version='~>4.0' }, custom = { source='myorg.com/providers/custom', version='1.0' } } }. All providers should be declared. terraform init respects these constraints. Lock file records resolved versions. Without required_providers: Terraform may use any available version.",
+      "correct": 1,
+      "explanation": "required_providers (inside the terraform block) names each provider's source and version so init can fetch and lock them. A provider block configures an already-declared provider (region, credentials) — it does not declare source/version. The backend block configures state storage. The lock file is generated from required_providers, not hand-authored.",
       "tags": [
         "providers",
         "required-providers",
@@ -1872,15 +1872,15 @@
     },
     {
       "id": "tf-094",
-      "question": "Two destructive-but-different commands. `terraform state rm <address>` — removes the resource FROM STATE; Terraform forgets it; real infra keeps running (orphaned but alive). `terraform destroy -target=<address>` — DELETES the real infrastructure AND removes from state. Which describes the difference?",
+      "question": "You want Terraform to STOP tracking a resource while leaving the real infrastructure running untouched (not deleted). Which command does that?",
       "options": [
-        "Same effect",
-        "state rm safer",
-        "`state rm` removes the resource from state",
-        "Both delete"
+        "`terraform destroy -target` — removes it from state and deletes the real resource",
+        "`terraform refresh` — reconciles state with the real infrastructure",
+        "`terraform untaint` — clears a forced-replacement mark on the resource",
+        "`terraform state rm` — drops it from state; the real resource keeps running"
       ],
-      "correct": 2,
-      "explanation": "state rm: terraform state rm aws_instance.web → resource remains in cloud, Terraform no longer tracks it. Use: transitioning to different management, resource that can't/shouldn't be destroyed. destroy -target: DELETES the real resource then updates state. If you want to keep the resource but stop managing: state rm then resource configuration can be removed.",
+      "correct": 3,
+      "explanation": "terraform state rm removes the resource from state only; the real object keeps running, now unmanaged. destroy -target actually deletes the infrastructure. refresh updates state to match reality but keeps managing the resource. untaint only clears a taint mark and changes nothing about tracking.",
       "tags": [
         "state",
         "state-rm-vs-destroy",
@@ -2270,15 +2270,15 @@
     },
     {
       "id": "tf-114",
-      "question": "Two lists `keys = [\"env\",\"team\"]` and `values = [\"prod\",\"web\"]` need to be combined into a MAP `{env=\"prod\", team=\"web\"}`. `zipmap(keys, values)` pairs them up. Both lists must be the same length. Which describes it?",
+      "question": "Two equal-length lists `[\"env\",\"team\"]` (keys) and `[\"prod\",\"web\"]` (values) must become the map `{env=\"prod\", team=\"web\"}`. Which function pairs them?",
       "options": [
-        "Zips archives",
-        "Creates a map from TWO lists (keys +",
-        "Compression",
-        "Merges maps"
+        "`merge(keys, values)` — merges two maps into one",
+        "`setproduct(keys, values)` — pairs every key with every value",
+        "`zipmap(keys, values)` — builds a map by pairing two equal-length lists",
+        "`lookup(map, key)` — returns a single value from a map"
       ],
-      "correct": 1,
-      "explanation": "zipmap: zipmap(var.subnet_names, aws_subnet.main[*].id) → map from subnet name to ID. Use with for expressions or resources: for_each = zipmap(keys(var.policies), values(var.policies)). Pairs: output = zipmap(keys(var.users), [for u in var.users : module.user[u.name].arn]) — combine with complex for expressions. one for keys, one for values. zipmap(['a','b','c'], [1,2,3]) = {a=1, b=2, c=3}. Lists must be same length. Complement to keys() and values(). Useful when you have parallel lists of names and values",
+      "correct": 2,
+      "explanation": "zipmap pairs the keys list with the values list positionally into a map. merge takes maps, not key/value lists. setproduct returns the Cartesian product (every combination), not a 1:1 pairing. lookup retrieves one value from an existing map and does not build one.",
       "tags": [
         "expressions",
         "zipmap",
@@ -2291,15 +2291,15 @@
     },
     {
       "id": "tf-115",
-      "question": "Terraform Language Experiments are FEATURES IN ACTIVE DEVELOPMENT — must be opted into via `terraform { experiments = [<feature>] }`. They MAY CHANGE OR BE REMOVED in future versions. Experimental flags expose new language constructs early for community feedback. Use only with awareness of the stability risk. Which describes them?",
+      "question": "A new Terraform language construct is provisional and may change or be removed in a future release. How do you opt into it, accepting the stability risk?",
       "options": [
-        "Features enabled via `terraform { experiments =",
-        "Debug only",
-        "Beta providers",
-        "Unstable providers"
+        "Install a `-beta` pre-release build of the Terraform CLI",
+        "Add the feature to `required_providers` with a pre-release version",
+        "Set `experiments = [<feature>]` inside the `terraform` block",
+        "Export the `TF_EXPERIMENTAL=1` environment variable"
       ],
-      "correct": 0,
-      "explanation": "Experiments: terraform { experiments = [example_feature] }. Each experiment: provisional feature being tested. May: change API, be removed, or graduate to stable feature. Check changelog: features graduate from experiments to stable. Production: avoid experiments — wait for stable release. Example graduated: optional variable attributes, module_variable_optional_attrs (now stable).",
+      "correct": 2,
+      "explanation": "Language experiments are opted into per configuration with experiments = [...] in the terraform block on a normal CLI release. There is no separate beta CLI for language features, required_providers governs provider versions (not language features), and no TF_EXPERIMENTAL env var enables them.",
       "tags": [
         "language",
         "experiments",
@@ -2413,15 +2413,15 @@
     },
     {
       "id": "tf-121",
-      "question": "`terraform taint <address>` (deprecated since 0.15.4) marked a resource for FORCED REPLACEMENT on next apply. It mutated state to mark the resource tainted. The modern replacement is `terraform apply -replace=<address>`. Which describes taint (deprecated) + its behaviour?",
+      "question": "Before it was deprecated, `terraform taint` mutated state to do what on the next apply — the behaviour now served by `apply -replace`?",
       "options": [
-        "Prevents modify",
-        "Deletes immediately",
-        "Marks a specific resource for FORCED REPLACEMENT",
-        "Invalid syntax"
+        "Prevented a resource from being modified or destroyed",
+        "Marked a resource for forced destroy-and-recreate on the next apply",
+        "Removed the resource from state without touching real infrastructure",
+        "Refreshed the resource's attributes from the provider"
       ],
-      "correct": 2,
-      "explanation": "terraform taint RESOURCE_ADDRESS: forces resource recreation next apply. Deprecated in TF 1.0+ — use terraform apply -replace=RESOURCE_ADDRESS instead. Use when: resource is misconfigured but Terraform shows it as up-to-date, or manual changes outside Terraform broke the resource.",
+      "correct": 1,
+      "explanation": "taint flagged a resource so the next apply would destroy and recreate it — now done explicitly with apply -replace. Preventing changes is lifecycle prevent_destroy. Removing from state without deleting infra is state rm. Refreshing attributes is refresh — none of which force a replacement.",
       "tags": [
         "cli",
         "taint-deprecated",
@@ -2894,15 +2894,15 @@
     },
     {
       "id": "tf-145",
-      "question": "A `resource \"aws_security_group\"` needs MULTIPLE `ingress` nested blocks (one per port). Hard-coding 5 of them is verbose. `dynamic \"ingress\" { for_each = var.allowed_ports; content { from_port = …; to_port = …; protocol = … } }` GENERATES the nested blocks from a collection. Which describes dynamic blocks?",
+      "question": "An `aws_security_group` needs one `ingress` nested block per allowed port, driven by a `var.allowed_ports` list, without hard-coding each block. Which feature generates the repeated nested blocks?",
       "options": [
-        "Generates MULTIPLE NESTED configuration blocks",
-        "Resource loop",
-        "Conditional",
-        "Provider feature"
+        "`count` on the security group, creating one group per port",
+        "A `dynamic` block, which generates repeated nested blocks from a collection",
+        "`for_each` on the security group resource itself",
+        "A `for` expression returned directly as the `ingress` argument"
       ],
-      "correct": 0,
-      "explanation": "dynamic 'ingress' { for_each = var.ingress_rules, content { from_port = ingress.value.from_port, to_port = ingress.value.to_port, protocol = ingress.value.protocol, cidr_blocks = ingress.value.cidr_blocks } }. Each item in var.ingress_rules generates one ingress block. Cleaner than repetitive hardcoded blocks.",
+      "correct": 1,
+      "explanation": "A dynamic block iterates a collection to emit repeated nested blocks (ingress) inside one resource. count and for_each on the resource would create multiple security groups, not multiple ingress blocks within one. A for expression produces a value (list/map) and cannot emit configuration blocks.",
       "tags": [
         "expressions",
         "dynamic-block",
