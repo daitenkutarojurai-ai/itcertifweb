@@ -260,23 +260,23 @@
               {
                 "q": "A telecom company needs to detect anomalous call patterns in real time. Their Dataflow pipeline uses a 5-minute fixed window over call events. Some legitimate calls last longer than 5 minutes and their end event arrives in the next window. The aggregation must count completed calls per window accurately. What Beam feature handles this?",
                 "choices": [
-                  "Enable allowed lateness on the 5-minute fixed window so late call-end events update the correct window",
+                  "Apply a side input containing a lookup table of call start times to enrich each call-end event — a side input enriches records but does not update the result of the fixed window when late call-end events arrive after the window has closed",
                   "Use a global window with a count-based trigger that fires after every 1,000 events regardless of the fixed event-time window boundaries — a global window removes event-time grouping entirely; late events are not associated with their original fixed window",
                   "Configure sliding windows with a 10-minute width and 5-minute fixed slide to overlap consecutive windows and reduce missed events — sliding windows aggregate across overlapping periods rather than correcting late data within a specific fixed window",
-                  "Apply a side input containing a lookup table of call start times to enrich each call-end event — a side input enriches records but does not update the result of the fixed window when late call-end events arrive after the window has closed"
+                  "Enable allowed lateness on the 5-minute fixed window so late call-end events update the correct window"
                 ],
-                "correctIndex": 0,
+                "correctIndex": 3,
                 "explanation": "Allowed lateness in Apache Beam permits elements whose event timestamp falls in an already-closed window to be assigned to that window and update the result. For a call that started in window W but whose end event arrives after the watermark passes the end of W, allowed lateness (e.g., 10 minutes) ensures it updates window W rather than being discarded. Global windows with count triggers ignore event-time semantics entirely. Sliding windows create overlapping aggregates, double-counting calls. Side inputs provide lookup enrichment, not late-data handling."
               },
               {
                 "q": "A Dataflow pipeline reads from a Pub/Sub subscription and joins each event with a slowly changing reference dataset (product catalog) that is updated once per day. The reference dataset is 500 MB. What is the most memory-efficient Beam pattern for this enrichment?",
                 "choices": [
-                  "Load the reference dataset as a Beam side input (as a Map) and access it inside the main event DoFn",
-                  "Write all events to a temporary BigQuery table and run a scheduled SQL JOIN query against the reference Beam dataset — this approach breaks the streaming pipeline into a batch stage and introduces latency rather than enriching events inline within the Beam pipeline",
                   "Reload the reference dataset from BigQuery inside a stateful DoFn on every element to ensure the Beam pipeline always uses fresh data — reading from BigQuery on every element adds high latency and cost; side inputs are the recommended Beam pattern for per-element lookups",
+                  "Write all events to a temporary BigQuery table and run a scheduled SQL JOIN query against the reference Beam dataset — this approach breaks the streaming pipeline into a batch stage and introduces latency rather than enriching events inline within the Beam pipeline",
+                  "Load the reference dataset as a Beam side input (as a Map) and access it inside the main event DoFn",
                   "Perform a CoGroupByKey Beam transform joining the event PCollection with a PCollection loaded from BigQuery in the same Beam pipeline — CoGroupByKey works for bounded datasets but is inefficient for enriching a high-volume streaming PCollection with a small reference set"
                 ],
-                "correctIndex": 0,
+                "correctIndex": 2,
                 "explanation": "Beam side inputs allow a bounded PCollection (the product catalog) to be materialized as an in-memory structure (e.g., a dict/Map) and made available to every worker processing the main stream. At 500 MB, it fits comfortably in worker memory. The catalog is loaded once per bundle, not per element. CoGroupByKey requires the reference data to be a streaming PCollection, which is wasteful for a static dataset. Reloading from BigQuery per element creates massive query costs. Writing to a temporary table and running SQL is a batch approach, not a streaming enrichment."
               },
               {
@@ -521,23 +521,23 @@
               {
                 "q": "A media company stores user engagement events in Bigtable with row keys formatted as `user_id#event_type#timestamp`. During peak hours, writes are hotspotting on a small number of tablets. Which row key redesign best eliminates the hot spot?",
                 "choices": [
-                  "Prepend a 2-byte hash prefix (salt) of `user_id` to distribute rows across tablets evenly",
-                  "Add an additional region field at the end of the row key to increase key cardinality across tablets — appending a region field at the end of the key does not break the monotonic hotspot caused by user_id; rows are still sequentially written to the same tablets",
                   "Replace user_id with a sequential auto-increment integer to spread rows across the key space and distribute tablets evenly — sequential integers preserve the same monotonic ordering problem, concentrating writes to the same tablets at the tail of the key range",
+                  "Add an additional region field at the end of the row key to increase key cardinality across tablets — appending a region field at the end of the key does not break the monotonic hotspot caused by user_id; rows are still sequentially written to the same tablets",
+                  "Prepend a 2-byte hash prefix (salt) of `user_id` to distribute rows across tablets evenly",
                   "Use a composite key with event_type#user_id#timestamp to co-locate events by type across tablets — prefixing with event_type groups all events of the same type on the same tablets, creating new hotspots if certain event types are much more frequent"
                 ],
-                "correctIndex": 0,
+                "correctIndex": 2,
                 "explanation": "Bigtable stores rows in sorted order; sequential or repeated-prefix keys concentrate writes on the same tablet (hot spot). Prepending a hash-derived salt (e.g., 2-byte prefix derived from hashing user_id) distributes the key space evenly across tablets, eliminating the hot spot. Auto-increment integers create a new sequential hot spot at the current highest value. Appending a region field does not change the leading prefix distribution. Reordering to event_type first moves the hot spot to the most popular event type."
               },
               {
                 "q": "A data platform team has a Bigtable cluster serving read-heavy workloads for a global user base. Regions include North America and Europe. During planned maintenance on the NA cluster, reads must automatically failover to the EU cluster. What Bigtable configuration enables this?",
                 "choices": [
-                  "Enable Bigtable replication by adding a second cluster in the EU region with a replication policy.",
                   "Deploy two independent Bigtable instances in NA and EU and write all data to both instances from the application layer",
+                  "Enable Bigtable replication by adding a second cluster in the EU region with a replication policy.",
                   "Use Cloud Spanner instead of Bigtable because only Spanner supports automatic multi-region failover",
                   "Create daily Bigtable backups and restore them to a new EU cluster when the NA cluster goes into maintenance"
                 ],
-                "correctIndex": 0,
+                "correctIndex": 1,
                 "explanation": "Bigtable supports multi-cluster replication within an instance. By adding a second cluster in the EU region and configuring the Bigtable client with a multi-cluster routing profile (route to any cluster), reads automatically fail over to the available cluster if one cluster is in maintenance. Backups require manual restore and have high RTO. Cloud Spanner is not a drop-in for Bigtable and is designed for relational workloads. Dual independent instances require application-layer writes to both, which is complex and error-prone. and configure client routing to use the closest available cluster"
               },
               {
@@ -653,12 +653,12 @@
               {
                 "q": "A social platform ingests 5 million user activity events per second via Pub/Sub. Multiple downstream systems — analytics, fraud detection, and personalization — each need to consume every event independently at their own pace. What Pub/Sub architecture supports this requirement?",
                 "choices": [
-                  "Create one Pub/Sub topic with a separate subscription for each downstream consumer system",
+                  "Create three separate Pub/Sub topics and route events to each downstream topic based on event type — routing by event type fans out events but requires the producer to know all downstream consumers and publish to multiple topics simultaneously",
                   "Deploy Pub/Sub Lite with a single partition and have all downstream consumers read from the same partition offset — a single partition serializes reads and does not allow independent downstream consumers to receive all messages at their own pace",
                   "Use a single Pub/Sub subscription with message filtering attributes per downstream consumer — a shared subscription delivers each message to only one consumer; filtering does not duplicate messages to multiple downstream systems",
-                  "Create three separate Pub/Sub topics and route events to each downstream topic based on event type — routing by event type fans out events but requires the producer to know all downstream consumers and publish to multiple topics simultaneously"
+                  "Create one Pub/Sub topic with a separate subscription for each downstream consumer system"
                 ],
-                "correctIndex": 0,
+                "correctIndex": 3,
                 "explanation": "Pub/Sub implements fan-out by allowing multiple subscriptions on a single topic. Each subscription receives an independent copy of every message and maintains its own offset, so analytics, fraud detection, and personalization can each consume at their own pace without interfering with each other. Separate topics require the publisher to send to three topics. Shared subscription with filtering still competes for messages — only one subscriber gets each message. Pub/Sub Lite single-partition is designed for ordered, low-throughput use cases and does not support independent fan-out."
               },
               {
@@ -903,12 +903,12 @@
               {
                 "q": "A data team uses Cloud Composer (managed Apache Airflow) to orchestrate nightly BigQuery transformations. One DAG task consistently fails due to rate limit errors from a downstream API. The team wants the task to automatically retry with exponential back-off without blocking other tasks. Which Airflow configuration achieves this?",
                 "choices": [
-                  "Set `retries=3`, `retry_delay=timedelta(minutes=5)`,.",
-                  "Use Airflow pools with a concurrency limit of 1 to queue retry attempts for the API-calling task — pools limit concurrent task instances, not retry attempts; setting concurrency to 1 serialises all tasks in the pool, not just retry logic",
                   "Add a PythonSensor before the task that polls the API every 5 minutes until it stops rate-limiting — sensors block a worker slot until the condition passes; using a sensor as a retry mechanism wastes worker resources compared to task-level retry configuration",
+                  "Use Airflow pools with a concurrency limit of 1 to queue retry attempts for the API-calling task — pools limit concurrent task instances, not retry attempts; setting concurrency to 1 serialises all tasks in the pool, not just retry logic",
+                  "Set `retries=3`, `retry_delay=timedelta(minutes=5)`,.",
                   "Configure a Cloud Monitoring alert to detect the failure and trigger a Cloud Function that re-runs the DAG as a manual retry — external retrigger via Cloud Function adds latency and bypasses Airflow's native retry tracking and backoff logic"
                 ],
-                "correctIndex": 0,
+                "correctIndex": 2,
                 "explanation": "Airflow task-level retry parameters — `retries`, `retry_delay`, and `retry_exponential_backoff=True` — instruct the scheduler to automatically re-run the failed task with increasing delays, without holding up other independent tasks in the DAG. Cloud Monitoring + Cloud Function adds unnecessary complexity for a simple retry. Airflow pools limit concurrency but do not implement back-off. Sensors pause the DAG run while waiting and do not retry the original task. and `retry_exponential_backoff=True` directly on the failing task operator"
               },
               {
@@ -1032,12 +1032,12 @@
               {
                 "q": "A data engineering team needs to migrate 200 TB of historical log files from an on-premises NFS server to Cloud Storage. The migration must complete within 48 hours and the on-premises network supports 1 Gbps sustained throughput. Which approach is most appropriate?",
                 "choices": [
-                  "Configure Storage Transfer Service with a source agent pool on the on-premises server",
+                  "Run gsutil -m cp with parallel composite uploads from multiple on-premises machines",
                   "Use Transfer Appliance to ship the data physically to Google and import to Cloud Storage",
                   "Use Dataflow with a custom I/O connector reading from NFS and writing to Cloud Storage",
-                  "Run gsutil -m cp with parallel composite uploads from multiple on-premises machines"
+                  "Configure Storage Transfer Service with a source agent pool on the on-premises server"
                 ],
-                "correctIndex": 0,
+                "correctIndex": 3,
                 "explanation": "Storage Transfer Service supports on-premises sources via agent pools — agents are installed on the source servers and manage parallel, reliable transfer to Cloud Storage. At 1 Gbps sustained, 200 TB can be transferred in roughly 44 hours, which fits the 48-hour window. gsutil -m cp lacks centralized scheduling, retries, and bandwidth management at this scale. Transfer Appliance is for offline scenarios where network bandwidth is severely limited. Dataflow adds unnecessary complexity for a bulk file copy."
               },
               {
@@ -1098,23 +1098,23 @@
               {
                 "q": "A data platform team wants to enforce data quality rules across raw and curated zones of their Cloud Storage-based data lake — including schema validation, null checks, and referential integrity — with results visible in a central governance UI. Which GCP service best addresses this requirement?",
                 "choices": [
-                  "Use Dataplex data quality tasks with YAML-based rule definitions, surfacing results in the Dataplex console with pass/fail metrics per rule",
-                  "Build a Cloud Composer DAG that runs custom Python validation scripts and writes results to a shared BigQuery audit table for governance review",
                   "Configure BigQuery data policies and column-level security tags to enforce quality standards — controls access rather than producing data quality results",
+                  "Build a Cloud Composer DAG that runs custom Python validation scripts and writes results to a shared BigQuery audit table for governance review",
+                  "Use Dataplex data quality tasks with YAML-based rule definitions, surfacing results in the Dataplex console with pass/fail metrics per rule",
                   "Apply Cloud DLP inspection jobs over each zone and surface results in the DLP dashboard — detects sensitive data, not schema or null-check quality results"
                 ],
-                "correctIndex": 0,
+                "correctIndex": 2,
                 "explanation": "Dataplex provides native data quality tasks that run on BigQuery tables and GCS data assets. Rules are defined in YAML (row completeness, column nullability, referential checks) and results appear in the Dataplex console with pass/fail metrics. Cloud DLP is for sensitive data discovery, not schema or null validation. Cloud Composer DAGs can do validation but require custom code and lack a built-in governance UI. BigQuery data policies control access, not quality."
               },
               {
                 "q": "A data engineering team uses Dataplex to organize their Cloud Storage data lake. They want to automatically discover, catalog, and apply data quality checks to all Parquet files landing in the `raw` zone. What is the correct Dataplex setup?",
                 "choices": [
-                  "Create a Dataplex lake with a `raw` zone, attach the Cloud Storage bucket as a managed asset with auto-discovery enabled, and create Dataplex data quality tasks for the discovered Parquet tables",
+                  "Configure Dataplex Catalog to crawl the raw storage zone bucket and apply quality checks via a custom Cloud Function triggered on new files — Dataplex Catalog discovers metadata but custom Cloud Functions are not the native way to apply zone-level data quality rules within a Dataplex lake",
                   "Write a Cloud Composer DAG that runs Great Expectations checks on all new Parquet files in the raw storage zone and sends alerts on failure — this approach adds data quality checks but does not register metadata in a Dataplex lake or enforce quality rules as part of the lake zone governance framework",
                   "Use BigQuery external tables pointing to the Dataplex-managed raw Parquet files in the storage zone and run BigQuery Data Quality rules — BigQuery external tables can query the files but do not integrate with Dataplex lake quality policies applied at the zone level",
-                  "Configure Dataplex Catalog to crawl the raw storage zone bucket and apply quality checks via a custom Cloud Function triggered on new files — Dataplex Catalog discovers metadata but custom Cloud Functions are not the native way to apply zone-level data quality rules within a Dataplex lake"
+                  "Create a Dataplex lake with a `raw` zone, attach the Cloud Storage bucket as a managed asset with auto-discovery enabled, and create Dataplex data quality tasks for the discovered Parquet tables"
                 ],
-                "correctIndex": 0,
+                "correctIndex": 3,
                 "explanation": "Dataplex provides an integrated data lake management platform. Creating a Dataplex lake and raw zone, then attaching the Cloud Storage bucket as an asset with auto-discovery enabled, causes Dataplex to automatically scan new Parquet files, infer schemas, register them in the metadata catalog, and make them available for Dataplex data quality tasks. This is the native, end-to-end workflow. Data Catalog can crawl GCS but does not natively run quality checks. Cloud Composer with Great Expectations is a valid but custom solution requiring code maintenance. BigQuery external tables with scheduled queries lack auto-discovery and the unified governance UI that Dataplex provides. attach the Cloud Storage bucket as a Dataplex asset with auto-discovery enabled, and create data quality tasks for the discovered tables"
               }
             ]
@@ -1154,7 +1154,7 @@
     "timeMinutes": 27
   },
   "meta": {
-    "generatedAt": "2026-06-03T09:14:33.537Z",
+    "generatedAt": "2026-06-04T11:52:48.135Z",
     "totalNodes": 41,
     "totalQuestions": 60,
     "nodeTypes": [

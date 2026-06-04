@@ -1,11 +1,11 @@
 # Question-bank audit
 
-Generated: 2026-06-04T11:50:13.881Z
-Packs scanned: **84** · questions: **3214**
+Generated: 2026-06-04T11:53:27.216Z
+Packs scanned: **85** · questions: **3226**
 
 - **Structural issues: 4** (0.1%) — recall-only stems, under-tagged, self-defeating distractors. Reliable, no false positives, fix these first (selfDefeat: 4).
-- Heuristic tells: lengthTell 433, shortTell 737, keywordTell 934 — review hints only.
-- Any-signal flagged: 1776 (55.3%).
+- Heuristic tells: lengthTell 438, shortTell 737, keywordTell 940 — review hints only.
+- Any-signal flagged: 1784 (55.3%).
 
 ## Methodology
 
@@ -56,6 +56,7 @@ answer, so do NOT auto-"fix" a tell without reading the question):
 | `devnet` | 12 | 0 | 0 | 5 | 0 | 6 | 0 | 0 |
 | `dp-203` | 12 | 0 | 0 | 6 | 1 | 3 | 0 | 0 |
 | `pl-600` | 12 | 0 | 0 | 6 | 1 | 4 | 0 | 0 |
+| `salesforce-adm-201` | 12 | 0 | 0 | 5 | 0 | 6 | 0 | 0 |
 | `ai-102` | 16 | 0 | 0 | 0 | 0 | 10 | 0 | 0 |
 | `aws-dea-c01` | 16 | 0 | 0 | 0 | 0 | 10 | 0 | 0 |
 | `az-104` | 56 | 0 | 0 | 9 | 13 | 22 | 0 | 0 |

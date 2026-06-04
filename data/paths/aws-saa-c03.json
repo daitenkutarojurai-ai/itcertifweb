@@ -92,13 +92,13 @@
               {
                 "q": "A media sharing platform lets users upload large video files from a browser. Currently all uploads pass through the application server tier before being written to S3, creating bandwidth bottlenecks and high EC2 costs during peak hours. The security team requires that upload credentials expire no more than 15 minutes after issuance. Which solution removes the application server from the upload data path while meeting the security requirement?",
                 "choices": [
-                  "Deploy AWS Transfer Family with SFTP on the application server fleet to receive browser uploads",
-                  "Route uploads through an API Gateway integration that proxies browser data via the application server",
-                  "Open the S3 bucket for public PUT access; bypass the application server with a static 15-minute token",
-                  "Have the application server generate a presigned S3 PUT URL (15-minute TTL) and return it to the browser"
+                  "Deploy AWS Transfer Family with SFTP fronting the application fleet to handle every browser upload at scale",
+                  "Route every upload through API Gateway as a binary passthrough that the application server still proxies internally",
+                  "Open the S3 bucket for public PUT access and rely on a static 15-minute token shared with the browser",
+                  "Have the application server return a 15-minute presigned S3 PUT URL so the browser uploads directly"
                 ],
                 "correctIndex": 3,
-                "explanation": "A presigned PUT URL embeds the uploader's identity and an expiry timestamp into a cryptographically signed request URL. The application server generates the URL without touching any file data, then returns it to the browser; the browser PUTs the file directly to S3 — no upload data flows through EC2 — and setting the expiry to 15 minutes satisfies the credential-lifetime requirement. AWS Transfer Family on the existing application fleet still terminates the upload on the same EC2 instances, so it does not remove them from the data path. An API Gateway proxy replaces the EC2 bottleneck with an API Gateway bottleneck — the full file still transits a server, and API Gateway's 10 MB request-body limit makes it unsuitable for large video. Public PUT access on the bucket violates least privilege and gives anyone with the URL the ability to overwrite any object."
+                "explanation": "A presigned PUT URL embeds the uploader's identity and expiry into a signed request URL. The application server generates the URL without ever touching file bytes, hands it to the browser, and the browser PUTs the file straight to S3 — eliminating the EC2 bandwidth bottleneck. Setting the URL TTL to 15 minutes satisfies the credential-lifetime requirement. AWS Transfer Family fronting the existing fleet still terminates uploads on the same EC2 instances, so the bottleneck remains. API Gateway as a binary passthrough imposes a 10 MB request-body cap and re-introduces a server hop for every byte. Public PUT access on the bucket violates least privilege and lets any URL holder overwrite arbitrary objects."
               },
               {
                 "q": "A healthcare startup stores de-identified patient records in S3. A new compliance framework requires (1) a verifiable log of every encryption key use, and (2) the ability to immediately revoke read access to all stored records during a security incident. The startup uses AWS KMS for key management. Which S3 server-side encryption configuration satisfies both requirements?",
@@ -503,13 +503,13 @@
               {
                 "q": "An image-processing service is triggered by S3 uploads and runs on AWS Lambda. High-resolution RAW camera files have started arriving that require 22 minutes of CPU-intensive processing — seven minutes beyond Lambda's hard 15-minute execution limit. The team wants to keep a serverless approach. What is the BEST architectural fix?",
                 "choices": [
-                  "ECS Fargate task definition to sidestep Lambda time limits",
-                  "EC2 Auto Scaling group to replace the Lambda function",
-                  "Lambda at maximum 10 GB memory to reduce CPU execution time",
-                  "Step Functions orchestrating chunked Lambda invocations"
+                  "Replace the Lambda function with an ECS Fargate task that runs the same image to bypass the timeout",
+                  "Move the workload to an EC2 Auto Scaling Group with a queue-driven job pattern for long-running jobs",
+                  "Increase Lambda memory to 10,240 MB and rely on the proportional vCPU bump to finish under 15 minutes",
+                  "Use AWS Step Functions to orchestrate Lambda invocations that each process a chunk of the image"
                 ],
                 "correctIndex": 3,
-                "explanation": "AWS Step Functions can split a large job into stages — each Lambda invocation processes a chunk of the image within the 15-minute window, and Step Functions manages sequencing, state, and retries. This preserves the serverless model while working around Lambda's hard timeout. ECS Fargate would solve the timeout but is not Lambda; the team explicitly wants to keep a serverless approach without managing tasks. EC2 Auto Scaling replaces the Lambda function with managed VMs, again abandoning the serverless approach. Maxing out Lambda memory to 10 GB speeds up CPU-bound work but cannot extend the maximum execution limit beyond 15 minutes, so a 22-minute job still fails."
+                "explanation": "Step Functions splits a long job into stages that each fit inside Lambda's 15-minute ceiling, while the state machine handles sequencing, retries, and intermediate state — preserving the serverless model and getting around the hard timeout. ECS Fargate would also clear the timeout, but it abandons the serverless approach the team wants to keep (tasks, networking, and scaling rules now have to be managed). An EC2 Auto Scaling Group is an even larger step away from serverless and requires AMI / OS lifecycle ownership. Maxing Lambda memory to 10,240 MB speeds CPU-bound work but cannot extend the 15-minute execution ceiling, so a 22-minute job still fails."
               },
               {
                 "q": "A team's serverless checkout API runs on API Gateway backed by Lambda. During a flash sale, multiple functions in the same AWS account exhaust the shared regional concurrency pool, leaving the checkout function throttled while lower-priority background functions remain active. The team wants to guarantee the checkout function always has a minimum concurrency allocation that other functions in the account cannot claim. Which Lambda feature addresses this?",
@@ -525,13 +525,13 @@
               {
                 "q": "A financial application processes wire transfer instructions from an SQS queue using a Lambda function. After a code deployment, certain message formats cause the Lambda function to throw an unhandled exception. These messages are returned to the queue, immediately retried, and continue failing — consuming Lambda invocations while delaying valid messages. What should the solutions architect implement?",
                 "choices": [
-                  "Configure a Dead Letter Queue with maxReceiveCount=3 and a depth alarm",
-                  "Enable FIFO ordering so wire transfers are processed in strict sequence with a Dead Letter Queue retry policy",
-                  "Increase the visibility timeout to 5 minutes so Lambda has sufficient time to process each message",
-                  "Extend the message retention period to 14 days so failed messages are not permanently deleted"
+                  "Configure a Dead Letter Queue with maxReceiveCount=3 and a CloudWatch alarm on DLQ depth",
+                  "Switch the source queue to FIFO so wire transfers are processed in strict order with the same retry policy",
+                  "Increase the visibility timeout to 5 minutes so Lambda has more time to process each message",
+                  "Extend the message retention period to 14 days so failing messages are not deleted automatically"
                 ],
                 "correctIndex": 0,
-                "explanation": "A Dead Letter Queue (DLQ) receives messages that have exceeded maxReceiveCount processing attempts, permanently removing them from the main queue so they stop consuming Lambda invocations and blocking valid messages. A CloudWatch alarm on DLQ depth alerts the team when failures accumulate, enabling rapid root-cause investigation. FIFO ordering preserves message sequence but does not stop a poison-pill message from cycling endlessly — strict ordering actually makes the blockage worse, because a single failing message halts every subsequent message in the same group. Increasing the visibility timeout only delays retries; the bad message still cycles back once the timeout expires. Extending message retention to 14 days lengthens the failure window rather than stopping it."
+                "explanation": "A Dead Letter Queue receives messages that exceed maxReceiveCount processing attempts, permanently removing them from the main queue so they stop consuming Lambda invocations and blocking healthy traffic. A CloudWatch alarm on DLQ depth alerts the team when failures accumulate, enabling rapid root-cause investigation. Switching to a FIFO source preserves message order but does nothing to stop a poison-pill message from cycling endlessly — strict ordering actually makes the problem worse, because a single failing message halts every later message in the same MessageGroupId. Increasing the visibility timeout just delays each retry; the bad message still cycles back once the timeout expires. Extending retention to 14 days lengthens the failure window rather than terminating it."
               },
               {
                 "q": "A company's analytics portal lets users request custom PDF reports that take 8–12 minutes to generate. The architecture must return an immediate acknowledgment to the browser, continue generating the report in the background, and notify the user via SNS when the report is ready. API Gateway has a hard 29-second integration timeout. Which pattern meets all three requirements?",
@@ -600,7 +600,7 @@
     "timeMinutes": 27
   },
   "meta": {
-    "generatedAt": "2026-06-03T09:14:33.494Z",
+    "generatedAt": "2026-06-04T11:52:48.094Z",
     "totalNodes": 27,
     "totalQuestions": 60,
     "nodeTypes": [

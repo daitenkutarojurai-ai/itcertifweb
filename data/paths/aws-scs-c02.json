@@ -61,7 +61,7 @@
                   "Enable default bucket encryption with SSE-KMS and the CMK and rely on it to reject any non-KMS uploads automatically",
                   "Write a KMS key policy that allows the Encrypt action only when the request originates from that specific S3 bucket",
                   "Write a bucket policy that allows all s3:PutObject calls and let KMS enforce that the data was encrypted properly",
-                  "Write a bucket policy that Denies s3:PutObject when s3:x-amz-server-side-encryption is not 'aws:kms' OR the kms-key-id header is not the specific CMK ARN"
+                  "A bucket policy denying s3:PutObject unless the SSE header is 'aws:kms' and the kms-key-id is the specific CMK ARN"
                 ],
                 "correctIndex": 3,
                 "explanation": "Default encryption applies SSE-KMS if no header is provided but does not reject a PutObject that explicitly specifies a different algorithm or key, so an explicit-Deny bucket policy on the two relevant request headers is required for strict enforcement. KMS key policies authorise key use but don't reject S3 uploads that bypass KMS. Allowing all PutObject and 'trusting KMS' doesn't enforce the algorithm header at all. The bucket policy is the right control because that's where the request headers can be evaluated."
@@ -326,7 +326,7 @@
                   "Configure Amazon Macie to monitor GetObject API calls and alert on high-volume download patterns from a single principal",
                   "Enable S3 Event Notifications for GetObject events into SNS, then use CloudWatch Metric Math to count the messages",
                   "Enable S3 server access logging to a target bucket and have a Lambda function parse the log files to count GetObject calls",
-                  "Enable CloudTrail data events for the S3 bucket sending to CloudWatch Logs, create a metric filter on GetObject and alarm when the count exceeds 1,000 in 5 minutes"
+                  "Send CloudTrail data events to CloudWatch Logs; a GetObject metric filter alarms past 1,000 in 5 minutes"
                 ],
                 "correctIndex": 3,
                 "explanation": "S3 object-level operations (GetObject/PutObject) are CloudTrail data events, off by default; enabling them for the bucket, streaming to CloudWatch Logs and adding a metric filter + alarm gives you a managed, near-real-time counter for the threshold. Macie detects sensitive data and unusual S3 access patterns but isn't a configurable per-bucket GetObject counter. S3 Event Notifications fire on object events but not on GetObject and can't be sized into 5-minute windows trivially. S3 server access logs have delivery delay and gaps and aren't suitable for real-time threshold alarms."
@@ -359,7 +359,7 @@
                   "Add an IAM permission boundary to all IAM users requiring an aws:SourceIp condition on every API call",
                   "Enable AWS CloudTrail and have EventBridge real-time rules detect API calls from unknown IPs and trigger Lambda revocation",
                   "Configure an identity-based IAM policy on each IAM user and role that denies access when aws:SourceIp is outside the corporate range",
-                  "Create a Service Control Policy at the organization root with Deny on all actions when aws:SourceIp is not in 203.0.113.0/24 (with an aws:ViaAWSService exception)"
+                  "An SCP at the org root denying all actions when aws:SourceIp is outside 203.0.113.0/24 (with an aws:ViaAWSService exception)"
                 ],
                 "correctIndex": 3,
                 "explanation": "An SCP at the organisation root is the strongest control because it applies to every principal in every member account — including account-level admins and root users — and cannot be overridden by lower-level IAM policies. Permission boundaries only constrain individual IAM entities and don't apply to root users. EventBridge-on-CloudTrail is detective and reactive, not preventive. Per-identity policies must be replicated to every principal and can be undone by any account admin."
@@ -379,7 +379,7 @@
                 "q": "A company wants to prevent developers from disabling GuardDuty, Security Hub, or Config in any account in their AWS Organization. What is the MOST effective way to enforce this?",
                 "choices": [
                   "Enable AWS Config managed rules that detect when these services are disabled and trigger an SNS notification to the security team for manual response",
-                  "Apply SCPs at the organization root or OU level that deny guardduty:DeleteDetector, securityhub:DisableSecurityHub and config:StopConfigurationRecorder for all accounts",
+                  "Apply SCPs that deny guardduty:DeleteDetector, securityhub:DisableSecurityHub and config:StopConfigurationRecorder across all accounts",
                   "Attach IAM permission boundaries to every IAM user in member accounts that deny the disable-actions for those three services across the organisation",
                   "Configure EventBridge rules in each account to detect disable events and trigger Lambda functions that re-enable the services automatically"
                 ],
@@ -391,7 +391,7 @@
                 "choices": [
                   "KMS-encrypt the credentials and bake the ciphertext into the Lambda deployment package, decrypting at runtime",
                   "Store the credentials in an S3 object encrypted with KMS and have Lambda fetch and decrypt them on every invocation",
-                  "Store the credentials in AWS Secrets Manager with a rotation Lambda configured for a 30-day schedule, calling GetSecretValue at runtime",
+                  "Store the credentials in AWS Secrets Manager with 30-day rotation, calling GetSecretValue at runtime",
                   "Store the credentials in SSM Parameter Store SecureString and retrieve them via the SSM GetParameter API at runtime"
                 ],
                 "correctIndex": 2,
@@ -403,7 +403,7 @@
                   "Store the secret in SSM Parameter Store with a cross-account resource policy and have each Lambda fetch it from the central account",
                   "Create an IAM role in the secret's account that each remote Lambda execution role can assume, then call GetSecretValue once assumed",
                   "Export the secret value via a deployment pipeline and store a copy in each account's own Secrets Manager",
-                  "Add a Secrets Manager resource policy to the secret allowing the other accounts' Lambda execution roles to call GetSecretValue, and grant kms:Decrypt on the CMK to those same roles"
+                  "A Secrets Manager resource policy letting the other accounts' Lambda roles call GetSecretValue, plus kms:Decrypt on the CMK"
                 ],
                 "correctIndex": 3,
                 "explanation": "Secrets Manager supports a resource-based policy on the secret; granting cross-account Lambda execution roles GetSecretValue plus kms:Decrypt on the encrypting CMK lets the remote Lambdas read directly without role assumption hops. SSM Parameter Store can do cross-account but lacks Secrets Manager rotation features. Role assumption works but adds latency and is more code than the direct resource-policy approach. Copying secrets per account multiplies the surface area and rotation problem."
@@ -465,7 +465,7 @@
     "timeMinutes": 27
   },
   "meta": {
-    "generatedAt": "2026-06-03T09:14:33.496Z",
+    "generatedAt": "2026-06-04T11:52:48.096Z",
     "totalNodes": 23,
     "totalQuestions": 61,
     "nodeTypes": [

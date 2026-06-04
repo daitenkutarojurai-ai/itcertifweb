@@ -59,12 +59,12 @@
               {
                 "q": "The Kubernetes documentation describes the 'Four Cs of Cloud Native Security' as a defence-in-depth model with four nested layers protecting the application. Which ordering correctly lists the four layers from the outermost layer down to the innermost?",
                 "choices": [
-                  "Cluster, then Cloud, then Container, then Code, on the basis that the cluster control plane is the primary security boundary — incorrect ordering; the 4C model places Cloud as the outermost layer because the cloud environment establishes the foundational security context for the entire stack",
-                  "Cloud, then Cluster, then Container, then Code, where each outer layer establishes the trust boundary on which the layer immediately inside it depends for its own security posture",
+                  "Cluster, then Cloud, then Container, then Code, on the basis that the cluster control plane is the primary security boundary",
+                  "Container, then Cloud, then Cluster, then Code, since container isolation is enforced at the OS layer before any cloud or cluster control plane policy is evaluated by the runtime",
                   "Code, then Container, then Cluster, then Cloud, reflecting how a typical attacker first compromises application logic and pivots outward toward shared cluster and cloud infrastructure",
-                  "Container, then Cloud, then Cluster, then Code, since container isolation is enforced at the OS layer before any cloud or cluster control plane policy is evaluated by the runtime"
+                  "Cloud, then Cluster, then Container, then Code, where each outer layer establishes the trust boundary on which the layer immediately inside it depends for its own security posture"
                 ],
-                "correctIndex": 1,
+                "correctIndex": 3,
                 "explanation": "The 4Cs are Cloud, Cluster, Container, Code, listed from outermost to innermost. The cloud (or corporate datacenter) is the foundation that the cluster runs on. The cluster sits on top of the cloud and provides isolation for containers. Containers run application code. Each outer layer's security posture directly affects every inner layer, so weaknesses in the cloud or cluster usually cannot be fully compensated for at the container or code layer."
               },
               {
@@ -82,22 +82,22 @@
                 "q": "A security review of a production cluster examines how etcd is deployed. Which configuration most directly mitigates the risk that an attacker who reaches etcd over the network can read or modify any cluster object?",
                 "choices": [
                   "Expose etcd through a ClusterIP Service so only Pods can reach it, and rely on a default-deny NetworkPolicy in `kube-system` to bound the blast radius of any reachable etcd endpoint",
-                  "Require mutual TLS between etcd peers and clients, issue narrowly scoped client certificates to the API server only, and place the etcd nodes on a private network unreachable from workloads",
+                  "Replace etcd's native authentication with the same OIDC provider used by the API server, so end-user identities flow end-to-end through every layer of the control plane on every cluster request",
                   "Run etcd inside a privileged Pod with `hostNetwork: true`, audit every `kubectl exec` against that Pod, and rely on the kube-apiserver to perform application-level encryption on every write",
-                  "Replace etcd's native authentication with the same OIDC provider used by the API server, so end-user identities flow end-to-end through every layer of the control plane on every cluster request"
+                  "Require mutual TLS between etcd peers and clients, issue narrowly scoped client certificates to the API server only, and place the etcd nodes on a private network unreachable from workloads"
                 ],
-                "correctIndex": 1,
+                "correctIndex": 3,
                 "explanation": "etcd holds the entire cluster state, including Secrets. Production deployments must require mutual TLS on both peer and client endpoints, restrict client certificates to the kube-apiserver identity, and isolate etcd on a private network not reachable from workload nodes. Putting etcd behind a ClusterIP makes it reachable from Pods, which is the opposite of what is wanted. Running etcd in a privileged Pod with host networking widens exposure. etcd does not delegate auth to OIDC and does not need end-user identity, because only the API server should talk to it."
               },
               {
                 "q": "A namespace carries the label `pod-security.kubernetes.io/enforce: restricted`. A user submits a Pod whose container sets `securityContext.runAsUser: 0` and `securityContext.allowPrivilegeEscalation: true`. What does Pod Security Admission do at admission time?",
                 "choices": [
-                  "Mutates the Pod to set `runAsNonRoot: true` and `allowPrivilegeEscalation: false`, then admits the resulting object so that the workload can still be created without any manual edits at all",
-                  "Logs a warning event, admits the Pod into the namespace, and triggers a runtime alert only if the container later attempts a syscall that is blocked by the restricted seccomp profile in use",
                   "Rejects the Pod creation request, because the restricted profile forbids running as UID 0 and explicitly disallows `allowPrivilegeEscalation: true` on every container in any Pod in that namespace",
+                  "Logs a warning event, admits the Pod into the namespace, and triggers a runtime alert only if the container later attempts a syscall that is blocked by the restricted seccomp profile in use",
+                  "Mutates the Pod to set `runAsNonRoot: true` and `allowPrivilegeEscalation: false`, then admits the resulting object so that the workload can still be created without any manual edits at all",
                   "Admits the Pod but assigns it to a separate RuntimeClass whose AppArmor profile is treated as an automatic compensating control for the disallowed fields in the container's `securityContext`"
                 ],
-                "correctIndex": 2,
+                "correctIndex": 0,
                 "explanation": "Pod Security Admission is a validating-only admission controller. With `enforce: restricted`, Pods that violate the restricted profile, including running as root or allowing privilege escalation, are rejected at admission time. PSA does not mutate Pods, does not assign RuntimeClasses, and does not perform runtime syscall detection. To 'fix' such a Pod, the spec must be amended (set `runAsNonRoot: true`, `allowPrivilegeEscalation: false`, drop all capabilities, etc.)."
               },
               {
@@ -114,7 +114,7 @@
               {
                 "q": "A cluster has a Role `pod-reader` in namespace `app` granting `get`, `list`, and `watch` on `pods`. ServiceAccount `app-sa` in `app` is bound to this Role via a RoleBinding. The same ServiceAccount is also the subject of a ClusterRoleBinding to a ClusterRole `pod-reader-cluster` with the same verbs on `pods`. Where can `app-sa` list Pods?",
                 "choices": [
-                  "Only in the app namespace, because a RoleBinding to a ServiceAccount always overrides a ClusterRoleBinding for verbs in that namespace — false; in Kubernetes, a ClusterRoleBinding grants the cluster-scoped role's verbs in every namespace and at cluster scope, regardless of any RoleBinding",
+                  "Only in the app namespace, because a RoleBinding to a ServiceAccount always overrides a ClusterRoleBinding for verbs in that namespace",
                   "Only in the `kube-system` namespace, because that is the implicit scope a ClusterRoleBinding applies to when its subject is a ServiceAccount that lives in a different namespace from the system",
                   "In every namespace and at cluster scope where the listed verbs apply, because a ClusterRoleBinding grants its ClusterRole's permissions to the subject across the entire cluster",
                   "In no namespace, because a ServiceAccount cannot simultaneously be the subject of both a RoleBinding and a ClusterRoleBinding without an explicit aggregation rule on the ClusterRole"
@@ -202,22 +202,22 @@
                 "q": "A platform team wants the cluster to admit only container images that carry a valid cryptographic signature and an SLSA-style provenance attestation. Which combination of tools most directly delivers this control at admission time?",
                 "choices": [
                   "Trivy scanning images during the CI build and failing the pipeline on critical CVEs — Trivy detects known vulnerabilities but does not produce or verify SLSA attestations or enforce signature-based admission control in the cluster",
-                  "Sigstore Cosign to sign images and attach in-toto/SLSA attestations, paired with a policy engine such as Kyverno or Sigstore Policy Controller that verifies the signature and attestations at admission",
+                  "Notary v1 trust pinning configured in the kubelet via `imagePullPolicy: IfNotPresent`, so the runtime refuses to pull any image whose canonical name does not already include a fixed content digest",
                   "A private container registry served over TLS, plus a custom MutatingWebhook that downloads each requested image, recomputes its SHA-256 digest, and patches the Pod spec inline with the result",
-                  "Notary v1 trust pinning configured in the kubelet via `imagePullPolicy: IfNotPresent`, so the runtime refuses to pull any image whose canonical name does not already include a fixed content digest"
+                  "Sigstore Cosign to sign images and attach in-toto/SLSA attestations, paired with a policy engine such as Kyverno or Sigstore Policy Controller that verifies the signature and attestations at admission"
                 ],
-                "correctIndex": 1,
+                "correctIndex": 3,
                 "explanation": "Cosign (part of the Sigstore project) signs images and attaches in-toto attestations such as SLSA provenance. An admission-time policy engine like Kyverno or Sigstore's Policy Controller verifies those signatures and attestations against trusted keys or identities before admitting the Pod. Trivy is a vulnerability scanner, not a signature verifier. Recomputing digests in a webhook does not prove signing. Notary v1 / Docker Content Trust is not enforced by the kubelet and is largely superseded by Sigstore."
               },
               {
                 "q": "A workload reads database credentials from a Kubernetes Secret mounted as a volume. The cluster runs with default settings and no `EncryptionConfiguration` is configured on the API server. Which statement about the confidentiality of these credentials is correct?",
                 "choices": [
-                  "The Secret value is encrypted at rest by default in etcd — false; etcd encryption must be explicitly configured via EncryptionConfiguration, so Secrets store credentials with no confidentiality guarantee by default; the data is plaintext until encryption is enabled",
-                  "The Secret value is hashed with SHA-256 before being written to etcd, so only the workload that originally created the Secret can recover the plaintext on read by presenting the matching pre-image",
                   "The Secret value is only base64-encoded in etcd and is stored as plaintext from a confidentiality standpoint, so anyone who can read etcd directly can recover the credentials without keys",
+                  "The Secret value is hashed with SHA-256 before being written to etcd, so only the workload that originally created the Secret can recover the plaintext on read by presenting the matching pre-image",
+                  "The Secret value is encrypted at rest by default in etcd",
                   "The Secret value is automatically replaced with a reference to a managed KMS entry by the API server, and only an opaque ciphertext blob ever reaches the etcd datastore on disk in this default configuration"
                 ],
-                "correctIndex": 2,
+                "correctIndex": 0,
                 "explanation": "By default Kubernetes Secrets are stored in etcd as base64-encoded data, which is encoding, not encryption. Anyone with read access to etcd (or to an etcd backup) can recover the plaintext. To get encryption at rest, the cluster operator must configure `EncryptionConfiguration` on the API server, typically using a KMS provider. Hashing would prevent the workload from ever recovering the value, and the API server does not automatically push Secrets to external KMS without explicit configuration."
               },
               {
@@ -322,10 +322,10 @@
                 "choices": [
                   "Enable `--anonymous-auth=true` on the kubelet so every request carries an explicit identity, which the API server then maps to a ServiceAccount before the kubelet authorizes the call",
                   "Set the kubelet's `--authorization-mode=AlwaysAllow` and rely on the API server's RBAC to retroactively reject any kubelet call that a Pod's ServiceAccount was not permitted to make",
-                  "Configure the kubelet with `--anonymous-auth=false` and `--authorization-mode=Webhook` so unauthenticated requests are rejected and authenticated ones are checked against the API server's authorizer",
-                  "Expose the kubelet read-only port (10255) to the Pod network so monitoring works, and disable the authenticated port (10250) to remove the attack surface an attacker would target"
+                  "Expose the kubelet read-only port (10255) to the Pod network so monitoring works, and disable the authenticated port (10250) to remove the attack surface an attacker would target",
+                  "Configure the kubelet with `--anonymous-auth=false` and `--authorization-mode=Webhook` so unauthenticated requests are rejected and authenticated ones are checked against the API server's authorizer"
                 ],
-                "correctIndex": 2,
+                "correctIndex": 3,
                 "explanation": "Hardening the kubelet means disabling anonymous access (`--anonymous-auth=false`) and delegating authorization to the API server (`--authorization-mode=Webhook`), so only authenticated, authorized callers can hit the kubelet API. Enabling `--anonymous-auth=true` does the opposite and allows unauthenticated requests. `AlwaysAllow` disables kubelet authorization entirely. The read-only port 10255 leaks Pod data without auth and should be disabled, not exposed; the authenticated port 10250 is the one to keep and protect."
               },
               {
@@ -394,7 +394,7 @@
     "timeMinutes": 23
   },
   "meta": {
-    "generatedAt": "2026-06-03T09:14:33.540Z",
+    "generatedAt": "2026-06-04T11:52:48.141Z",
     "totalNodes": 14,
     "totalQuestions": 16,
     "nodeTypes": [

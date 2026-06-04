@@ -71,44 +71,44 @@
                 "q": "A SaaS team operates 30 workload accounts that all need IP-routable access to a shared services VPC for Active Directory, DNS, and central logging. The networking team wants to manage routing in a single account. Which design fits best?",
                 "choices": [
                   "Peer every workload VPC directly with the shared services VPC — VPC peering requires a separate peering connection per workload VPC, routes must be manually updated in each, and transitive routing through the shared services networking account is not supported by peering",
-                  "Build a Transit Gateway in the networking account, share it with each workload account via AWS RAM, and attach each VPC to that Transit Gateway",
                   "Establish AWS Site-to-Site VPN tunnels from every workload VPC to the shared services VPC so traffic is encrypted across the public internet",
+                  "Build a Transit Gateway in the networking account, share it with each workload account via AWS RAM, and attach each VPC to that Transit Gateway",
                   "Duplicate the shared services VPC into every workload account and keep AD, DNS, and logging data in sync via scheduled cross-account exports"
                 ],
-                "correctIndex": 1,
+                "correctIndex": 2,
                 "explanation": "Transit Gateway shared via AWS Resource Access Manager is the canonical hub-and-spoke pattern: routing lives centrally in the networking account, each workload VPC is one attachment, and new accounts onboard by sharing rather than mesh peering. Full-mesh VPC peering does not scale across 30 accounts and forces route table edits everywhere. Internet VPNs add latency and per-tunnel management. Duplicating the shared services per account loses single-source-of-truth and breaks identity directories."
               },
               {
                 "q": "An on-premises application requires NFS access and low-latency reads against a working set of a 200 TB file dataset that the team wants to standardize on Amazon S3. Which approach minimizes operational overhead?",
                 "choices": [
                   "Replicate the entire S3 dataset nightly to a local NAS appliance via AWS DataSync — nightly replication does not provide low-latency local reads during the day and may not keep the NAS current for applications that need frequent reads between sync windows",
-                  "Deploy AWS Storage Gateway as a File Gateway on-premises, backed by the S3 bucket, so the hot working set stays cached locally for low-latency NFS reads",
+                  "Deploy AWS Storage Gateway in Volume Gateway cached-volume mode on-premises and expose the S3-backed iSCSI volumes to the application servers as NFS exports",
                   "Mount the S3 bucket directly on each application server with s3fs-fuse and rely on the Linux page cache to absorb read latency — fuse-based S3 mounts do not maintain a local working set cache with the consistency and performance of a dedicated File Gateway appliance",
-                  "Deploy AWS Storage Gateway in Volume Gateway cached-volume mode on-premises and expose the S3-backed iSCSI volumes to the application servers as NFS exports"
+                  "Deploy AWS Storage Gateway as a File Gateway on-premises, backed by the S3 bucket, so the hot working set stays cached locally for low-latency NFS reads"
                 ],
-                "correctIndex": 1,
+                "correctIndex": 3,
                 "explanation": "File Gateway exposes an S3 bucket as an NFS or SMB share on-premises, transparently caches frequently accessed files locally for low-latency reads, and writes new data through to S3. The dataset lives durably in S3 as the source of truth without nightly bulk replication. DataSync mirroring duplicates 200 TB and runs ongoing data drift. s3fs-fuse is fragile under heavy NFS-style use and is not officially supported for production workloads. Volume Gateway is a different Storage Gateway mode that exposes iSCSI block volumes, not NFS file shares, so it does not satisfy the application's NFS access requirement."
               },
               {
                 "q": "A trading platform requires single-digit-millisecond writes from users in two AWS regions and must keep accepting writes if either region fails, with no manual failover step. Which data layer best meets these requirements?",
                 "choices": [
                   "An Amazon Aurora global database with a single writer in the primary region — Aurora Global Database has one primary region that accepts all writes; read replicas in secondary regions cannot accept writes, so it does not support either-region write acceptance",
-                  "An Amazon DynamoDB global table with active replicas in both regions, accepting writes locally in either region under last-writer-wins resolution rules",
                   "An Amazon RDS for PostgreSQL Multi-AZ deployment in the primary region plus a cross-region read replica — the replica is not accepting writes; operators must promote it manually during a regional outage, creating downtime and potential data-loss risk",
+                  "An Amazon DynamoDB global table with active replicas in both regions, accepting writes locally in either region under last-writer-wins resolution rules",
                   "An Amazon S3 cross-region replication pipeline copying database write-ahead log files between the two regions, with application-side reconciliation on failover"
                 ],
-                "correctIndex": 1,
+                "correctIndex": 2,
                 "explanation": "DynamoDB global tables are multi-master: every replica region accepts writes locally and replication is eventually consistent with last-writer-wins. If one region fails the others keep serving without any manual failover, satisfying the active-active requirement. Aurora global databases have only one writer region; the secondary is read-only until a managed failover that takes minutes. RDS cross-region replicas require an operator-triggered promotion, breaking the no-manual-failover requirement. Replicating WAL files via S3 is not a primary database design and forces custom reconciliation."
               },
               {
                 "q": "A nightly bioinformatics batch job runs for six hours on 200 EC2 instances and tolerates interruption. A web tier runs continuously on 50 instances and must keep predictable performance. Which purchase mix minimizes spend?",
                 "choices": [
                   "Buy three-year all-upfront Reserved Instances for both the batch and the web workloads to lock in the deepest possible discount on every running instance",
-                  "Run the batch workload on EC2 Spot Instances and cover the web tier's steady baseline capacity with a Compute Savings Plan commitment over one or three years",
+                  "Run both the batch and web workloads entirely on Spot Instances and accept occasional web-tier outages because the cost savings outweigh the user impact",
                   "Keep the batch workload on On-Demand to guarantee it finishes overnight and place the always-on web tier onto Spot to cut the largest cost line on the bill",
-                  "Run both the batch and web workloads entirely on Spot Instances and accept occasional web-tier outages because the cost savings outweigh the user impact"
+                  "Run the batch workload on EC2 Spot Instances and cover the web tier's steady baseline capacity with a Compute Savings Plan commitment over one or three years"
                 ],
-                "correctIndex": 1,
+                "correctIndex": 3,
                 "explanation": "Spot Instances offer up to about 90 percent off on-demand pricing and are the right fit for interruption-tolerant batch work. Compute Savings Plans cover predictable always-on capacity at a steep discount while remaining flexible across instance family and region. Three-year RIs on a six-hour-per-day batch fleet wastes commitment 18 hours a day. Running production web on Spot risks reclamation during the most visible workload, which violates the predictable-performance requirement. On-Demand for batch overspends compared to Spot."
               },
               {
@@ -464,7 +464,7 @@
     "timeMinutes": 23
   },
   "meta": {
-    "generatedAt": "2026-06-03T09:14:33.495Z",
+    "generatedAt": "2026-06-04T11:52:48.095Z",
     "totalNodes": 17,
     "totalQuestions": 16,
     "nodeTypes": [
