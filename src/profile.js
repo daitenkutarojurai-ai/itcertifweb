@@ -204,6 +204,34 @@
       '<a href="/roadmap/" style="display:inline-block;font-family:\'Space Grotesk\',sans-serif;font-weight:700;font-size:13.5px;color:#34d399;text-decoration:none">Ouvrir ma roadmap →</a>';
   }
 
+  function renderChallenges() {
+    var section = $('profile-challenges-section');
+    var host = $('profile-challenges');
+    if (!host) return;
+    if (!window.cqChallenges || !window.cqChallenges.getActive) { if (section) section.hidden = true; return; }
+    function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
+    var active = window.cqChallenges.getActive() || [];
+    if (!active.length) { if (section) section.hidden = true; return; }
+    var doneCount = active.filter(function (c) { return c.completed; }).length;
+    var sub = $('challenges-sub');
+    if (sub) sub.textContent = doneCount + ' / ' + active.length + ' done this week';
+    host.innerHTML = active.map(function (c) {
+      var pct = c.target ? Math.min(100, Math.round((c.progress || 0) / c.target * 100)) : 0;
+      return '<a class="profile-challenge' + (c.completed ? ' is-done' : '') + '" href="/challenges/">' +
+        '<div class="profile-challenge-icon" aria-hidden="true">' + esc(c.icon) + '</div>' +
+        '<div class="profile-challenge-body">' +
+          '<div class="profile-challenge-top">' +
+            '<span class="profile-challenge-title">' + esc(c.title) + '</span>' +
+            '<span class="profile-challenge-reward">' + (c.completed ? '✓ ' : '') + '+' + (c.reward | 0) + ' XP</span>' +
+          '</div>' +
+          '<div class="profile-milestone-bar"><div class="profile-milestone-bar-fill" style="width:' + pct + '%"></div></div>' +
+          '<div class="profile-challenge-prog">' + (c.progress || 0) + ' / ' + c.target + '</div>' +
+        '</div>' +
+      '</a>';
+    }).join('');
+    if (section) section.hidden = false;
+  }
+
   function renderMilestones(stats) {
     var host = $('profile-milestones');
     if (!host) return;
@@ -731,6 +759,7 @@
     renderCoach();
     renderClass(stats);
     renderRoadmap();
+    renderChallenges();
     renderHats();
     renderLaurels();
     renderAccount();
@@ -793,6 +822,7 @@
   window.addEventListener('cq:cosmetic-changed', renderAll);
   window.addEventListener('cq:laurel-earned', renderAll);
   window.addEventListener('cq:roadmap-changed', renderAll);
+  window.addEventListener('cq:challenge-completed', renderChallenges);
   /* Auth state changes redraw the account section + hide/show the
      anonymous empty-state banner; sync events redraw stats hydrated
      from cloud. Both end up in the same renderAll path. */
