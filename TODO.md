@@ -2789,6 +2789,22 @@ tripped it, so good scenario questions read as "flagged". Fixes:
   `okta-certified-professional` (×2), `pl-900` were expanded into scenario
   frames (≥ 31 words) — stems only, options / correct index / explanation
   untouched, no new tells introduced. `recallOnly` is now 0 across all packs.
+- **Answer-position de-bias applied 2026-06-04.** Found a real, exploitable
+  tell the v1 audit didn't track: correct answers clustered on one slot —
+  worst was `ms-102` at **11/12 on position A** ("always pick A"). Added a
+  `posTop` metric to the audit (share of the most common correct slot; 0.25 =
+  balanced) and a summary callout for packs > 40%. Fixed all 15 over-40% packs
+  (ms-102, cyberops, kcsa, snowpro-core, dp-900, sc-200, sc-100, aws-sap-c02,
+  dp-600, comptia-cloud, az-801, github-foundations, gcp-pde, gcp-ace,
+  oci-foundations) with a **minimal-move, zero-correctness-risk** rebalancer:
+  for each over-represented slot it swaps the correct option into an under-used
+  slot and remaps `correct` — **option text is never edited**, and a built-in
+  invariant asserts every question's correct-answer text is byte-identical
+  before/after. Skips multi-correct, "all of the above"/ordered-numeric
+  options, and any question whose explanation references a letter (broad
+  filter). 75 swaps total; every pack now ≤ 40% top slot (most exactly 25%).
+  Re-audit confirms the four question signals are unchanged (reordering is
+  position-independent), content audit valid, 265 tests pass.
 
 ### How to track progress
 

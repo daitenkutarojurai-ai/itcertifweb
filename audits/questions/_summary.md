@@ -1,6 +1,6 @@
 # Question-bank audit
 
-Generated: 2026-06-04T07:07:20.154Z
+Generated: 2026-06-04T09:00:07.786Z
 Packs scanned: **84** · questions: **3214**
 
 - **Structural issues: 0** (0.0%) — recall-only stems + under-tagged. Reliable, no false positives, fix these first.
@@ -111,6 +111,15 @@ answer, so do NOT auto-"fix" a tell without reading the question):
 | `comptia-linux` | 61 | 0 | 0 | 1 | 0 | 0 |
 | `pcnsa` | 61 | 0 | 0 | 1 | 0 | 0 |
 | `az-204` | 20 | 0 | 0 | 0 | 0 | 0 |
+
+## Answer-position bias
+
+If correct answers cluster on one slot ("always pick C") a candidate can
+exploit it without reading. `posTop` = share of the most common correct slot
+(0.25 = balanced across 4 options). Packs above 0.40 — rebalance by reordering
+options (swap the correct option to an under-used slot; never edit the text):
+
+_None — every pack with ≥10 questions is at or under 40% on its top slot._
 
 ## Per-pack CSVs
 

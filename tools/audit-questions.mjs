@@ -204,6 +204,14 @@ for (const f of packs) {
   // missing tag is unambiguous); the length/keyword "tells" are heuristic
   // hints that still carry false positives on good scenario questions.
   byHit.structural = pack.rows.filter(r => r.recallOnly || r.underTagged).length;
+  // Answer-position bias: if correct answers cluster on one slot ("always pick
+  // C"), that's an exploitable structural tell. posTop = share of the most
+  // common correct slot (0.25 = perfectly balanced across 4 options).
+  const posCounts = [0, 0, 0, 0, 0];
+  for (const q of (JSON.parse(readFileSync(join(PACKS, f), 'utf8')).questions || [])) {
+    if (typeof q.correct === 'number' && q.correct < 5) posCounts[q.correct]++;
+  }
+  byHit.posTop = pack.total ? Math.max(...posCounts) / pack.total : 0;
   writeFileSync(join(OUT_DIR, pack.id + '.csv'), csv(pack.rows));
   summary.push({ id: pack.id, total: pack.total, offenders: offenders.length, ...byHit });
 }
@@ -249,6 +257,21 @@ const md = [
   '| Pack | Total | Struct | length | keyword | recall | tags |',
   '|---|---:|---:|---:|---:|---:|---:|',
   ...summary.map(p => `| \`${p.id}\` | ${p.total} | ${p.structural} | ${p.lengthTell} | ${p.keywordTell} | ${p.recallOnly} | ${p.underTagged} |`),
+  '',
+  '## Answer-position bias',
+  '',
+  'If correct answers cluster on one slot ("always pick C") a candidate can',
+  'exploit it without reading. `posTop` = share of the most common correct slot',
+  '(0.25 = balanced across 4 options). Packs above 0.40 — rebalance by reordering',
+  'options (swap the correct option to an under-used slot; never edit the text):',
+  '',
+  ...(() => {
+    const biased = summary.filter(p => p.total >= 10 && p.posTop > 0.40)
+      .sort((a, b) => b.posTop - a.posTop);
+    if (!biased.length) return ['_None — every pack with ≥10 questions is at or under 40% on its top slot._'];
+    return ['| Pack | Total | posTop |', '|---|---:|---:|',
+      ...biased.map(p => `| \`${p.id}\` | ${p.total} | ${(p.posTop * 100).toFixed(0)}% |`)];
+  })(),
   '',
   '## Per-pack CSVs',
   '',
