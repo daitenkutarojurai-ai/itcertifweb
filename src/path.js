@@ -231,6 +231,24 @@
     header.appendChild(a);
   }
 
+  /* RPG class chip on the path header (Phase 8.2 v2) — reinforces the player's
+     class identity on the path surface. Shows the current class title (explicit
+     pick, else roadmap-domain suggestion). Null-safe: bails on the index view
+     (no chip element) and when no class is active. Re-rendered on stats/class
+     change so the title tier tracks level-ups mid-session. */
+  function renderPathClassChip() {
+    var chip = document.getElementById('path-class-chip');
+    if (!chip || !window.cqClass) return;
+    var cls = window.cqClass.current();
+    if (!cls) { chip.hidden = true; return; }
+    var level = (window.cqStats && window.cqStats.get) ? (window.cqStats.get().level || 1) : 1;
+    chip.textContent = cls.emoji + ' ' + window.cqClass.titleFor(cls, level);
+    try { chip.style.setProperty('--class-accent', cls.accent || '#60a5fa'); } catch (_) {}
+    chip.hidden = false;
+  }
+  window.addEventListener('cq:class-changed', renderPathClassChip);
+  window.addEventListener('cq:stats-changed', renderPathClassChip);
+
   function renderMap(path) {
     var root = $('#path-map');
     root.innerHTML = '';
@@ -1226,6 +1244,7 @@
         $('#path-chapters').textContent = pathDoc.chapters.length + ' chapters';
         $('#path-nodes').textContent = pathDoc.meta.totalNodes + ' nodes';
         maybeRenderReviewCTA(packId);
+        renderPathClassChip();
         document.title = pathDoc.title + ' — Cert Quest · CertQuests';
         hide('path-loading'); show('path-root');
         renderMap(pathDoc);

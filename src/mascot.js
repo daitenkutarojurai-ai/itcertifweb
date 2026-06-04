@@ -54,6 +54,26 @@
     else document.addEventListener('DOMContentLoaded', fn);
   }
 
+  /**
+   * Phase 7.5 — make the squid a real coach. When cqCoach is loaded, the
+   * bubble OPENS with the player's single top data-driven "next move"
+   * (persona-aware via cqCoachPersona) instead of a generic nav tip. Tapping
+   * the squid again cycles into the generic rotation below. No-op if the
+   * coach bundle isn't present (returns null → falls back to TIPS).
+   */
+  function coachLeadTip() {
+    try {
+      if (!window.cqCoach || typeof window.cqCoach.getAdvice !== 'function') return null;
+      var t = (window.cqCoach.getAdvice(1) || [])[0];
+      if (!t || !t.title) return null;
+      return {
+        text: (t.icon ? t.icon + ' ' : '') + t.title,
+        cta: (t.cta && t.cta.label) || 'Open coach',
+        href: (t.cta && t.cta.href) || '/profile.html'
+      };
+    } catch (_) { return null; }
+  }
+
   function shouldShow() {
     try {
       var last = +(localStorage.getItem(DISMISS_KEY) || 0);
@@ -83,7 +103,7 @@
     root.className = 'cq-mascot';
     root.setAttribute('role', 'complementary');
     root.setAttribute('aria-label', 'Friendly tip from the CertQuests mascot');
-    var initial = TIPS[getTipIdx()];
+    var initial = coachLeadTip() || TIPS[getTipIdx()];
     root.innerHTML =
       '<a href="' + initial.href + '" class="cq-mascot-bubble" aria-live="polite" aria-hidden="true">' +
         '<span class="cq-mascot-bubble-text"></span>' +

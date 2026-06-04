@@ -501,10 +501,18 @@ competition-driven, community-driven** layer. Highest-priority builds:
   per-pack accuracy < 70% with ≥5 answered), next-roadmap-step,
   build-a-roadmap, hearts-full boss nudge, momentum fallback. Node-CJS
   exported + 11 unit tests; `window.cqCoach.getAdvice(n)`.
+- **v2 partially SHIPPED 2026-06-04:** post-session **coach debrief** now
+  surfaces the top "next move" on BOTH the SPA quiz results screen
+  (`src/screens/results.js` `buildCoachDebriefHTML`) and the `/path.html`
+  inline-session summary (`src/path.js` `buildCoachDebrief`); the floating
+  squid (`src/mascot.js`) now OPENS with the persona-aware coach tip instead
+  of a generic nav tip (`coachLeadTip`). All persona-aware via cqCoachPersona,
+  all no-op if the bundle isn't loaded. Cache v131.
 - **Deferred (v2):** LLM-backed coach behind a Cloudflare Pages Function
   (swap computeAdvice's inputs for a model — surfaces unchanged); per-tag
-  accuracy (stats only tracks per-pack today); inline nudges on
-  `/path.html` + a post-session debrief on the results screen.
+  accuracy (stats only tracks per-pack today); a dedicated inline coach
+  banner on the path *map* (pre-session, distinct from the post-session
+  debrief now shipped).
 
 - Turn the existing floating squid (`src/mascot.js`,
   `mascot-loader.js`) from static tips into a **conversational AI
@@ -681,9 +689,14 @@ competition-driven, community-driven** layer. Highest-priority builds:
   roadmap: with no explicit pick it AUTO-SUGGESTS the class matching the
   roadmap's domain. Store `cq-class-v1` / `window.cqClass`, dispatches
   `cq:class-changed`. +8 unit tests (260 total). Local-first.
+- **v2 partial SHIPPED 2026-06-04:** RPG **class chip on the path map header**
+  (`/path.html`) — shows the current class title (explicit pick, else
+  roadmap-domain suggestion), tinted with the class accent, re-rendered on
+  `cq:stats-changed` / `cq:class-changed` so the title tier tracks level-ups.
+  `renderPathClassChip` in `src/path.js` + `.path-class-chip` in `path.css`.
 - **Deferred (v2):** "equipment slots" as a cosmetics/hat reframing; class
-  chip on the header avatar + the path map; class shown on the public
-  `/u/` profile (needs a cloud column); per-class quest lines.
+  chip on the header *avatar* (fragile global chrome — held back); class shown
+  on the public `/u/` profile (needs a cloud column); per-class quest lines.
 
 ### 8.2-orig — Career RPG ✅ doable (merge into Phase 7)
 
@@ -796,8 +809,12 @@ competition-driven, community-driven** layer. Highest-priority builds:
   `window.cqCoachPersona`. The `/profile.html` coach panel renders the
   persona chips + intro and re-renders on click. No LLM — later the persona
   becomes a system-prompt preset for the model coach. +5 unit tests.
-- **Deferred (v2):** persona reflected in the floating squid mascot tips +
-  cheer copy; persona-specific CTA phrasing; an LLM-backed voice.
+- **v2 partial SHIPPED 2026-06-04:** the floating squid (`src/mascot.js`) now
+  OPENS with the persona-aware coach tip (`coachLeadTip` → `cqCoach.getAdvice`),
+  so the mentor voice carries into the site-wide mascot, not just the profile
+  panel.
+- **Deferred (v2):** persona reflected in the mascot-cheer toast copy;
+  persona-specific CTA phrasing; an LLM-backed voice.
 
 ### 8.6-orig — AI Mentor Personality System ✅ doable (merge into Phase 7.5)
 
