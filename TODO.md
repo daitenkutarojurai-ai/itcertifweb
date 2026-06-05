@@ -1520,6 +1520,42 @@ competition-driven, community-driven** layer. Highest-priority builds:
 
 ---
 
+## 📦 Content expansion R13 (2026-06-05)
+
+Scheduled-agent run diversifying away from the comparator cluster (17 entries
+already exceed the 15+ target) into DevStack — the cluster's first AI-platform
+dossier, the segment cert learners most often ask about today:
+
+- **+1 DevStack dossier** (cluster 12 → 13):
+  - `huggingface` — Hugging Face, fondée 2016 NY par trois Français, devenue
+    référence open-source de l'IA (transformers, datasets, diffusers, candle,
+    tokenizers, TGI). 16 composants documentés sur 5 catégories : librairies
+    ML core en Python (transformers, datasets, diffusers, accelerate),
+    composants performants en Rust (tokenizers, candle, text-generation-
+    inference), Hub frontend TypeScript/SvelteKit + Gradio (acquis 2021),
+    infra AWS (partenariat 2023 annoncé sur le blog officiel) + Kubernetes
+    + Docker + migration Git LFS → Xet (acquis 2024), hardware NVIDIA +
+    AWS Trainium/Inferentia via Optimum Neuron. 5 contributions OSS
+    référencées (transformers 140k+, datasets 19k+, diffusers 27k+,
+    candle 16k+, TGI 9k+).
+  - **Sources publiques uniquement** : blog officiel huggingface.co/blog
+    (article partenariat AWS 2023 + post Xet 2024), github.com/huggingface
+    (transformers / datasets / diffusers / candle / tokenizers / TGI /
+    huggingface.js / huggingface_hub repos publics), apply.workable.com/
+    huggingface (offres listant Kubernetes / AWS / Rust / Svelte),
+    huggingface.co/docs (Spaces Docker SDK + Optimum Neuron), pricing
+    publique pour les GPUs. Pas de rumeurs internes.
+  - Organization JSON-LD avec sameAs vers blog + careers, freshness pill
+    verte (lastReviewed "2026-06"), schema-valide vs `_schema.md`.
+- `scripts/gen-devstack-pages.js` `CACHE_BUST` bumped v=106 → v=133 to align
+  with the current global `?v=` key — regeneration restée idempotente sur
+  les 12 dossiers existants (déjà à v=133 dans le HTML, le const du
+  générateur s'était désynchronisé — la dérive récurrente documentée en 6.x).
+- `npm run gen-devstack` regenerated 13 dossiers + the `/devstack/` index
+  (idempotent — seul le nouveau dossier + l'index ont changé).
+- sitemap.xml +1 entry (priority 0.8, monthly changefreq, lastmod 2026-06-05).
+- 265/265 tests still pass. No CSS/JS cache version bump (new HTML/data only).
+
 ## 📦 Content expansion R12 (2026-06-04)
 
 Scheduled-agent run extending the comparator cluster (16 → 17 entries) with the
