@@ -1520,6 +1520,42 @@ competition-driven, community-driven** layer. Highest-priority builds:
 
 ---
 
+## 📦 Content expansion R14 (2026-06-06)
+
+Scheduled-agent run targeting the staling RealityCheck cluster (no new entry
+since R3 on 2026-05-15, while comparator / DevStack / FailBase / PromptDungeon
+all expanded multiple times). One new high-search-volume French-audience myth:
+
+- **+1 RealityCheck myth** (cluster 10 → 11):
+  - `reconversion-it-40-ans` — verdict **false** ("c'est un mythe entretenu
+    par la peur"). Tested claim: "Démarrer une reconversion IT après 40 ans
+    est trop tardif". 6 evidence facts cover: démographie devs (Stack Overflow
+    Survey 2024 — 20-25% ont appris à coder après 25 ans), reconnaissance APEC
+    des cadres en reconversion IT (secteur N°1 d'absorption, programmes ESN
+    Tech Academy), neutralité légale CPF/France Compétences à l'âge, cohortes
+    bootcamps (Le Wagon long tail jusqu'à 50+, École 42 plafond d'âge levé
+    2018), salaire mid-carrière post-reconversion équivalent au parcours
+    classique (Hays), tension IT maintenue (France Travail 2025 — IA
+    productivité +30% pour juniors, pas d'éviction documentée). Sections
+    whoCan / whoCant articulent les conditions concrètes (track adapté,
+    horizon 24 mois, acceptation salaire junior à l'entrée). ClaimReview
+    JSON-LD rating=1 (verdict false). Cross-links vers `/career-quiz/`,
+    `/career-path/`, `/careers/`.
+  - **Sources institutionnelles uniquement** : Stack Overflow Developer
+    Survey 2024 (>65k répondants, démographie + how learned to code), APEC
+    Observatoire des cadres en reconversion, France Compétences (gouvernance
+    CPF), France Travail (statistiques tensions métiers IT), Hays Études de
+    rémunération, Le Wagon FAQ publique. Pas de Reddit/anecdotes non
+    sourcées.
+- `scripts/gen-reality-check-pages.js` `CACHE_BUST` bumped v=106 → v=133 to
+  align with the current global `?v=` key — regeneration restée idempotente
+  sur les 10 myths existants (déjà à v=133 dans le HTML, le const du
+  générateur s'était désynchronisé — dérive récurrente documentée en 6.x).
+- `npm run gen-reality-check` regenerated 11 myth pages + the `/reality-check/`
+  index (idempotent — only the new page + index changed).
+- sitemap.xml +1 entry (priority 0.8, monthly changefreq, lastmod 2026-06-06).
+- 265/265 tests still pass. No CSS/JS cache version bump (new HTML/data only).
+
 ## 📦 Content expansion R13 (2026-06-05)
 
 Scheduled-agent run diversifying away from the comparator cluster (17 entries
