@@ -1520,6 +1520,40 @@ competition-driven, community-driven** layer. Highest-priority builds:
 
 ---
 
+## 📦 Content expansion R15 (2026-06-08)
+
+Scheduled-agent run targeting the PromptDungeon cluster (oldest content
+cluster since R14 — last touched 2026-06-02). One new high-value workflow
+addressing the Terraform / IaC audience that had no prompt pack yet despite
+having a cert (`terraform-003`), salary page, comparator pages, and a
+fail-analysis dataset:
+
+- **+1 PromptDungeon workflow** (cluster 10 → 11):
+  - `terraform-iac-mastery` — Terraform / HashiCorp prompt pack: 6 prompts
+    covering (1) module designer from spec, (2) state-drift detective for
+    surprise plan diffs, (3) monolith-to-modules refactor via `moved {}`
+    blocks (Terraform 1.1+), (4) `terraform plan` risk review with the
+    🟢 SAFE / 🟡 IN-PLACE / 🟠 REPLACE / 🔴 DATA-LOSS taxonomy,
+    (5) dependency-cycle resolver (SG ↔ SG inline rules pattern), and
+    (6) multi-env strategy decision (workspaces vs state-séparé vs
+    Terragrunt). Targets the Terraform Associate (003) audience + the
+    devops/platform engineer cohort. All prompts respect the schema
+    (`<UPPER_KEBAB>` placeholders, no system-prompt magic, `model_tested`
+    with dates). HowTo JSON-LD per page via the generator template.
+  - Tags: `terraform`, `iac`, `devops`, `cloud` — overlaps the existing
+    `kubernetes-debug` audience while opening a distinct IaC track.
+- `scripts/gen-prompt-pages.js` `CACHE_BUST` bumped v=114 → v=133 to align
+  with the current global `?v=` key — regeneration restée idempotente sur
+  les 10 workflows existants (déjà à v=133 dans le HTML, le const du
+  générateur s'était désynchronisé — la dérive récurrente documentée en
+  6.x). Only the new page + the index changed in git status.
+- `npm run gen-prompts` regenerated 11 workflow pages + the
+  `/prompt-dungeon/` index. sitemap.xml +1 entry (priority 0.8, monthly
+  changefreq, lastmod 2026-06-08); prompt-dungeon index lastmod bumped
+  to 2026-06-08.
+- 265/265 tests still pass. No CSS/JS cache version bump (new HTML/data
+  only).
+
 ## 📦 Content expansion R14 (2026-06-06)
 
 Scheduled-agent run targeting the staling RealityCheck cluster (no new entry
