@@ -3,23 +3,23 @@
     "id": "ckad",
     "name": "Certified Kubernetes Application Developer (CKAD)",
     "vendor": "CNCF",
-    "version": "1.0.4",
+    "version": "1.1.0",
     "question_count": 61,
-    "last_updated": "2026-05-23",
-    "notes": "[bulk-tag pass: added `ckad` tag to 61 questions] [recall sweep: 1 balanced rewrites] [ckad batch 1 (2026-05-19): 21 hardenings — 001,002,003,006,009,011,017,021,023,025,026,028,031,032,034,037,042,050,053,054,058. Distractors padded to ~80 chars each; ckad-028 correct option restored (was truncated to 'StatefulSets give each Pod a stable.').]"
+    "last_updated": "2026-06-09",
+    "notes": "hardening pass (2026-06-09): all 61 questions reworked — distractors made plausible (no truncations, no fake terms), correct-answer position balanced (~15 per index), correct answer is no longer consistently the longest, each explanation now states WHY the correct answer is right AND briefly why each distractor is wrong. Replaces the previous batch-1 partial pass."
   },
   "questions": [
     {
       "id": "ckad-001",
       "question": "A Pod contains a main application container and a second container that ships logs to a centralised logging backend. The two containers share the same network namespace and filesystem. Which multi-container Pod design pattern does this represent?",
       "options": [
-        "Sidecar — companion container augmenting the main app with log shipping",
-        "Ambassador — proxies outbound network connections for the main container",
-        "Adapter — normalises or transforms the main container's output format",
-        "Init container — runs to completion before any application containers start"
+        "Init container — runs to completion before any application container starts in the Pod",
+        "Adapter — translates the main container's output into another format the consumer expects",
+        "Ambassador — proxies the main container's outbound connections to a remote endpoint",
+        "Sidecar — companion container that augments the main app with helper functionality"
       ],
-      "correct": 0,
-      "explanation": "A Sidecar container runs alongside the main container in the same Pod, sharing its network and storage. It extends or enhances the main container without modifying it — common use cases are log shipping, metrics collection, certificate rotation, and service mesh proxies (e.g., Envoy/Istio). Ambassador proxies outbound traffic. Adapter normalises output format. Init containers are sequential pre-start containers.",
+      "correct": 3,
+      "explanation": "Sidecar describes a helper container that runs alongside the main app in the same Pod, sharing its network and storage, to extend it without modification — log shippers, metrics agents, certificate rotators, and service-mesh proxies all use this pattern. Ambassador is specifically for proxying outbound traffic (e.g., a database connection proxy). Adapter normalises or reformats the main container's output for downstream consumers. Init containers run sequentially before the main containers start; they cannot run concurrently like a log shipper does.",
       "tags": [
         "multi-container",
         "sidecar",
@@ -32,15 +32,15 @@
     },
     {
       "id": "ckad-002",
-      "question": "A developer needs to ensure that a database is ready before the main application container starts. The check should run once and exit before the application Pod begins. Which Kubernetes feature is BEST suited for this?",
+      "question": "A developer needs to ensure that a database is reachable before the main application container starts. The check should run once and exit successfully before the application Pod begins. Which Kubernetes feature is BEST suited for this?",
       "options": [
-        "Init container that probes the database and exits 0 once it is reachable",
-        "Liveness probe targeting the database endpoint from the application container, which fires once then exits on connection success",
+        "Sidecar container that polls the database and signals readiness via a shared file",
+        "Liveness probe targeting the database endpoint from the application container",
         "Readiness probe on the main application container against the database port",
-        "Sidecar container that polls the database and signals readiness via a file"
+        "Init container that polls the database and exits 0 once a TCP connection succeeds"
       ],
-      "correct": 0,
-      "explanation": "Init containers run sequentially before any app containers start. They must complete successfully (exit 0) before the next init container or the main containers begin. An init container that checks database connectivity (e.g., using `nslookup` or a TCP check script) is the idiomatic Kubernetes approach for dependency ordering. Liveness/readiness probes run after the container has already started.",
+      "correct": 3,
+      "explanation": "Init containers run sequentially before any application container starts and must exit 0 before the Pod proceeds — the idiomatic way to express a hard dependency on an external resource being ready. Liveness probes only run after the container has already started, so they cannot gate startup. Readiness probes affect Service endpoint inclusion, not container start order. A sidecar runs concurrently with the main container, not before it.",
       "tags": [
         "init-containers",
         "pod-design",
@@ -53,15 +53,15 @@
     },
     {
       "id": "ckad-003",
-      "question": "A developer runs `kubectl get pods` on a new deployment and sees a Pod stuck in status `Init:0/2`. The pod has two init containers configured before the main app containers start. What does this status indicate?",
+      "question": "A developer runs `kubectl get pods` on a new Deployment and sees a Pod stuck with status `Init:0/2`. The Pod has two init containers configured before the main app containers start. What does this status indicate?",
       "options": [
-        "Zero of the two init containers have completed; the main containers have not yet started",
-        "Two of two init containers completed and zero main containers started; ready to serve",
-        "Two init containers run in parallel and the slash count tracks completed liveness probes",
-        "The Pod has been built but the scheduler has not yet bound it to a node for startup"
+        "Both init containers completed and zero of the main application containers have started yet",
+        "Zero of the two init containers have completed successfully so far",
+        "The Pod has been admitted but the scheduler has not yet bound it to a node",
+        "Two init containers are running in parallel; the slash counter tracks liveness probe successes"
       ],
-      "correct": 0,
-      "explanation": "The `Init:X/Y` status in kubectl output means X of Y init containers have completed successfully. `Init:0/2` means the Pod has 2 init containers defined and the first one is still running (or hasn't started yet). The main application containers will not start until all init containers complete with exit code 0.",
+      "correct": 1,
+      "explanation": "`Init:X/Y` reports the number of init containers that have completed successfully out of the total — `Init:0/2` means zero of two are done, so the first init container is still running or pending. Main containers never appear in this counter (they would show as `PodInitializing` or `Running`). Init containers run sequentially, not in parallel. An unscheduled Pod shows `Pending` with no node assignment, not an `Init:` status.",
       "tags": [
         "pod-lifecycle",
         "init-status",
@@ -73,15 +73,15 @@
     },
     {
       "id": "ckad-004",
-      "question": "A developer needs to run a batch process that completes a specific number of tasks in parallel. The Job should process 10 items, running 3 tasks at a time. Which Job spec fields control this behaviour?",
+      "question": "A developer needs to run a batch process that completes 10 items in total, running 3 tasks in parallel at any time. Which Job spec fields control this behaviour?",
       "options": [
-        "spec.completions: 3 and spec.parallelism: 10",
-        "spec.replicas: 10 and spec.maxSurge: 3",
-        "spec.activeDeadlineSeconds: 10 and spec.backoffLimit: 3",
-        "spec.completions: 10 and spec.parallelism: 3"
+        "spec.replicas: 10 and spec.maxSurge: 3 (Deployment-style fields)",
+        "spec.completions: 3 and spec.parallelism: 10 (total then parallelism)",
+        "spec.activeDeadlineSeconds: 10 and spec.backoffLimit: 3 (timeout fields)",
+        "spec.completions: 10 and spec.parallelism: 3 (total then parallelism)"
       ],
       "correct": 3,
-      "explanation": "`spec.completions` defines the total number of successful Pod completions required (10). `spec.parallelism` sets how many Pods can run concurrently (3). Kubernetes creates new Pods as existing ones finish until `completions` is reached. `activeDeadlineSeconds` limits total Job duration; `backoffLimit` limits retry attempts after failure.",
+      "explanation": "`spec.completions` is the total number of successful Pod completions required (10); `spec.parallelism` caps how many Pods may run concurrently (3). The first option swaps the two values. `replicas`/`maxSurge` are Deployment fields, not valid on Jobs. `activeDeadlineSeconds` is a wall-clock timeout (seconds, not items) and `backoffLimit` is a retry cap after failure — neither controls work distribution.",
       "tags": [
         "jobs",
         "parallelism",
@@ -90,19 +90,20 @@
         "ckad"
       ],
       "difficulty": "medium",
-      "_normalized": true
+      "_normalized": true,
+      "rewritten": true
     },
     {
       "id": "ckad-005",
       "question": "A developer needs to run a database cleanup script every night at 2:30 AM. Which Kubernetes resource should be used, and what schedule string is correct?",
       "options": [
+        "CronJob with spec.schedule: '30 2 * * *' (minute then hour, daily)",
+        "Job with spec.schedule: '30 2 * * *' (Job objects accept cron schedules)",
         "DaemonSet with spec.updateStrategy.rollingUpdate.scheduledTime: '02:30'",
-        "CronJob with spec.schedule: '2:30 * * * *'",
-        "CronJob with spec.schedule: '30 2 * * *'",
-        "Job with spec.schedule: '30 2 * * *'"
+        "CronJob with spec.schedule: '2:30 * * * *' (using HH:MM in the first field)"
       ],
-      "correct": 2,
-      "explanation": "A CronJob creates Jobs on a recurring schedule using standard cron syntax: `minute hour day-of-month month day-of-week`. '30 2 * * *' means 'at minute 30 of hour 2 (2:30 AM), every day, every month, every weekday'. Jobs are one-shot; CronJobs are the recurring wrapper around Jobs.",
+      "correct": 0,
+      "explanation": "CronJob uses the standard 5-field cron syntax `minute hour day-of-month month day-of-week`, so '30 2 * * *' means 02:30 every day. DaemonSets are not schedule-driven — they place one Pod per node, and there is no `scheduledTime` field. The '2:30 * * * *' form is invalid: the first field is a single integer (minute), not HH:MM. Jobs are one-shot resources and do not have a `schedule` field; you wrap them in a CronJob to get recurrence.",
       "tags": [
         "cronjob",
         "scheduling",
@@ -110,19 +111,20 @@
         "ckad"
       ],
       "difficulty": "easy",
-      "_normalized": true
+      "_normalized": true,
+      "rewritten": true
     },
     {
       "id": "ckad-006",
-      "question": "A developer wants to run a privileged monitoring agent Pod on every node in the cluster, including nodes added in the future. Which workload resource ensures one Pod per node automatically?",
+      "question": "A developer wants a privileged monitoring agent Pod to run on every node in the cluster, including nodes added in the future. Which workload resource ensures one Pod per node automatically?",
       "options": [
-        "ReplicaSet with manually authored node affinity rules per individual node name",
-        "StatefulSet with exactly one replica and a node selector pinning it per host",
+        "Deployment with spec.replicas equal to the current node count in the cluster",
+        "ReplicaSet with manually authored node-affinity rules pinning each replica to a node",
         "DaemonSet — schedules exactly one Pod on every existing and newly joined node",
-        "Deployment with spec.replicas equal to the current node count in the cluster"
+        "StatefulSet with replicas equal to the node count and a per-host nodeSelector"
       ],
       "correct": 2,
-      "explanation": "A DaemonSet ensures that one copy of a Pod runs on every node in the cluster (subject to node tolerations and affinity). When new nodes join, the DaemonSet controller automatically schedules the Pod on them. Typical DaemonSet use cases: log collectors, monitoring agents (Prometheus node_exporter), network plugins, and storage drivers.",
+      "explanation": "A DaemonSet automatically schedules one copy of a Pod on every node and reacts to nodes joining or leaving — the idiomatic fit for log collectors, monitoring agents, CNI plugins, and storage drivers. A ReplicaSet with hand-authored affinity does not adapt to new nodes. A StatefulSet provides ordered, named replicas with stable storage — that does not map to 'one per node'. A Deployment with a fixed replica count cannot guarantee per-node placement and will not scale up when new nodes join.",
       "tags": [
         "daemonset",
         "node-management",
@@ -135,15 +137,15 @@
     },
     {
       "id": "ckad-007",
-      "question": "An application consists of 5 replicas in a Deployment. During a rolling update, the developer wants to ensure at least 4 Pods are always running, and no more than 7 Pods exist at any one time. Which settings achieve this?",
+      "question": "An application runs 5 replicas in a Deployment. During a rolling update, the developer wants at least 4 Pods always running and no more than 7 Pods at any one time. Which settings achieve this?",
       "options": [
-        "minReadySeconds: 4, maxSurge: 2",
-        "maxSurge: 2, maxUnavailable: 1",
-        "maxSurge: 7, maxUnavailable: 4",
-        "maxSurge: 0, maxUnavailable: 1"
+        "maxSurge: 7 and maxUnavailable: 4",
+        "maxSurge: 2 and maxUnavailable: 1",
+        "maxSurge: 0 and maxUnavailable: 1",
+        "minReadySeconds: 4 and maxSurge: 2"
       ],
       "correct": 1,
-      "explanation": "With 5 replicas: maxUnavailable: 1 means at most 1 Pod can be unavailable (minimum 4 running). maxSurge: 2 means at most 2 extra Pods can be created above the desired count (maximum 7 total). These two fields control the pace and safety of rolling updates. minReadySeconds controls how long a new Pod must be ready before it counts as available.",
+      "explanation": "With 5 replicas, `maxUnavailable: 1` guarantees at least 4 running (5 − 1) and `maxSurge: 2` caps total Pods at 7 (5 + 2). `minReadySeconds` is a delay before a new Pod counts as available — not a Pod-count control. The third option (surge 7, unavailable 4) describes maximums of 12 total and as few as 1 running, far outside the requested envelope. `maxSurge: 0, maxUnavailable: 1` keeps total at 5 max — surge is needed to exceed the desired count.",
       "tags": [
         "deployment",
         "rolling-update",
@@ -152,19 +154,20 @@
         "ckad"
       ],
       "difficulty": "medium",
-      "_normalized": true
+      "_normalized": true,
+      "rewritten": true
     },
     {
       "id": "ckad-008",
-      "question": "A developer has deployed a new application version and needs to check the rollout history. The current version has a problem and the team wants to revert to the previous revision. Which kubectl commands are used in sequence?",
+      "question": "A new application version has a problem and the team wants to revert to the previous revision after inspecting history. Which kubectl command sequence performs this?",
       "options": [
-        "kubectl rollout history deployment/app → kubectl rollout undo deployment/app",
-        "kubectl describe deployment app → kubectl delete deployment app and restore from history",
-        "kubectl rollout status deployment/app → kubectl rollout pause deployment/app",
-        "kubectl get deploy -o yaml → kubectl apply -f previous-version.yaml"
+        "kubectl rollout status deployment/app then kubectl rollout pause deployment/app",
+        "kubectl describe deployment app then kubectl delete deployment app and reapply",
+        "kubectl rollout history deployment/app then kubectl rollout undo deployment/app",
+        "kubectl get deploy -o yaml then kubectl apply -f previous-version.yaml"
       ],
-      "correct": 0,
-      "explanation": "`kubectl rollout history deployment/<name>` shows the revision history with change-cause annotations. `kubectl rollout undo deployment/<name>` rolls back to the previous revision. To roll back to a specific revision: `kubectl rollout undo deployment/<name> --to-revision=<N>`. This is the standard Kubernetes rollback workflow.",
+      "correct": 2,
+      "explanation": "`kubectl rollout history` lists the Deployment's revisions and change-causes; `kubectl rollout undo` rolls back to the previous revision (or `--to-revision=N` for a specific one). Deleting and recreating the Deployment causes downtime and loses the controller's revision history. `kubectl rollout pause` halts further rollouts — it does not roll back. Capturing the live YAML and reapplying skips the controller's revision machinery and is fragile: you have no record of the prior ReplicaSet image/template.",
       "tags": [
         "deployment",
         "rollout",
@@ -173,19 +176,20 @@
         "ckad"
       ],
       "difficulty": "easy",
-      "_normalized": true
+      "_normalized": true,
+      "rewritten": true
     },
     {
       "id": "ckad-009",
-      "question": "A developer wants to deploy an application using a Helm chart from the 'bitnami' repository. Which sequence of commands correctly adds the repository and installs the chart?",
+      "question": "A developer wants to deploy an application using a Helm chart from the `bitnami` repository. Which sequence of commands correctly adds the repository and installs the chart?",
       "options": [
-        "helm fetch bitnami/nginx then helm install nginx ./nginx from the unpacked dir",
         "helm search bitnami/nginx then helm deploy my-release using the chart name",
-        "helm repo add bitnami <url> then helm install my-release bitnami/nginx from the repo",
-        "kubectl apply -f https://charts.bitnami.com/bitnami/nginx then helm list the releases"
+        "helm repo add bitnami <url> then helm install my-release bitnami/nginx",
+        "kubectl apply -f https://charts.bitnami.com/bitnami/nginx then helm list the releases",
+        "helm fetch bitnami/nginx then helm install nginx ./nginx from the unpacked directory"
       ],
-      "correct": 2,
-      "explanation": "Helm workflow: (1) `helm repo add <name> <url>` registers the chart repository locally; (2) `helm repo update` fetches the latest chart index; (3) `helm install <release-name> <repo>/<chart>` deploys the chart to Kubernetes. `helm list` shows running releases. `helm upgrade` updates an existing release. `helm uninstall` removes it.",
+      "correct": 1,
+      "explanation": "Helm workflow: `helm repo add <name> <url>` registers the repository, optionally `helm repo update` refreshes the index, then `helm install <release> <repo>/<chart>` deploys it. `helm fetch` only downloads a chart tarball — useful for offline inspection, not a normal install. `helm deploy` is not a Helm command. `kubectl apply` against a chart URL would attempt to apply a raw YAML — Helm charts are templated archives, not single manifests, so this fails.",
       "tags": [
         "helm",
         "package-manager",
@@ -200,13 +204,13 @@
       "id": "ckad-010",
       "question": "A Helm release was just upgraded to v2.0 of a chart and the new version has a critical bug. The developer needs to immediately revert to the previous chart version. Which command performs this?",
       "options": [
-        "helm install <release-name> <old-chart>",
-        "kubectl rollout undo deployment/<name>",
+        "kubectl rollout undo deployment/<name> (use the Deployment controller)",
+        "helm install <release-name> <old-chart> (reinstall the older chart)",
         "helm rollback <release-name> <revision>",
         "helm upgrade <release-name> <chart> --version previous"
       ],
       "correct": 2,
-      "explanation": "`helm rollback <release-name> <revision>` rolls a Helm release back to a specific revision. `helm history <release-name>` shows the revision history with status and notes. Helm manages its own revision history independently from Kubernetes Deployment revision history. `kubectl rollout undo` only works for Kubernetes Deployment objects, not Helm-managed resources as a whole.",
+      "explanation": "`helm rollback <release> <revision>` reverts a release to a recorded revision (find revisions with `helm history <release>`). `helm install` against an existing release name fails with 'cannot re-use a name'. `kubectl rollout undo` only rolls back a single Deployment object — a Helm chart usually owns several resources, so this leaves Services, ConfigMaps, CRDs, and other objects on the new version. `--version previous` is not a real flag; you must supply an explicit chart version string.",
       "tags": [
         "helm",
         "rollback",
@@ -214,19 +218,20 @@
         "ckad"
       ],
       "difficulty": "easy",
-      "_normalized": true
+      "_normalized": true,
+      "rewritten": true
     },
     {
       "id": "ckad-011",
-      "question": "A Pod's liveness probe keeps failing, causing the container to restart repeatedly. The application takes 60 seconds to initialise before it can serve health check requests. How should the probe be configured to avoid premature restarts?",
+      "question": "A Pod's liveness probe keeps failing, causing the container to restart repeatedly. The application takes 60 seconds to initialise before it can serve health-check requests. How should the probe be configured to avoid premature restarts?",
       "options": [
-        "Set restartPolicy: Never on the Pod spec so the container is not restarted at all",
-        "Replace the livenessProbe with a readinessProbe so startup failures avoid restarts",
-        "Set initialDelaySeconds: 60 on the livenessProbe so checks begin after warm-up",
-        "Remove the livenessProbe at startup and reapply it after the first health check"
+        "Replace the livenessProbe with a readinessProbe so startup failures do not cause restarts",
+        "Set restartPolicy: Never on the Pod so the failing probe does not trigger a restart",
+        "Remove the livenessProbe at startup and reapply it once the application is ready",
+        "Set initialDelaySeconds: 60 on the livenessProbe so checks begin after warm-up"
       ],
-      "correct": 2,
-      "explanation": "Two solutions: (1) Set `initialDelaySeconds` on the liveness probe to delay its first check until after the application has started. (2) Use a `startupProbe` with a high `failureThreshold * periodSeconds` window — while the startup probe is running, liveness and readiness probes are paused. The startup probe approach is preferred for applications with unpredictable startup times. Readiness probes affect traffic routing but do not prevent restarts. or use a startupProbe with failureThreshold high enough to cover the startup window",
+      "correct": 3,
+      "explanation": "`initialDelaySeconds` delays the first liveness check until after the app has had time to start — the simplest fix for slow startup. (A `startupProbe` is the more flexible Kubernetes-1.18+ pattern.) `restartPolicy: Never` defeats the purpose of liveness probes and breaks self-healing. A readiness probe only removes the Pod from Service endpoints — the app is still not 'live' and other probes that DO restart could still fire. Mutating the Pod spec after startup is not how Kubernetes manifests work; you cannot patch a probe back in mid-lifecycle.",
       "tags": [
         "liveness-probe",
         "startup-probe",
@@ -241,13 +246,13 @@
       "id": "ckad-012",
       "question": "A developer configures a readiness probe and a liveness probe on the same container. What is the functional difference between them in Kubernetes?",
       "options": [
-        "Readiness probes restart the container when they fail; liveness probes remove the Pod from Service endpoints",
-        "Liveness probes only run once at startup; readiness probes run continuously",
+        "Liveness probes restart the container on failure; readiness probes drop the Pod from Service endpoints without restarting",
         "They are functionally identical — both restart the container when failing",
-        "Liveness probes restart the container when they fail;."
+        "Liveness probes only run once at startup, while readiness probes run continuously",
+        "Readiness probes restart the container on failure; liveness probes remove the Pod from Service endpoints"
       ],
-      "correct": 3,
-      "explanation": "Liveness probe: if it fails, the kubelet kills the container and restarts it (based on restartPolicy). Use it for deadlock detection. Readiness probe: if it fails, the Pod is removed from all Service endpoint lists — no traffic is routed to it. The container is NOT restarted. Use it for temporarily unavailable conditions (loading data, waiting for a dependency). Both run continuously throughout the Pod's life. readiness probes remove the Pod from Service endpoints (traffic stops being routed to it) without restarting",
+      "correct": 0,
+      "explanation": "Liveness failures cause the kubelet to kill and restart the container (use it for deadlock detection). Readiness failures take the Pod out of every Service's Endpoints list so no traffic is routed, but no restart happens (use it for transient unavailability such as loading data). The first option swaps the two roles. Liveness probes run continuously per `periodSeconds`, not only at startup — that is the job of `startupProbe`. They are clearly not identical: only one restarts the container.",
       "tags": [
         "liveness-probe",
         "readiness-probe",
@@ -256,19 +261,19 @@
       ],
       "difficulty": "medium",
       "_normalized": true,
-      "_lenbal": true
+      "rewritten": true
     },
     {
       "id": "ckad-013",
-      "question": "A developer needs to retrieve the logs from a crashed container (the previous instance, not the currently running one) in a Pod named 'api'. Which kubectl command is correct?",
+      "question": "A developer needs to retrieve the logs from a crashed container (the previous instance, not the currently running one) in a Pod named `api`. Which kubectl command is correct?",
       "options": [
-        "kubectl logs api --crashed",
         "kubectl logs api --previous",
-        "kubectl get logs api -o previous",
-        "kubectl describe pod api | grep logs"
+        "kubectl logs api --crashed",
+        "kubectl describe pod api | grep logs",
+        "kubectl get logs api -o previous"
       ],
-      "correct": 1,
-      "explanation": "`kubectl logs <pod-name> --previous` (or `-p`) retrieves logs from the terminated (previous) container instance. This is essential for debugging crash-loop scenarios where the current container is already restarting. If a Pod has multiple containers, add `-c <container-name>`. `kubectl describe pod` shows events and restart counts but not the log content.",
+      "correct": 0,
+      "explanation": "`kubectl logs <pod> --previous` (`-p`) returns logs from the terminated container instance — essential for diagnosing CrashLoopBackOff where the current container is already restarting. `--crashed` is not a real flag. `kubectl get logs` is not a valid kubectl subcommand (logs is its own verb). `kubectl describe pod` lists events and restart counts but does not stream log content from the prior instance.",
       "tags": [
         "kubectl-logs",
         "debugging",
@@ -276,19 +281,20 @@
         "ckad"
       ],
       "difficulty": "easy",
-      "_normalized": true
+      "_normalized": true,
+      "rewritten": true
     },
     {
       "id": "ckad-014",
-      "question": "A developer wants to open an interactive bash shell inside a running container called 'web' in a Pod named 'frontend'. Which command achieves this?",
+      "question": "A developer wants to open an interactive bash shell inside a running container called `web` in a Pod named `frontend`. Which command achieves this?",
       "options": [
-        "kubectl run frontend --image=web --command -- /bin/bash",
-        "kubectl exec -it frontend -c web -- /bin/bash",
         "kubectl debug frontend --image=web -- /bin/bash",
-        "kubectl attach frontend -c web"
+        "kubectl attach frontend -c web",
+        "kubectl exec -it frontend -c web -- /bin/bash",
+        "kubectl run frontend --image=web --command -- /bin/bash"
       ],
-      "correct": 1,
-      "explanation": "`kubectl exec -it <pod-name> -c <container-name> -- <command>` opens an interactive terminal inside the specified container. `-i` keeps stdin open; `-t` allocates a pseudo-TTY. `kubectl attach` connects to the container's stdin/stdout but doesn't spawn a new process. `kubectl debug` is used for ephemeral debugging containers when the target container doesn't have a shell.",
+      "correct": 2,
+      "explanation": "`kubectl exec -it <pod> -c <container> -- <cmd>` opens an interactive TTY in the named container of an existing Pod. `kubectl run` would create a brand new Pod, not target the running one. `kubectl debug` injects an ephemeral debug container — useful when the target image has no shell, but heavier than what was asked. `kubectl attach` connects to the container's existing stdin/stdout (PID 1) — it does not spawn a new shell process.",
       "tags": [
         "kubectl-exec",
         "debugging",
@@ -296,19 +302,20 @@
         "ckad"
       ],
       "difficulty": "easy",
-      "_normalized": true
+      "_normalized": true,
+      "rewritten": true
     },
     {
       "id": "ckad-015",
       "question": "A container repeatedly fails with OOMKilled (exit code 137). What is MOST likely causing this, and what is the fix?",
       "options": [
-        "The Pod's CPU limit is too low, causing the OOM killer to trigger",
-        "The container image is corrupt; pull a fresh image",
-        "The container has exceeded its memory limit;.",
-        "The container's liveness probe is misconfigured and sending SIGKILL"
+        "The liveness probe is misconfigured and is sending SIGKILL to the container",
+        "The container exceeded its memory limit; raise resources.limits.memory or reduce app memory usage",
+        "The Pod's CPU limit is too low, so the OOM killer is firing; raise the CPU limit",
+        "The container image is corrupt; pull a fresh image"
       ],
-      "correct": 2,
-      "explanation": "OOMKilled (Out of Memory Killed, exit code 137) means the Linux kernel's OOM killer terminated the process because it tried to exceed the container's memory limit. The fix is either: (1) increase `resources.limits.memory` if the limit is too low; (2) optimise the application to use less memory; (3) investigate memory leaks. CPU limits cause CPU throttling, not OOMKill. Exit code 137 = 128 + 9 (SIGKILL). increase resources.limits.memory or optimise the application's memory usage",
+      "correct": 1,
+      "explanation": "Exit 137 = 128 + 9 (SIGKILL). When a container's RSS exceeds its `resources.limits.memory`, the kernel OOM killer terminates the process — the fix is either to raise the limit or shrink the app's memory footprint. CPU pressure causes throttling (CFS), not OOMKill. A corrupted image would surface as ErrImagePull/ImagePullBackOff, not a runtime OOMKill. Failing liveness probes restart the container with exit code 143 (SIGTERM-then-SIGKILL on grace timeout) but the Pod status reason would be `Error` or `Completed`, not `OOMKilled`.",
       "tags": [
         "resource-limits",
         "oomkilled",
@@ -318,19 +325,19 @@
       ],
       "difficulty": "medium",
       "_normalized": true,
-      "_lenbal": true
+      "rewritten": true
     },
     {
       "id": "ckad-016",
-      "question": "A developer creates a ConfigMap with two keys: `APP_ENV=production` and `LOG_LEVEL=info`. How should the Pod spec be written to inject both values as environment variables inside the container?",
+      "question": "A developer creates a ConfigMap with two keys: `APP_ENV=production` and `LOG_LEVEL=info`. How should the Pod spec be written to inject BOTH values as environment variables in one declaration?",
       "options": [
-        "Use envFrom with configMapRef pointing to the ConfigMap name.",
-        "Use env with value set to the ConfigMap name",
-        "Use valueFrom.secretKeyRef for each ConfigMap key",
-        "Mount the ConfigMap as a volume at /etc/config and read files from that path"
+        "Mount the ConfigMap as a volume at /etc/config and read files from that path",
+        "Use envFrom with configMapRef pointing to the ConfigMap name",
+        "Use env with `value` set to the ConfigMap name",
+        "Use valueFrom.secretKeyRef for each ConfigMap key"
       ],
-      "correct": 0,
-      "explanation": "`envFrom: - configMapRef: name: <configmap-name>` injects ALL key-value pairs from the ConfigMap as environment variables in one declaration. Alternatively, use `env: - name: VAR valueFrom: configMapKeyRef: name: <cm> key: <key>` to inject individual keys. Mounting as a volume is for file-based access. `secretKeyRef` is for Secrets, not ConfigMaps. all keys are injected as env vars automatically",
+      "correct": 1,
+      "explanation": "`envFrom: [{configMapRef: {name: my-cm}}]` injects every key in the ConfigMap as an environment variable in a single block — exactly what was asked. `env` with a literal `value` of the ConfigMap name would only set one variable to the string 'my-cm', not pull any keys. `secretKeyRef` references Secret keys, not ConfigMap keys (`configMapKeyRef` does the per-key form). Mounting as a volume exposes the keys as files on disk, not as environment variables.",
       "tags": [
         "configmap",
         "environment-variables",
@@ -338,19 +345,20 @@
         "ckad"
       ],
       "difficulty": "easy",
-      "_normalized": true
+      "_normalized": true,
+      "rewritten": true
     },
     {
       "id": "ckad-017",
-      "question": "A developer needs an application to read a configuration file at `/etc/app/config.yaml`. The content is stored in a ConfigMap. Which approach mounts the ConfigMap as that file?",
+      "question": "A developer needs an application to read a configuration file at `/etc/app/config.yaml`. The content is stored in a ConfigMap. Which approach mounts the ConfigMap so the file appears at that path?",
       "options": [
-        "Inline the YAML in spec.containers.env.value and read it as an environment variable",
-        "Use envFrom.configMapRef so each key in the ConfigMap appears as an env variable",
-        "Use spec.volumes with a configMap source plus volumeMounts at /etc/app/config.yaml",
-        "Mount a hostPath volume that points to a node-local copy of /etc/app/config.yaml"
+        "Inline the YAML in spec.containers.env.value and have the application parse it from the environment at startup",
+        "Use spec.volumes with a configMap source and a volumeMount that projects the key as /etc/app/config.yaml",
+        "Mount a hostPath volume that points to a node-local copy of /etc/app/config.yaml",
+        "Use envFrom.configMapRef so each ConfigMap key becomes an environment variable that the application can read at runtime"
       ],
-      "correct": 2,
-      "explanation": "Mounting a ConfigMap as a volume projects ConfigMap keys as files in the container filesystem. With `volumes: [{name: config-vol, configMap: {name: my-config}}]` and `volumeMounts: [{name: config-vol, mountPath: /etc/app}]`, each ConfigMap key becomes a file at `/etc/app/<key>`. Specifying `items` lets you map a specific key to a specific filename like `config.yaml`.",
+      "correct": 1,
+      "explanation": "ConfigMap-backed volumes project each ConfigMap key as a file under `mountPath`; `items` lets you map a specific key (e.g., `config.yaml`) to a specific filename. Inlining YAML as an env var is fragile (length limits, escape pain) and gives the app a string, not a file. `envFrom` exposes keys as environment variables, not files. `hostPath` couples the Pod to a node-local file, breaks portability and rescheduling, and is a security risk.",
       "tags": [
         "configmap",
         "volume-mount",
@@ -363,15 +371,15 @@
     },
     {
       "id": "ckad-018",
-      "question": "A developer creates a Kubernetes Secret to store a database password. After creating the Secret, the developer runs `kubectl get secret db-secret -o yaml` and notices the password is displayed in what appears to be garbled text. What is the correct explanation?",
+      "question": "A developer creates a Kubernetes Secret to store a database password. Running `kubectl get secret db-secret -o yaml` shows the password as a string of garbled-looking characters. What is the correct explanation?",
       "options": [
-        "The password is Base64-encoded — not encrypted.",
-        "The Secret value is stored as a TLS certificate, which explains the encoding",
-        "The password is hashed with SHA-256 — it cannot be recovered",
-        "The password has been encrypted with AES-256 and can only be decrypted with the cluster's master key"
+        "The password is encrypted with AES-256 and can only be decrypted with the cluster master key",
+        "The value is stored as a TLS certificate, which is why it looks like a long random string",
+        "The password is hashed with SHA-256 and cannot be recovered from the stored value",
+        "The password is Base64-encoded, not encrypted — anyone with read access can decode it"
       ],
-      "correct": 0,
-      "explanation": "Kubernetes Secrets store values as Base64-encoded strings — this is encoding, NOT encryption. `echo 'cGFzc3dvcmQ=' | base64 --decode` reveals the original value. Secrets provide logical separation from ConfigMaps but are NOT secure by default. For real security, enable Secrets encryption at rest in etcd, use RBAC to restrict access, or use an external secrets manager (Vault, AWS Secrets Manager). Anyone with access to the Secret can decode it with `base64 --decode`",
+      "correct": 3,
+      "explanation": "Secret values are Base64-encoded in the YAML for safe transport of binary bytes — `echo '...' | base64 -d` recovers the original. They are not encrypted by default; real protection comes from RBAC, encryption-at-rest in etcd, or an external secret manager. The Secret here is type `Opaque` (or `generic`), not `kubernetes.io/tls`. Hashing would make the value unrecoverable by the consuming Pod, defeating the purpose. There is no built-in 'cluster master key' AES-256 wrapping unless the operator explicitly enabled encryption-at-rest providers.",
       "tags": [
         "secrets",
         "base64",
@@ -379,19 +387,20 @@
         "ckad"
       ],
       "difficulty": "easy",
-      "_normalized": true
+      "_normalized": true,
+      "rewritten": true
     },
     {
       "id": "ckad-019",
       "question": "A developer needs to pass a database password stored in a Kubernetes Secret as an environment variable `DB_PASSWORD` inside a container. Which Pod spec snippet achieves this?",
       "options": [
+        "env: [{name: DB_PASSWORD, valueFrom: {secretKeyRef: {name: db-secret, key: password}}}]",
+        "env: [{name: DB_PASSWORD, value: my-secret}] — inline the literal Secret name as the env value",
         "volumes: [{secret: {secretName: db-secret, key: password}}]",
-        "env: [{name: DB_PASSWORD, value: my-secret}]",
-        "envFrom: [{secretRef: {name: DB_PASSWORD}}]",
-        "env: [{name: DB_PASSWORD,."
+        "envFrom: [{secretRef: {name: DB_PASSWORD}}] — inject every key from the Secret named DB_PASSWORD"
       ],
-      "correct": 3,
-      "explanation": "`valueFrom.secretKeyRef` injects a single Secret key as an environment variable. `name` is the Secret object name; `key` is the specific key within the Secret. Using `envFrom.secretRef` injects ALL keys from the Secret as env vars (note: it's `secretRef`, not `secretRef.key`). The first option `value: my-secret` would set the literal string 'my-secret', not the Secret's value. valueFrom: {secretKeyRef: {name: db-secret, key: password}}}]",
+      "correct": 0,
+      "explanation": "`valueFrom.secretKeyRef` pulls a single Secret key into a named environment variable — the precise way to expose one secret as one env var. The volume form (`volumes:`) projects Secret data onto the filesystem, not as env vars (and `key` is not a valid field at that level). `value: my-secret` would set the literal string 'my-secret', not the Secret's contents. `envFrom.secretRef` injects every key from a Secret named `DB_PASSWORD` (clearly not the intent — DB_PASSWORD is the env var name, not the Secret name).",
       "tags": [
         "secrets",
         "environment-variables",
@@ -400,19 +409,19 @@
       ],
       "difficulty": "easy",
       "_normalized": true,
-      "_lenbal": true
+      "rewritten": true
     },
     {
       "id": "ckad-020",
-      "question": "A Pod needs to make API calls to the Kubernetes API server to list other Pods in the same namespace. Which Kubernetes object provides the identity that authorises this access?",
+      "question": "A Pod needs to call the Kubernetes API server to list other Pods in the same namespace. Which Kubernetes object provides the identity that authorises this access?",
       "options": [
-        "An imagePullSecret associated with the Pod's container image",
-        "A ClusterRoleBinding with the Pod's hostname as the subject",
-        "A NetworkPolicy allowing egress from the Pod to the API server",
-        "A ServiceAccount bound to the Pod."
+        "A ClusterRoleBinding whose subject is set to the Pod's hostname or fully qualified DNS name in the cluster",
+        "An imagePullSecret referenced from the Pod's `imagePullSecrets:` field for registry authentication only",
+        "A ServiceAccount bound to a Role (or ClusterRole) granting the required verbs on Pods",
+        "A NetworkPolicy allowing egress from the Pod to the API server"
       ],
-      "correct": 3,
-      "explanation": "Every Pod runs with a ServiceAccount identity (default: the 'default' ServiceAccount in its namespace). RBAC Roles define what actions are permitted on which resources. RoleBindings link Roles to ServiceAccounts. To list Pods, you'd create a Role with `rules: [{apiGroups: [''], resources: ['pods'], verbs: ['get', 'list']}]` and bind it to the Pod's ServiceAccount. with a Role/RoleBinding granting the necessary permissions",
+      "correct": 2,
+      "explanation": "Every Pod runs as a ServiceAccount whose token is mounted in the container; the API server authenticates that token and RBAC authorises requests via Roles/RoleBindings (or ClusterRoles/ClusterRoleBindings). To list Pods in a namespace you bind a Role with `verbs: [get, list]` on `pods` to the Pod's SA. ImagePullSecrets only authenticate to container registries. RBAC subjects are users, groups, or ServiceAccounts — not Pod hostnames. NetworkPolicy controls L3/L4 connectivity, not API authorisation; a Pod can reach the API and still be denied by RBAC.",
       "tags": [
         "serviceaccount",
         "rbac",
@@ -421,7 +430,8 @@
         "ckad"
       ],
       "difficulty": "medium",
-      "_normalized": true
+      "_normalized": true,
+      "rewritten": true
     },
     {
       "id": "ckad-021",
@@ -429,11 +439,11 @@
       "options": [
         "securityContext.runAsNonRoot: true together with allowPrivilegeEscalation: false",
         "securityContext.privileged: false on the container, leaving other defaults in place",
-        "securityContext.runAsUser: 0 with readOnlyRootFilesystem: true on the container",
-        "spec.hostPID: false and spec.hostNetwork: false set at the Pod-level spec"
+        "spec.hostPID: false and spec.hostNetwork: false at the Pod level",
+        "securityContext.runAsUser: 0 with readOnlyRootFilesystem: true"
       ],
       "correct": 0,
-      "explanation": "`runAsNonRoot: true` causes Kubernetes to refuse to run the container if the image would run as UID 0 (root). `allowPrivilegeEscalation: false` prevents the container process from gaining more privileges than its parent process (disables setuid binaries and sudo). Setting `runAsUser: 0` would explicitly run AS root, which is the opposite of what's needed.",
+      "explanation": "`runAsNonRoot: true` makes the kubelet refuse to start the container if the image would resolve to UID 0; `allowPrivilegeEscalation: false` sets the `no_new_privs` bit, blocking setuid binaries and `sudo` from gaining capabilities. `privileged: false` is already the default — setting it explicitly does not prevent UID 0 or setuid escalation. `runAsUser: 0` runs the container AS root, the opposite of the goal. The Pod-level host-namespace fields control host namespace sharing, not the container's UID or escalation behaviour.",
       "tags": [
         "security-context",
         "runasnonroot",
@@ -448,13 +458,13 @@
       "id": "ckad-022",
       "question": "A developer sets `resources.requests.cpu: 250m` and `resources.limits.cpu: 500m` on a container. What happens if the container's CPU usage consistently hits 500m?",
       "options": [
-        "The container is CPU-throttled.",
-        "The container is migrated to a node with more available CPU",
-        "The Pod is evicted from the node",
-        "The container is killed and restarted (OOMKilled equivalent for CPU)"
+        "The container is killed and restarted (the CPU equivalent of OOMKilled)",
+        "The Pod is evicted from the node by the kubelet",
+        "The container is live-migrated to a node with more available CPU",
+        "The container is CPU-throttled by the kernel CFS bandwidth controller and keeps running"
       ],
-      "correct": 0,
-      "explanation": "CPU limits are enforced by Linux CFS (Completely Fair Scheduler) bandwidth control. When a container hits its CPU limit, it is throttled — the kernel limits how much CPU time the container can use per scheduling period. Unlike memory limits, exceeding a CPU limit does NOT kill the container. Requests affect scheduling (the scheduler places Pods on nodes with enough available CPU). the kernel limits its CPU time to 500m but the container keeps running",
+      "correct": 3,
+      "explanation": "CPU limits are enforced by the Linux Completely Fair Scheduler's bandwidth control — when a container reaches its quota in a scheduling period it is throttled, not killed. There is no built-in live-migration for Pods (the Pod object cannot move between nodes mid-execution). Eviction is driven by node-pressure conditions (memory, disk, PIDs), not by hitting a CPU limit. There is no 'CPU OOMKill'; exceeding memory limits kills the container, exceeding CPU limits only slows it down.",
       "tags": [
         "resource-limits",
         "cpu-throttling",
@@ -462,19 +472,20 @@
         "ckad"
       ],
       "difficulty": "medium",
-      "_normalized": true
+      "_normalized": true,
+      "rewritten": true
     },
     {
       "id": "ckad-023",
-      "question": "A developer creates a ClusterIP Service named 'api-service' in namespace 'backend'. Another Pod in namespace 'frontend' needs to reach it. Which DNS name resolves to this Service from the frontend namespace?",
+      "question": "A developer creates a ClusterIP Service named `api-service` in namespace `backend`. A Pod in namespace `frontend` needs to reach it. Which DNS name resolves to this Service from the frontend namespace?",
       "options": [
-        "backend.api-service.svc.cluster.local — namespace-first form which kube-dns rejects",
-        "api-service.backend.cluster.local — missing the svc segment from the FQDN",
-        "api-service.backend.svc.cluster.local — full FQDN for a Service in backend ns",
-        "api-service alone — only resolves from inside the Service's own namespace"
+        "api-service.backend.svc.cluster.local — full FQDN for a Service in the backend namespace",
+        "api-service alone — works from any namespace via the cluster search domain",
+        "api-service.backend.cluster.local — drop the `svc` segment from the FQDN",
+        "backend.api-service.svc.cluster.local — namespace must come first"
       ],
-      "correct": 2,
-      "explanation": "Kubernetes internal DNS follows the pattern `<service-name>.<namespace>.svc.cluster.local`. From within the same namespace, `api-service` suffices. From a different namespace, you must include at least the namespace: `api-service.backend` works because DNS search domains add `.svc.cluster.local`. The fully qualified domain name `api-service.backend.svc.cluster.local` always works from any namespace.",
+      "correct": 0,
+      "explanation": "Kubernetes DNS follows `<service>.<namespace>.svc.<cluster-domain>`, so `api-service.backend.svc.cluster.local` is correct from any namespace. The first option reverses service and namespace. The second drops the `svc` segment, which is required (Services live under `svc`, Pods under `pod`). The bare name `api-service` only resolves from inside the `backend` namespace because the search domain prepends the caller's namespace.",
       "tags": [
         "services",
         "dns",
@@ -490,13 +501,13 @@
       "id": "ckad-024",
       "question": "A developer creates a Service of type NodePort for a web application. Which statement CORRECTLY describes how this Service works?",
       "options": [
-        "NodePort is identical to ClusterIP but can be accessed from within the cluster only",
-        "NodePort exposes the Service on a static port on every cluster node's IP address.",
-        "NodePort routes traffic to Pods only on the same node where the request arrives",
-        "NodePort requires a cloud load balancer to route external traffic"
+        "NodePort requires a cloud load balancer to route external traffic to the Pods",
+        "NodePort routes traffic only to Pods that happen to run on the node receiving the request",
+        "NodePort is identical to ClusterIP and is only reachable from inside the cluster",
+        "NodePort exposes the Service on a static port on every node's IP, forwarding to the backing Pods"
       ],
-      "correct": 1,
-      "explanation": "A NodePort Service allocates a port (default range 30000-32767) on EVERY node in the cluster. External traffic to `<NodeIP>:<NodePort>` is forwarded to the backing Pods via kube-proxy, regardless of which node the Pod runs on. It does not require a cloud load balancer (unlike LoadBalancer type). ClusterIP is cluster-internal only. NodePort is commonly used for development and can be fronted by an external load balancer in production. allowing external traffic to reach the Pods",
+      "correct": 3,
+      "explanation": "NodePort allocates a port (default range 30000–32767) on every node; kube-proxy forwards traffic from `<NodeIP>:<NodePort>` to a backing Pod, regardless of which node the Pod runs on. ClusterIP is internal-only — that is the contrast NodePort exists to bridge. By default kube-proxy load-balances across all Pods cluster-wide (you only get node-local routing if you set `externalTrafficPolicy: Local`). LoadBalancer is the type that depends on a cloud LB; NodePort works on its own and is often the building block used under a LoadBalancer.",
       "tags": [
         "services",
         "nodeport",
@@ -505,19 +516,20 @@
         "ckad"
       ],
       "difficulty": "easy",
-      "_normalized": true
+      "_normalized": true,
+      "rewritten": true
     },
     {
       "id": "ckad-025",
-      "question": "A developer has two applications — `frontend` (on path '/') and `api` (on path '/api') — both needing to be accessible via a single external hostname. Which Kubernetes resource handles HTTP path-based routing to multiple backend Services?",
+      "question": "A developer has two applications — `frontend` on path `/` and `api` on path `/api` — both needing to be reachable via a single external hostname. Which Kubernetes resource handles HTTP path-based routing to multiple backend Services?",
       "options": [
-        "Two Services of type LoadBalancer, each fronting a separate path routing rule for the frontend and api backends",
-        "ExternalName Service pointing simultaneously at both backend application names",
-        "Ingress resource whose path rules send '/' to the frontend and '/api' to the api",
-        "NodePort Service with multiple port mappings, one per application backend"
+        "An ExternalName Service pointing simultaneously at both backend application names",
+        "An Ingress whose path rules send `/` to the frontend Service and `/api` to the api Service",
+        "Two LoadBalancer Services, each fronting a separate path-routing rule",
+        "A NodePort Service with multiple port mappings, one per application backend"
       ],
-      "correct": 2,
-      "explanation": "An Ingress resource defines HTTP(S) routing rules: by hostname and/or path. A single Ingress can route `/` to the frontend Service and `/api` to the api Service, through a single cloud load balancer IP. An Ingress controller (nginx, traefik, AWS ALB, etc.) must be installed to implement the Ingress rules. This is far more cost-effective than one LoadBalancer Service per application.",
+      "correct": 1,
+      "explanation": "An Ingress defines L7 (HTTP/HTTPS) host- and path-based routing rules and is consumed by an Ingress Controller that programs an external load balancer or reverse proxy — exactly the right tool for fan-out by path under one hostname. Two LoadBalancer Services cost two external IPs and cannot share a hostname/path scheme without separate DNS. ExternalName is a single DNS CNAME — it cannot fan out or do path matching. NodePort exposes Services on TCP ports per node; it has no notion of HTTP paths.",
       "tags": [
         "ingress",
         "path-routing",
@@ -531,15 +543,15 @@
     },
     {
       "id": "ckad-026",
-      "question": "A developer needs to restrict network traffic so that only Pods with the label `app=frontend` can send traffic to Pods with the label `app=database`. All other traffic to the database Pods should be blocked. Which resource enforces this?",
+      "question": "A developer needs to restrict traffic so that only Pods labelled `app=frontend` can reach Pods labelled `app=database`. All other traffic to the database Pods should be blocked. Which resource enforces this?",
       "options": [
-        "An Ingress resource with a whitelist annotation naming the frontend application Pods",
-        "A ResourceQuota limiting the count of connections from non-frontend namespaces",
+        "A ResourceQuota limiting how many connections non-frontend namespaces may open",
+        "A ClusterIP Service with session-affinity rules that pin frontend to database",
         "A NetworkPolicy on the database Pods allowing ingress only from app=frontend Pods",
-        "A ClusterIP Service with session affinity rules that pin frontend to database"
+        "An Ingress with a whitelist annotation naming the frontend application Pods"
       ],
       "correct": 2,
-      "explanation": "A NetworkPolicy selects target Pods (via `podSelector`) and defines ingress/egress rules. To allow only frontend→database traffic: set `podSelector` to match `app=database`, `policyTypes: [Ingress]`, and `ingress.from.podSelector` to match `app=frontend`. Any traffic not matching a NetworkPolicy's rules is denied (once ANY NetworkPolicy applies to a Pod, non-matching traffic is blocked by default).",
+      "explanation": "A NetworkPolicy with `podSelector: {matchLabels: {app: database}}`, `policyTypes: [Ingress]`, and `ingress.from.podSelector: {matchLabels: {app: frontend}}` is the canonical pattern; once a NetworkPolicy selects a Pod, all non-matching traffic is denied. Ingress is for L7 HTTP routing into the cluster, not Pod-to-Pod policy. ResourceQuota caps API object counts and aggregate resource usage in a namespace — it does not control L4 connectivity. Service session affinity sticks a client to a backend Pod; it does not gate which clients are allowed.",
       "tags": [
         "networkpolicy",
         "ingress",
@@ -555,13 +567,13 @@
       "id": "ckad-027",
       "question": "A developer applies a NetworkPolicy with `spec.podSelector: {}` (empty selector) and `policyTypes: [Ingress]` with no `ingress` rules. What effect does this have?",
       "options": [
-        "This is an invalid NetworkPolicy that Kubernetes ignores",
-        "Only Pods without labels are affected by this policy",
-        "All Pods in the namespace are completely isolated from all ingress traffic.",
-        "All Pods in the namespace are exposed to all ingress traffic — empty selector means no restrictions"
+        "All Pods in the namespace are completely isolated from ingress traffic (default-deny ingress)",
+        "Kubernetes rejects the manifest as invalid because no ingress rules are listed",
+        "All Pods in the namespace allow all ingress traffic because the selector matches everything",
+        "Only Pods without any labels are affected by this policy"
       ],
-      "correct": 2,
-      "explanation": "An empty `podSelector: {}` selects ALL Pods in the namespace. Setting `policyTypes: [Ingress]` with NO `ingress` rules means: 'apply an ingress policy that allows nothing' — all ingress traffic to all Pods in the namespace is blocked. This is the standard 'default deny ingress' pattern. Adding explicit `ingress` rules then selectively allows traffic from specific sources. no traffic can enter any Pod",
+      "correct": 0,
+      "explanation": "An empty `podSelector` matches every Pod in the namespace; `policyTypes: [Ingress]` with an empty (omitted) `ingress` list means 'apply an ingress policy that allows nothing' — the canonical default-deny pattern. Kubernetes accepts the manifest; an empty ingress list is valid and deliberate. The empty selector matches all Pods regardless of labels. The 'allow all' interpretation reverses the semantics: empty rules deny, not permit.",
       "tags": [
         "networkpolicy",
         "default-deny",
@@ -570,19 +582,19 @@
       ],
       "difficulty": "hard",
       "_normalized": true,
-      "_lenbal": true
+      "rewritten": true
     },
     {
       "id": "ckad-028",
       "question": "A StatefulSet is used instead of a Deployment for a database application. Which characteristic of StatefulSets makes them appropriate for stateful workloads like databases?",
       "options": [
-        "StatefulSets only run on dedicated nodes, which prevents resource contention there",
-        "StatefulSets automatically create database schemas at the application's first boot",
+        "StatefulSets only run on dedicated nodes, preventing resource contention",
         "StatefulSets automatically back up their PersistentVolumes on an hourly schedule",
-        "StatefulSets give each Pod a stable identity, ordered startup, and persistent storage"
+        "StatefulSets automatically create database schemas on first boot",
+        "StatefulSets give each Pod a stable identity, ordered startup, and persistent per-Pod storage"
       ],
       "correct": 3,
-      "explanation": "StatefulSets provide: (1) stable, unique Pod names (pod-0, pod-1, pod-2) that persist across rescheduling; (2) stable DNS hostnames (pod-0.service-name); (3) ordered, graceful deployment and scaling; (4) PersistentVolumeClaims per Pod that are retained if a Pod is rescheduled — the same Pod gets back the same volume. These guarantees are essential for databases, message queues, and distributed systems that store state. unique network identity and persistent storage that follows the Pod if it is rescheduled NOTE: prior version had the correct option truncated to \"StatefulSets give each Pod a stable.\" — fixed 2026-05-19.",
+      "explanation": "StatefulSets guarantee stable Pod names (`db-0`, `db-1`...) and stable DNS hostnames via the headless Service, ordered deployment/scaling/termination, and per-Pod PersistentVolumeClaims that follow the Pod across rescheduling — the four properties stateful systems need. They do not pin to dedicated nodes; that is the job of taints, affinity, or DaemonSets. They have no built-in concept of application schemas — that is application bootstrap logic. There is no automatic PV backup; snapshots come from `VolumeSnapshot` or external backup tooling.",
       "tags": [
         "statefulset",
         "stable-identity",
@@ -597,13 +609,13 @@
       "id": "ckad-029",
       "question": "A developer creates a PersistentVolumeClaim (PVC) and mounts it in a Pod. If the Pod is deleted and a new Pod is created referencing the same PVC, what happens to the data?",
       "options": [
-        "The data is automatically backed up to a snapshot and must be restored manually",
-        "The data persists only if the Pod is on the same node as the original PVC",
-        "The data persists because PVCs have a lifecycle independent of Pods.",
-        "The data is deleted when the Pod is deleted, as the volume lifecycle is tied to the Pod"
+        "The data only persists if the new Pod is scheduled on the same node as the original",
+        "The data is deleted with the Pod, because the volume lifecycle is tied to the Pod",
+        "The data persists because the PVC and its bound PV have a lifecycle independent of any Pod",
+        "The data is automatically snapshotted and must be restored manually before reuse"
       ],
       "correct": 2,
-      "explanation": "PersistentVolumeClaims (PVCs) have a lifecycle independent of Pods. The underlying PersistentVolume (PV) retains its data as long as the PVC exists (and according to the reclaim policy). When a new Pod mounts the same PVC, it accesses the existing data. This is fundamental to stateful applications — Pod restarts or rescheduling do not cause data loss. `emptyDir` volumes, by contrast, are ephemeral and tied to Pod lifecycle. the new Pod mounts the same volume and accesses the existing data",
+      "explanation": "PVCs and their bound PersistentVolumes outlive Pods — when a new Pod references the same PVC, it mounts the same underlying volume and sees the same data. There is no automatic snapshotting or restore step in normal PVC use. Same-node placement is not required for networked storage classes (it does matter for `local` volumes, but that is a special case, not the general rule). The Pod-tied lifecycle describes `emptyDir`, not PVCs.",
       "tags": [
         "persistentvolumeclaim",
         "storage",
@@ -611,19 +623,20 @@
         "ckad"
       ],
       "difficulty": "easy",
-      "_normalized": true
+      "_normalized": true,
+      "rewritten": true
     },
     {
       "id": "ckad-030",
       "question": "A developer needs temporary scratch space shared between two containers in the same Pod. The data does NOT need to persist after the Pod is deleted. Which volume type is appropriate?",
       "options": [
-        "hostPath — mounts a directory from the node's filesystem",
-        "emptyDir — created when a Pod is assigned to a node.",
-        "PersistentVolumeClaim — ensures data durability across Pod restarts",
-        "configMap — stores arbitrary data that can be mounted in containers"
+        "configMap — exposes ConfigMap keys as files inside the container filesystem",
+        "emptyDir — created when the Pod is assigned and removed when the Pod is deleted",
+        "hostPath — mounts a directory from the underlying node's filesystem",
+        "PersistentVolumeClaim — provides storage that survives Pod restarts and deletion"
       ],
       "correct": 1,
-      "explanation": "`emptyDir` is an ephemeral volume that exists for the lifetime of the Pod. All containers in the Pod can read/write to it (useful for sharing files between sidecar and main container). It is initialised as empty and deleted when the Pod is removed. `hostPath` mounts host filesystem directories (security risk, not portable). PVCs are for durable storage. ConfigMaps are for configuration data. shared by all containers, deleted when the Pod is removed",
+      "explanation": "`emptyDir` is created empty when the Pod lands on a node, is writable by every container in the Pod, and is deleted with the Pod — exactly the asked-for semantics. `hostPath` ties the data to one node, is a portability and security risk, and outlives the Pod. PVCs provide durable storage, which contradicts 'does not need to persist'. ConfigMap volumes are read-only configuration projections, not scratch space.",
       "tags": [
         "emptydir",
         "ephemeral-volumes",
@@ -632,19 +645,20 @@
         "ckad"
       ],
       "difficulty": "easy",
-      "_normalized": true
+      "_normalized": true,
+      "rewritten": true
     },
     {
       "id": "ckad-031",
-      "question": "A developer wants to test a quick change by running a temporary Pod with an nginx image, checking the output, and having it automatically deleted when it exits. Which kubectl command achieves this?",
+      "question": "A developer wants to run a temporary Pod with an nginx image, get an interactive shell, and have the Pod automatically deleted on exit. Which kubectl command achieves this?",
       "options": [
-        "kubectl apply -f pod.yaml with the --prune flag to delete unmanaged resources",
-        "kubectl create pod test --image=nginx --restart=Never on the current namespace",
-        "kubectl run test --image=nginx --rm -it -- /bin/bash to attach and auto-delete",
+        "kubectl run test --image=nginx --rm -it -- /bin/bash",
+        "kubectl apply -f pod.yaml with the --prune flag",
+        "kubectl create pod test --image=nginx --restart=Never",
         "kubectl run test --image=nginx --restart=Always so the Pod keeps restarting after exit"
       ],
-      "correct": 2,
-      "explanation": "`kubectl run <name> --image=<image> --rm -it -- <command>` creates a Pod, attaches an interactive terminal, and automatically deletes the Pod when the command exits (`--rm`). `--restart=Never` (implied by `--rm -it`) creates a Pod (not a Deployment). This is the standard 'throwaway debugging Pod' pattern, also useful with tools like `busybox` or `netshoot` for network troubleshooting.",
+      "correct": 0,
+      "explanation": "`kubectl run --rm -it` creates a Pod, attaches stdin/TTY, and deletes the Pod when the command exits — the canonical throwaway-Pod pattern with `busybox`, `nginx`, `netshoot`, etc. `kubectl apply --prune` is for declarative reconciliation of resources by label, not for ephemeral interactive Pods. `kubectl create pod` is not a valid subcommand — `create` does not take `pod` as a noun (use `kubectl run` instead). `restart=Always` creates a Deployment-backed Pod that never exits cleanly, the opposite of throwaway.",
       "tags": [
         "kubectl-run",
         "ephemeral-pod",
@@ -660,13 +674,13 @@
       "id": "ckad-032",
       "question": "A developer uses `kubectl port-forward` to access a service running inside a Kubernetes cluster from their local machine. Which statement accurately describes how this works?",
       "options": [
-        "It provisions a temporary NodePort Service on a randomly chosen Kubernetes API server port for the tunnel",
-        "It edits the cluster's network firewall rules so the service is reachable externally",
-        "It tunnels a local port to a Pod port via the Kubernetes API server, no Service needed",
-        "It requires the target Pod to have externalTrafficPolicy: Local configured explicitly"
+        "It requires the target Pod to have externalTrafficPolicy: Local configured first",
+        "It provisions a temporary NodePort on a random API server port to expose the target",
+        "It edits the cluster firewall rules so the target Service becomes reachable externally",
+        "It tunnels a local port to a Pod port through the Kubernetes API server"
       ],
-      "correct": 2,
-      "explanation": "`kubectl port-forward <pod-or-service-name> <local-port>:<pod-port>` creates a secure tunnel from the local machine to the target Pod via the Kubernetes API server. No external exposure, no Service modifications, no firewall changes needed. It's for temporary debugging access — not production traffic. You can forward to a Pod directly or to a Service (which then selects a Pod).",
+      "correct": 3,
+      "explanation": "`kubectl port-forward` opens a TCP tunnel from your local port through the kube-apiserver (and kubelet's SPDY/WebSocket channel) to the Pod's port — no Service, NodePort, or firewall change is needed; the connection is authenticated by your kubeconfig. No NodePort is created. The cluster firewall is not modified — that would defeat the temporary, audited nature of port-forward. `externalTrafficPolicy` is a Service field; port-forward does not consume Services at all (it forwards to a Pod directly).",
       "tags": [
         "port-forward",
         "kubectl",
@@ -680,15 +694,15 @@
     },
     {
       "id": "ckad-033",
-      "question": "A developer wants to expose an application inside the cluster using a Service. The application should NOT be accessible from outside the cluster. Which Service type provides internal-only access?",
+      "question": "A developer wants to expose an application to other Pods inside the cluster but NOT outside. Which Service type provides internal-only access?",
       "options": [
-        "ClusterIP — the default type.",
-        "LoadBalancer — but with `spec.loadBalancerIP` set to an internal IP",
-        "NodePort — restricted to intra-cluster nodes",
-        "ExternalName — resolves to an internal CNAME"
+        "LoadBalancer — with spec.loadBalancerIP set to an internal IP address",
+        "ClusterIP — the default Service type, reachable only from within the cluster",
+        "ExternalName — resolves the Service name to an internal CNAME",
+        "NodePort — restricted to traffic originating from inside the cluster"
       ],
-      "correct": 0,
-      "explanation": "ClusterIP is the default Service type. It allocates a virtual IP from the cluster's IP range that is only reachable within the cluster (by other Pods and nodes). External traffic cannot reach a ClusterIP Service directly. NodePort and LoadBalancer expose the Service externally. ExternalName is for proxying DNS names (internal or external). Most microservice communication uses ClusterIP. accessible only within the cluster via the cluster-internal IP",
+      "correct": 1,
+      "explanation": "ClusterIP allocates a virtual IP from the Service CIDR that only nodes and Pods can route to — no external exposure, and it is the default type. LoadBalancer always asks the cloud for an externally reachable LB (internal-LB annotations exist but are provider-specific and not part of the Service type itself). NodePort opens a port on every node's external IP — by definition externally reachable. ExternalName is a DNS CNAME; it does not produce a cluster IP and usually points OUT of the cluster.",
       "tags": [
         "services",
         "clusterip",
@@ -697,19 +711,20 @@
         "ckad"
       ],
       "difficulty": "easy",
-      "_normalized": true
+      "_normalized": true,
+      "rewritten": true
     },
     {
       "id": "ckad-034",
-      "question": "A developer defines a Pod with `readinessProbe.httpGet.path: /health` and the application returns HTTP 503 for the first 30 seconds while loading data. The Pod's status shows `0/1 READY`. Is this the expected behaviour?",
+      "question": "A developer defines a Pod with `readinessProbe.httpGet.path: /health`. The application returns HTTP 503 for the first 30 seconds while loading data. The Pod shows `0/1 READY`. Is this expected behaviour?",
       "options": [
-        "No — a 503 response trips the restartPolicy and the container will be restarted",
-        "Yes — the failing readiness probe marks the Pod Not Ready and drops it from Endpoints",
-        "Yes — but Kubernetes terminates the Pod after 30 seconds of Not Ready status anyway",
-        "No — the Pod should be Ready right away; a 503 response indicates a config error"
+        "Yes — but Kubernetes terminates the Pod after the NotReady threshold expires, since prolonged readiness failures count as a liveness failure",
+        "No — a 503 response is treated as a fatal probe failure and trips the restartPolicy, so the container will be restarted by the kubelet",
+        "No — the Pod should be Ready as soon as the container is Running; a 503 from the readiness endpoint indicates the health check is misconfigured",
+        "Yes — the failing readiness probe marks the Pod NotReady and drops it from Service endpoints until the probe passes"
       ],
-      "correct": 1,
-      "explanation": "This is correct and expected behaviour. A failing readiness probe marks the Pod as Not Ready (shown as 0/1 in kubectl). Traffic is not routed to it during this period. Crucially, the Pod is NOT restarted — it just stays out of rotation. Once the probe starts returning 2xx, the Pod becomes Ready and traffic resumes. This protects the Service from routing traffic to unprepared backends.",
+      "correct": 3,
+      "explanation": "A failing readiness probe is exactly the mechanism for 'not ready yet': the kubelet marks the Pod NotReady, the endpoints controller removes it from each Service's Endpoints list, traffic is withheld, and no restart occurs — once the probe returns 2xx the Pod becomes Ready. Readiness failures do not interact with `restartPolicy`; only liveness failures do. Kubernetes does not auto-terminate NotReady Pods after 30 seconds; they stay until they pass, are deleted, or fail a separate liveness probe. A transient 503 during warmup is the textbook case, not a configuration error.",
       "tags": [
         "readiness-probe",
         "pod-status",
@@ -722,15 +737,15 @@
     },
     {
       "id": "ckad-035",
-      "question": "A developer needs to ensure no single container in a namespace can use more than 500m CPU and 256Mi memory. Which object enforces per-container default limits?",
+      "question": "A developer needs to ensure no single container in a namespace can request more than 500m CPU and 256Mi memory by default. Which object enforces per-container defaults and bounds?",
       "options": [
-        "PodDisruptionBudget — limits voluntary disruptions during maintenance",
-        "HorizontalPodAutoscaler — scales Pods based on resource usage",
-        "ResourceQuota — sets aggregate limits for the entire namespace",
-        "LimitRange — sets default."
+        "ResourceQuota — sets aggregate caps for the entire namespace",
+        "LimitRange — sets default, minimum, and maximum requests/limits per container in the namespace",
+        "HorizontalPodAutoscaler — scales the replica count of a workload up and down based on CPU, memory, or custom-metric utilisation",
+        "PodDisruptionBudget — limits the minimum availability of a workload during voluntary disruptions like node drains"
       ],
-      "correct": 3,
-      "explanation": "A LimitRange object applies to a specific namespace and defines: default requests/limits for containers that don't specify them; minimum and maximum allowed requests/limits; and ratio constraints between request and limit. If a Pod is created without resource specifications, LimitRange injects the defaults. ResourceQuota limits the total resources consumed by all Pods in a namespace, not per-container. minimum, and maximum resource constraints per container (or Pod/PVC) in a namespace",
+      "correct": 1,
+      "explanation": "LimitRange is the namespaced object that supplies default requests/limits when a manifest omits them and rejects manifests that exceed the configured min/max — exactly the per-container constraint described. PodDisruptionBudget governs how many replicas may be voluntarily evicted at once; it has nothing to do with resource sizes. HPA controls replica count via metrics; it never sets per-container limits. ResourceQuota sums across the namespace (total CPU, memory, object counts) rather than constraining any individual container.",
       "tags": [
         "limitrange",
         "resource-constraints",
@@ -738,19 +753,20 @@
         "ckad"
       ],
       "difficulty": "medium",
-      "_normalized": true
+      "_normalized": true,
+      "rewritten": true
     },
     {
       "id": "ckad-036",
-      "question": "A developer runs `kubectl get events --sort-by='.lastTimestamp'` to debug a failing Pod. This command shows: 'Failed to pull image: ErrImagePull'. What is the MOST likely cause?",
+      "question": "A developer sees `kubectl describe pod` for a failing Pod reports `Failed to pull image: ErrImagePull`. What is the MOST likely cause?",
       "options": [
-        "The node has run out of disk space",
-        "The image name or tag is incorrect.",
-        "The Pod's liveness probe is failing, preventing image pull",
-        "The Pod's resource requests exceed the node capacity"
+        "The image name or tag is wrong, or the private registry needs an imagePullSecret",
+        "The Pod's liveness probe is failing, which is blocking image pull",
+        "The node has run out of disk space for the image layers",
+        "The Pod's resource requests exceed the node's capacity"
       ],
-      "correct": 1,
-      "explanation": "ErrImagePull occurs when Kubernetes cannot pull the container image. Most common causes: (1) Wrong image name or tag (typo, non-existent tag like 'latest' on a private registry); (2) Private registry requiring authentication — needs an imagePullSecret; (3) No internet access from the node; (4) Image has been deleted from the registry. Check `kubectl describe pod` for the exact error message from the container runtime. or the container registry requires authentication that hasn't been configured",
+      "correct": 0,
+      "explanation": "ErrImagePull means the container runtime tried but failed to fetch the image — overwhelmingly a typo in the name/tag or missing credentials for a private registry (fix with an `imagePullSecret` referenced by `imagePullSecrets:` in the Pod spec). Disk-pressure conditions manifest as evictions or `DiskPressure` node conditions, not ErrImagePull. Liveness probes only run after the container is started — they cannot interfere with the pull. Capacity problems surface as `Pending` with `FailedScheduling` events, not as image-pull errors.",
       "tags": [
         "image-pull",
         "debugging",
@@ -758,19 +774,20 @@
         "ckad"
       ],
       "difficulty": "easy",
-      "_normalized": true
+      "_normalized": true,
+      "rewritten": true
     },
     {
       "id": "ckad-037",
-      "question": "A developer wants to use Kustomize to modify a base Kubernetes Deployment (changing the image tag and replica count) without editing the original base files. How does Kustomize handle this?",
+      "question": "A developer wants to use Kustomize to modify a base Kubernetes Deployment (change image tag and replica count) without editing the original base files. How does Kustomize handle this?",
       "options": [
-        "Kustomize replaces Helm and requires a chart.yaml to be present in the base directory",
-        "Kustomize uses overlays — kustomization.yaml in the overlay patches the unchanged base",
-        "Kustomize stores its patches inside a ConfigMap that is applied at runtime by the API",
-        "Kustomize copies the base files into the overlay and lets you edit the copies directly"
+        "Kustomize replaces Helm and requires a chart.yaml in the base directory",
+        "Kustomize copies the base files into the overlay so you can edit the copies in place",
+        "Kustomize uses overlays — a kustomization.yaml in the overlay patches the unchanged base",
+        "Kustomize stores its patches inside a ConfigMap applied at runtime by the API server"
       ],
-      "correct": 1,
-      "explanation": "Kustomize uses a declarative patching model: a base directory contains original manifests; an overlay directory has a kustomization.yaml that references the base and applies patches (strategic merge patches or JSON 6902 patches). Running `kubectl apply -k <overlay-dir>` or `kustomize build | kubectl apply -f -` merges the patches with the base at apply time. The base files remain unmodified.",
+      "correct": 2,
+      "explanation": "Kustomize is declarative patching: the base is read-only, and the overlay's `kustomization.yaml` references it plus a list of strategic-merge or JSON-6902 patches; `kubectl apply -k overlay/` or `kustomize build overlay/ | kubectl apply -f -` produces the final manifest at apply time. Kustomize does not replace Helm — they coexist, and chart.yaml is a Helm concept. There is no runtime ConfigMap-based patch mechanism; patches are resolved client-side. Kustomize never copies base files into the overlay; the whole point is to leave the base untouched.",
       "tags": [
         "kustomize",
         "overlays",
@@ -786,13 +803,13 @@
       "id": "ckad-038",
       "question": "A developer needs to schedule a Pod only on nodes with an SSD disk. The nodes are labelled `disk=ssd`. Which Pod spec field pins the Pod to matching nodes?",
       "options": [
-        "spec.affinity.nodeAffinity with a preferredDuringSchedulingIgnoredDuringExecution rule",
-        "spec.nodeSelector: {disk: ssd}.",
         "spec.hostSelector: disk=ssd",
-        "spec.nodeName: disk-ssd"
+        "spec.nodeName: disk-ssd",
+        "spec.nodeSelector: {disk: ssd}",
+        "spec.affinity.nodeAffinity with preferredDuringSchedulingIgnoredDuringExecution"
       ],
-      "correct": 1,
-      "explanation": "`spec.nodeSelector` is the simplest way to constrain which nodes a Pod can be scheduled on. It matches Pods to nodes with specific labels. `spec.nodeName` pins to a specific node name (not a selector). Node affinity provides more expressive rules (required vs preferred, operators like In, NotIn, Exists, Gt). For a simple 'must have this label' requirement, nodeSelector is the recommended approach. the simplest node selection mechanism",
+      "correct": 2,
+      "explanation": "`nodeSelector` is the simplest hard constraint: the Pod is only schedulable on nodes whose labels include every key/value in the map. The `preferred` form of node affinity is a soft preference — the scheduler may still place the Pod on a non-SSD node, which is not 'pin to matching nodes'. `hostSelector` is not a real field. `nodeName` pins to a specific node BY NAME — it would only match a node literally named `disk-ssd`, not any node with the SSD label.",
       "tags": [
         "node-selector",
         "scheduling",
@@ -800,19 +817,20 @@
         "ckad"
       ],
       "difficulty": "easy",
-      "_normalized": true
+      "_normalized": true,
+      "rewritten": true
     },
     {
       "id": "ckad-039",
       "question": "A developer runs `kubectl rollout status deployment/web` and the command hangs without completing. What is MOST likely happening?",
       "options": [
         "The kubectl command has a bug and needs to be rerun with --force",
-        "The deployment has no rollout in progress",
-        "The deployment has been paused with kubectl rollout pause",
-        "The rollout is in progress but the new Pods are failing their"
+        "The Deployment was paused with kubectl rollout pause and is awaiting resume",
+        "The Deployment has no rollout in progress so the command should have returned immediately",
+        "The rollout is in progress but new Pods are failing their readiness probes"
       ],
       "correct": 3,
-      "explanation": "`kubectl rollout status` waits until the rollout completes (all new Pods are ready) or fails. If it hangs, the most common cause is new Pods failing their readiness probes — the rollout controller waits for the new Pod to become ready before replacing the next old Pod. Check `kubectl get pods` and `kubectl describe pod <new-pod>` to see the probe failure reason. A paused rollout would also cause this command to wait indefinitely. so Kubernetes is waiting before proceeding",
+      "explanation": "`kubectl rollout status` blocks until the rollout finishes or fails. The textbook reason for it to hang is that the new ReplicaSet's Pods are not becoming Ready — the controller waits for readiness before replacing the next old Pod. Check `kubectl get pods` and `kubectl describe pod` on a new replica for the probe failure. `--force` is not a flag for `rollout status`. If there is no rollout in progress the command exits quickly with `deployment ... successfully rolled out`. A paused rollout is plausible but rarer than failed probes; the question asks for the MOST likely cause.",
       "tags": [
         "deployment",
         "rollout-status",
@@ -822,19 +840,19 @@
       ],
       "difficulty": "medium",
       "_normalized": true,
-      "_lenbal": true
+      "rewritten": true
     },
     {
       "id": "ckad-040",
-      "question": "A developer wants to scale a Deployment named 'web' to 5 replicas without editing the manifest file. Which command achieves this imperatively?",
+      "question": "A developer wants to scale a Deployment named `web` to 5 replicas without editing the manifest file. Which command achieves this imperatively?",
       "options": [
-        "kubectl scale deployment web --replicas=5",
-        "kubectl patch deployment web -p '{\"spec\":{\"replicas\":5}}' to scale the Deployment",
         "kubectl set replicas deployment/web --count=5",
-        "kubectl edit deployment web and change replicas manually"
+        "kubectl patch deployment web -p '{\"spec\":{\"replicas\":5}}'",
+        "kubectl scale deployment web --replicas=5",
+        "kubectl edit deployment web (interactive editor)"
       ],
-      "correct": 0,
-      "explanation": "`kubectl scale deployment <name> --replicas=<n>` is the imperative command for scaling a Deployment. `kubectl patch` also works (it's a JSON patch) and is useful in scripts. `kubectl edit` opens a text editor and works but is interactive. `kubectl set replicas` is not a valid kubectl command — the correct form for other settings is `kubectl set image`, `kubectl set env`, etc.",
+      "correct": 2,
+      "explanation": "`kubectl scale deployment web --replicas=5` is the dedicated imperative scale command — short, scriptable, and the answer the exam expects. `kubectl patch` also works but is more verbose and harder to remember syntax for. `kubectl set replicas` is not a valid subcommand (valid forms are `kubectl set image`, `kubectl set env`, `kubectl set resources`, ...). `kubectl edit` works but opens an editor, which is interactive and not 'imperative-one-shot'.",
       "tags": [
         "kubectl-scale",
         "deployment",
@@ -843,19 +861,20 @@
         "ckad"
       ],
       "difficulty": "easy",
-      "_normalized": true
+      "_normalized": true,
+      "rewritten": true
     },
     {
       "id": "ckad-041",
       "question": "A developer creates a CronJob but after the scheduled time, no Job is created. `kubectl get cronjob` shows `SUSPEND: False`. What should the developer check FIRST?",
       "options": [
-        "Whether the node's CPU usage is too high to schedule new Jobs",
-        "Whether the CronJob's schedule string is valid and matches the expected",
-        "Whether the associated ServiceAccount has list permissions on Jobs",
-        "Whether a NetworkPolicy is blocking the CronJob controller"
+        "Whether the CronJob schedule string is valid and that the cluster's timezone (UTC by default) matches expectations",
+        "Whether the cluster's nodes are too CPU-saturated for the CronJob controller to even schedule the next Job at all",
+        "Whether a NetworkPolicy is blocking the CronJob controller from reaching the API",
+        "Whether the CronJob's ServiceAccount lacks the verbs (`get`, `list`, `create`) on Jobs that the controller relies on internally"
       ],
-      "correct": 1,
-      "explanation": "CronJob schedules use UTC by default (not local time). A cron expression like '30 14 * * *' means 14:30 UTC, which may be different from local time. Also verify the cron syntax is correct (5 fields). Other things to check: `kubectl describe cronjob` for events, `spec.startingDeadlineSeconds` (if too low, missed runs are skipped), and `spec.concurrencyPolicy` (if the previous Job is still running and policy is Forbid, the new Job won't start).",
+      "correct": 0,
+      "explanation": "CronJob schedules are evaluated in UTC by default (or `spec.timeZone` on 1.27+) — a '30 14' that the developer expected at 14:30 local is actually 14:30 UTC. Re-check the 5-field syntax, the timezone, `startingDeadlineSeconds`, and `concurrencyPolicy` (if Forbid and the previous run is still going, the next is skipped). Node CPU pressure would show Jobs as `Pending`, not as 'no Job created at all'. The CronJob controller runs as the system; an end-user SA's permissions on Jobs do not prevent it from creating Jobs. The controller talks to the apiserver via localhost on the control plane; NetworkPolicy is not in that path.",
       "tags": [
         "cronjob",
         "debugging",
@@ -864,19 +883,20 @@
         "ckad"
       ],
       "difficulty": "medium",
-      "_normalized": true
+      "_normalized": true,
+      "rewritten": true
     },
     {
       "id": "ckad-042",
-      "question": "A developer creates an Ingress resource but external traffic still reaches an old application. The developer notices the Ingress resource has been created but there are no `ADDRESS` values in `kubectl get ingress`. What is MOST likely missing?",
+      "question": "A developer creates an Ingress resource but external traffic still reaches an old application. The Ingress exists but `kubectl get ingress` shows no ADDRESS. What is MOST likely missing?",
       "options": [
-        "An ExternalIP configured on each cluster node so the Ingress address is published",
-        "An Ingress Controller — Kubernetes ships none by default; nginx/traefik/ALB must be added",
-        "A TLS Secret referenced by the Ingress, without which the resource fails to get an address",
-        "A Deployment backing the Ingress object so a Service endpoint can be resolved by DNS"
+        "A TLS Secret referenced from the Ingress's `tls:` section, without which the resource is never granted an external ADDRESS",
+        "An Ingress Controller — Kubernetes ships none by default; nginx, Traefik, or a cloud ALB must be installed",
+        "A Deployment backing the Ingress so that a Service endpoint can be resolved by DNS",
+        "An ExternalIP configured on each cluster node so the Ingress controller has a routable address to publish for its rules"
       ],
       "correct": 1,
-      "explanation": "An Ingress resource is just a configuration object — it does nothing on its own. An Ingress Controller (a Pod running a reverse proxy like nginx or Traefik) watches Ingress resources and implements the routing rules. Without an Ingress Controller, `kubectl get ingress` shows no ADDRESS and no traffic is routed. On managed Kubernetes (EKS, GKE, AKS), the cloud provider installs a controller; on bare metal/minikube you must install one explicitly.",
+      "explanation": "An Ingress object is inert without an Ingress Controller — the controller is the actual reverse proxy that watches Ingress resources and programs the data plane (and populates `ADDRESS`). Managed Kubernetes installs a controller for you; bare metal/kind/minikube do not. Node ExternalIPs are not how Ingress publishes; the controller's Service does that. TLS is optional — HTTP-only Ingresses also get an ADDRESS once a controller is present. Ingress does not 'back' itself on a Deployment; it references existing Services as backends.",
       "tags": [
         "ingress",
         "ingress-controller",
@@ -890,15 +910,15 @@
     },
     {
       "id": "ckad-043",
-      "question": "A developer needs to add an environment variable to a running Deployment without restarting Pods manually. Which command updates the Deployment's environment in place and triggers a rolling update?",
+      "question": "A developer needs to add an environment variable to a running Deployment and trigger a rolling update. Which command does this in place?",
       "options": [
-        "kubectl annotate deployment/web env.NEW_VAR=value",
-        "kubectl exec <pod> -- export NEW_VAR=value",
+        "kubectl set env deployment/web NEW_VAR=value",
         "kubectl label deployment/web NEW_VAR=value",
-        "kubectl set env deployment/web NEW_VAR=value"
+        "kubectl exec <pod> -- export NEW_VAR=value",
+        "kubectl annotate deployment/web env.NEW_VAR=value"
       ],
-      "correct": 3,
-      "explanation": "`kubectl set env deployment/<name> KEY=VALUE` updates the environment variables on the Deployment's Pod template, which triggers a rolling update — new Pods start with the new env var and old Pods are replaced. `kubectl exec` changes env vars only in a running container (not persisted). `kubectl label` and `kubectl annotate` modify metadata, not container environment variables.",
+      "correct": 0,
+      "explanation": "`kubectl set env` patches the Pod template's environment, which the Deployment controller treats as a template change and triggers a rolling update. Annotations live in metadata and do not flow into the container environment. `kubectl exec ... export` would only set the variable in that shell process; the running container's env is unchanged and the new value is gone the moment the shell exits. Labels are key-value metadata for selection; they have nothing to do with container environment variables.",
       "tags": [
         "kubectl-set",
         "environment-variables",
@@ -907,19 +927,20 @@
         "ckad"
       ],
       "difficulty": "easy",
-      "_normalized": true
+      "_normalized": true,
+      "rewritten": true
     },
     {
       "id": "ckad-044",
-      "question": "A developer needs to understand the API version and required fields for a `CronJob` resource without consulting external documentation. Which kubectl command provides this information?",
+      "question": "A developer needs to look up the API version and required fields for a `CronJob` resource without consulting external documentation. Which kubectl command provides this?",
       "options": [
-        "kubectl explain cronjob.spec.schedule",
         "kubectl api-versions | grep batch",
-        "kubectl get cronjob -o json | jq '.apiVersion'",
-        "kubectl describe cronjob --all-namespaces"
+        "kubectl explain cronjob.spec.schedule",
+        "kubectl describe cronjob --all-namespaces",
+        "kubectl get cronjob -o json | jq '.apiVersion'"
       ],
-      "correct": 0,
-      "explanation": "`kubectl explain <resource>` and `kubectl explain <resource>.<field>` provide in-cluster API documentation including field descriptions, types, and whether fields are required. `kubectl explain cronjob.spec.schedule` shows the description of the schedule field. `kubectl api-versions` shows available API group versions but not resource schemas. This is essential in CKAD exam scenarios where you may not have internet access.",
+      "correct": 1,
+      "explanation": "`kubectl explain` returns the OpenAPI schema as served by the cluster: field descriptions, types, required/optional flags, and the GVK — the offline reference the CKAD exam expects you to use. `kubectl api-versions` only lists available API groups/versions, not field schemas. `kubectl get -o json | jq` only inspects existing CronJob instances and tells you nothing about fields you have not used. `kubectl describe` summarises a live object's state and events, not the API schema.",
       "tags": [
         "kubectl-explain",
         "api-documentation",
@@ -927,19 +948,20 @@
         "ckad"
       ],
       "difficulty": "easy",
-      "_normalized": true
+      "_normalized": true,
+      "rewritten": true
     },
     {
       "id": "ckad-045",
       "question": "A developer wants to update a Deployment's container image from `nginx:1.24` to `nginx:1.25` using an imperative command. Which command achieves this?",
       "options": [
         "kubectl patch deployment/web spec.containers[0].image=nginx:1.25",
+        "kubectl update deployment/web --image=nginx:1.25",
         "kubectl replace deployment/web --image=nginx:1.25",
-        "kubectl set image deployment/web nginx=nginx:1.25",
-        "kubectl update deployment/web --image=nginx:1.25"
+        "kubectl set image deployment/web nginx=nginx:1.25"
       ],
-      "correct": 2,
-      "explanation": "`kubectl set image deployment/<name> <container-name>=<new-image>` is the imperative command to update a container image in a Deployment (or other controllers like DaemonSet, StatefulSet). The container-name must match the name in the Pod spec, not the image name. This triggers a rolling update. `kubectl replace` replaces the entire resource from a file.",
+      "correct": 3,
+      "explanation": "`kubectl set image <kind>/<name> <container-name>=<image>` is the dedicated subcommand for image updates and triggers a rolling update — the container name is the Pod-spec name, not the image name. `kubectl patch` requires a strategic-merge or JSON patch payload, not a bare key=value form. `kubectl replace` replaces a resource from a file (`-f`); it has no `--image` flag. There is no `kubectl update` verb.",
       "tags": [
         "kubectl-set-image",
         "deployment",
@@ -947,19 +969,20 @@
         "ckad"
       ],
       "difficulty": "easy",
-      "_normalized": true
+      "_normalized": true,
+      "rewritten": true
     },
     {
       "id": "ckad-046",
       "question": "A developer needs to create a Kubernetes Secret from a literal value using an imperative command — specifically storing `password=s3cr3t`. Which command is correct?",
       "options": [
-        "kubectl create secret generic db-secret --from-file=password=s3cr3t using a file as the literal source",
-        "kubectl create secret tls db-secret --cert=s3cr3t",
+        "kubectl create secret generic db-secret --from-file=password=s3cr3t",
         "kubectl create secret docker-registry db-secret --password=s3cr3t",
+        "kubectl create secret tls db-secret --cert=s3cr3t",
         "kubectl create secret generic db-secret --from-literal=password=s3cr3t"
       ],
       "correct": 3,
-      "explanation": "`kubectl create secret generic <name> --from-literal=<key>=<value>` creates a generic (opaque) Secret with the specified literal key-value pair. Multiple `--from-literal` flags can be used. `--from-file` reads from a file (the filename becomes the key). `tls` type is for TLS certificates. `docker-registry` type is for imagePullSecrets. The `generic` type is for arbitrary key-value data.",
+      "explanation": "`--from-literal=<key>=<value>` is the flag for inline key/value pairs on a `generic` (Opaque) Secret — exactly the case asked. `--from-file=password=s3cr3t` would treat `s3cr3t` as a filename and try to read it; it does not store the literal string. `tls` Secrets require a cert and key file pair, not a literal string. `docker-registry` Secrets carry registry credentials and demand `--docker-server/--docker-username/--docker-email`; `--password` alone is incomplete and the wrong secret type for a generic password.",
       "tags": [
         "secrets",
         "kubectl-create",
@@ -968,19 +991,20 @@
         "ckad"
       ],
       "difficulty": "easy",
-      "_normalized": true
+      "_normalized": true,
+      "rewritten": true
     },
     {
       "id": "ckad-047",
-      "question": "A developer configures `spec.containers[0].securityContext.readOnlyRootFilesystem: true` on a container. The application writes temporary files to `/tmp`. What will happen, and how should the developer fix it?",
+      "question": "A developer configures `securityContext.readOnlyRootFilesystem: true` on a container. The application writes temporary files to `/tmp`. What will happen, and how should the developer fix it?",
       "options": [
-        "The application will write to /tmp on the host node instead",
-        "The container will not start if the image requires any writable filesystem at all",
-        "The application will work normally — /tmp is excluded from the read-only policy",
-        "The application will fail when trying to write to /tmp."
+        "The container refuses to start at all because some root-fs write is required",
+        "The application works normally — /tmp is excluded from the read-only policy automatically",
+        "Writes to /tmp fail with EROFS; mount an emptyDir at /tmp to give the app a writable scratch area",
+        "The application writes to /tmp on the host node instead"
       ],
-      "correct": 3,
-      "explanation": "`readOnlyRootFilesystem: true` makes the entire container root filesystem read-only, including /tmp. Any write attempt will fail with 'Read-only file system'. The fix is to mount an `emptyDir` volume at `/tmp`: it's a writable in-memory (or disk-backed) volume that persists only for the Pod lifetime. This is a common security hardening pattern — read-only root with writable mounts only where needed. Fix: mount an emptyDir volume at /tmp to provide a writable temporary directory",
+      "correct": 2,
+      "explanation": "`readOnlyRootFilesystem: true` makes the entire root layer read-only, including `/tmp` — writes return `EROFS` (`Read-only file system`). The standard hardening pattern is to mount a writable `emptyDir` (or `tmpfs`) at `/tmp` (and `/var/run`, etc.). The container does not silently redirect writes to the host node; that would be a serious security boundary breach. The container starts fine — the failure happens only when the app tries to write. There is no automatic `/tmp` exemption; you have to opt in by mounting a volume there.",
       "tags": [
         "security-context",
         "readonly-filesystem",
@@ -989,19 +1013,20 @@
         "ckad"
       ],
       "difficulty": "hard",
-      "_normalized": true
+      "_normalized": true,
+      "rewritten": true
     },
     {
       "id": "ckad-048",
-      "question": "A developer creates a ServiceAccount named 'monitor-sa' and wants to use it in a Pod instead of the default ServiceAccount. Which Pod spec field sets this?",
+      "question": "A developer creates a ServiceAccount named `monitor-sa` and wants a Pod to use it instead of the default ServiceAccount. Which Pod spec field sets this?",
       "options": [
-        "spec.security.serviceAccount: monitor-sa",
-        "spec.containers[0].serviceAccount: monitor-sa",
         "spec.serviceAccountName: monitor-sa",
-        "metadata.annotations.serviceAccountName: monitor-sa"
+        "metadata.annotations.serviceAccountName: monitor-sa",
+        "spec.security.serviceAccount: monitor-sa",
+        "spec.containers[0].serviceAccount: monitor-sa"
       ],
-      "correct": 2,
-      "explanation": "`spec.serviceAccountName` (at the Pod/spec level, not container level) specifies which ServiceAccount the Pod should use. This affects the token that is automatically mounted at `/var/run/secrets/kubernetes.io/serviceaccount/token` and the identity used for API server calls. Setting `spec.automountServiceAccountToken: false` prevents the token from being mounted at all (useful for Pods that don't need API access).",
+      "correct": 0,
+      "explanation": "`spec.serviceAccountName` (at the Pod spec level) selects the ServiceAccount whose token gets projected into the Pod for API authentication. `spec.security.serviceAccount` is not a real field. ServiceAccount selection is Pod-scoped, not container-scoped — there is no `containers[].serviceAccount`. Annotations are free-form metadata; the kubelet does not consult `metadata.annotations.serviceAccountName` to decide which SA to mount.",
       "tags": [
         "serviceaccount",
         "pod-spec",
@@ -1009,19 +1034,20 @@
         "ckad"
       ],
       "difficulty": "easy",
-      "_normalized": true
+      "_normalized": true,
+      "rewritten": true
     },
     {
       "id": "ckad-049",
-      "question": "A Deployment named 'app' is currently paused (via `kubectl rollout pause`). A developer updates the image and environment variables. When will these changes take effect?",
+      "question": "A Deployment named `app` is currently paused (via `kubectl rollout pause`). A developer then updates the image and environment variables. When will these changes take effect?",
       "options": [
-        "When the Pod restarts due to a liveness probe failure triggering kubectl rollout resume on the deployment",
-        "Only after `kubectl rollout resume deployment/app` is run",
+        "Immediately — pausing only affects new deployments, not in-place updates",
         "After 5 minutes — the default pause timeout expires automatically",
-        "Immediately — pausing only affects new deployments, not updates"
+        "When the Pod restarts due to a liveness-probe failure, which automatically resumes the rollout",
+        "Only after `kubectl rollout resume deployment/app` is run; all queued template changes then roll out together"
       ],
-      "correct": 1,
-      "explanation": "`kubectl rollout pause` stops the Deployment controller from processing changes to the Pod template. Changes (image updates, env var changes) accumulate in the Deployment spec but no new Pods are created. `kubectl rollout resume deployment/app` triggers a single rolling update that applies all queued changes at once. This is useful for batching multiple changes into one rollout.",
+      "correct": 3,
+      "explanation": "`rollout pause` stops the Deployment controller from reconciling template changes; you can edit the template repeatedly, and once you run `rollout resume` all accumulated changes ship in a single rolling update. Liveness-probe restarts never resume a paused rollout. There is no automatic pause expiry — pauses are sticky until you resume. Pausing absolutely affects in-place updates; that is the whole point.",
       "tags": [
         "deployment",
         "rollout-pause",
@@ -1029,19 +1055,20 @@
         "ckad"
       ],
       "difficulty": "medium",
-      "_normalized": true
+      "_normalized": true,
+      "rewritten": true
     },
     {
       "id": "ckad-050",
-      "question": "A developer creates an Ingress with TLS configured. The Ingress references a Secret named 'tls-cert' for the HTTPS certificate. What type of Secret must 'tls-cert' be, and what keys must it contain?",
+      "question": "A developer creates an Ingress with TLS configured. The Ingress references a Secret named `tls-cert` for the HTTPS certificate. What type of Secret must `tls-cert` be, and what keys must it contain?",
       "options": [
         "Type kubernetes.io/tls with keys `tls.crt` (certificate) and `tls.key` (private key)",
-        "Type kubernetes.io/dockerconfigjson with the certificate body encoded inside the JSON",
-        "Type generic with arbitrary keys `cert` and `key` holding the PEM-encoded payload",
-        "Type Opaque with any key name containing the PEM-encoded certificate and the key"
+        "Type kubernetes.io/dockerconfigjson with the certificate body inside the JSON",
+        "Type generic with arbitrary keys `cert` and `key` carrying the PEM payload",
+        "Type Opaque with any key name as long as the PEM content is base64-encoded"
       ],
       "correct": 0,
-      "explanation": "Kubernetes defines a special Secret type `kubernetes.io/tls` for TLS certificates. It must contain exactly two keys: `tls.crt` (the PEM-encoded certificate or certificate chain) and `tls.key` (the PEM-encoded private key). The Ingress controller reads this Secret to configure HTTPS termination. Creating it with `kubectl create secret tls <name> --cert=<file> --key=<file>` automatically sets the correct type and keys.",
+      "explanation": "Kubernetes defines a dedicated Secret type `kubernetes.io/tls` whose schema requires exactly two keys: `tls.crt` (PEM cert or chain) and `tls.key` (PEM private key). Ingress controllers expect this contract. `kubernetes.io/dockerconfigjson` is for `imagePullSecrets` to private registries — wrong type entirely. Generic/Opaque with custom keys won't satisfy the Ingress controller's lookup; it specifically reads `tls.crt`/`tls.key` from a `kubernetes.io/tls` Secret. `kubectl create secret tls <name> --cert=<file> --key=<file>` is the easy way to produce a valid one.",
       "tags": [
         "tls-secret",
         "ingress",
@@ -1055,15 +1082,15 @@
     },
     {
       "id": "ckad-051",
-      "question": "A developer adds a taint `key=value:NoSchedule` to a node. New Pods are being scheduled on that node unexpectedly. What is the MOST likely reason?",
+      "question": "A developer adds a taint `key=value:NoSchedule` to a node. New Pods are still being scheduled on that node. What is the MOST likely reason?",
       "options": [
-        "The node's kubelet must be restarted to apply the taint and enforce NoSchedule on Pods that match it",
+        "The kubelet must be restarted to apply the taint, otherwise the scheduler ignores it",
+        "The Pods carry a matching toleration, which allows them to land on the tainted node",
         "Taints only affect existing Pods, not newly created ones",
-        "The Pods have a toleration that matches the taint.",
-        "NoSchedule only prevents scheduling of system Pods, not application Pods"
+        "NoSchedule only blocks system Pods; user workloads are exempt"
       ],
-      "correct": 2,
-      "explanation": "Taints repel Pods from nodes UNLESS the Pod has a matching toleration. `NoSchedule` means: do not schedule new Pods that do not tolerate this taint. If a Pod spec includes `tolerations: [{key: key, operator: Equal, value: value, effect: NoSchedule}]`, it IS allowed to be scheduled on the tainted node. Examine the Pods' spec for tolerations. Note: `NoExecute` also evicts existing non-tolerating Pods; `NoSchedule` only affects new scheduling. allowing them to be scheduled on the tainted node",
+      "correct": 1,
+      "explanation": "Taints repel Pods that lack a matching toleration. A Pod with `tolerations: [{key: key, operator: Equal, value: value, effect: NoSchedule}]` is exempt from THIS taint and can be scheduled there — check the Pod spec for that toleration. No kubelet restart is required; taints take effect via the apiserver/scheduler. NoSchedule actually does the opposite of the second claim — it blocks NEW Pods (NoExecute is the one that also evicts existing ones). There is no system/user-workload split; tolerations are the only distinction.",
       "tags": [
         "taints",
         "tolerations",
@@ -1071,19 +1098,20 @@
         "ckad"
       ],
       "difficulty": "medium",
-      "_normalized": true
+      "_normalized": true,
+      "rewritten": true
     },
     {
       "id": "ckad-052",
-      "question": "A developer uses `kubectl apply -f deployment.yaml` and sees the message `Warning: kubectl apply should be used on resource created by either kubectl create --save-config or kubectl apply`. What causes this warning?",
+      "question": "A developer runs `kubectl apply -f deployment.yaml` and sees a warning: `kubectl apply should be used on resource created by either kubectl create --save-config or kubectl apply`. What causes this warning?",
       "options": [
-        "The resource version is outdated and needs to be deleted first",
-        "The YAML file has a syntax error that Kubernetes is trying to work around",
-        "kubectl apply cannot update resources that were created imperatively — it must be deleted and reapplied",
-        "The resource was previously created with `kubectl create` (not `kubectl apply`)."
+        "The resource's apiVersion is no longer served by the cluster, so the resource must be deleted and recreated with a supported version first",
+        "The YAML file has a strategic-merge syntax error that Kubernetes is silently working around by falling back to a plain JSON patch",
+        "The resource was originally created with `kubectl create` (without `--save-config`), so it lacks the last-applied-configuration annotation used for three-way merge",
+        "kubectl apply refuses to reconcile resources created imperatively unless they are first deleted and recreated declaratively from scratch"
       ],
-      "correct": 3,
-      "explanation": "`kubectl apply` uses a three-way merge between the last-applied configuration (stored in an annotation), the current live state, and the new manifest. When a resource is created with `kubectl create`, this annotation is absent, so `kubectl apply` cannot perform a clean three-way merge. The resource will still be updated (best-effort merge), but the warning indicates potential drift. Solution: use `kubectl apply` from the start, or add `--save-config` to the initial `kubectl create`. so it lacks the `kubectl.kubernetes.io/last-applied-configuration` annotation used for three-way merge",
+      "correct": 2,
+      "explanation": "`kubectl apply` performs a three-way merge between the previous applied config (stored in the `kubectl.kubernetes.io/last-applied-configuration` annotation), the live object, and the new manifest. Imperative `kubectl create` skips the annotation, so apply has to guess and warns about it. The version is fine — the warning is about provenance, not staleness. Apply can update the resource (best-effort), so the 'cannot ever update' claim is too strong. The YAML is not syntactically wrong; if it were, apply would refuse outright.",
       "tags": [
         "kubectl-apply",
         "last-applied-configuration",
@@ -1091,19 +1119,20 @@
         "ckad"
       ],
       "difficulty": "medium",
-      "_normalized": true
+      "_normalized": true,
+      "rewritten": true
     },
     {
       "id": "ckad-053",
-      "question": "A developer needs a Service that maps to an external hostname (not a cluster Pod). For example, accessing `database.example.com` through a Kubernetes Service name. Which Service type provides this?",
+      "question": "A developer needs a Service that maps a cluster-internal DNS name to an external hostname like `database.example.com`. Which Service type provides this?",
       "options": [
-        "NodePort Service with externalIPs so the external hostname resolves to each cluster node address",
-        "ClusterIP Service backed by a manually authored Endpoints object pointing externally",
-        "ExternalName — creates a CNAME in cluster DNS that resolves to the external hostname",
-        "LoadBalancer Service with externalTrafficPolicy: Cluster set to bridge the hostname"
+        "LoadBalancer Service with externalTrafficPolicy: Cluster",
+        "ClusterIP Service backed by a manually authored Endpoints object pointing at the external host",
+        "ExternalName — creates a DNS CNAME in cluster DNS that resolves to the external hostname",
+        "NodePort Service with externalIPs covering each cluster node"
       ],
       "correct": 2,
-      "explanation": "An ExternalName Service creates a DNS CNAME alias: `<service-name>.<namespace>.svc.cluster.local` resolves to the configured `spec.externalName` hostname (e.g., `database.example.com`). Pods use the Service's cluster DNS name but actually connect to the external service. No proxying or load balancing occurs — it's purely a DNS alias. Useful for abstracting external dependencies behind a cluster-native service name.",
+      "explanation": "`spec.type: ExternalName` plus `spec.externalName: database.example.com` makes the cluster DNS return a CNAME pointing at the external host — pure DNS aliasing, no proxying. NodePort with externalIPs publishes a Service ON the cluster nodes for external clients; it does not redirect cluster Pods to external hosts. A manual Endpoints object can work for IP targets but does not handle a changing external hostname or do DNS aliasing. LoadBalancer provisions an external IP for inbound traffic; it does not forward outbound from Pods to an external DNS name.",
       "tags": [
         "services",
         "externalname",
@@ -1119,13 +1148,13 @@
       "id": "ckad-054",
       "question": "A developer has a container that writes logs to `/var/log/app.log` instead of stdout/stderr. Another team uses `kubectl logs` to collect logs. How can the developer make these file-based logs accessible to `kubectl logs`?",
       "options": [
-        "Set spec.hostPath to mount /var/log from the underlying node so kubectl logs reads stdout from that path",
-        "Add a sidecar that tails /var/log/app.log from a shared emptyDir to its own stdout",
-        "Mount a PVC at /var/log and configure logrotate so kubelet picks up the files",
-        "Run a Kubernetes log aggregator in kube-system that ingests file-based container logs"
+        "Mount /var/log from the underlying node via hostPath so the kubelet reads the file as stdout",
+        "Run a Kubernetes-wide log aggregator in kube-system that ingests file-based container logs",
+        "Mount a PVC at /var/log and configure logrotate so the kubelet picks up the rotated files",
+        "Add a sidecar that tails /var/log/app.log from a shared emptyDir volume to its own stdout"
       ],
-      "correct": 1,
-      "explanation": "The sidecar logging pattern: (1) Both containers share an `emptyDir` volume; (2) The main container writes logs to a file in the shared volume; (3) A sidecar container runs `tail -f /path/to/app.log` which streams to its stdout; (4) `kubectl logs <pod> -c <sidecar>` exposes these logs. This is the Kubernetes-native pattern for exposing file-based application logs via the standard logging interface.",
+      "correct": 3,
+      "explanation": "The streaming-sidecar pattern: app and sidecar share an `emptyDir`, app writes to a file there, sidecar runs `tail -F` to its own stdout, and `kubectl logs <pod> -c <sidecar>` exposes the file as a log stream — the idiomatic CKAD answer. `kubectl logs` reads each container's stdout/stderr via the runtime; it does not read arbitrary files from hostPath. PVC + logrotate stores logs durably but `kubectl logs` still only sees stdout/stderr of containers. A cluster-wide aggregator is useful for centralised logging but does not change what `kubectl logs` returns.",
       "tags": [
         "logging",
         "sidecar",
@@ -1141,13 +1170,13 @@
       "id": "ckad-055",
       "question": "A developer sets `spec.activeDeadlineSeconds: 300` on a Job. What happens if the Job's Pods have not completed within 300 seconds?",
       "options": [
-        "Kubernetes moves the Job to a suspended state and terminates all its associated Pods after another 300 seconds",
-        "Kubernetes terminates the Job and all its associated Pods,.",
-        "Kubernetes pauses the Job and waits for manual intervention",
-        "The Job continues running but Kubernetes logs a warning event"
+        "Kubernetes moves the Job to a suspended state and terminates its Pods 300 seconds later",
+        "Kubernetes terminates all Pods owned by the Job and marks the Job Failed with reason DeadlineExceeded",
+        "The Job continues running but Kubernetes records a warning event in the namespace",
+        "Kubernetes pauses the Job and waits for manual intervention"
       ],
       "correct": 1,
-      "explanation": "`activeDeadlineSeconds` sets a deadline for the entire Job. If the Job is still running when the deadline expires, Kubernetes terminates all associated Pods and marks the Job as Failed with reason `DeadlineExceeded`. This is useful for time-bounded batch jobs that should not run indefinitely. It differs from `backoffLimit` (which limits retry attempts after Pod failures). marking the Job as Failed",
+      "explanation": "`activeDeadlineSeconds` is a hard wall-clock budget for the entire Job; on expiry the controller deletes the Pods and the Job status reports `Failed` / `DeadlineExceeded`. There is no automatic 'suspend then terminate later' workflow. The Job is not paused awaiting a human — that would be `spec.suspend: true`, which is set, not auto. The Job does not silently continue past the deadline; the deadline is enforced. Contrast `backoffLimit`, which caps retries after individual Pod failures rather than total wall-clock time.",
       "tags": [
         "jobs",
         "activedeadlineseconds",
@@ -1156,19 +1185,19 @@
       ],
       "difficulty": "medium",
       "_normalized": true,
-      "_lenbal": true
+      "rewritten": true
     },
     {
       "id": "ckad-056",
-      "question": "A developer runs `kubectl top pods` but receives the error `error: Metrics API not available`. What is the MOST likely cause?",
+      "question": "A developer runs `kubectl top pods` and receives `error: Metrics API not available`. What is the MOST likely cause?",
       "options": [
-        "The Pod must have a liveness probe configured for metrics to be available",
         "kubectl top requires cluster-admin privileges that the developer lacks",
-        "The Pod's resource requests are not set, preventing metrics collection",
-        "The Metrics Server is not installed in the cluster."
+        "The Pod's resource requests are not set, which prevents metrics collection",
+        "The Metrics Server is not installed in the cluster, so the Metrics API is unimplemented",
+        "The Pod must have a liveness probe configured before metrics become available"
       ],
-      "correct": 3,
-      "explanation": "`kubectl top` requires the Metrics Server (or another metrics API provider) to be installed in the cluster. Metrics Server is not installed by default — it aggregates resource usage (CPU, memory) from kubelet APIs and exposes them via the Kubernetes Metrics API. On managed clusters (GKE, EKS, AKS), it's usually pre-installed. On kubeadm clusters or kind/minikube, you install it separately. it's not included by default and must be deployed separately",
+      "correct": 2,
+      "explanation": "`kubectl top` calls the aggregated Metrics API (`metrics.k8s.io`) and that group only exists if Metrics Server (or another implementation) is installed. EKS/GKE/AKS often pre-install it; kubeadm, kind, and minikube do not. Probes are unrelated to whether the Metrics API is registered. The error is API-availability, not RBAC — a permission problem returns `forbidden`, not `Metrics API not available`. Resource requests influence the scheduler and HPA, but Metrics Server collects cAdvisor data regardless of whether requests are set.",
       "tags": [
         "metrics-server",
         "kubectl-top",
@@ -1177,19 +1206,20 @@
         "ckad"
       ],
       "difficulty": "easy",
-      "_normalized": true
+      "_normalized": true,
+      "rewritten": true
     },
     {
       "id": "ckad-057",
       "question": "A developer creates a Pod with `imagePullPolicy: Never`. The image `my-app:latest` is NOT present on the node. What happens?",
       "options": [
-        "The Pod starts using an empty base container; the image is required to be present but is fetched lazily",
+        "The Pod fails with ErrImageNeverPull because the image is required to be present locally",
+        "The Pod starts using an empty base layer and the image is fetched lazily on first use",
         "Kubernetes pulls the image from the default registry as usual",
-        "The Pod fails with ErrImageNeverPull — the image must already be present on the node",
-        "Kubernetes waits for the image to appear locally and retries indefinitely"
+        "Kubernetes waits indefinitely for the image to appear locally on the node"
       ],
-      "correct": 2,
-      "explanation": "`imagePullPolicy: Never` tells Kubernetes never to pull the image from a registry — it must already be cached on the node. If the image is absent, the Pod fails immediately with `ErrImageNeverPull`. This policy is useful for: (1) local development with images built directly on the node (kind, minikube with eval $(minikube docker-env)); (2) air-gapped environments where images are pre-loaded.",
+      "correct": 0,
+      "explanation": "`Never` tells the kubelet not to contact a registry; if the image is not already in the node's local store the container status becomes `ErrImageNeverPull` and the Pod cannot start. This policy is meant for local dev (kind/minikube with locally built images) or air-gapped clusters where images are preloaded. There is no lazy-pull fallback. Kubernetes does not fall back to pulling; that would defeat the point of `Never`. The kubelet does not wait — it reports the error immediately.",
       "tags": [
         "image-pull-policy",
         "imagepullpolicy",
@@ -1197,19 +1227,20 @@
         "ckad"
       ],
       "difficulty": "easy",
-      "_normalized": true
+      "_normalized": true,
+      "rewritten": true
     },
     {
       "id": "ckad-058",
-      "question": "A NetworkPolicy allows egress from Pods labeled `app=worker` to port 5432 (PostgreSQL). The worker Pods still cannot connect to the database. Ingress is unrestricted. Which additional NetworkPolicy might be blocking the connection?",
+      "question": "A NetworkPolicy allows egress from Pods labelled `app=worker` to port 5432 (PostgreSQL). The worker Pods still cannot connect to the database. Ingress is unrestricted at the network plugin level. Which additional NetworkPolicy might be blocking the connection?",
       "options": [
-        "A NetworkPolicy on the database Pods that permits egress to any external endpoint labeled with app=worker",
-        "A cluster-wide NetworkPolicy with podSelector: {} denying egress for matched Pods",
-        "A NetworkPolicy on the database Pods restricting ingress to only database-labeled Pods",
-        "A NetworkPolicy on the worker Pods restricting ingress traffic from other workloads"
+        "A cluster-wide NetworkPolicy with podSelector: {} denying egress for every selected Pod",
+        "A NetworkPolicy on the database Pods restricting ingress to a different set of source labels",
+        "A NetworkPolicy on the worker Pods restricting ingress from other workloads",
+        "A NetworkPolicy on the database Pods that permits egress to any external endpoint labelled with app=worker"
       ],
-      "correct": 2,
-      "explanation": "NetworkPolicies are bidirectional — you need both the egress from the source and the ingress to the destination to be allowed. Even if worker Pods have egress allowed to port 5432, if the database Pods have an ingress NetworkPolicy that doesn't include worker Pods as an allowed source, the connection is blocked at the database end. Always check policies on BOTH ends of a connection. Use `kubectl describe networkpolicy` in both namespaces to debug.",
+      "correct": 1,
+      "explanation": "NetworkPolicies are evaluated on BOTH endpoints — egress must be allowed at the source AND ingress must be allowed at the destination. If the database has an ingress policy that does not list `app=worker` as an allowed source, the connection is dropped on arrival. The first option talks about egress FROM the database — that controls outbound traffic from the DB, not inbound from workers. A default-deny on egress would have blocked the workers entirely (and would contradict the stated 'egress is allowed'). Restricting ingress on the worker Pods affects who can talk TO the workers, not whether workers can reach the DB.",
       "tags": [
         "networkpolicy",
         "egress",
@@ -1223,15 +1254,15 @@
     },
     {
       "id": "ckad-059",
-      "question": "A developer generates a Pod YAML template using a dry-run command to speed up CKAD exam tasks. Which command produces a Pod manifest for an nginx container without actually creating the Pod?",
+      "question": "A developer wants to generate a Pod YAML template using a dry-run command to speed up CKAD exam tasks. Which command produces a Pod manifest for an nginx container WITHOUT actually creating the Pod?",
       "options": [
+        "kubectl run nginx --image=nginx --dry-run=client -o yaml",
         "kubectl generate pod nginx --image=nginx",
-        "kubectl run nginx --image=nginx --dry-run=client -o",
         "kubectl create pod nginx --image=nginx --simulate",
-        "kubectl run nginx --image=nginx --output=yaml"
+        "kubectl run nginx --image=nginx --output=yaml (no dry-run flag)"
       ],
-      "correct": 1,
-      "explanation": "`kubectl run <name> --image=<image> --dry-run=client -o yaml` generates a Pod manifest in YAML format without creating any cluster resources. `--dry-run=client` performs the operation locally (client-side validation only). This is a critical CKAD exam technique for quickly generating base YAML templates that you then customise. Works for other resources too: `kubectl create deployment --dry-run=client -o yaml`.",
+      "correct": 0,
+      "explanation": "`kubectl run <name> --image=<img> --dry-run=client -o yaml` performs client-side validation only and prints the manifest to stdout — the canonical CKAD time-saver, also available with `kubectl create deploy ... --dry-run=client -o yaml`. There is no `kubectl generate` subcommand. There is no `kubectl create pod` verb (and no `--simulate` flag). Without `--dry-run=client`, `kubectl run --output=yaml` actually CREATES the Pod and then prints its server-side YAML — failing the 'without creating' requirement.",
       "tags": [
         "kubectl-dry-run",
         "yaml-generation",
@@ -1240,19 +1271,20 @@
         "ckad"
       ],
       "difficulty": "easy",
-      "_normalized": true
+      "_normalized": true,
+      "rewritten": true
     },
     {
       "id": "ckad-060",
-      "question": "A developer needs to copy a file from a running Pod to their local machine. The Pod is named 'web-pod' and the file is at `/app/config.yaml`. Which kubectl command achieves this?",
+      "question": "A developer needs to copy a file from a running Pod to their local machine. The Pod is named `web-pod` and the file is at `/app/config.yaml`. Which kubectl command achieves this?",
       "options": [
         "kubectl download web-pod:/app/config.yaml ./config.yaml",
-        "kubectl get file web-pod /app/config.yaml",
         "kubectl exec web-pod -- cat /app/config.yaml > ./config.yaml",
-        "kubectl cp web-pod:/app/config.yaml ./config.yaml"
+        "kubectl cp web-pod:/app/config.yaml ./config.yaml",
+        "kubectl get file web-pod /app/config.yaml"
       ],
-      "correct": 3,
-      "explanation": "`kubectl cp <pod-name>:<source-path> <local-destination>` copies files from a Pod to the local machine (or vice versa). Reverse copy: `kubectl cp ./local-file <pod-name>:<destination>`. For Pods with multiple containers, add `-c <container-name>`. Note: `kubectl cp` requires `tar` to be available in the container. The `kubectl exec -- cat` approach also works but only for text files and doesn't handle binary files well.",
+      "correct": 2,
+      "explanation": "`kubectl cp <pod>:<src> <local-dest>` is the dedicated file-copy command; reverse direction works too. (`tar` must exist in the container image — that is the one footgun.) `kubectl download` is not a real subcommand. `kubectl get file` is not a real subcommand either. `kubectl exec ... cat > file` works for small text files but corrupts binaries (no `-t`, control-character mangling) and silently drops stderr; it is not the canonical way to copy files.",
       "tags": [
         "kubectl-cp",
         "file-copy",
@@ -1260,22 +1292,23 @@
         "ckad"
       ],
       "difficulty": "easy",
-      "_normalized": true
+      "_normalized": true,
+      "rewritten": true
     },
     {
       "id": "ckad-multi-1",
       "question": "Which TWO Kubernetes objects can be referenced as data sources by a Pod's `volumes:` block to mount their content as files?",
       "options": [
+        "Service",
         "ConfigMap",
         "Secret",
-        "Service",
         "NetworkPolicy"
       ],
       "correct": [
-        0,
-        1
+        1,
+        2
       ],
-      "explanation": "ConfigMaps and Secrets project their data as files via the `configMap` and `secret` volume types. Services are network abstractions, not file sources. NetworkPolicies define ingress/egress rules and have no file projection.",
+      "explanation": "ConfigMaps and Secrets are first-class volume sources — `configMap:` and `secret:` blocks project each key as a file under the volume mount path. Services are network abstractions (cluster IPs, DNS, endpoints), with no on-disk projection. NetworkPolicies define L3/L4 ingress/egress rules — they are pure control-plane objects with no Pod-volume interface.",
       "tags": [
         "volumes",
         "config",
@@ -1283,7 +1316,7 @@
       ],
       "difficulty": "medium",
       "_normalized": true,
-      "_lenbal": true
+      "rewritten": true
     }
   ]
 }
