@@ -1520,6 +1520,51 @@ competition-driven, community-driven** layer. Highest-priority builds:
 
 ---
 
+## 📦 Content expansion R16 (2026-06-09)
+
+Scheduled-agent run targeting the FailBase cluster (oldest content cluster
+since R15 — last touched 2026-06-03 with WeWork). One new high-search-volume,
+abundantly-sourced business post-mortem the dataset was missing:
+
+- **+1 FailBase post-mortem** (cluster 11 → 12):
+  - `moviepass-9-95-dollars-mois-suicide` — l'abonnement 9,95 $/mois pour
+    voir un film/jour au plein tarif (août 2017 – janvier 2020) financé
+    par Helios and Matheson Analytics (HMNY), ~150 M$ brûlés en ~15 mois,
+    NYSE-délistée février 2019, Chapter 7 du parent en janvier 2020. 6
+    erreurs rangées par impact : (1) unit economics négatifs structurels
+    (ticket payé 12-15 $ au plein tarif vs cotisation 9,95 $), (2)
+    déclarations publiques de profitabilité contredites par les 10-Q
+    (motif central des charges SEC), (3) sabotage des abonnés rentables
+    par password reset / throttling déguisé (motif FTC), (4) reverse stock
+    split 1-pour-250 pour camoufler l'effondrement, (5) playbook "scaler
+    d'abord, négocier ensuite avec AMC/Regal" qui n'a jamais matérialisé,
+    (6) sécurité applicative défaillante (~58 000 cartes bancaires
+    exposées en clair, août 2019). Timeline 15 événements de juin 2011
+    (fondation Spikes/Watt) au plaidoyer de culpabilité de Farnsworth en
+    août 2024.
+  - **Sources publiques uniquement** : SEC EDGAR (10-Q HMNY post
+    acquisition MoviePass), SEC press release 2021-202 (charges contre
+    Farnsworth & Lowe), FTC press release de juin 2021 (pratiques
+    trompeuses), DOJ SDNY (indictment novembre 2022), NYT "Inside the
+    Free Fall" de janvier 2019, TechCrunch sur la fuite SpiderSilk
+    d'août 2019, Variety sur AMC A-List. Pas de gossip Twitter ni de
+    podcast non-vérifié — disclaimer explicite sur les peines pénales
+    pas encore prononcées au moment de la révision.
+  - `metaTitle` 54 chars, `metaDescription` 150 chars, Article JSON-LD,
+    canonical, OG tags, cache-busted CSS (?v=133) — contraintes du brief
+    respectées.
+- `scripts/gen-failbase-pages.js` `CACHE_BUST` bumped v=123 → v=133 to
+  align with the current global `?v=` key — regeneration restée
+  idempotente sur les 11 dossiers existants (déjà à v=133 dans le HTML,
+  le const du générateur s'était désynchronisé — la dérive récurrente
+  documentée en 6.x).
+- `npm run gen-failbase` regenerated 12 pages + the `/failbase/` index
+  (idempotent — only the new page + index changed). sitemap.xml +1 entry
+  (priority 0.8, monthly changefreq, lastmod 2026-06-09); failbase index
+  lastmod bumped to 2026-06-09.
+- 265/265 tests still pass. No CSS/JS cache version bump (new HTML/data
+  only).
+
 ## 📦 Content expansion R15 (2026-06-08)
 
 Scheduled-agent run targeting the PromptDungeon cluster (oldest content
