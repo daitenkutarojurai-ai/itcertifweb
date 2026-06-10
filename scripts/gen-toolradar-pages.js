@@ -17,7 +17,7 @@ const ROOT = path.resolve(__dirname, '..');
 const DATA_DIR = path.join(ROOT, 'data', 'tool-radar');
 const OUT_DIR  = path.join(ROOT, 'tool-radar');
 
-const CACHE_BUST = 'v=106';
+const CACHE_BUST = 'v=133';
 
 function esc(s) {
   return String(s == null ? '' : s)

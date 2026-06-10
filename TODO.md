@@ -1520,6 +1520,44 @@ competition-driven, community-driven** layer. Highest-priority builds:
 
 ---
 
+## 📦 Content expansion R17 (2026-06-10)
+
+Scheduled-agent run targeting the ToolRadar cluster — the longest-quiet content
+cluster (no new category since 2026-05-15 launch with R1/R4 catch-up landing
+the original "+3 categories" follow-up). One new high-search-volume,
+high-commercial-intent category targeted at the IT-cert audience (AWS / Azure /
+K8s / SRE / DevOps) the cluster had no dossier for:
+
+- **+1 ToolRadar category** (cluster 7 → 8):
+  - `meilleur-observability-saas` — Best observability/monitoring SaaS for an
+    EU DevOps/SRE team. 5 platforms compared (Datadog, Grafana Cloud, New
+    Relic, Sentry, Honeycomb) on 5 criteria (coverage APM+métriques+logs+traces,
+    prix d'entrée, free tier perpétuel, K8s + OpenTelemetry, régions EU + GDPR).
+    Verdict-vs-math winner: Grafana Cloud (4.40), with 4 conditional verdicts
+    by profile (budget illimité → Datadog ; petite équipe pricing prévisible →
+    New Relic ; produit/dev error-tracking → Sentry ; microservices tracing
+    distribué → Honeycomb).
+  - **Sources publiques uniquement** : pages pricing officielles des 5 vendeurs
+    (datadoghq.com/pricing, grafana.com/pricing, newrelic.com/pricing,
+    sentry.io/pricing, honeycomb.io/pricing), docs officielles (Datadog EU site,
+    Honeycomb region docs, Sentry data residency, New Relic data center docs),
+    CNCF Annual Survey 2024 pour l'adoption, Business Insider 2024 pour le cas
+    de surfacturation Coinbase/Datadog. Disclaimer transparent : pas de bench
+    hands-on, scoring sur tarifs publics + docs vendor + retours communauté.
+  - Title 60 chars, meta description 157 chars, ItemList JSON-LD, canonical,
+    OG tags, cache-busted CSS (?v=133) — contraintes du brief respectées.
+- `scripts/gen-toolradar-pages.js` `CACHE_BUST` bumped v=106 → v=133 to align
+  with the current global `?v=` key — regeneration restée idempotente sur les
+  7 catégories existantes (déjà à v=133 dans le HTML, le const du générateur
+  s'était désynchronisé — la dérive récurrente documentée en 6.x).
+- `npm run gen-toolradar` regenerated 8 category pages + the `/tool-radar/`
+  index (idempotent — only the new page + index changed). sitemap.xml +1
+  entry (priority 0.85, monthly changefreq, lastmod 2026-06-10); tool-radar
+  index lastmod bumped to 2026-06-10.
+- 265/265 tests still pass. No CSS/JS cache version bump (new HTML/data only).
+
+---
+
 ## 📦 Content expansion R16 (2026-06-09)
 
 Scheduled-agent run targeting the FailBase cluster (oldest content cluster
