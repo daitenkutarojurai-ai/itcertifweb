@@ -181,12 +181,27 @@ function capDesc(s, max = 160) {
   return (at > max * 0.7 ? cut.slice(0, at) : cut).replace(/[ ,;:.\-—]+$/, '') + '…';
 }
 
+// SERP titles over ~60 chars get truncated mid-phrase. Tiered fallback:
+// full cert title → title without the parenthetical → acronym only
+// ("Certified Information Systems Security Professional (CISSP)" → "CISSP").
+function seoTitle(certTitle, build) {
+  const full = build(certTitle);
+  if (full.length <= 60) return full;
+  const noParen = certTitle.replace(/\s*\([^)]*\)\s*$/, '');
+  const t2 = build(noParen);
+  if (t2.length <= 60) return t2;
+  const m = certTitle.match(/\(([^)]+)\)\s*$/);
+  return m ? build(m[1]) : t2;
+}
+
 function renderPage(d) {
   const sym = d.currencySymbol || '€';
   const payback = paybackMonths(d.roi);
   const ld = jsonLd(d, payback);
   const certLink = `/certifications/`;
   const trainLink = `/train.html?pack=${esc(d.cert.replace(/^aws-saa$/, 'aws-saa-c03'))}`;
+  const pageTitle = seoTitle(d.certTitle, t => `${t} — Salaire ${d.countryLabel} 2026 · CertQuests`);
+  const ogTitle   = pageTitle.replace(/\s*·\s*CertQuests\s*$/, '');
 
   const bandHtml = ['junior','senior','lead'].map(tier => {
     const b = d.bands[tier];
@@ -230,13 +245,13 @@ function renderPage(d) {
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
   <meta name="theme-color" content="#06080f" />
-  <title>${esc(d.certTitle)} — Salaire ${esc(d.countryLabel)} 2026 · CertQuests</title>
+  <title>${esc(pageTitle)}</title>
   <meta name="description" content="${esc(capDesc(`Salaires ${d.certTitle} en ${d.countryLabel} : fourchettes junior/senior/lead, ROI et progression carrière. Sources APEC, LinkedIn, Glassdoor — révisé ${d.lastReviewed}.`))}" />
   <meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large" />
   <link rel="canonical" href="https://certquests.com/salaire/${esc(d.cert)}/${esc(d.country)}/" />
   <meta property="og:type" content="article" />
   <meta property="og:url" content="https://certquests.com/salaire/${esc(d.cert)}/${esc(d.country)}/" />
-  <meta property="og:title" content="${esc(d.certTitle)} — Salaire ${esc(d.countryLabel)} 2026" />
+  <meta property="og:title" content="${esc(ogTitle)}" />
   <meta property="og:description" content="Fourchettes salariales junior/senior/lead, postes accessibles, ROI de la certification — révisé ${esc(d.lastReviewed)}." />
   <meta property="og:image" content="https://certquests.com/src/assets/og/og-default.png?v=1" />
   <meta property="og:image:width" content="1200" />

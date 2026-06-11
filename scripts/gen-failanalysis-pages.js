@@ -113,9 +113,23 @@ function jsonLd(d) {
   };
 }
 
+// SERP titles over ~60 chars get truncated mid-phrase. Tiered fallback:
+// full cert title → title without the parenthetical → acronym only.
+function seoTitle(certTitle, build) {
+  const full = build(certTitle);
+  if (full.length <= 60) return full;
+  const noParen = certTitle.replace(/\s*\([^)]*\)\s*$/, '');
+  const t2 = build(noParen);
+  if (t2.length <= 60) return t2;
+  const m = certTitle.match(/\(([^)]+)\)\s*$/);
+  return m ? build(m[1]) : t2;
+}
+
 function renderPage(d) {
   const ld = jsonLd(d);
   const trainPack = d.trainPackId || d.cert;
+  const pageTitle = seoTitle(d.certTitle, t => `Pourquoi les gens ratent ${t} — Top 5 erreurs · CertQuests`);
+  const ogTitle   = pageTitle.replace(/\s*—\s*Top 5 erreurs\s*·\s*CertQuests\s*$/, '');
 
   const mistakesHtml = d.mistakes.map(m => `<div class="mistake" style="--fa-color:${esc(d.color)}">
     <div class="mistake-head">
@@ -137,13 +151,13 @@ function renderPage(d) {
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
   <meta name="theme-color" content="#06080f" />
-  <title>Pourquoi les gens ratent ${esc(d.certTitle)} — Top 5 erreurs · CertQuests</title>
+  <title>${esc(pageTitle)}</title>
   <meta name="description" content="Top 5 erreurs qui font rater l'examen ${esc(d.certTitle)}. Données issues de r/${esc(d.cert)} et forums communautaires. Conseils correctifs concrets — révisé ${esc(d.lastReviewed)}." />
   <meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large" />
   <link rel="canonical" href="https://certquests.com/fail-analysis/${esc(d.cert)}/" />
   <meta property="og:type" content="article" />
   <meta property="og:url" content="https://certquests.com/fail-analysis/${esc(d.cert)}/" />
-  <meta property="og:title" content="Pourquoi les gens ratent ${esc(d.certTitle)}" />
+  <meta property="og:title" content="${esc(ogTitle)}" />
   <meta property="og:description" content="${esc(d.tldr)}" />
   <meta property="og:image" content="https://certquests.com/src/assets/og/og-default.png?v=1" />
   <meta property="og:image:width" content="1200" />
