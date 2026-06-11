@@ -5,11 +5,12 @@
  * a winding-map of nodes (concept · quiz · minigame · subboss · finalboss),
  * gates progress on node completion stored in localStorage.
  *
- * Quiz/sub-boss/final-boss nodes route to /train.html with filters so
- * the existing quiz engine handles them — we just mark the node complete
- * via the cq:session-complete event coming back.
- *
- * Concept and minigame nodes render inline in the bottom-sheet for v1.
+ * All node types — concept, minigame, quiz, sub-boss and final-boss —
+ * execute INLINE in the bottom-sheet (Phase 4.3.2; renderQuizInline for
+ * the quiz family, renderModeInline/renderYesNoInline for minigames).
+ * Completion is marked via the cq:session-complete event they dispatch.
+ * The only remaining /train.html link is the spaced-repetition "review
+ * due" CTA, which intentionally opens the full quiz runtime.
  */
 (function () {
   if (window.__cqPathInit) return;

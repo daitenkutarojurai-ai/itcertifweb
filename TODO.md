@@ -2194,41 +2194,47 @@ lead-gen flows that drive everything else.
 - [x] ✅ Survivor laurel ceremony only fires if user is on path.html when
       event dispatches (fixed via cq-laurel-fresh-v1 flag — 2026-05-12)
 - [x] ✅ openNodeSheet didn't reset Start button state (fixed 2026-05-12)
-- [ ] Chapter banners + paths use lower-cased pack-IDs in some places
-      where titles haven't been re-fetched (cosmetic)
+- [x] ✅ Chapter banners + paths use lower-cased pack-IDs (stale — verified
+      2026-06-11: banners render `node.chapterTitle` (path.js:265), no
+      lower-cased pack-id is shown anywhere).
 
 **Per-node-type bugs**
-- [ ] **TF mini-game**: user reports "buttons cant be answer" — buttons
-      visually present but tap doesn't register. Suspected: timer fires
-      `answer(null)` before user can tap because 5 s per Q is too short
-      on mobile, OR pointer-events blocked by overlapping element.
-      Need to investigate with a click logger.
-- [ ] **Match mini-game**: same risk surface; pair texts often overflow,
-      cards look broken on phones with long question text.
+- [x] ✅ **TF mini-game** "buttons can't be answered" (stale — verified
+      2026-06-11: TF nodes are migrated to the Yes/No drill via
+      `migrateTFNode` → `renderYesNoInline` (path.js:478); the old broken
+      TF renderer no longer exists).
+- [x] ✅ **Match mini-game** overflow/broken cards (stale — verified
+      2026-06-11: match nodes migrate to the Yes/No drill
+      (`migrateMatchNode` → `renderYesNoInline`, path.js:479)).
 - [x] ✅ Concept flashcards unreadable — text clipped (fixed 2026-05-12)
 - [x] ✅ Concept Start button dead-zone after first interaction (fixed)
-- [ ] **Chest**: tap chest → animations play, XP awarded, but cosmetic
-      sometimes doesn't visually appear (chip render race condition)
-- [ ] **Sub-boss**: same redirect-to-train.html issue as quiz nodes,
-      with no focused question subset
-- [ ] **Final boss**: redirects to train.html for the full mock — fine
-      in principle, but the user has no idea how to come back and see
-      the survivor ceremony unless they specifically return to /path.html
+- [x] ✅ **Chest** cosmetic chip render race (verified 2026-06-11:
+      `openChest` calls `cqCosmetics.unlock` which dispatches
+      `cq:cosmetic-changed` (cosmetics.js:66); avatar.js + path.js
+      re-render the worn hat on that event).
+- [x] ✅ **Sub-boss** redirect-to-train.html (stale — verified 2026-06-11:
+      runs inline via `renderQuizInline`, path.js:490, Phase 4.3.2).
+- [x] ✅ **Final boss** redirect-to-train.html / lost ceremony (stale —
+      verified 2026-06-11: also inline via `renderQuizInline`; the
+      survivor ceremony fires in-page).
 
 **Walker / map bugs**
 - [x] ✅ Walker repins on scroll + resize + ResizeObserver (path.js:1019,
       page-relative coords via scrollX/Y — shipped 2026-05-13).
-- [ ] Walker emoji doesn't update immediately on level-up (stale stats
-      ref in path.js — race with cosmetics.ensureCatalog)
+- [x] ✅ Walker emoji doesn't update immediately on level-up (verified
+      2026-06-11: `cq:level-up` handler prefers `detail.newStageEmoji`
+      and `setWalkerEmoji` reads fresh `cqStats.get()`, path.js:1503/142;
+      also re-renders on `cq:stats-changed`).
 - [x] ✅ Confetti capped at MAX_CONFETTI_CONTAINERS, oldest evicted
       (path.js:156 — shipped 2026-05-13).
 
 **Visual / UX bugs**
 - [x] ✅ Path header was max-width: 560px (fixed 2026-05-12 — full width)
-- [ ] Mini-game cards (TF + match) have inconsistent padding compared
-      to flashcards
-- [ ] Sub-boss / Final-boss node visuals are large but the bottom-sheet
-      "Start →" is misleading (sends to a different page, no preview)
+- [x] ✅ Mini-game card padding (stale — verified 2026-06-11: TF/match
+      removed; the single Yes/No drill + mode runners own their layout).
+- [x] ✅ Sub-boss / Final-boss "Start →" misleading (stale — verified
+      2026-06-11: nodes now execute inline in the bottom-sheet, so the
+      button no longer sends to a different page).
 - [x] ✅ Locked-node 🔒 badge visible on mobile via `@media (hover: hover)`
       gate (path.css:1219 — shipped 2026-05-13).
 - [x] ✅ Path index brand-name dedupe: brand label hidden when title already
