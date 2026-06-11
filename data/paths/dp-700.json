@@ -59,68 +59,68 @@
               {
                 "q": "A team has a curated Delta table in ADLS Gen2 that other Microsoft Fabric workspaces should query without copying or scheduling. The data engineer needs to expose the table inside a lakehouse so notebooks can read it as if it were local, while updates at the source remain immediately visible. Which feature meets the requirement?",
                 "choices": [
-                  "Create a managed Delta table inside the lakehouse and load the data with a one-time ADLS Gen2 copy pipeline — copying the data breaks the single-copy principle of OneLake; a OneLake shortcut references the data in-place without duplicating it into a managed Delta table",
-                  "Mount the storage account inside the workspace using a notebook with a shared access signature on every session",
-                  "Schedule a Data Pipeline copy activity each hour to refresh a lakehouse Delta copy of the source folder location",
-                  "Configure a OneLake shortcut in the lakehouse Tables area that targets the external ADLS Gen2 location holding the data"
+                  "Configure a OneLake shortcut in the lakehouse Tables area that targets the external ADLS Gen2 location holding the data",
+                  "Mount the storage account inside the workspace using a notebook with a shared access signature regenerated on every session",
+                  "Schedule a Data Pipeline Copy activity each hour to refresh a lakehouse Delta copy of the source folder",
+                  "Create a managed Delta table inside the lakehouse and load it with a one-time ADLS Gen2 copy pipeline from the source"
                 ],
-                "correctIndex": 3,
-                "explanation": "OneLake shortcuts create a virtual reference to data stored outside the lakehouse (ADLS Gen2, Amazon S3, Dataverse, or another OneLake item) with no data copy. The lakehouse exposes the data as a normal Delta table; notebooks and SQL endpoint queries read the live source. Loading or scheduled copies duplicate storage and add latency, and SAS mounts are not the supported pattern in Fabric."
+                "correctIndex": 0,
+                "explanation": "OneLake shortcuts create a virtual reference to data stored outside the lakehouse (ADLS Gen2, Amazon S3, Dataverse, or another OneLake item) with no data copy; the lakehouse exposes the data as a normal Delta table and notebooks and SQL endpoint queries read the live source. A notebook SAS mount is not the supported pattern in Fabric and forces re-authentication each session. A scheduled Copy activity duplicates storage and introduces refresh latency, violating the requirement that source updates remain immediately visible. A managed Delta table loaded once also duplicates storage and goes stale, breaking the single-copy OneLake principle."
               },
               {
                 "q": "An analytics team must run T-SQL DDL and DML such as MERGE, CREATE PROCEDURE, and multi-statement transactions against curated tables in Fabric. They also want every change to be ACID-compliant via Delta under the hood. Which Fabric item natively supports T-SQL writes (insert, update, delete) on top of Delta?",
                 "choices": [
-                  "Lakehouse, whose SQL analytics endpoint allows full T-SQL SELECT plus INSERT, UPDATE, and DELETE",
-                  "Warehouse, which provides a full T-SQL DDL and DML surface and persists each table as Delta in OneLake",
-                  "KQL Database, which offers Kusto-style ingestion plus full T-SQL DDL on the materialized result tables",
-                  "Eventhouse, where T-SQL is the primary write language for all streaming aggregations and reference tables"
+                  "Lakehouse, whose SQL analytics endpoint allows T-SQL SELECT plus INSERT, UPDATE, and DELETE statements over Delta",
+                  "KQL Database, which offers Kusto-style ingestion plus full T-SQL DDL on the materialized result tables it exposes",
+                  "Warehouse, which provides a full T-SQL DDL and DML surface and persists each table as Delta Parquet in OneLake",
+                  "Eventhouse, where T-SQL is the primary write language for streaming aggregations and reference tables it owns"
                 ],
-                "correctIndex": 1,
-                "explanation": "The Fabric Warehouse exposes a full T-SQL surface — DDL, DML, multi-statement transactions, and stored procedures — and persists each table as Delta Parquet in OneLake. The Lakehouse SQL analytics endpoint is read-only T-SQL; writes go through Spark or Dataflows. KQL Database and Eventhouse target KQL workloads, not T-SQL writes."
+                "correctIndex": 2,
+                "explanation": "The Fabric Warehouse exposes a full T-SQL surface — DDL, DML, multi-statement transactions, and stored procedures — and persists each table as Delta Parquet in OneLake. The Lakehouse SQL analytics endpoint is read-only T-SQL; writes go through Spark or Dataflows, so INSERT/UPDATE/DELETE through the endpoint is not supported. KQL Database is queried with KQL, not T-SQL DDL, and Eventhouse is the KQL-centric container for real-time intelligence — neither supports T-SQL writes."
               },
               {
                 "q": "A Dataflow Gen2 ingests several large CSV files, applies multiple Power Query merges, and writes the result to a lakehouse table. Refreshes are unexpectedly slow and the engineer notices repeated re-evaluation of the same merge inputs across query steps. Which Dataflow Gen2 capability is designed to fix this?",
                 "choices": [
-                  "Disable staging on every query so each step runs end-to-end in memory without writing intermediate results to the lakehouse — disabling staging forces all query execution into the dataflow engine memory, which causes out-of-memory failures on large lakehouse datasets",
-                  "Enable staging on the merged queries so intermediate results land in the Fabric staging lakehouse and are reused",
-                  "Switch the dataflow output destination to a warehouse and rely on T-SQL to push down the joins after the load",
-                  "Convert each query into a separate dataflow and chain them with manual refresh-on-success orchestration triggers"
+                  "Disable staging on every query so each step runs end-to-end in memory without persisting intermediate results to storage",
+                  "Enable staging on the merged queries so intermediate results land in the Fabric staging lakehouse and are reused downstream",
+                  "Switch the dataflow output destination to a warehouse and rely on T-SQL to push the joins down after the bulk load completes",
+                  "Convert each query into a separate dataflow and chain them together with refresh-on-success orchestration triggers in a pipeline"
                 ],
                 "correctIndex": 1,
-                "explanation": "Dataflows Gen2 stages query results in a hidden Fabric lakehouse and warehouse when staging is enabled. Downstream queries (merges, joins) then read the staged intermediate instead of re-evaluating sources, which dramatically reduces redundant work. Disabling staging makes the problem worse, and switching destinations or chaining dataflows does not address repeated merge evaluation."
+                "explanation": "Dataflows Gen2 stage query results in a hidden Fabric lakehouse and warehouse when staging is enabled. Downstream queries (merges, joins) then read the staged intermediate instead of re-evaluating sources, which dramatically reduces redundant work. Disabling staging keeps everything in memory and forces the engine to re-evaluate merge inputs on each step, making the symptom worse. Changing the output destination only changes where the final rows land — it does not eliminate redundant in-engine merge work. Splitting into chained dataflows just shifts orchestration overhead and still re-evaluates inputs on every run."
               },
               {
                 "q": "A Fabric workspace pipeline must read from an Azure Data Lake Storage Gen2 account that is firewalled to a virtual network. The team prefers not to manage stored credentials or service principal secrets in connection strings. Which Fabric feature lets the workspace authenticate to the storage account using its own Microsoft Entra identity?",
                 "choices": [
-                  "A workspace identity, which is a Microsoft Entra service principal owned by the workspace and used by supported items",
-                  "A user-assigned managed identity attached to the capacity and shared across all workspaces — a shared managed identity is not bound to a single workspace's entra principal and does not own the Microsoft Fabric workspace resources as the workspace identity does",
-                  "An on-premises data gateway running in the customer datacenter with a stored access key for the storage account",
-                  "A personal access token tied to the workspace creator, refreshed automatically by the Fabric runtime each day"
+                  "A user-assigned managed identity attached to the capacity and shared across every workspace on the tenant for trusted-resource access",
+                  "An on-premises data gateway running in the customer datacenter with a stored access key for the Azure Data Lake Storage account",
+                  "A personal access token tied to the workspace creator and refreshed automatically by the Fabric runtime on a daily schedule",
+                  "A workspace identity, which is a Microsoft Entra service principal owned by the workspace and used by supported items"
                 ],
-                "correctIndex": 0,
-                "explanation": "A Fabric workspace identity is a managed Microsoft Entra service principal scoped to that workspace. Supported items (Pipelines, Dataflows Gen2, Eventstream) can use it to access trusted resources such as ADLS Gen2 behind a firewall — no stored secrets needed. Capacity-level or tenant-wide identities and personal access tokens are not the supported pattern, and on-prem gateways are for on-prem sources, not cloud-firewalled storage."
+                "correctIndex": 3,
+                "explanation": "A Fabric workspace identity is a managed Microsoft Entra service principal scoped to that workspace. Supported items (Pipelines, Dataflows Gen2, Eventstream) can use it to access trusted resources such as ADLS Gen2 behind a firewall — no stored secrets needed. A capacity-level managed identity is not bound to a single workspace and cannot represent that workspace as an Entra principal for trusted access. An on-premises data gateway is the route for on-prem sources, not cloud-firewalled storage, and still requires a stored access key. A personal access token is user-scoped and not a Fabric authentication primitive."
               },
               {
                 "q": "A team must ingest a high-volume IoT telemetry stream from Azure Event Hubs into Fabric, apply windowed aggregations, and land both raw events and aggregates in a KQL database for sub-second querying. They want a low-code visual canvas to design the pipeline. Which Fabric item should they use?",
                 "choices": [
-                  "A Data Pipeline with a Copy Activity scheduled every minute to pull batches from Event Hubs into the KQL database",
-                  "A Dataflow Gen2 in incremental refresh mode that connects to Event Hubs and writes to a managed lakehouse table",
-                  "An Eventstream that ingests from Event Hubs, applies streaming transformations, and writes to the KQL database",
-                  "A Spark Structured Streaming notebook reading Event Hubs and writing micro-batches into a Delta lakehouse table"
+                  "An Eventstream that ingests from Event Hubs, applies streaming transformations, and writes to the KQL database destination",
+                  "A Spark Structured Streaming notebook reading Event Hubs and writing micro-batches into a Delta lakehouse table on each trigger",
+                  "A Dataflow Gen2 in incremental refresh mode that connects to Event Hubs and writes the rows to a managed lakehouse table",
+                  "A Data Pipeline with a Copy Activity scheduled every minute to pull batches from Event Hubs into the target KQL database"
                 ],
-                "correctIndex": 2,
-                "explanation": "Eventstream is Fabric's no-code/low-code real-time ingestion item. It connects to streaming sources (Event Hubs, IoT Hub, Kafka, Custom App), supports inline transformations and windowed aggregations on a visual canvas, and writes to destinations such as a KQL database, lakehouse, or another Eventstream. Pipelines are batch, Dataflows Gen2 are not stream-native, and Spark notebooks work but are not the low-code canvas the requirement specifies."
+                "correctIndex": 0,
+                "explanation": "Eventstream is Fabric's no-code/low-code real-time ingestion item. It connects to streaming sources (Event Hubs, IoT Hub, Kafka, Custom App), supports inline transformations and windowed aggregations on a visual canvas, and writes to destinations such as a KQL database, lakehouse, or another Eventstream. A Spark Structured Streaming notebook can do the work but is code-first, not low-code. Dataflow Gen2 is not a streaming engine — incremental refresh is batched, not continuous. A scheduled Data Pipeline Copy is also batch and adds at least one minute of latency, missing the sub-second goal."
               },
               {
                 "q": "A Power BI report in Direct Lake mode on a 200-million-row Delta table in a Fabric lakehouse is slower than expected. The engineer reads that a Fabric-specific Parquet write optimization can reorder rows and dictionary-encode them for faster scans by the Power BI engine. Which optimization should be enabled?",
                 "choices": [
-                  "Z-Order clustering on every column of the table so each scan for Direct Lake reads the smallest possible set of row groups — Z-Order is a Databricks Delta Lake feature; it does not exist in Microsoft Fabric and is not an optimization applicable to Direct Lake mode",
-                  "V-Order, a write-time Parquet optimization that improves scan speed for Direct Lake and SQL endpoint queries",
-                  "Liquid clustering, which dynamically reorganizes the table without the engineer specifying any cluster keys",
-                  "ZSTD compression at level 22, which trades extra CPU on write for a much smaller on-disk Parquet file size"
+                  "Z-Order clustering on every column of the table so that Direct Lake scans read the smallest possible set of row groups per query",
+                  "Liquid clustering, which dynamically reorganizes the table partitions without the engineer specifying any cluster keys at all",
+                  "V-Order, a write-time Parquet optimization that improves scan speed for Direct Lake and SQL endpoint queries on the table",
+                  "ZSTD compression at level 22, which trades extra CPU on write for a much smaller on-disk Parquet file size on the lakehouse"
                 ],
-                "correctIndex": 1,
-                "explanation": "V-Order is Fabric's write-time Parquet optimization. It applies a special sort, row-group sizing, and dictionary encoding so the Power BI Direct Lake engine and the Fabric SQL endpoint scan the files faster — often 10–50 percent faster. Z-Order helps file pruning by clustering but is a Databricks/Delta feature less tuned to Power BI; liquid clustering and ultra-high ZSTD do not provide the same Power BI scan boost."
+                "correctIndex": 2,
+                "explanation": "V-Order is Fabric's write-time Parquet optimization. It applies a special sort, row-group sizing, and dictionary encoding so the Power BI Direct Lake engine and the Fabric SQL endpoint scan the files faster — often 10–50 percent faster on real workloads. Z-Order is a Databricks Delta clustering feature and is not the Fabric-specific Direct Lake optimization the question describes. Liquid clustering is also a Databricks feature and is not tied to the Direct Lake engine. ZSTD level 22 shrinks files but does not produce the dictionary-encoded, Direct-Lake-friendly layout V-Order does."
               }
             ]
           },
@@ -190,68 +190,68 @@
               {
                 "q": "A development workspace contains lakehouses, notebooks, and reports that must be promoted to Test and then Production workspaces with item references rewritten and a manual approval gate before Production. Which Fabric feature provides this multi-stage promotion natively?",
                 "choices": [
-                  "Git integration with a feature branch per workspace, where each pull request merged to main triggers a manual deployment — Git integration provides version control but does not define promotion stages with manual approval gates between Development, Test, and Production environments",
-                  "A workspace clone created from the Fabric Admin portal whenever a release candidate is ready for promotion to Test — workspace clones copy the current state once but do not define repeatable promotion stages with approval gates between environments",
-                  "A Data Pipeline that copies each item's JSON definition from one workspace to another on a recurring schedule",
-                  "A Fabric deployment pipeline with Development, Test, and Production stages and a manual deploy step between them"
+                  "Git integration with a feature branch per workspace, where each pull request merged to main triggers a manual deployment job",
+                  "A Fabric deployment pipeline with Development, Test, and Production stages and a manual deploy step between each stage",
+                  "A workspace clone created from the Fabric Admin portal whenever a release candidate is ready for promotion to the next workspace",
+                  "A Data Pipeline that copies each item's JSON definition from the source workspace to the target workspace on a recurring schedule"
                 ],
-                "correctIndex": 3,
-                "explanation": "Fabric deployment pipelines model a multi-stage release flow — typically Development → Test → Production — for supported items including lakehouses, notebooks, semantic models, and reports. They handle item references between stages and require a manual deploy step that supports approvals. Git integration handles source control but does not orchestrate stage promotion; Data Pipelines and workspace clones are not stage-aware deployment tools."
+                "correctIndex": 1,
+                "explanation": "Fabric deployment pipelines model a multi-stage release flow — typically Development → Test → Production — for supported items including lakehouses, notebooks, semantic models, and reports. They handle item references between stages and require a manual deploy step that supports approvals. Git integration handles source control and branching but does not define stage promotion or manual gates between Test and Production. A workspace clone is a one-shot copy with no stage model and no approval gate. Copying item JSON via a Data Pipeline does not rewrite item references or gate deployments."
               },
               {
                 "q": "After a Spark job runs daily, a Fabric capacity reports sustained smoothing-related throttling for several hours and dashboard refreshes start to queue. The admin needs to identify which items consumed the most capacity units (CUs) to plan a redesign. Which built-in tool exposes per-item CU consumption over time?",
                 "choices": [
-                  "The Fabric Capacity Metrics app installed from AppSource and pointed at the capacity to view per-item CU usage",
-                  "The Monitoring hub in the workspace, which lists per-item run status but does not break down CU consumption by item",
-                  "Azure Monitor diagnostic settings on the Fabric tenant, which export CU usage events to a Log Analytics workspace",
-                  "The Power BI Premium Capacity admin view, which reports Premium Gen2 CU usage for legacy workspaces only"
+                  "The Monitoring hub in the workspace, which lists per-item run status and duration but does not break down CU consumption by item",
+                  "Azure Monitor diagnostic settings on the Fabric tenant, which export the raw CU usage events to a Log Analytics workspace",
+                  "The Power BI Premium Capacity admin view, which reports Premium Gen2 CU usage for legacy workspaces only on the tenant",
+                  "The Fabric Capacity Metrics app installed from AppSource and pointed at the capacity to view per-item CU usage and throttling"
                 ],
-                "correctIndex": 0,
-                "explanation": "The Microsoft Fabric Capacity Metrics app is the supported tool for analyzing capacity unit (CU) consumption. It exposes per-item CU usage, smoothing and burst behavior, throttling, and overage time-series so admins can identify heavy items and right-size the capacity. The Monitoring hub shows job run status, not capacity economics, and Azure Monitor and the legacy Premium view do not provide Fabric per-item CU detail."
+                "correctIndex": 3,
+                "explanation": "The Microsoft Fabric Capacity Metrics app is the supported tool for analyzing capacity unit (CU) consumption. It exposes per-item CU usage, smoothing and burst behavior, throttling, and overage time-series so admins can identify heavy items and right-size the capacity. The Monitoring hub shows job run status and duration but no CU economics. Azure Monitor does not currently surface Fabric per-item CU events through diagnostic settings. The Premium Capacity admin view only covers legacy Premium Gen2 workspaces, not Fabric items."
               },
               {
                 "q": "A team needs to make an Azure SQL Database queryable inside Fabric with near-real-time replication, but without writing change data capture or running ETL jobs. The replicated copy should appear as a read-only Delta source in OneLake. Which Fabric capability fits?",
                 "choices": [
-                  "A Dataflow Gen2 with incremental refresh that polls the source database every minute and reads changed rows into a OneLake Delta table — Dataflow Gen2 incremental refresh checks for changes on a schedule, not continuously; it introduces latency and complexity compared to native Mirroring replication into OneLake",
-                  "A Data Pipeline ForEach activity that runs a Copy activity per table on a five-minute schedule, full refresh",
-                  "Mirroring, which continuously replicates the source database into OneLake as read-only Delta tables with low latency",
-                  "A linked server in the Fabric warehouse that issues federated queries to read from the source database on demand — federated queries introduce latency on every read and depend on the source database remaining available at query time"
+                  "Mirroring, which continuously replicates the source database into OneLake as read-only Delta tables with low latency end to end",
+                  "A Dataflow Gen2 with incremental refresh that polls the source database every minute and writes the changed rows to a OneLake Delta table",
+                  "A Data Pipeline ForEach activity that runs a Copy activity per table on a five-minute schedule, doing a full refresh of every table each run",
+                  "A linked server in the Fabric warehouse that issues federated queries to read from the source Azure SQL Database on demand"
                 ],
-                "correctIndex": 2,
-                "explanation": "Fabric Mirroring (for Azure SQL DB, Cosmos DB, Snowflake, and other supported sources) continuously replicates source data into OneLake as read-only Delta tables with near-real-time latency. No ETL or CDC code is needed; consumers query the replicated Delta tables through the lakehouse SQL endpoint or Power BI. Dataflows and scheduled pipelines add polling latency, and Fabric has no SQL Server-style linked-server feature."
+                "correctIndex": 0,
+                "explanation": "Fabric Mirroring (for Azure SQL DB, Cosmos DB, Snowflake, and other supported sources) continuously replicates source data into OneLake as read-only Delta tables with near-real-time latency. No ETL or CDC code is needed; consumers query the replicated Delta tables through the lakehouse SQL endpoint or Power BI. Dataflow Gen2 incremental refresh polls on a schedule, so it adds the very latency Mirroring removes, and still requires query authoring. A ForEach + Copy at five-minute intervals is full-refresh batching, not near-real-time replication. Fabric does not provide a SQL Server-style linked-server federation feature."
               },
               {
                 "q": "A semantic model on a 1.5-billion-row Delta table in a lakehouse must serve interactive Power BI reports with no scheduled import refresh and without falling back to DirectQuery's per-visual query cost. The team wants the engine to read Parquet directly from OneLake into memory on demand. Which semantic model storage mode meets the requirement?",
                 "choices": [
-                  "Import mode, where the model loads a full copy of the data into VertiPaq memory from OneLake — Import mode reads the data from OneLake on refresh and stores a compressed in-memory copy; it does not load Parquet column segments directly from OneLake on demand as Direct Lake mode does",
-                  "DirectQuery mode, where each visual issues a live SQL query through the lakehouse SQL analytics endpoint",
-                  "Direct Lake mode, where the model loads Parquet column segments directly from OneLake into memory on demand",
-                  "Dual mode, where each table is replicated into both Import and DirectQuery and the engine picks at query time"
+                  "Import mode, where the model loads a full compressed copy of the data into VertiPaq memory from OneLake on each scheduled refresh",
+                  "DirectQuery mode, where each visual issues a live SQL query through the lakehouse SQL analytics endpoint at render time",
+                  "Direct Lake mode, where the model loads Parquet column segments directly from OneLake into memory on demand at query time",
+                  "Dual mode, where each table is replicated into both Import and DirectQuery storage and the engine picks the route at query time"
                 ],
                 "correctIndex": 2,
-                "explanation": "Direct Lake is a Fabric-only semantic-model storage mode that reads Delta/Parquet column segments directly from OneLake into the Power BI engine without an import refresh and without issuing per-visual DirectQuery requests. It delivers Import-like query performance with no refresh schedule on top of lakehouse or warehouse Delta tables — typically paired with V-Order for best results."
+                "explanation": "Direct Lake is a Fabric-only semantic-model storage mode that reads Delta/Parquet column segments directly from OneLake into the Power BI engine without an import refresh and without issuing per-visual DirectQuery requests. It delivers Import-like query performance with no refresh schedule on top of lakehouse or warehouse Delta tables — typically paired with V-Order for best results. Import requires a scheduled refresh, the very thing the team wants to avoid. DirectQuery issues per-visual SQL queries, the other thing the team wants to avoid. Dual mode is a per-table hybrid and still requires an Import refresh for the Import side."
               },
               {
                 "q": "A Fabric administrator must grant a data engineering team read and write access to all current and future items in a workspace, including the ability to manage pipelines and notebooks, but they must not be able to add or remove other users. Which workspace role should be assigned?",
                 "choices": [
-                  "Admin, which grants full control including managing workspace access and deleting the workspace",
-                  "Member, which can add items and manage most content but cannot change workspace user access in the way Admin can",
-                  "Contributor, which can create and edit items such as pipelines and notebooks without managing workspace access",
-                  "Viewer, which can read and run reports but cannot create or edit items in the workspace"
+                  "Admin, which grants full control including managing workspace access and deleting the workspace at any time",
+                  "Contributor, which can create and edit items such as pipelines and notebooks without managing workspace membership",
+                  "Member, which can add items, manage most content, and also share the workspace with new users on the tenant",
+                  "Viewer, which can read and run reports but cannot create or edit items inside the workspace at all"
                 ],
-                "correctIndex": 2,
-                "explanation": "The Contributor role lets the team create, edit, and run items such as pipelines and notebooks (read and write) but does not grant the ability to manage workspace membership, matching the requirement. Admin grants full control including managing user access and is broader than needed. Member can also share the workspace and add others to certain roles, exceeding the no-membership-management constraint. Viewer is read-only and cannot author or edit items at all."
+                "correctIndex": 1,
+                "explanation": "The Contributor role lets the team create, edit, and run items such as pipelines and notebooks (read and write) but does not grant the ability to manage workspace membership, matching the requirement exactly. Admin grants full control including managing user access and deleting the workspace, which is broader than the brief allows. Member can also share the workspace and add others to certain roles, exceeding the no-membership-management constraint. Viewer is read-only and cannot author or edit any items."
               },
               {
                 "q": "A data engineer must remove old rows from a Delta table in a Fabric lakehouse and reclaim the storage occupied by files that are no longer referenced by the table, after running DELETE operations. Which maintenance operation reclaims that unreferenced storage?",
                 "choices": [
-                  "OPTIMIZE on the table, which compacts small Parquet files into larger ones for faster reads",
-                  "VACUUM on the table, which removes data files no longer referenced and older than the retention threshold",
-                  "REFRESH TABLE on the table, which updates the cached metadata the engine holds for the table",
-                  "ANALYZE TABLE on the table, which recomputes column statistics used by the query optimizer"
+                  "OPTIMIZE on the table, which compacts many small Parquet files into larger ones to speed up subsequent reads",
+                  "REFRESH TABLE on the table, which updates the cached metadata the query engine holds for the Delta table",
+                  "ANALYZE TABLE on the table, which recomputes the column statistics used by the query optimizer for join planning",
+                  "VACUUM on the table, which removes Parquet files no longer referenced by the log once past the retention threshold"
                 ],
-                "correctIndex": 1,
-                "explanation": "VACUUM removes Parquet data files that are no longer referenced by the Delta transaction log and are older than the retention period, reclaiming storage after DELETE operations. OPTIMIZE compacts small files into larger ones to speed reads but does not delete unreferenced files or reclaim that space. REFRESH TABLE only updates cached metadata. ANALYZE TABLE recomputes statistics for the optimizer and frees no storage."
+                "correctIndex": 3,
+                "explanation": "VACUUM removes Parquet data files that are no longer referenced by the Delta transaction log and are older than the retention period, reclaiming storage after DELETE operations. OPTIMIZE compacts small files into larger ones to speed reads but does not delete unreferenced files or free their space. REFRESH TABLE only updates cached metadata — it touches no data files. ANALYZE TABLE recomputes statistics for the optimizer and frees no storage either."
               }
             ]
           },
@@ -320,46 +320,46 @@
               {
                 "q": "A streaming pipeline lands JSON events from an Eventstream into a KQL database. Analysts need sub-second aggregations and want a continuously updated, pre-aggregated table that refreshes incrementally as new data arrives, without scheduling a batch job. Which KQL database feature should be used?",
                 "choices": [
-                  "An update policy that runs a query to transform rows into another table on each ingestion batch",
-                  "A materialized view, which incrementally maintains an aggregation over a source table as data is ingested",
-                  "An external table that points to the raw JSON files so queries always read the latest source",
-                  "A stored function that recomputes the aggregation each time an analyst runs the query interactively"
+                  "A materialized view, which incrementally maintains an aggregation over a source table as new rows are ingested in real time",
+                  "An update policy that runs a transformation query against each ingestion batch and writes the result rows to another table",
+                  "A stored function that recomputes the aggregation each time an analyst runs the query interactively from the queryset",
+                  "An external table that points to the raw JSON files in storage so queries always read the latest source data on demand"
                 ],
-                "correctIndex": 1,
-                "explanation": "A KQL materialized view maintains a precomputed aggregation (such as a summarize) over a source table and updates it incrementally as new data is ingested, giving fast, always-current aggregates with no batch schedule. An update policy transforms rows into another table at ingestion but does not maintain a running aggregation view. An external table only references raw files and offers no precomputed aggregation. A stored function recomputes results at query time, defeating the sub-second pre-aggregation goal."
+                "correctIndex": 0,
+                "explanation": "A KQL materialized view maintains a precomputed aggregation (such as a summarize) over a source table and updates it incrementally as new data is ingested, giving fast, always-current aggregates with no batch schedule. An update policy transforms incoming rows into another table at ingestion but does not maintain a running, queryable aggregation view. A stored function recomputes results at query time, defeating the sub-second pre-aggregation goal. An external table just references raw files and provides no precomputed aggregation at all."
               },
               {
                 "q": "A team wants to ingest a large set of Parquet files from ADLS Gen2 into a Fabric lakehouse table using distributed compute, with the ability to apply complex Python transformations and write the result as a managed Delta table. Which Fabric item is the most appropriate?",
                 "choices": [
-                  "A Dataflow Gen2, using its Power Query interface to apply the Python transformations across the files",
-                  "A Data Pipeline Copy activity alone, which loads the files and applies the Python transformations inline",
-                  "A Spark notebook, which reads the Parquet files with distributed compute and writes a managed Delta table",
-                  "A KQL queryset, which ingests the Parquet files and applies the transformations using KQL functions"
+                  "A Dataflow Gen2, using its Power Query interface to apply the complex Python transformations across the source files at scale",
+                  "A Data Pipeline Copy activity alone, which loads the files and applies the requested Python transformations inline during the copy",
+                  "A Spark notebook, which reads the Parquet files with distributed compute and writes a managed Delta table back to the lakehouse",
+                  "A KQL queryset, which ingests the Parquet files and applies the requested transformations using the KQL functions catalog"
                 ],
                 "correctIndex": 2,
-                "explanation": "A Spark notebook provides distributed compute and full Python (PySpark) so it can read many Parquet files, apply complex transformations, and write a managed Delta table in the lakehouse. Dataflow Gen2 uses Power Query (M), not Python, for transformations. A Copy activity moves data but cannot apply arbitrary Python transformation logic inline. A KQL queryset targets KQL databases and Kusto query language, not lakehouse Delta writes with Python."
+                "explanation": "A Spark notebook provides distributed compute and full Python (PySpark) so it can read many Parquet files, apply complex transformations, and write a managed Delta table in the lakehouse. Dataflow Gen2 uses Power Query (M), not Python, for its transformations. A Copy activity moves data efficiently but cannot apply arbitrary Python transformation logic inline. A KQL queryset targets KQL databases and the Kusto query language, not lakehouse Delta writes from Python code."
               },
               {
                 "q": "A Data Pipeline must copy data from 40 source tables into a lakehouse, where the list of table names is supplied at runtime from a lookup against a control table. The same Copy logic should run once per table name. Which pipeline construct achieves this?",
                 "choices": [
-                  "A single Copy activity with the table name hard-coded and the pipeline cloned 40 times for each table",
-                  "A ForEach activity that iterates over the array returned by a Lookup activity, invoking a Copy activity per item",
-                  "An If Condition activity that branches to a different Copy activity depending on the table name value",
-                  "A Switch activity with 40 cases, one per table, each containing a dedicated Copy activity for that table"
+                  "A single Copy activity with the table name hard-coded and the entire pipeline cloned 40 times, one clone per source table",
+                  "A ForEach activity that iterates over the array returned by a Lookup activity, invoking the Copy activity once per item",
+                  "An If Condition activity that branches to a different Copy activity depending on the table name value supplied at runtime",
+                  "A Switch activity with 40 cases, one per table, each case containing a dedicated Copy activity for that specific table"
                 ],
                 "correctIndex": 1,
-                "explanation": "A ForEach activity iterates over the array output of a Lookup activity that reads the control table, running the inner Copy activity once per table name — a data-driven loop with no hard-coding. Cloning the pipeline 40 times is unmaintainable and ignores the runtime list. An If Condition only chooses between two branches and cannot iterate a dynamic list. A Switch with 40 fixed cases hard-codes the table set and breaks when the control table changes."
+                "explanation": "A ForEach activity iterates over the array output of a Lookup activity that reads the control table, running the inner Copy activity once per table name — a data-driven loop with no hard-coding. Cloning the pipeline 40 times is unmaintainable and ignores the runtime list of tables. An If Condition only chooses between two branches and cannot iterate a dynamic list of any length. A Switch with 40 fixed cases hard-codes the table set and breaks the moment the control table gains or loses an entry."
               },
               {
                 "q": "A query against a Warehouse joins a 2-billion-row fact table to a date dimension and is slow. The engineer wants Fabric to gather distribution statistics so the query optimizer can choose better join strategies, suspecting stale or missing statistics. Which action directly addresses this?",
                 "choices": [
-                  "Create or update statistics on the join columns so the optimizer has current cardinality estimates",
-                  "Add a clustered columnstore index to the fact table to change its physical storage layout",
-                  "Increase the capacity SKU so more compute is allocated to the query at execution time",
-                  "Rewrite the join as a subquery with a TOP clause to limit the rows the optimizer must consider"
+                  "Add a clustered columnstore index to the fact table to change its physical storage layout to columnar format",
+                  "Increase the capacity SKU so that more compute resource is allocated to the query at execution time on the Warehouse",
+                  "Rewrite the join as a subquery with a TOP clause to limit the number of rows the optimizer must consider for the plan",
+                  "Create or update statistics on the join columns so the optimizer has current cardinality estimates for plan selection"
                 ],
-                "correctIndex": 0,
-                "explanation": "Up-to-date statistics on the join columns give the Warehouse optimizer accurate cardinality estimates so it can pick efficient join strategies; creating or updating statistics directly addresses stale or missing stats. A clustered columnstore index changes physical layout but does not supply the cardinality estimates the optimizer needs, and Fabric Warehouse already stores data in columnar Delta. Increasing the SKU adds compute but does not fix a bad plan caused by wrong estimates. Rewriting with a TOP subquery changes the query semantics rather than improving the optimizer's information."
+                "correctIndex": 3,
+                "explanation": "Up-to-date statistics on the join columns give the Warehouse optimizer accurate cardinality estimates so it can pick efficient join strategies; creating or updating statistics directly addresses stale or missing stats. A clustered columnstore index changes physical layout but does not supply cardinality estimates, and Fabric Warehouse already persists tables as columnar Delta. Increasing the SKU adds compute but does not fix a bad plan caused by wrong estimates. Rewriting with a TOP subquery changes the query's semantics rather than improving the optimizer's information."
               }
             ]
           },
@@ -394,7 +394,7 @@
     "timeMinutes": 23
   },
   "meta": {
-    "generatedAt": "2026-06-04T11:52:48.131Z",
+    "generatedAt": "2026-06-11T07:40:36.607Z",
     "totalNodes": 14,
     "totalQuestions": 16,
     "nodeTypes": [

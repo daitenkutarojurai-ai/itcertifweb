@@ -56,48 +56,48 @@
             "livesAllowed": 3,
             "questions": [
               {
-                "q": "An application consists of 5 replicas in a Deployment. During a rolling update, the developer wants to ensure at least 4 Pods are always running, and no more than 7 Pods exist at any one time. Which settings achieve this?",
+                "q": "An application runs 5 replicas in a Deployment. During a rolling update, the developer wants at least 4 Pods always running and no more than 7 Pods at any one time. Which settings achieve this?",
                 "choices": [
-                  "minReadySeconds: 4, maxSurge: 2",
-                  "maxSurge: 2, maxUnavailable: 1",
-                  "maxSurge: 7, maxUnavailable: 4",
-                  "maxSurge: 0, maxUnavailable: 1"
+                  "maxSurge: 7 and maxUnavailable: 4",
+                  "maxSurge: 2 and maxUnavailable: 1",
+                  "maxSurge: 0 and maxUnavailable: 1",
+                  "minReadySeconds: 4 and maxSurge: 2"
                 ],
                 "correctIndex": 1,
-                "explanation": "With 5 replicas: maxUnavailable: 1 means at most 1 Pod can be unavailable (minimum 4 running). maxSurge: 2 means at most 2 extra Pods can be created above the desired count (maximum 7 total). These two fields control the pace and safety of rolling updates. minReadySeconds controls how long a new Pod must be ready before it counts as available."
+                "explanation": "With 5 replicas, `maxUnavailable: 1` guarantees at least 4 running (5 − 1) and `maxSurge: 2` caps total Pods at 7 (5 + 2). `minReadySeconds` is a delay before a new Pod counts as available — not a Pod-count control. The third option (surge 7, unavailable 4) describes maximums of 12 total and as few as 1 running, far outside the requested envelope. `maxSurge: 0, maxUnavailable: 1` keeps total at 5 max — surge is needed to exceed the desired count."
               },
               {
-                "q": "A developer has deployed a new application version and needs to check the rollout history. The current version has a problem and the team wants to revert to the previous revision. Which kubectl commands are used in sequence?",
+                "q": "A new application version has a problem and the team wants to revert to the previous revision after inspecting history. Which kubectl command sequence performs this?",
                 "choices": [
-                  "kubectl rollout history deployment/app → kubectl rollout undo deployment/app",
-                  "kubectl describe deployment app → kubectl delete deployment app and restore from history",
-                  "kubectl rollout status deployment/app → kubectl rollout pause deployment/app",
-                  "kubectl get deploy -o yaml → kubectl apply -f previous-version.yaml"
+                  "kubectl rollout status deployment/app then kubectl rollout pause deployment/app",
+                  "kubectl describe deployment app then kubectl delete deployment app and reapply",
+                  "kubectl rollout history deployment/app then kubectl rollout undo deployment/app",
+                  "kubectl get deploy -o yaml then kubectl apply -f previous-version.yaml"
                 ],
-                "correctIndex": 0,
-                "explanation": "`kubectl rollout history deployment/<name>` shows the revision history with change-cause annotations. `kubectl rollout undo deployment/<name>` rolls back to the previous revision. To roll back to a specific revision: `kubectl rollout undo deployment/<name> --to-revision=<N>`. This is the standard Kubernetes rollback workflow."
+                "correctIndex": 2,
+                "explanation": "`kubectl rollout history` lists the Deployment's revisions and change-causes; `kubectl rollout undo` rolls back to the previous revision (or `--to-revision=N` for a specific one). Deleting and recreating the Deployment causes downtime and loses the controller's revision history. `kubectl rollout pause` halts further rollouts — it does not roll back. Capturing the live YAML and reapplying skips the controller's revision machinery and is fragile: you have no record of the prior ReplicaSet image/template."
               },
               {
                 "q": "A developer runs `kubectl rollout status deployment/web` and the command hangs without completing. What is MOST likely happening?",
                 "choices": [
                   "The kubectl command has a bug and needs to be rerun with --force",
-                  "The deployment has no rollout in progress",
-                  "The deployment has been paused with kubectl rollout pause",
-                  "The rollout is in progress but the new Pods are failing their"
+                  "The Deployment was paused with kubectl rollout pause and is awaiting resume",
+                  "The Deployment has no rollout in progress so the command should have returned immediately",
+                  "The rollout is in progress but new Pods are failing their readiness probes"
                 ],
                 "correctIndex": 3,
-                "explanation": "`kubectl rollout status` waits until the rollout completes (all new Pods are ready) or fails. If it hangs, the most common cause is new Pods failing their readiness probes — the rollout controller waits for the new Pod to become ready before replacing the next old Pod. Check `kubectl get pods` and `kubectl describe pod <new-pod>` to see the probe failure reason. A paused rollout would also cause this command to wait indefinitely. so Kubernetes is waiting before proceeding"
+                "explanation": "`kubectl rollout status` blocks until the rollout finishes or fails. The textbook reason for it to hang is that the new ReplicaSet's Pods are not becoming Ready — the controller waits for readiness before replacing the next old Pod. Check `kubectl get pods` and `kubectl describe pod` on a new replica for the probe failure. `--force` is not a flag for `rollout status`. If there is no rollout in progress the command exits quickly with `deployment ... successfully rolled out`. A paused rollout is plausible but rarer than failed probes; the question asks for the MOST likely cause."
               },
               {
-                "q": "A Deployment named 'app' is currently paused (via `kubectl rollout pause`). A developer updates the image and environment variables. When will these changes take effect?",
+                "q": "A Deployment named `app` is currently paused (via `kubectl rollout pause`). A developer then updates the image and environment variables. When will these changes take effect?",
                 "choices": [
-                  "When the Pod restarts due to a liveness probe failure triggering kubectl rollout resume on the deployment",
-                  "Only after `kubectl rollout resume deployment/app` is run",
+                  "Immediately — pausing only affects new deployments, not in-place updates",
                   "After 5 minutes — the default pause timeout expires automatically",
-                  "Immediately — pausing only affects new deployments, not updates"
+                  "When the Pod restarts due to a liveness-probe failure, which automatically resumes the rollout",
+                  "Only after `kubectl rollout resume deployment/app` is run; all queued template changes then roll out together"
                 ],
-                "correctIndex": 1,
-                "explanation": "`kubectl rollout pause` stops the Deployment controller from processing changes to the Pod template. Changes (image updates, env var changes) accumulate in the Deployment spec but no new Pods are created. `kubectl rollout resume deployment/app` triggers a single rolling update that applies all queued changes at once. This is useful for batching multiple changes into one rollout."
+                "correctIndex": 3,
+                "explanation": "`rollout pause` stops the Deployment controller from reconciling template changes; you can edit the template repeatedly, and once you run `rollout resume` all accumulated changes ship in a single rolling update. Liveness-probe restarts never resume a paused rollout. There is no automatic pause expiry — pauses are sticky until you resume. Pausing absolutely affects in-place updates; that is the whole point."
               }
             ]
           },
@@ -202,48 +202,48 @@
             "livesAllowed": 3,
             "questions": [
               {
-                "q": "A developer creates a ClusterIP Service named 'api-service' in namespace 'backend'. Another Pod in namespace 'frontend' needs to reach it. Which DNS name resolves to this Service from the frontend namespace?",
+                "q": "A developer creates a ClusterIP Service named `api-service` in namespace `backend`. A Pod in namespace `frontend` needs to reach it. Which DNS name resolves to this Service from the frontend namespace?",
                 "choices": [
-                  "backend.api-service.svc.cluster.local — namespace-first form which kube-dns rejects",
-                  "api-service.backend.cluster.local — missing the svc segment from the FQDN",
-                  "api-service.backend.svc.cluster.local — full FQDN for a Service in backend ns",
-                  "api-service alone — only resolves from inside the Service's own namespace"
+                  "api-service.backend.svc.cluster.local — full FQDN for a Service in the backend namespace",
+                  "api-service alone — works from any namespace via the cluster search domain",
+                  "api-service.backend.cluster.local — drop the `svc` segment from the FQDN",
+                  "backend.api-service.svc.cluster.local — namespace must come first"
                 ],
-                "correctIndex": 2,
-                "explanation": "Kubernetes internal DNS follows the pattern `<service-name>.<namespace>.svc.cluster.local`. From within the same namespace, `api-service` suffices. From a different namespace, you must include at least the namespace: `api-service.backend` works because DNS search domains add `.svc.cluster.local`. The fully qualified domain name `api-service.backend.svc.cluster.local` always works from any namespace."
+                "correctIndex": 0,
+                "explanation": "Kubernetes DNS follows `<service>.<namespace>.svc.<cluster-domain>`, so `api-service.backend.svc.cluster.local` is correct from any namespace. The first option reverses service and namespace. The second drops the `svc` segment, which is required (Services live under `svc`, Pods under `pod`). The bare name `api-service` only resolves from inside the `backend` namespace because the search domain prepends the caller's namespace."
               },
               {
                 "q": "A developer creates a Service of type NodePort for a web application. Which statement CORRECTLY describes how this Service works?",
                 "choices": [
-                  "NodePort is identical to ClusterIP but can be accessed from within the cluster only",
-                  "NodePort exposes the Service on a static port on every cluster node's IP address.",
-                  "NodePort routes traffic to Pods only on the same node where the request arrives",
-                  "NodePort requires a cloud load balancer to route external traffic"
+                  "NodePort requires a cloud load balancer to route external traffic to the Pods",
+                  "NodePort routes traffic only to Pods that happen to run on the node receiving the request",
+                  "NodePort is identical to ClusterIP and is only reachable from inside the cluster",
+                  "NodePort exposes the Service on a static port on every node's IP, forwarding to the backing Pods"
+                ],
+                "correctIndex": 3,
+                "explanation": "NodePort allocates a port (default range 30000–32767) on every node; kube-proxy forwards traffic from `<NodeIP>:<NodePort>` to a backing Pod, regardless of which node the Pod runs on. ClusterIP is internal-only — that is the contrast NodePort exists to bridge. By default kube-proxy load-balances across all Pods cluster-wide (you only get node-local routing if you set `externalTrafficPolicy: Local`). LoadBalancer is the type that depends on a cloud LB; NodePort works on its own and is often the building block used under a LoadBalancer."
+              },
+              {
+                "q": "A developer wants to expose an application to other Pods inside the cluster but NOT outside. Which Service type provides internal-only access?",
+                "choices": [
+                  "LoadBalancer — with spec.loadBalancerIP set to an internal IP address",
+                  "ClusterIP — the default Service type, reachable only from within the cluster",
+                  "ExternalName — resolves the Service name to an internal CNAME",
+                  "NodePort — restricted to traffic originating from inside the cluster"
                 ],
                 "correctIndex": 1,
-                "explanation": "A NodePort Service allocates a port (default range 30000-32767) on EVERY node in the cluster. External traffic to `<NodeIP>:<NodePort>` is forwarded to the backing Pods via kube-proxy, regardless of which node the Pod runs on. It does not require a cloud load balancer (unlike LoadBalancer type). ClusterIP is cluster-internal only. NodePort is commonly used for development and can be fronted by an external load balancer in production. allowing external traffic to reach the Pods"
+                "explanation": "ClusterIP allocates a virtual IP from the Service CIDR that only nodes and Pods can route to — no external exposure, and it is the default type. LoadBalancer always asks the cloud for an externally reachable LB (internal-LB annotations exist but are provider-specific and not part of the Service type itself). NodePort opens a port on every node's external IP — by definition externally reachable. ExternalName is a DNS CNAME; it does not produce a cluster IP and usually points OUT of the cluster."
               },
               {
-                "q": "A developer wants to expose an application inside the cluster using a Service. The application should NOT be accessible from outside the cluster. Which Service type provides internal-only access?",
+                "q": "A developer needs a Service that maps a cluster-internal DNS name to an external hostname like `database.example.com`. Which Service type provides this?",
                 "choices": [
-                  "ClusterIP — the default type.",
-                  "LoadBalancer — but with `spec.loadBalancerIP` set to an internal IP",
-                  "NodePort — restricted to intra-cluster nodes",
-                  "ExternalName — resolves to an internal CNAME"
-                ],
-                "correctIndex": 0,
-                "explanation": "ClusterIP is the default Service type. It allocates a virtual IP from the cluster's IP range that is only reachable within the cluster (by other Pods and nodes). External traffic cannot reach a ClusterIP Service directly. NodePort and LoadBalancer expose the Service externally. ExternalName is for proxying DNS names (internal or external). Most microservice communication uses ClusterIP. accessible only within the cluster via the cluster-internal IP"
-              },
-              {
-                "q": "A developer needs a Service that maps to an external hostname (not a cluster Pod). For example, accessing `database.example.com` through a Kubernetes Service name. Which Service type provides this?",
-                "choices": [
-                  "NodePort Service with externalIPs so the external hostname resolves to each cluster node address",
-                  "ClusterIP Service backed by a manually authored Endpoints object pointing externally",
-                  "ExternalName — creates a CNAME in cluster DNS that resolves to the external hostname",
-                  "LoadBalancer Service with externalTrafficPolicy: Cluster set to bridge the hostname"
+                  "LoadBalancer Service with externalTrafficPolicy: Cluster",
+                  "ClusterIP Service backed by a manually authored Endpoints object pointing at the external host",
+                  "ExternalName — creates a DNS CNAME in cluster DNS that resolves to the external hostname",
+                  "NodePort Service with externalIPs covering each cluster node"
                 ],
                 "correctIndex": 2,
-                "explanation": "An ExternalName Service creates a DNS CNAME alias: `<service-name>.<namespace>.svc.cluster.local` resolves to the configured `spec.externalName` hostname (e.g., `database.example.com`). Pods use the Service's cluster DNS name but actually connect to the external service. No proxying or load balancing occurs — it's purely a DNS alias. Useful for abstracting external dependencies behind a cluster-native service name."
+                "explanation": "`spec.type: ExternalName` plus `spec.externalName: database.example.com` makes the cluster DNS return a CNAME pointing at the external host — pure DNS aliasing, no proxying. NodePort with externalIPs publishes a Service ON the cluster nodes for external clients; it does not redirect cluster Pods to external hosts. A manual Endpoints object can work for IP targets but does not handle a changing external hostname or do DNS aliasing. LoadBalancer provisions an external IP for inbound traffic; it does not forward outbound from Pods to an external DNS name."
               }
             ]
           },
@@ -452,92 +452,92 @@
             "livesAllowed": 3,
             "questions": [
               {
-                "q": "A developer creates a Kubernetes Secret to store a database password. After creating the Secret, the developer runs `kubectl get secret db-secret -o yaml` and notices the password is displayed in what appears to be garbled text. What is the correct explanation?",
+                "q": "A developer creates a Kubernetes Secret to store a database password. Running `kubectl get secret db-secret -o yaml` shows the password as a string of garbled-looking characters. What is the correct explanation?",
                 "choices": [
-                  "The password is Base64-encoded — not encrypted.",
-                  "The Secret value is stored as a TLS certificate, which explains the encoding",
-                  "The password is hashed with SHA-256 — it cannot be recovered",
-                  "The password has been encrypted with AES-256 and can only be decrypted with the cluster's master key"
+                  "The password is encrypted with AES-256 and can only be decrypted with the cluster master key",
+                  "The value is stored as a TLS certificate, which is why it looks like a long random string",
+                  "The password is hashed with SHA-256 and cannot be recovered from the stored value",
+                  "The password is Base64-encoded, not encrypted — anyone with read access can decode it"
                 ],
-                "correctIndex": 0,
-                "explanation": "Kubernetes Secrets store values as Base64-encoded strings — this is encoding, NOT encryption. `echo 'cGFzc3dvcmQ=' | base64 --decode` reveals the original value. Secrets provide logical separation from ConfigMaps but are NOT secure by default. For real security, enable Secrets encryption at rest in etcd, use RBAC to restrict access, or use an external secrets manager (Vault, AWS Secrets Manager). Anyone with access to the Secret can decode it with `base64 --decode`"
+                "correctIndex": 3,
+                "explanation": "Secret values are Base64-encoded in the YAML for safe transport of binary bytes — `echo '...' | base64 -d` recovers the original. They are not encrypted by default; real protection comes from RBAC, encryption-at-rest in etcd, or an external secret manager. The Secret here is type `Opaque` (or `generic`), not `kubernetes.io/tls`. Hashing would make the value unrecoverable by the consuming Pod, defeating the purpose. There is no built-in 'cluster master key' AES-256 wrapping unless the operator explicitly enabled encryption-at-rest providers."
               },
               {
                 "q": "A developer needs to pass a database password stored in a Kubernetes Secret as an environment variable `DB_PASSWORD` inside a container. Which Pod spec snippet achieves this?",
                 "choices": [
+                  "env: [{name: DB_PASSWORD, valueFrom: {secretKeyRef: {name: db-secret, key: password}}}]",
+                  "env: [{name: DB_PASSWORD, value: my-secret}] — inline the literal Secret name as the env value",
                   "volumes: [{secret: {secretName: db-secret, key: password}}]",
-                  "env: [{name: DB_PASSWORD, value: my-secret}]",
-                  "envFrom: [{secretRef: {name: DB_PASSWORD}}]",
-                  "env: [{name: DB_PASSWORD,."
+                  "envFrom: [{secretRef: {name: DB_PASSWORD}}] — inject every key from the Secret named DB_PASSWORD"
                 ],
-                "correctIndex": 3,
-                "explanation": "`valueFrom.secretKeyRef` injects a single Secret key as an environment variable. `name` is the Secret object name; `key` is the specific key within the Secret. Using `envFrom.secretRef` injects ALL keys from the Secret as env vars (note: it's `secretRef`, not `secretRef.key`). The first option `value: my-secret` would set the literal string 'my-secret', not the Secret's value. valueFrom: {secretKeyRef: {name: db-secret, key: password}}}]"
+                "correctIndex": 0,
+                "explanation": "`valueFrom.secretKeyRef` pulls a single Secret key into a named environment variable — the precise way to expose one secret as one env var. The volume form (`volumes:`) projects Secret data onto the filesystem, not as env vars (and `key` is not a valid field at that level). `value: my-secret` would set the literal string 'my-secret', not the Secret's contents. `envFrom.secretRef` injects every key from a Secret named `DB_PASSWORD` (clearly not the intent — DB_PASSWORD is the env var name, not the Secret name)."
               },
               {
                 "q": "A developer needs to create a Kubernetes Secret from a literal value using an imperative command — specifically storing `password=s3cr3t`. Which command is correct?",
                 "choices": [
-                  "kubectl create secret generic db-secret --from-file=password=s3cr3t using a file as the literal source",
-                  "kubectl create secret tls db-secret --cert=s3cr3t",
+                  "kubectl create secret generic db-secret --from-file=password=s3cr3t",
                   "kubectl create secret docker-registry db-secret --password=s3cr3t",
+                  "kubectl create secret tls db-secret --cert=s3cr3t",
                   "kubectl create secret generic db-secret --from-literal=password=s3cr3t"
                 ],
                 "correctIndex": 3,
-                "explanation": "`kubectl create secret generic <name> --from-literal=<key>=<value>` creates a generic (opaque) Secret with the specified literal key-value pair. Multiple `--from-literal` flags can be used. `--from-file` reads from a file (the filename becomes the key). `tls` type is for TLS certificates. `docker-registry` type is for imagePullSecrets. The `generic` type is for arbitrary key-value data."
+                "explanation": "`--from-literal=<key>=<value>` is the flag for inline key/value pairs on a `generic` (Opaque) Secret — exactly the case asked. `--from-file=password=s3cr3t` would treat `s3cr3t` as a filename and try to read it; it does not store the literal string. `tls` Secrets require a cert and key file pair, not a literal string. `docker-registry` Secrets carry registry credentials and demand `--docker-server/--docker-username/--docker-email`; `--password` alone is incomplete and the wrong secret type for a generic password."
               },
               {
-                "q": "A developer needs to restrict network traffic so that only Pods with the label `app=frontend` can send traffic to Pods with the label `app=database`. All other traffic to the database Pods should be blocked. Which resource enforces this?",
+                "q": "A developer needs to restrict traffic so that only Pods labelled `app=frontend` can reach Pods labelled `app=database`. All other traffic to the database Pods should be blocked. Which resource enforces this?",
                 "choices": [
-                  "An Ingress resource with a whitelist annotation naming the frontend application Pods",
-                  "A ResourceQuota limiting the count of connections from non-frontend namespaces",
+                  "A ResourceQuota limiting how many connections non-frontend namespaces may open",
+                  "A ClusterIP Service with session-affinity rules that pin frontend to database",
                   "A NetworkPolicy on the database Pods allowing ingress only from app=frontend Pods",
-                  "A ClusterIP Service with session affinity rules that pin frontend to database"
+                  "An Ingress with a whitelist annotation naming the frontend application Pods"
                 ],
                 "correctIndex": 2,
-                "explanation": "A NetworkPolicy selects target Pods (via `podSelector`) and defines ingress/egress rules. To allow only frontend→database traffic: set `podSelector` to match `app=database`, `policyTypes: [Ingress]`, and `ingress.from.podSelector` to match `app=frontend`. Any traffic not matching a NetworkPolicy's rules is denied (once ANY NetworkPolicy applies to a Pod, non-matching traffic is blocked by default)."
+                "explanation": "A NetworkPolicy with `podSelector: {matchLabels: {app: database}}`, `policyTypes: [Ingress]`, and `ingress.from.podSelector: {matchLabels: {app: frontend}}` is the canonical pattern; once a NetworkPolicy selects a Pod, all non-matching traffic is denied. Ingress is for L7 HTTP routing into the cluster, not Pod-to-Pod policy. ResourceQuota caps API object counts and aggregate resource usage in a namespace — it does not control L4 connectivity. Service session affinity sticks a client to a backend Pod; it does not gate which clients are allowed."
               },
               {
                 "q": "A developer applies a NetworkPolicy with `spec.podSelector: {}` (empty selector) and `policyTypes: [Ingress]` with no `ingress` rules. What effect does this have?",
                 "choices": [
-                  "This is an invalid NetworkPolicy that Kubernetes ignores",
-                  "Only Pods without labels are affected by this policy",
-                  "All Pods in the namespace are completely isolated from all ingress traffic.",
-                  "All Pods in the namespace are exposed to all ingress traffic — empty selector means no restrictions"
+                  "All Pods in the namespace are completely isolated from ingress traffic (default-deny ingress)",
+                  "Kubernetes rejects the manifest as invalid because no ingress rules are listed",
+                  "All Pods in the namespace allow all ingress traffic because the selector matches everything",
+                  "Only Pods without any labels are affected by this policy"
                 ],
-                "correctIndex": 2,
-                "explanation": "An empty `podSelector: {}` selects ALL Pods in the namespace. Setting `policyTypes: [Ingress]` with NO `ingress` rules means: 'apply an ingress policy that allows nothing' — all ingress traffic to all Pods in the namespace is blocked. This is the standard 'default deny ingress' pattern. Adding explicit `ingress` rules then selectively allows traffic from specific sources. no traffic can enter any Pod"
+                "correctIndex": 0,
+                "explanation": "An empty `podSelector` matches every Pod in the namespace; `policyTypes: [Ingress]` with an empty (omitted) `ingress` list means 'apply an ingress policy that allows nothing' — the canonical default-deny pattern. Kubernetes accepts the manifest; an empty ingress list is valid and deliberate. The empty selector matches all Pods regardless of labels. The 'allow all' interpretation reverses the semantics: empty rules deny, not permit."
               },
               {
-                "q": "A NetworkPolicy allows egress from Pods labeled `app=worker` to port 5432 (PostgreSQL). The worker Pods still cannot connect to the database. Ingress is unrestricted. Which additional NetworkPolicy might be blocking the connection?",
+                "q": "A NetworkPolicy allows egress from Pods labelled `app=worker` to port 5432 (PostgreSQL). The worker Pods still cannot connect to the database. Ingress is unrestricted at the network plugin level. Which additional NetworkPolicy might be blocking the connection?",
                 "choices": [
-                  "A NetworkPolicy on the database Pods that permits egress to any external endpoint labeled with app=worker",
-                  "A cluster-wide NetworkPolicy with podSelector: {} denying egress for matched Pods",
-                  "A NetworkPolicy on the database Pods restricting ingress to only database-labeled Pods",
-                  "A NetworkPolicy on the worker Pods restricting ingress traffic from other workloads"
+                  "A cluster-wide NetworkPolicy with podSelector: {} denying egress for every selected Pod",
+                  "A NetworkPolicy on the database Pods restricting ingress to a different set of source labels",
+                  "A NetworkPolicy on the worker Pods restricting ingress from other workloads",
+                  "A NetworkPolicy on the database Pods that permits egress to any external endpoint labelled with app=worker"
                 ],
-                "correctIndex": 2,
-                "explanation": "NetworkPolicies are bidirectional — you need both the egress from the source and the ingress to the destination to be allowed. Even if worker Pods have egress allowed to port 5432, if the database Pods have an ingress NetworkPolicy that doesn't include worker Pods as an allowed source, the connection is blocked at the database end. Always check policies on BOTH ends of a connection. Use `kubectl describe networkpolicy` in both namespaces to debug."
+                "correctIndex": 1,
+                "explanation": "NetworkPolicies are evaluated on BOTH endpoints — egress must be allowed at the source AND ingress must be allowed at the destination. If the database has an ingress policy that does not list `app=worker` as an allowed source, the connection is dropped on arrival. The first option talks about egress FROM the database — that controls outbound traffic from the DB, not inbound from workers. A default-deny on egress would have blocked the workers entirely (and would contradict the stated 'egress is allowed'). Restricting ingress on the worker Pods affects who can talk TO the workers, not whether workers can reach the DB."
               },
               {
-                "q": "A developer needs to run a batch process that completes a specific number of tasks in parallel. The Job should process 10 items, running 3 tasks at a time. Which Job spec fields control this behaviour?",
+                "q": "A developer needs to run a batch process that completes 10 items in total, running 3 tasks in parallel at any time. Which Job spec fields control this behaviour?",
                 "choices": [
-                  "spec.completions: 3 and spec.parallelism: 10",
-                  "spec.replicas: 10 and spec.maxSurge: 3",
-                  "spec.activeDeadlineSeconds: 10 and spec.backoffLimit: 3",
-                  "spec.completions: 10 and spec.parallelism: 3"
+                  "spec.replicas: 10 and spec.maxSurge: 3 (Deployment-style fields)",
+                  "spec.completions: 3 and spec.parallelism: 10 (total then parallelism)",
+                  "spec.activeDeadlineSeconds: 10 and spec.backoffLimit: 3 (timeout fields)",
+                  "spec.completions: 10 and spec.parallelism: 3 (total then parallelism)"
                 ],
                 "correctIndex": 3,
-                "explanation": "`spec.completions` defines the total number of successful Pod completions required (10). `spec.parallelism` sets how many Pods can run concurrently (3). Kubernetes creates new Pods as existing ones finish until `completions` is reached. `activeDeadlineSeconds` limits total Job duration; `backoffLimit` limits retry attempts after failure."
+                "explanation": "`spec.completions` is the total number of successful Pod completions required (10); `spec.parallelism` caps how many Pods may run concurrently (3). The first option swaps the two values. `replicas`/`maxSurge` are Deployment fields, not valid on Jobs. `activeDeadlineSeconds` is a wall-clock timeout (seconds, not items) and `backoffLimit` is a retry cap after failure — neither controls work distribution."
               },
               {
                 "q": "A developer sets `spec.activeDeadlineSeconds: 300` on a Job. What happens if the Job's Pods have not completed within 300 seconds?",
                 "choices": [
-                  "Kubernetes moves the Job to a suspended state and terminates all its associated Pods after another 300 seconds",
-                  "Kubernetes terminates the Job and all its associated Pods,.",
-                  "Kubernetes pauses the Job and waits for manual intervention",
-                  "The Job continues running but Kubernetes logs a warning event"
+                  "Kubernetes moves the Job to a suspended state and terminates its Pods 300 seconds later",
+                  "Kubernetes terminates all Pods owned by the Job and marks the Job Failed with reason DeadlineExceeded",
+                  "The Job continues running but Kubernetes records a warning event in the namespace",
+                  "Kubernetes pauses the Job and waits for manual intervention"
                 ],
                 "correctIndex": 1,
-                "explanation": "`activeDeadlineSeconds` sets a deadline for the entire Job. If the Job is still running when the deadline expires, Kubernetes terminates all associated Pods and marks the Job as Failed with reason `DeadlineExceeded`. This is useful for time-bounded batch jobs that should not run indefinitely. It differs from `backoffLimit` (which limits retry attempts after Pod failures). marking the Job as Failed"
+                "explanation": "`activeDeadlineSeconds` is a hard wall-clock budget for the entire Job; on expiry the controller deletes the Pods and the Job status reports `Failed` / `DeadlineExceeded`. There is no automatic 'suspend then terminate later' workflow. The Job is not paused awaiting a human — that would be `spec.suspend: true`, which is set, not auto. The Job does not silently continue past the deadline; the deadline is enforced. Contrast `backoffLimit`, which caps retries after individual Pod failures rather than total wall-clock time."
               }
             ]
           },
@@ -572,7 +572,7 @@
     "timeMinutes": 27
   },
   "meta": {
-    "generatedAt": "2026-06-04T11:52:48.117Z",
+    "generatedAt": "2026-06-11T07:40:36.575Z",
     "totalNodes": 27,
     "totalQuestions": 61,
     "nodeTypes": [

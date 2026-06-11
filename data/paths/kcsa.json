@@ -59,35 +59,35 @@
               {
                 "q": "The Kubernetes documentation describes the 'Four Cs of Cloud Native Security' as a defence-in-depth model with four nested layers protecting the application. Which ordering correctly lists the four layers from the outermost layer down to the innermost?",
                 "choices": [
-                  "Cluster, then Cloud, then Container, then Code, on the basis that the cluster control plane is the primary security boundary",
-                  "Container, then Cloud, then Cluster, then Code, since container isolation is enforced at the OS layer before any cloud or cluster control plane policy is evaluated by the runtime",
+                  "Cluster, then Cloud, then Container, then Code, on the basis that the cluster control plane is the primary trust boundary that the surrounding cloud account ultimately depends on",
+                  "Container, then Cloud, then Cluster, then Code, since container runtime isolation is enforced by the host kernel before any cloud or cluster control-plane policy is evaluated by the runtime",
                   "Code, then Container, then Cluster, then Cloud, reflecting how a typical attacker first compromises application logic and pivots outward toward shared cluster and cloud infrastructure",
-                  "Cloud, then Cluster, then Container, then Code, where each outer layer establishes the trust boundary on which the layer immediately inside it depends for its own security posture"
+                  "Cloud, then Cluster, then Container, then Code, where each outer layer establishes the trust boundary that the layer immediately inside it depends on for its own security posture"
                 ],
                 "correctIndex": 3,
-                "explanation": "The 4Cs are Cloud, Cluster, Container, Code, listed from outermost to innermost. The cloud (or corporate datacenter) is the foundation that the cluster runs on. The cluster sits on top of the cloud and provides isolation for containers. Containers run application code. Each outer layer's security posture directly affects every inner layer, so weaknesses in the cloud or cluster usually cannot be fully compensated for at the container or code layer."
+                "explanation": "The 4Cs are Cloud, Cluster, Container, Code, listed from outermost to innermost. The cloud (or corporate datacentre) is the foundation that the cluster runs on; the cluster sits on the cloud and provides isolation for containers; containers run application code. Each outer layer's security posture directly affects every inner layer, so weaknesses in the cloud or cluster usually cannot be fully compensated for at the container or code layer. Option A inverts cloud and cluster — the cluster is hosted on the cloud, not the other way around. Option B places container outside cloud, which mixes runtime isolation with the trust hierarchy. Option C describes an attacker pivot path, not the nested defence-in-depth layers the documentation defines."
               },
               {
                 "q": "A request to create a Pod arrives at the kube-apiserver over TLS. Which sequence correctly describes the stages a successful request passes through inside the API server before the new object is persisted to the cluster datastore?",
                 "choices": [
                   "Authentication, then authorization, then mutating admission, then schema validation, then validating admission, then write to etcd, with each stage able to reject the request entirely",
-                  "Authorization, then authentication, then schema validation, then mutating admission, then validating admission, then write to etcd, since identity is only required once policy decides the verb is allowed",
+                  "Authorization, then authentication, then schema validation, then mutating admission, then validating admission, then write to etcd, so policy decisions can be cached before the user's identity is verified",
                   "Authentication, then mutating admission, then validating admission, then authorization, then schema validation, then write to etcd, so admission webhooks see every request regardless of RBAC",
                   "Authentication, then authorization, then schema validation, then validating admission, then mutating admission, then write to etcd, ensuring validators never see partially mutated objects on the wire"
                 ],
                 "correctIndex": 0,
-                "explanation": "The kube-apiserver pipeline for a write is: authentication (who are you), authorization (are you allowed), mutating admission (webhooks may modify the object), schema validation (does it match the API schema), validating admission (final policy checks), then persistence to etcd. Mutating runs before validating so that validators always see the final form. Authorization runs after authentication because policy decisions depend on the verified identity."
+                "explanation": "The kube-apiserver pipeline for a write is: authentication (who are you), authorization (are you allowed), mutating admission (webhooks may modify the object), schema validation (does it match the API schema), validating admission (final policy checks), then persistence to etcd. Option B reverses authn/authz — authorization needs the verified identity to make a decision and cannot precede authentication. Option C bypasses RBAC by running admission before authorization, which would let unauthorised callers exercise webhooks. Option D places mutating after validating, which would let mutating webhooks change an object that has already been validated, defeating the purpose of validation."
               },
               {
                 "q": "A security review of a production cluster examines how etcd is deployed. Which configuration most directly mitigates the risk that an attacker who reaches etcd over the network can read or modify any cluster object?",
                 "choices": [
-                  "Expose etcd through a ClusterIP Service so only Pods can reach it, and rely on a default-deny NetworkPolicy in `kube-system` to bound the blast radius of any reachable etcd endpoint",
+                  "Expose etcd through a ClusterIP Service so only Pods can reach it, and rely on a default-deny NetworkPolicy in kube-system to bound the blast radius of any reachable etcd endpoint",
                   "Replace etcd's native authentication with the same OIDC provider used by the API server, so end-user identities flow end-to-end through every layer of the control plane on every cluster request",
-                  "Run etcd inside a privileged Pod with `hostNetwork: true`, audit every `kubectl exec` against that Pod, and rely on the kube-apiserver to perform application-level encryption on every write",
+                  "Run etcd inside a privileged Pod with hostNetwork: true, audit every kubectl exec against that Pod, and rely on the kube-apiserver to perform application-level encryption on every write to etcd",
                   "Require mutual TLS between etcd peers and clients, issue narrowly scoped client certificates to the API server only, and place the etcd nodes on a private network unreachable from workloads"
                 ],
                 "correctIndex": 3,
-                "explanation": "etcd holds the entire cluster state, including Secrets. Production deployments must require mutual TLS on both peer and client endpoints, restrict client certificates to the kube-apiserver identity, and isolate etcd on a private network not reachable from workload nodes. Putting etcd behind a ClusterIP makes it reachable from Pods, which is the opposite of what is wanted. Running etcd in a privileged Pod with host networking widens exposure. etcd does not delegate auth to OIDC and does not need end-user identity, because only the API server should talk to it."
+                "explanation": "etcd holds the entire cluster state, including Secrets. Production deployments must require mutual TLS on both peer and client endpoints, restrict client certificates to the kube-apiserver identity, and isolate etcd on a private network not reachable from workload nodes. Option A is the opposite — putting etcd behind a ClusterIP makes it reachable from every Pod, and NetworkPolicy is not a substitute for mTLS or network isolation of the datastore. Option B is wrong because etcd does not delegate authentication to OIDC and end-user identities should never reach etcd; only the API server should. Option C runs etcd in a privileged Pod with host networking, which widens host exposure rather than reducing it."
               },
               {
                 "q": "A namespace carries the label `pod-security.kubernetes.io/enforce: restricted`. A user submits a Pod whose container sets `securityContext.runAsUser: 0` and `securityContext.allowPrivilegeEscalation: true`. What does Pod Security Admission do at admission time?",
@@ -95,32 +95,32 @@
                   "Rejects the Pod creation request, because the restricted profile forbids running as UID 0 and explicitly disallows `allowPrivilegeEscalation: true` on every container in any Pod in that namespace",
                   "Logs a warning event, admits the Pod into the namespace, and triggers a runtime alert only if the container later attempts a syscall that is blocked by the restricted seccomp profile in use",
                   "Mutates the Pod to set `runAsNonRoot: true` and `allowPrivilegeEscalation: false`, then admits the resulting object so that the workload can still be created without any manual edits at all",
-                  "Admits the Pod but assigns it to a separate RuntimeClass whose AppArmor profile is treated as an automatic compensating control for the disallowed fields in the container's `securityContext`"
+                  "Admits the Pod but assigns it to a separate RuntimeClass whose AppArmor profile is treated as an automatic compensating control for the disallowed fields in the container's securityContext"
                 ],
                 "correctIndex": 0,
-                "explanation": "Pod Security Admission is a validating-only admission controller. With `enforce: restricted`, Pods that violate the restricted profile, including running as root or allowing privilege escalation, are rejected at admission time. PSA does not mutate Pods, does not assign RuntimeClasses, and does not perform runtime syscall detection. To 'fix' such a Pod, the spec must be amended (set `runAsNonRoot: true`, `allowPrivilegeEscalation: false`, drop all capabilities, etc.)."
+                "explanation": "Pod Security Admission is a validating-only admission controller. With `enforce: restricted`, Pods that violate the restricted profile — including running as UID 0 or allowing privilege escalation — are rejected at admission time. Option B confuses admission control with runtime detection: PSA decides before the Pod is created, not based on later syscalls. Option C is wrong because PSA never mutates Pods; the spec must be fixed by the submitter (set `runAsNonRoot: true`, `allowPrivilegeEscalation: false`, drop all capabilities, set a seccomp profile). Option D is fabricated — PSA does not assign RuntimeClasses or apply AppArmor profiles as compensating controls."
               },
               {
                 "q": "A Pod in namespace `web` is not selected by any NetworkPolicy in its namespace, and the cluster's CNI plugin fully implements NetworkPolicy. What ingress traffic does this Pod accept?",
                 "choices": [
-                  "Only traffic from Pods in the same namespace, because Kubernetes applies an implicit cluster-wide NetworkPolicy that allows same-namespace traffic by default — Kubernetes does not apply any default NetworkPolicy; Pods with no matching policy allow all ingress traffic by default",
-                  "No ingress traffic from any source at all, because Pods that are not selected by any NetworkPolicy default to deny-all in Kubernetes regardless of which CNI plugin happens to be installed",
+                  "Only traffic from Pods in the same namespace, because Kubernetes applies an implicit cluster-wide policy that permits same-namespace traffic and blocks everything else by default",
+                  "No ingress traffic from any source, because Pods that are not selected by any NetworkPolicy default to deny-all in Kubernetes regardless of which CNI plugin happens to be installed",
                   "All ingress traffic, because in Kubernetes a Pod that is not selected by any NetworkPolicy has no traffic restrictions applied and the cluster network is open by default to any source",
-                  "Only traffic that matches an auto-generated NetworkPolicy mirroring its Service selector, so flows to the Service ClusterIP are permitted at the Pod level but other sources are denied"
+                  "Only traffic that matches an auto-generated policy mirroring the Pod's Service selector, so flows arriving via the Service ClusterIP are permitted but direct Pod-IP sources are denied"
                 ],
                 "correctIndex": 2,
-                "explanation": "Kubernetes networking is open by default. A NetworkPolicy only takes effect on Pods that match its `podSelector`. As soon as one or more policies select a Pod, the Pod becomes isolated for the matched directions and only flows explicitly allowed by any selecting policy are permitted. A Pod that is not selected by any policy remains fully reachable. There is no built-in 'default deny' until an explicit deny-all policy is created."
+                "explanation": "Kubernetes networking is open by default. A NetworkPolicy only takes effect on Pods that match its `podSelector`. As soon as one or more policies select a Pod, the Pod becomes isolated for the matched directions and only flows explicitly allowed by any selecting policy are permitted. A Pod that is no policy's subject remains fully reachable. Option A is wrong because Kubernetes ships no implicit same-namespace policy. Option B inverts the actual default — there is no built-in deny-all; a deny-all policy must be created explicitly. Option D is fabricated — Kubernetes does not auto-generate NetworkPolicies from Service selectors, and Service routing does not translate into per-Pod ingress allowances."
               },
               {
                 "q": "A cluster has a Role `pod-reader` in namespace `app` granting `get`, `list`, and `watch` on `pods`. ServiceAccount `app-sa` in `app` is bound to this Role via a RoleBinding. The same ServiceAccount is also the subject of a ClusterRoleBinding to a ClusterRole `pod-reader-cluster` with the same verbs on `pods`. Where can `app-sa` list Pods?",
                 "choices": [
-                  "Only in the app namespace, because a RoleBinding to a ServiceAccount always overrides a ClusterRoleBinding for verbs in that namespace",
-                  "Only in the `kube-system` namespace, because that is the implicit scope a ClusterRoleBinding applies to when its subject is a ServiceAccount that lives in a different namespace from the system",
+                  "Only in the `app` namespace, because a RoleBinding to a ServiceAccount always shadows any ClusterRoleBinding that grants the same verbs to the same subject",
+                  "Only in the namespace where the ServiceAccount object lives, because a ClusterRoleBinding's reach is bounded by the subject's home namespace when the subject is a ServiceAccount",
                   "In every namespace and at cluster scope where the listed verbs apply, because a ClusterRoleBinding grants its ClusterRole's permissions to the subject across the entire cluster",
-                  "In no namespace, because a ServiceAccount cannot simultaneously be the subject of both a RoleBinding and a ClusterRoleBinding without an explicit aggregation rule on the ClusterRole"
+                  "In every namespace except `kube-system`, because system namespaces are exempt from cross-namespace permissions granted to non-system ServiceAccounts by a ClusterRoleBinding"
                 ],
                 "correctIndex": 2,
-                "explanation": "RBAC is purely additive. A RoleBinding grants its Role's permissions inside the binding's namespace. A ClusterRoleBinding grants the bound ClusterRole's permissions across the entire cluster for the subject. The two bindings stack rather than conflict, so `app-sa` here can list pods in any namespace. The 'cluster-admin overrides all' framing in options A and B does not exist; there is also no rule that bans a ServiceAccount from being the subject of both kinds of binding."
+                "explanation": "RBAC is purely additive. A RoleBinding grants its Role's permissions inside the binding's namespace; a ClusterRoleBinding grants the bound ClusterRole's permissions across the entire cluster for the subject. The two bindings stack rather than conflict, so `app-sa` can list Pods in any namespace. Option A invents a 'shadowing' rule — RBAC never subtracts; it only adds. Option B is wrong because a ClusterRoleBinding's reach is the whole cluster regardless of where the subject ServiceAccount lives. Option D fabricates a `kube-system` exemption that does not exist in RBAC."
               }
             ]
           },
@@ -190,68 +190,68 @@
               {
                 "q": "During a threat-model exercise the team reviews Pod spec patterns that materially expand the blast radius of a compromised container. Which configuration most directly enables a process inside the Pod to read or modify files on the underlying node's filesystem?",
                 "choices": [
-                  "Requesting more CPU than the node currently has free, which forces the kubelet to read sensitive scheduling data from inside the host kernel — CPU over-provisioning causes Pod scheduling to fail but does not grant the Pod any access to host files or directories",
+                  "Requesting more CPU than the node currently has free, which forces the kubelet to map sensitive scheduling pages from the host kernel into the Pod's memory space until pressure subsides",
                   "Setting `imagePullPolicy: Always` so every restart re-pulls the image, which opens a brief window during which container isolation is intentionally relaxed by the runtime for layer extraction",
                   "Mounting a `hostPath` volume that points at a sensitive node directory such as `/`, `/etc`, or `/var/run/docker.sock`, and exposing that mount inside the container with read/write permissions",
                   "Selecting `restartPolicy: OnFailure` together with a `livenessProbe` of type `exec`, which causes the kubelet to bind-mount the node's binary directory into the container so the probe command resolves"
                 ],
                 "correctIndex": 2,
-                "explanation": "A `hostPath` volume mounts a path from the node directly into the container, which lets a compromised process read or modify node files. Pointing it at `/`, `/etc`, or a runtime socket effectively breaks the container/node boundary. The other options describe behavior that does not exist: CPU pressure does not enable `hostNetwork`, `imagePullPolicy` does not relax isolation, and the kubelet does not bind-mount node binaries to satisfy exec probes."
+                "explanation": "A `hostPath` volume mounts a path from the node directly into the container, which lets a compromised process read or modify node files. Pointing it at `/`, `/etc`, or a runtime socket effectively breaks the container/node boundary and is a classic node-escape primitive. Option A is fabricated — CPU pressure causes scheduling failures or throttling, never an exposure of host memory. Option B is wrong because `imagePullPolicy` controls when images are pulled, not isolation guarantees; the runtime never relaxes isolation during image extraction. Option D is invented — `livenessProbe: exec` runs inside the container's existing mount namespace and the kubelet does not bind-mount node binaries."
               },
               {
                 "q": "A platform team wants the cluster to admit only container images that carry a valid cryptographic signature and an SLSA-style provenance attestation. Which combination of tools most directly delivers this control at admission time?",
                 "choices": [
-                  "Trivy scanning images during the CI build and failing the pipeline on critical CVEs — Trivy detects known vulnerabilities but does not produce or verify SLSA attestations or enforce signature-based admission control in the cluster",
+                  "Trivy scanning images during the CI build and failing the pipeline on critical CVEs, with the same scan report attached to the image so the kubelet can read it before allowing the container to start",
                   "Notary v1 trust pinning configured in the kubelet via `imagePullPolicy: IfNotPresent`, so the runtime refuses to pull any image whose canonical name does not already include a fixed content digest",
                   "A private container registry served over TLS, plus a custom MutatingWebhook that downloads each requested image, recomputes its SHA-256 digest, and patches the Pod spec inline with the result",
                   "Sigstore Cosign to sign images and attach in-toto/SLSA attestations, paired with a policy engine such as Kyverno or Sigstore Policy Controller that verifies the signature and attestations at admission"
                 ],
                 "correctIndex": 3,
-                "explanation": "Cosign (part of the Sigstore project) signs images and attaches in-toto attestations such as SLSA provenance. An admission-time policy engine like Kyverno or Sigstore's Policy Controller verifies those signatures and attestations against trusted keys or identities before admitting the Pod. Trivy is a vulnerability scanner, not a signature verifier. Recomputing digests in a webhook does not prove signing. Notary v1 / Docker Content Trust is not enforced by the kubelet and is largely superseded by Sigstore."
+                "explanation": "Cosign (part of the Sigstore project) signs images and attaches in-toto attestations such as SLSA provenance. An admission-time policy engine like Kyverno or Sigstore's Policy Controller verifies those signatures and attestations against trusted keys or identities before admitting the Pod. Option A is wrong because Trivy is a vulnerability scanner — it does not sign images or produce SLSA attestations, and the kubelet does not read CVE reports at admission. Option B confuses Notary v1 / Docker Content Trust with kubelet behaviour: the kubelet does not implement Notary trust pinning, and `imagePullPolicy` controls caching, not trust. Option C only proves a digest matches itself; recomputing a hash does not verify a signer's intent."
               },
               {
                 "q": "A workload reads database credentials from a Kubernetes Secret mounted as a volume. The cluster runs with default settings and no `EncryptionConfiguration` is configured on the API server. Which statement about the confidentiality of these credentials is correct?",
                 "choices": [
                   "The Secret value is only base64-encoded in etcd and is stored as plaintext from a confidentiality standpoint, so anyone who can read etcd directly can recover the credentials without keys",
                   "The Secret value is hashed with SHA-256 before being written to etcd, so only the workload that originally created the Secret can recover the plaintext on read by presenting the matching pre-image",
-                  "The Secret value is encrypted at rest by default in etcd",
+                  "The Secret value is encrypted at rest by default using a per-cluster data encryption key, which the API server unwraps with the cluster root key on every read from etcd before returning it to clients",
                   "The Secret value is automatically replaced with a reference to a managed KMS entry by the API server, and only an opaque ciphertext blob ever reaches the etcd datastore on disk in this default configuration"
                 ],
                 "correctIndex": 0,
-                "explanation": "By default Kubernetes Secrets are stored in etcd as base64-encoded data, which is encoding, not encryption. Anyone with read access to etcd (or to an etcd backup) can recover the plaintext. To get encryption at rest, the cluster operator must configure `EncryptionConfiguration` on the API server, typically using a KMS provider. Hashing would prevent the workload from ever recovering the value, and the API server does not automatically push Secrets to external KMS without explicit configuration."
+                "explanation": "By default Kubernetes Secrets are stored in etcd as base64-encoded data, which is encoding, not encryption. Anyone with read access to etcd (or to an etcd backup) can recover the plaintext. To get encryption at rest, the cluster operator must configure `EncryptionConfiguration` on the API server, typically using a KMS provider. Option B is wrong because hashing is one-way and the workload would never be able to retrieve the plaintext from a hash. Option C describes the encryption-at-rest feature but it is opt-in, not on by default; a stock cluster has no such DEK in place. Option D is fabricated — the API server does not push Secrets to an external KMS automatically; that integration must be explicitly configured."
               },
               {
                 "q": "A new auditor asks how the cluster maps to recognized hardening baselines. Which statement most accurately describes the CIS Kubernetes Benchmark?",
                 "choices": [
-                  "A NIST-published compliance regulation that imposes legally binding hardening requirements on Kubernetes clusters — the CIS Kubernetes Benchmark is a community-maintained set of recommendations, not a legally binding NIST regulation or compliance mandate",
+                  "A NIST-published compliance regulation that imposes legally binding hardening requirements on Kubernetes clusters operating in regulated industries, enforced through federal audit programmes",
                   "A community-maintained, consensus-based set of hardening recommendations covering control-plane and worker-node configuration, widely used as a reference checklist for assessing Kubernetes security posture",
                   "A runtime-only set of eBPF detection rules distributed by the CNCF that flags suspicious container syscalls at execution time but does not offer guidance about cluster configuration choices or RBAC",
-                  "A formal certification program managed by the Linux Foundation that a cluster must pass before any vendor is allowed to use the upstream Kubernetes name or trademark in their marketing materials"
+                  "A formal certification programme managed by the Linux Foundation that a cluster must pass before any vendor is allowed to use the upstream Kubernetes name or trademark in their marketing materials"
                 ],
                 "correctIndex": 1,
-                "explanation": "The CIS Kubernetes Benchmark is a consensus-based document published by the Center for Internet Security with prescriptive hardening recommendations for both the control plane and worker nodes. Auditors and tools such as `kube-bench` use it as a reference checklist. It is not a NIST regulation, not a runtime detection ruleset, and not the CNCF Certified Kubernetes Conformance program (which governs trademark use)."
+                "explanation": "The CIS Kubernetes Benchmark is a consensus-based document published by the Center for Internet Security with prescriptive hardening recommendations for both the control plane and worker nodes. Auditors and tools such as `kube-bench` use it as a reference checklist. Option A misattributes the document to NIST and treats it as legally binding — it is neither. Option C describes Falco-style runtime detection, which is not the CIS Benchmark's purpose. Option D conflates it with the CNCF Certified Kubernetes Conformance programme, which governs trademark use but is unrelated to security hardening."
               },
               {
                 "q": "A workload does not call the Kubernetes API at all, yet by default its Pod is given a mounted ServiceAccount token. Which configuration most directly reduces the risk that a compromised container reuses that token against the API server?",
                 "choices": [
                   "Set `automountServiceAccountToken: false` on the Pod (or its ServiceAccount) so no API token is projected into the container, removing a credential an attacker could otherwise reuse",
-                  "Bind the Pod's ServiceAccount to the `cluster-admin` ClusterRole so its permissions are explicit and centrally auditable, making any misuse easier to detect in the API audit log",
+                  "Bind the Pod's ServiceAccount to a ClusterRole that grants `get` on `secrets` cluster-wide, so the workload always retrieves credentials freshly from etcd rather than relying on the projected token",
                   "Mount the default token but set `imagePullPolicy: Always`, ensuring the container image is re-pulled each restart so any tampered token baked into a layer is overwritten on boot",
                   "Run the Pod with `hostNetwork: true` so its API calls originate from the node IP, letting a NetworkPolicy on the node interface block the token from ever reaching the API server"
                 ],
                 "correctIndex": 0,
-                "explanation": "If a workload never calls the API, the safest control is to stop projecting a token at all via `automountServiceAccountToken: false`, eliminating a credential an attacker could steal and replay. Binding to `cluster-admin` massively increases privilege and blast radius — the opposite of least privilege. `imagePullPolicy` controls image pulling and has nothing to do with the dynamically projected token. `hostNetwork: true` widens host exposure and does not prevent token use against the API server."
+                "explanation": "If a workload never calls the API, the safest control is to stop projecting a token at all via `automountServiceAccountToken: false`, eliminating a credential an attacker could steal and replay. Option B is the opposite of least privilege: granting cluster-wide read on Secrets massively widens the blast radius if the Pod is compromised, and the projected token is still mounted. Option C is irrelevant — tokens are not baked into image layers; they are dynamically projected at Pod start, so `imagePullPolicy` has no effect on token presence. Option D is wrong because `hostNetwork: true` does not interpose a NetworkPolicy choke point on the kubelet's interface and would actually broaden the Pod's network exposure."
               },
               {
                 "q": "A security team wants runtime detection that flags suspicious behavior inside running containers — such as a shell spawned in a container or an unexpected write to `/etc` — by observing Linux syscalls. Which CNCF project is purpose-built for this runtime threat-detection use case?",
                 "choices": [
-                  "Kyverno, a policy engine that intercepts API requests at admission and rejects or mutates Pods, providing the same coverage as syscall-level monitoring because every action passes through the API server",
-                  "Falco, a runtime security project that consumes kernel syscall events (via eBPF or a kernel module) and raises alerts when container behavior matches rules such as a shell spawning in a container",
-                  "Trivy, a scanner that detects the suspicious runtime behaviors by analyzing the container image's layers and software bill of materials before the workload is ever scheduled onto a node",
+                  "Kyverno, a policy engine that intercepts API requests at admission and rejects or mutates Pods, providing equivalent coverage to syscall-level monitoring because every action passes through the API server first",
+                  "Falco, a runtime security project that consumes kernel syscall events via eBPF or a kernel module and raises alerts when container behaviour matches rules such as a shell spawning in a container",
+                  "Trivy, a scanner that surfaces suspicious runtime behaviours by analysing the container image's layers and software bill of materials before the workload is ever scheduled onto a node",
                   "cert-manager, which issues and rotates workload certificates and additionally watches syscall activity to detect when a compromised process attempts to exfiltrate a private key at runtime"
                 ],
                 "correctIndex": 1,
-                "explanation": "Falco is the CNCF runtime security tool that ingests kernel syscall events through eBPF or a kernel module and alerts on suspicious behavior like an interactive shell in a container or writes to sensitive paths. Kyverno enforces policy at admission time and cannot observe runtime syscalls. Trivy is a static vulnerability/SBOM scanner that runs before execution, not at runtime. cert-manager manages certificates and does no syscall monitoring."
+                "explanation": "Falco is the CNCF runtime security tool that ingests kernel syscall events through eBPF or a kernel module and alerts on suspicious behaviour like an interactive shell in a container or writes to sensitive paths. Option A confuses admission control with runtime observation: Kyverno can reject a Pod spec at admission but cannot see syscalls once the container is running. Option C is wrong because Trivy is a static scanner of images and SBOMs; it runs before execution and cannot observe runtime behaviour. Option D fabricates a feature — cert-manager only handles certificate lifecycle; it has no syscall-monitoring capability."
               }
             ]
           },
@@ -320,46 +320,46 @@
               {
                 "q": "An attacker who obtains a low-privilege foothold in a Pod attempts to escalate by abusing the kubelet. Which kubelet configuration most directly limits an attacker's ability to call the kubelet API to read Secrets-bearing Pods or exec into containers on that node?",
                 "choices": [
-                  "Enable `--anonymous-auth=true` on the kubelet so every request carries an explicit identity, which the API server then maps to a ServiceAccount before the kubelet authorizes the call",
-                  "Set the kubelet's `--authorization-mode=AlwaysAllow` and rely on the API server's RBAC to retroactively reject any kubelet call that a Pod's ServiceAccount was not permitted to make",
-                  "Expose the kubelet read-only port (10255) to the Pod network so monitoring works, and disable the authenticated port (10250) to remove the attack surface an attacker would target",
+                  "Enable `--anonymous-auth=true` on the kubelet so every request carries an explicit `system:anonymous` identity, which the API server then maps to a ServiceAccount before the kubelet authorizes the call",
+                  "Set the kubelet's `--authorization-mode=AlwaysAllow` and rely on the API server's RBAC to retroactively reject any kubelet call that a Pod's ServiceAccount was not permitted to make against the cluster",
+                  "Expose the kubelet's read-only port 10255 to the Pod network so monitoring agents can scrape it, and disable the authenticated port 10250 to remove the surface an attacker would otherwise target",
                   "Configure the kubelet with `--anonymous-auth=false` and `--authorization-mode=Webhook` so unauthenticated requests are rejected and authenticated ones are checked against the API server's authorizer"
                 ],
                 "correctIndex": 3,
-                "explanation": "Hardening the kubelet means disabling anonymous access (`--anonymous-auth=false`) and delegating authorization to the API server (`--authorization-mode=Webhook`), so only authenticated, authorized callers can hit the kubelet API. Enabling `--anonymous-auth=true` does the opposite and allows unauthenticated requests. `AlwaysAllow` disables kubelet authorization entirely. The read-only port 10255 leaks Pod data without auth and should be disabled, not exposed; the authenticated port 10250 is the one to keep and protect."
+                "explanation": "Hardening the kubelet means disabling anonymous access (`--anonymous-auth=false`) and delegating authorization to the API server (`--authorization-mode=Webhook`), so only authenticated, authorized callers can hit the kubelet API. Option A is the opposite — `--anonymous-auth=true` accepts unauthenticated requests and does not magically map them to a ServiceAccount. Option B disables kubelet authorization entirely; `AlwaysAllow` permits every call that reaches the kubelet regardless of API-server RBAC, which is not retroactively consulted. Option C is dangerous because port 10255 exposes Pod data without authentication, and disabling the authenticated port 10250 breaks kube-apiserver-to-kubelet calls that the cluster depends on."
               },
               {
                 "q": "A team wants its container images to minimize the attack surface available to an attacker who achieves code execution inside the container. Which image-construction practice most directly supports this goal?",
                 "choices": [
-                  "Base every image on a full general-purpose distribution and install a shell, package manager, and debugging tools so responders can investigate, accepting the larger footprint as a monitoring tradeoff",
+                  "Base every image on a full general-purpose distribution and install a shell, package manager, and debugging tools so incident responders can investigate in place, accepting the larger footprint as a tradeoff",
                   "Build minimal or distroless images that contain only the application and its runtime dependencies, omitting shells and package managers so a compromised process has far fewer tools to abuse",
-                  "Always pull images by the mutable `latest` tag so the runtime fetches the newest build on every restart, ensuring the running container can never lag behind upstream security fixes",
-                  "Run every container as UID 0 inside the image so file permissions never block the application, then rely on the node's seccomp default profile alone to contain any post-exploitation activity"
+                  "Always pull images by the mutable `latest` tag so the runtime fetches the newest build on every restart, ensuring the running container can never lag behind upstream security fixes pushed to the registry",
+                  "Run every container as UID 0 inside the image so file permissions never block the application, then rely on the node's default seccomp profile alone to contain any post-exploitation activity attempted"
                 ],
                 "correctIndex": 1,
-                "explanation": "Minimal or distroless images ship only the app and its runtime libraries, removing shells, package managers, and utilities — so an attacker who lands code execution has very few tools to escalate or pivot. Bundling a shell and full toolchain enlarges the attack surface. The mutable `latest` tag undermines reproducibility and supply-chain integrity; pin by digest instead. Running as root (UID 0) increases risk and is not offset by the seccomp default profile, which is not a substitute for a non-root, minimal image."
+                "explanation": "Minimal or distroless images ship only the app and its runtime libraries, removing shells, package managers, and utilities — so an attacker who lands code execution has very few tools to escalate or pivot. Option A bundles a shell and full toolchain, which directly enlarges the attack surface that minimisation is meant to shrink. Option C is wrong because the mutable `latest` tag undermines reproducibility and supply-chain integrity; security teams pin by content digest instead, and 'newest' is not synonymous with 'patched'. Option D maximises in-container privilege; the default seccomp profile is not a substitute for non-root execution and a minimal image."
               },
               {
                 "q": "While threat-modeling the cluster, the team classifies the danger that a low-privileged workload steals a more privileged ServiceAccount token and uses it to act against the API server. Which threat category from the STRIDE model does this scenario best illustrate?",
                 "choices": [
                   "Repudiation, because the attacker performs actions that cannot later be attributed to any identity, defeating the cluster's audit logging rather than gaining any additional authority on the API",
-                  "Denial of Service, because consuming another workload's token exhausts the API server's authentication capacity and prevents legitimate ServiceAccounts from completing their own requests",
-                  "Elevation of Privilege, because the attacker acquires and reuses a more privileged credential to perform actions beyond the rights of the workload they originally compromised",
-                  "Tampering, because the act of reading another Pod's token modifies the token's stored value in etcd and corrupts the cluster's record of which ServiceAccount the credential belongs to"
+                  "Denial of Service, because consuming another workload's token exhausts the API server's authentication capacity and prevents legitimate ServiceAccounts from completing their own requests on time",
+                  "Elevation of Privilege, because the attacker acquires and reuses a more privileged credential to perform API actions that exceed the rights of the workload they originally compromised",
+                  "Tampering, because the act of reading another Pod's projected token modifies the token's stored value in etcd and corrupts the cluster's record of which ServiceAccount the credential belongs to"
                 ],
                 "correctIndex": 2,
-                "explanation": "Stealing and reusing a more privileged token to act beyond one's original rights is the definition of Elevation of Privilege in STRIDE. Repudiation concerns denying actions / defeating attribution, not gaining authority. Denial of Service concerns degrading availability, which token theft does not inherently cause. Tampering concerns unauthorized modification of data; reading a token does not alter its stored value in etcd."
+                "explanation": "Stealing and reusing a more privileged token to act beyond one's original rights is the definition of Elevation of Privilege in STRIDE. Option A confuses identity gain with attribution loss — repudiation concerns denying actions one performed, not acquiring new authority. Option B is wrong because token reuse does not consume the API server's authentication capacity; the API server validates tokens cheaply and one workload's misuse does not starve another. Option D mischaracterises a read as a write — projected tokens are read by the compromised Pod, not modified in etcd, so no tampering occurs."
               },
               {
                 "q": "A regulated organization must demonstrate that its workloads handle personal data in line with a recognized framework, and it wants Kubernetes-native, continuous evidence that policies are enforced rather than a one-time manual review. Which approach best fits this compliance objective?",
                 "choices": [
                   "Run a manual penetration test once per year and archive the resulting PDF report, treating the absence of findings as continuous proof that the cluster's data-handling controls remain compliant over time",
-                  "Adopt policy-as-code with an admission policy engine (such as Kyverno or OPA Gatekeeper) plus periodic configuration scanning, so required controls are enforced at admission and continuously audited against the framework",
+                  "Adopt policy-as-code with an admission engine such as Kyverno or OPA Gatekeeper, paired with periodic configuration scanning so controls are enforced at admission and continuously audited",
                   "Set the namespace label `compliance: true` on every namespace holding personal data, which signals to the API server that those namespaces are exempt from further policy enforcement obligations",
                   "Disable audit logging to reduce the volume of personal data the cluster retains, on the basis that holding fewer records is the most direct way to satisfy any data-protection framework's requirements"
                 ],
                 "correctIndex": 1,
-                "explanation": "Continuous, Kubernetes-native compliance is achieved with policy-as-code: an admission engine like Kyverno or OPA Gatekeeper enforces required controls at admission, and periodic configuration scanning continuously audits posture against the framework. An annual pen-test PDF is point-in-time evidence, not continuous enforcement. A `compliance: true` label has no built-in meaning and grants no exemption. Disabling audit logging removes the evidence trail most frameworks require and weakens, rather than strengthens, compliance."
+                "explanation": "Continuous, Kubernetes-native compliance is achieved with policy-as-code: an admission engine like Kyverno or OPA Gatekeeper enforces required controls at admission, and periodic configuration scanning continuously audits posture against the framework. Option A provides only point-in-time evidence and confuses absence of findings with active enforcement. Option C is fabricated — the `compliance: true` label has no built-in meaning to the API server and grants no exemption. Option D removes the very audit trail that frameworks like GDPR, HIPAA, and PCI DSS require as evidence of control operation; it weakens compliance rather than satisfying it."
               }
             ]
           },
@@ -394,7 +394,7 @@
     "timeMinutes": 23
   },
   "meta": {
-    "generatedAt": "2026-06-04T11:52:48.141Z",
+    "generatedAt": "2026-06-11T07:40:36.625Z",
     "totalNodes": 14,
     "totalQuestions": 16,
     "nodeTypes": [

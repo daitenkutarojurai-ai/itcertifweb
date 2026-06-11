@@ -60,7 +60,7 @@
                 "q": "Two containers in the same Pod can reach each other on `localhost` and read files written by the sibling under a shared `emptyDir` volume. Which statement about the Kubernetes Pod model best explains this behavior?",
                 "choices": [
                   "Each container in a Pod runs in its own network namespace, and kube-proxy programs DNAT rules between sibling containers so calls to `localhost` are translated transparently to the right destination port",
-                  "All containers in a Pod are merged into one Linux namespace group covering network, PID, IPC, and mount, so every declared volume is automatically exposed without `volumeMounts` entries on the container",
+                  "All containers in a Pod are merged into one Linux namespace group covering network, PID, IPC, mount, and user namespaces, so every declared volume is automatically exposed to every container without needing `volumeMounts` entries, and any process started in one container is visible in `ps` output from any other container in the same Pod by design",
                   "Containers in a Pod share an IP address only when `shareProcessNamespace` is set and the Pod is configured with `hostNetwork: true`, otherwise each container gets its own IP from the CNI plugin",
                   "Containers in a Pod share a single Linux network namespace and any Pod-level volumes the containers mount, while each container keeps its own root filesystem, PID namespace, and mount namespace by default"
                 ],
@@ -73,7 +73,7 @@
                   "ClusterIP, which assigns a stable virtual IP reachable only from within the cluster and is published in CoreDNS as `<svc>.<ns>.svc.cluster.local` for service discovery",
                   "NodePort, which opens the workload on a static port on every node's IP so any client that can reach a node — including off-cluster traffic — can connect to it",
                   "LoadBalancer with `loadBalancerSourceRanges: []`, which still provisions an external endpoint but rejects all source IPs while keeping the in-cluster DNS record intact",
-                  "ExternalName, which returns a CNAME for an external host and avoids exposing any cluster endpoint while still resolving inside Pods through standard DNS queries"
+                  "ExternalName, which returns a CNAME record pointing at an external host and avoids exposing any cluster endpoint while still resolving inside Pods through standard DNS queries, and additionally clamps egress traffic to the named external host through a CoreDNS filter that the kubelet wires up automatically at Pod startup"
                 ],
                 "correctIndex": 0,
                 "explanation": "ClusterIP is the default Service type and assigns an in-cluster virtual IP plus the `<svc>.<ns>.svc.cluster.local` DNS record, reachable only from within the cluster — exactly what the requirement asks for. NodePort opens a port on every node's IP and is reachable from outside the cluster, which breaks the no-external-exposure constraint. LoadBalancer always provisions external infrastructure on supported clouds; clamping source ranges still burns a public endpoint and is far from the simplest configuration. ExternalName does not front Pods at all — it returns a CNAME for an external hostname, so it cannot expose your internal API to in-cluster callers."
@@ -81,12 +81,12 @@
               {
                 "q": "A platform team must roll out a new version of a stateless web service with zero downtime, a controlled surge above the desired replica count, and a one-command rollback if errors spike. Which Kubernetes workload object is purpose-built for this pattern?",
                 "choices": [
-                  "A ReplicaSet, which directly manages Pods and exposes `maxSurge` and `maxUnavailable` fields under its `spec.strategy` block to coordinate rolling upgrades between versions",
                   "A Deployment, which manages a per-revision ReplicaSet, supports `RollingUpdate` with `maxSurge`/`maxUnavailable`, and provides `kubectl rollout undo` to revert to a previous revision",
+                  "A ReplicaSet, which directly manages Pods and exposes `maxSurge` and `maxUnavailable` fields under its `spec.strategy` block to coordinate rolling upgrades between versions",
                   "A StatefulSet using `updateStrategy: RollingUpdate`, which orders Pod replacement so the active replica count never drops below the desired value during version transitions",
-                  "A DaemonSet using `updateStrategy: RollingUpdate`, which keeps one Pod per node and replaces them in batches sized by the `maxUnavailable` field on the controller spec"
+                  "A DaemonSet using `updateStrategy: RollingUpdate`, which keeps exactly one Pod per node and replaces them in batches sized by the `maxUnavailable` field on the controller spec, providing the rolling upgrade semantics needed for a stateless replicated web service across a node pool of arbitrary size"
                 ],
-                "correctIndex": 1,
+                "correctIndex": 0,
                 "explanation": "Deployments are the standard controller for stateless rolling updates: they own a per-revision ReplicaSet, support `RollingUpdate` with `maxSurge`/`maxUnavailable`, and expose `kubectl rollout undo` for one-command rollback. ReplicaSets manage replicas only and have no `spec.strategy` field of their own — the rolling-update logic lives one level up in the Deployment that owns them. StatefulSets exist for stateful workloads that need stable network identity and ordered Pod management, which is the wrong primitive for a stateless web service. DaemonSets schedule one Pod per node and are designed for node-level agents like log collectors or CNI helpers, not for replicated application workloads."
               },
               {
@@ -193,7 +193,7 @@
                   "The Horizontal Pod Autoscaler (HPA), which reads metrics (CPU, memory, or custom) and scales a target Deployment's replica count between configured `minReplicas` and `maxReplicas`",
                   "The Vertical Pod Autoscaler (VPA), which observes resource usage and adjusts each running Pod's CPU and memory requests between configured floor and ceiling values",
                   "The Cluster Autoscaler, which watches for Pods stuck in Pending due to insufficient capacity and asks the cloud provider to add or remove nodes to match overall workload demand",
-                  "The PodDisruptionBudget, which limits how many replicas of a workload can be voluntarily evicted at once and indirectly drives replica count adjustments during cluster maintenance"
+                  "The PodDisruptionBudget, which limits how many replicas of a workload can be voluntarily evicted at once and indirectly drives replica count adjustments during cluster maintenance windows by triggering the deployment controller to top up replicas above the configured `maxUnavailable` ceiling whenever drain operations would breach the budget"
                 ],
                 "correctIndex": 0,
                 "explanation": "The Horizontal Pod Autoscaler is the controller that scales a target's replica count based on observed metrics — exactly the load-driven, scale-out behavior the question describes. The Vertical Pod Autoscaler changes per-Pod CPU/memory requests; it makes each Pod bigger or smaller but does not add or remove replicas. The Cluster Autoscaler operates one layer below: it scales the number of nodes in response to unschedulable Pods, so without an HPA driving Pod count first it never reacts to load. A PodDisruptionBudget only bounds how many replicas can be voluntarily evicted at once during maintenance; it never creates or removes Pods on its own."
@@ -224,11 +224,11 @@
                 "q": "A team adopts GitOps for application delivery using a controller such as Argo CD or Flux. Which statement best characterizes how a GitOps controller operates against a Kubernetes cluster?",
                 "choices": [
                   "Developers push images directly to clusters using `kubectl apply` from their workstations, and the GitOps controller passively logs each apply for audit and rolls back any failures it detects",
-                  "An agent inside the cluster continuously reconciles live state with the desired manifests stored in a Git repository, pulling changes from Git rather than receiving pushes from a CI server",
                   "A CI server runs `kubectl apply` against the cluster on every Git commit, and the GitOps controller authenticates each apply using short-lived tokens minted at the start of each pipeline run",
+                  "An agent inside the cluster continuously reconciles live state with the desired manifests stored in a Git repository, pulling changes from Git rather than receiving pushes from a CI server",
                   "The GitOps controller stores manifests inside an etcd-backed internal registry that mirrors the cluster's actual state, with Git acting only as a write-only audit log of completed changes"
                 ],
-                "correctIndex": 1,
+                "correctIndex": 2,
                 "explanation": "GitOps controllers such as Argo CD and Flux run inside the cluster, watch a Git repository for the desired state, and continuously reconcile cluster state to match — the model is pull-based and convergent. The first option describes ad-hoc imperative deployments from developer workstations; a GitOps controller does not just tail those applies, and there is no automatic rollback on failed manual applies. The CI-driven `kubectl apply` model is CIOps (push-based from a pipeline), which is exactly what GitOps replaces — there is no GitOps controller mediating a CI push. And in GitOps the source of truth is Git itself, not an internal registry; etcd only holds the live cluster state being reconciled against the Git manifests."
               },
               {
@@ -320,7 +320,7 @@
               {
                 "q": "On a node, which Kubernetes component is responsible for watching the API server for Pods assigned to that node, then starting their containers through the container runtime and reporting their status back?",
                 "choices": [
-                  "kube-scheduler, which runs as a per-node agent that binds Pods to itself and then drives the container runtime to start each scheduled Pod's containers in sequence",
+                  "kube-scheduler, which runs as a per-node agent that binds Pods to itself and then drives the container runtime to start each scheduled Pod's containers in sequence, additionally exposing a node-local readiness endpoint that the control plane polls before considering the node ready to host new workloads",
                   "kube-proxy, which maintains network rules on the node and additionally launches each Pod's containers once the API server records that the Pod has been bound to that node",
                   "The kubelet, the per-node agent that watches the API server for Pods bound to its node, instructs the container runtime to run them, and continuously reports Pod and node status",
                   "The controller-manager, which runs on each worker node and reconciles the desired Pod set for that node by directly invoking the container runtime's gRPC interface"
@@ -333,7 +333,7 @@
                 "choices": [
                   "Requests are used only for billing reports while limits alone drive scheduling decisions, so a Pod with no request but a high limit is placed on whichever node has the most total capacity",
                   "The scheduler places a Pod based on its CPU and memory requests against node allocatable capacity, while the kubelet enforces limits at runtime — throttling CPU above the limit and OOM-killing containers that exceed the memory limit",
-                  "Both requests and limits are advisory hints that the kubelet may ignore under load, and a container exceeding its memory limit is paused and migrated to another node automatically",
+                  "Both requests and limits are advisory hints that the kubelet may ignore under node pressure, and any container exceeding its memory limit is paused mid-call and migrated transparently to another node with more headroom by a cooperative scheduler plugin enabled in every conformant cluster by default since 1.27",
                   "Limits are summed across all containers to choose a node, and requests cap runtime usage, so a container using more CPU than its request is immediately terminated by the scheduler"
                 ],
                 "correctIndex": 1,
@@ -394,7 +394,7 @@
     "timeMinutes": 23
   },
   "meta": {
-    "generatedAt": "2026-06-04T11:52:48.141Z",
+    "generatedAt": "2026-06-11T07:40:36.624Z",
     "totalNodes": 14,
     "totalQuestions": 16,
     "nodeTypes": [

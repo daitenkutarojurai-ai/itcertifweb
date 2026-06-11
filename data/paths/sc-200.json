@@ -58,46 +58,46 @@
               {
                 "q": "A Microsoft Sentinel analyst needs a scheduled analytics rule that opens an incident when a single user fails sign-in to Microsoft Entra ID more than 50 times within any 10-minute window from any source IP. Which KQL pattern matches the requirement?",
                 "choices": [
-                  "SigninLogs | where ResultType != 0 | summarize FailedCount = count() by UserPrincipalName, bin(TimeGenerated, 10m) | where FailedCount > 50",
-                  "SigninLogs | where ResultType == 0 | summarize SuccessCount = dcount(IPAddress) by UserPrincipalName | where SuccessCount > 50 in any window observed",
+                  "SecurityEvent | where EventID == 4625 | summarize FailedCount = count() by Account, bin(TimeGenerated, 10m) | where FailedCount > 50",
+                  "SigninLogs | where ResultType == 0 | summarize SuccessCount = dcount(IPAddress) by UserPrincipalName | where SuccessCount > 50",
                   "AuditLogs | where Result == \"failure\" | summarize Bursts = count() by InitiatedBy_user_userPrincipalName, bin(TimeGenerated, 1h) | where Bursts > 50",
-                  "SecurityEvent | where EventID == 4625 | summarize FailedCount = count() by Account, bin(TimeGenerated, 10m) | where FailedCount > 50 across windows"
+                  "SigninLogs | where ResultType != 0 | summarize FailedCount = count() by UserPrincipalName, bin(TimeGenerated, 10m) | where FailedCount > 50"
                 ],
-                "correctIndex": 0,
-                "explanation": "Microsoft Entra ID sign-in failures land in SigninLogs with a non-zero ResultType. Binning by 10 minutes and thresholding above 50 implements the requirement directly. Option B counts successful sign-ins, not failures, and uses dcount of IPs. AuditLogs holds directory-change events, not authentication outcomes, and uses a 1-hour window. SecurityEvent / 4625 captures on-prem Windows logon failures collected by the MMA or AMA agent, not Entra ID cloud sign-ins."
+                "correctIndex": 3,
+                "explanation": "Microsoft Entra ID sign-in failures land in SigninLogs with a non-zero ResultType; binning by 10 minutes and thresholding above 50 per user implements the requirement directly. The SecurityEvent / EventID 4625 query captures on-prem Windows logon failures collected by the MMA or AMA agent, not Entra ID cloud sign-ins. The SuccessCount option filters ResultType == 0 (successful sign-ins) and counts distinct IPs, neither of which matches the requirement. AuditLogs holds directory-change events (group adds, role assignments) rather than authentication outcomes, and uses the wrong 1-hour window."
               },
               {
                 "q": "A Microsoft Sentinel analytics rule fires hundreds of low-severity incidents per day. The SOC wants every newly created incident from that rule whose tactic is Discovery and whose status is New closed automatically, without writing custom code. Which Sentinel feature delivers this?",
                 "choices": [
-                  "An automation rule triggered on incident creation with conditions on the rule name and the Discovery tactic and an action that changes the status of the incident to Closed",
-                  "A Logic Apps playbook triggered on every newly created incident that calls the Microsoft Sentinel API to check the rule name, tactic, and status, then sets matching incidents to closed — a Logic Apps playbook can close incidents but cannot evaluate the incident's rule name or discovery tactic as native conditions the way automation rules can",
-                  "A Microsoft Sentinel watchlist of suppressed rule names that the scheduled analytics rule consults using lookup() before it is allowed to generate any new incident at runtime",
-                  "An incident triage workbook that visualizes the noisy analytics rule and lets analysts mass-close matching incidents through an embedded custom JavaScript visualization control"
+                  "An automation rule triggered on incident creation with conditions on the rule name and the Discovery tactic and an action that closes the incident",
+                  "A Microsoft Sentinel watchlist of suppressed rule names that the analytics rule consults via lookup() before generating any new incident",
+                  "A Logic Apps playbook triggered on every newly created incident that calls the Sentinel API to evaluate the rule name and tactic and then close matches",
+                  "An incident triage workbook that visualizes the noisy analytics rule and lets analysts mass-close matching incidents through a custom visualization"
                 ],
                 "correctIndex": 0,
-                "explanation": "Automation rules in Microsoft Sentinel run on incident creation or update with simple condition-and-action logic and can close incidents directly — no code required. Playbooks (Logic Apps) are powerful but unnecessary for a built-in action, and deleting incidents loses audit trail. Watchlists store reference data; they cannot suppress rule output. Workbooks are read-only dashboards, not enforcement tools."
+                "explanation": "Automation rules in Microsoft Sentinel run on incident creation or update with simple condition-and-action logic and can close incidents directly with no code — the lightweight built-in answer. Watchlists store reference data and cannot suppress an analytics rule's output before incident creation. A Logic Apps playbook could in principle close incidents, but it is unnecessary code for an action automation rules already do natively, and writing custom condition logic in Logic Apps adds maintenance the SOC explicitly wants to avoid. Workbooks are read-only dashboards, not enforcement tools."
               },
               {
                 "q": "A Sentinel analyst must enrich incidents with up-to-date malicious IP indicators from a commercial feed delivered in STIX format over TAXII, so analytics rules can match logs against current threat intelligence. Which Sentinel capability ingests this feed?",
                 "choices": [
-                  "A scheduled analytics rule that queries the vendor's public website hourly and parses the IP list out of the HTML",
+                  "A scheduled analytics rule that queries the vendor's public website hourly and parses the IP list out of the HTML response",
+                  "A watchlist manually uploaded once as a CSV file and referenced by analytics rules using the _GetWatchlist function",
                   "The Threat Intelligence - TAXII data connector, which polls the TAXII server and imports STIX indicators into Sentinel",
-                  "A watchlist manually uploaded as a CSV file once and referenced by analytics rules using the _GetWatchlist function",
-                  "A Logic Apps playbook that runs after each incident to look up the IP against the vendor's interactive portal"
+                  "A Logic Apps playbook that runs after each incident to look up the IP against the vendor's interactive portal page"
                 ],
-                "correctIndex": 1,
-                "explanation": "The Threat Intelligence - TAXII data connector polls a TAXII server and imports STIX-formatted indicators into the ThreatIntelligenceIndicator table, keeping them current for analytics rules to match. Scraping a vendor website's HTML is brittle and unsupported. A manually uploaded CSV watchlist is static and does not stay up to date from the feed. A post-incident playbook lookup enriches after detection rather than supplying indicators that rules match against proactively."
+                "correctIndex": 2,
+                "explanation": "The Threat Intelligence - TAXII data connector polls a TAXII server and imports STIX-formatted indicators into the ThreatIntelligenceIndicator table, keeping them current for analytics rules to match against logs — the supported pattern. Scraping a vendor website's HTML is brittle, unsupported, and bypasses STIX/TAXII entirely. A manually uploaded CSV watchlist is static and does not refresh from the feed. A post-incident playbook lookup enriches alerts after detection rather than supplying indicators that rules match against proactively."
               },
               {
                 "q": "A Sentinel deployment ingests a high volume of verbose Azure Diagnostics logs that are rarely queried interactively but must be retained for a year for occasional compliance investigations, at the lowest cost. Which Log Analytics table plan should the analyst choose for that table?",
                 "choices": [
-                  "The Analytics (interactive) plan, since all tables used in any query must remain on the interactive tier",
-                  "The Sentinel data lake summary rules plan, which deletes the raw rows immediately after aggregation each day",
-                  "A separate Storage account export only, removing the data from Log Analytics so it can never be queried again",
-                  "The Auxiliary (or Basic) logs plan, which lowers ingestion cost for high-volume, infrequently queried data with longer retention"
+                  "The Auxiliary (or Basic) logs plan, which lowers ingestion cost for high-volume, infrequently queried data with longer retention",
+                  "The Analytics (interactive) plan, since every table used in any KQL query must remain on the interactive tier in Log Analytics",
+                  "The Sentinel summary-rules plan, which deletes the raw rows immediately after aggregating them each day to reduce storage",
+                  "A separate Storage account export only, removing the data from Log Analytics entirely so it can never be queried again"
                 ],
-                "correctIndex": 3,
-                "explanation": "Auxiliary/Basic logs plans are designed for high-volume, infrequently queried data: they cut ingestion cost and support long retention for occasional compliance lookups, fitting verbose diagnostics. Keeping everything on the Analytics interactive tier is the most expensive option and is unnecessary for rarely queried data. Exporting only to a storage account removes the ability to query the data in Log Analytics at all. There is no plan that deletes raw rows immediately after daily aggregation while still meeting the year-long retention need."
+                "correctIndex": 0,
+                "explanation": "Auxiliary (and Basic) logs plans are designed for high-volume, infrequently queried data: they cut ingestion cost and support long retention for occasional compliance lookups, matching the requirement exactly. Keeping everything on the Analytics interactive tier is the most expensive option and is unnecessary for rarely queried data. There is no plan that deletes raw rows immediately after daily aggregation while still meeting the year-long retention need — summary rules summarize alongside the raw data, they do not replace it. Exporting only to a storage account removes the ability to query the data through Log Analytics during the compliance investigation."
               }
             ]
           },
@@ -205,90 +205,90 @@
               {
                 "q": "A multicloud team needs Microsoft Defender for Cloud to surface an attack path showing how an internet-facing AWS EC2 instance could pivot to a sensitive Azure SQL database. Which prerequisite must be satisfied for Cloud Security Explorer to render this path?",
                 "choices": [
-                  "Enable the Defender CSPM (paid) plan on both the Azure subscription containing the SQL database and on the AWS connector account that contains the EC2 instance",
-                  "Enable the Foundational CSPM (free) plan in Defender for Cloud, since attack paths require only basic posture data — attack-path analysis and cloud security graph features are only available in the paid Defender CSPM plan and require connectors to the database services",
-                  "Deploy the Azure Monitor Agent on the EC2 instance and stream Linux syslog into the Defender for Cloud workspace so that cross-cloud telemetry can be correlated",
-                  "Onboard the AWS account through the Microsoft Sentinel AWS data connector and rely on Sentinel analytics rules to map the cross-cloud attack path for the SOC team"
+                  "Enable the Defender CSPM (paid) plan on both the Azure subscription containing the SQL database and the AWS connector account",
+                  "Enable the Foundational CSPM (free) plan in Defender for Cloud, since attack paths are part of the baseline posture features available to every subscription",
+                  "Deploy the Azure Monitor Agent on the EC2 instance and stream Linux syslog into the Defender for Cloud workspace for cross-cloud correlation",
+                  "Onboard the AWS account through the Microsoft Sentinel AWS data connector and write Sentinel analytics rules to map the cross-cloud path"
                 ],
                 "correctIndex": 0,
-                "explanation": "Cloud Security Explorer and attack path analysis are features of the paid Defender CSPM plan and require it enabled on each environment whose resources participate in the path — in this scenario both the Azure subscription and the AWS connector account. Foundational CSPM only gives free recommendations and secure score, not attack-path graphs. Agents are not required; Defender CSPM uses agentless scanning. Sentinel ingests logs but does not build the cross-cloud graph that powers attack-path analysis."
+                "explanation": "Cloud Security Explorer and attack path analysis are features of the paid Defender CSPM plan and require it enabled on each environment whose resources participate in the path — here both the Azure subscription and the AWS connector account. Foundational CSPM gives only free recommendations and secure score, not attack-path graphs. Defender CSPM uses agentless scanning, so the Azure Monitor Agent on EC2 is irrelevant. Sentinel ingests logs and runs detections but does not build the cross-cloud security graph that powers attack-path analysis."
               },
               {
                 "q": "A team wants Microsoft Defender for Cloud to detect when a critical Azure Storage account starts receiving an unusual surge of access from a previously unseen IP, suggesting potential data exfiltration. Which workload protection plan must be enabled on the storage account's subscription?",
                 "choices": [
-                  "Microsoft Defender for Key Vault, since any successful exfiltration of storage data would require the attacker to access the key vault to decrypt — Defender for Key Vault monitors key vault access anomalies, not anomalous access patterns to the storage account itself",
-                  "Microsoft Defender for Resource Manager, which inspects management-plane API calls against the storage account's role assignments and Azure Policy definitions",
-                  "Microsoft Defender for Servers Plan 2, since every storage account exposes an underlying virtual machine that hosts the blob, queue, and table service endpoints",
-                  "Microsoft Defender for Storage, which baselines normal access patterns and alerts on anomalous behavior such as unfamiliar geographic source IPs or odd request bursts"
+                  "Microsoft Defender for Resource Manager, which inspects management-plane API calls against the storage account and its role assignments",
+                  "Microsoft Defender for Storage, which baselines access patterns and alerts on anomalies such as unfamiliar source IPs or odd request bursts",
+                  "Microsoft Defender for Key Vault, since exfiltrated storage data would require key vault access to decrypt the underlying blob contents",
+                  "Microsoft Defender for Servers Plan 2, since every storage account is backed by an underlying virtual machine serving the blob endpoints"
                 ],
-                "correctIndex": 3,
-                "explanation": "Defender for Storage monitors data-plane operations on storage accounts and generates alerts for anomalous access, suspicious IPs, malware uploads, and exposure events. Defender for Resource Manager observes control-plane (ARM) operations, not data-plane patterns. Storage accounts are PaaS and do not expose a customer-managed VM. Defender for Key Vault watches key operations, which is unrelated to whether storage uses customer-managed keys at all."
+                "correctIndex": 1,
+                "explanation": "Defender for Storage monitors data-plane operations on storage accounts and generates alerts for anomalous access, suspicious IPs, malware uploads, and exposure events — exactly the scenario described. Defender for Resource Manager observes control-plane (ARM) operations like role-assignment changes, not data-plane request patterns. Defender for Key Vault watches key operations, which is unrelated to anomalous storage reads (and storage encryption is independent of whether attackers re-encrypt). Storage accounts are PaaS and do not expose a customer-managed VM that Defender for Servers could protect."
               },
               {
                 "q": "An organization onboards 200 servers to Microsoft Defender for Cloud and wants the SOC to investigate Defender for Servers alerts inside Microsoft Sentinel alongside its other security data, with bidirectional incident sync. Which integration should be configured?",
                 "choices": [
-                  "Configure Azure Monitor diagnostic settings on each VM to send the Defender alerts directly into a custom Sentinel table",
-                  "Enable the Microsoft Defender for Cloud (Tenant-based) connector in Microsoft Sentinel to stream alerts and sync incidents bidirectionally",
-                  "Export the Defender for Cloud alerts to a storage account and import them into Sentinel with a scheduled Logic App nightly",
-                  "Forward each Defender for Servers alert by email to a shared mailbox that Sentinel monitors with a mailbox data connector"
+                  "Configure Azure Monitor diagnostic settings on each VM to send the Defender for Servers alerts directly into a custom Sentinel table",
+                  "Export the Defender for Cloud alerts to a storage account nightly and import them into Sentinel with a scheduled Logic App workflow",
+                  "Forward each Defender for Servers alert by email to a shared mailbox that Sentinel monitors via the mailbox data connector",
+                  "Enable the Microsoft Defender for Cloud (Tenant-based) connector in Microsoft Sentinel to stream alerts and sync incidents bidirectionally"
                 ],
-                "correctIndex": 1,
-                "explanation": "The Microsoft Defender for Cloud connector in Microsoft Sentinel streams its security alerts into Sentinel and supports bidirectional incident synchronization, so investigations stay aligned across both products. Azure Monitor diagnostic settings on VMs do not carry Defender for Cloud security alerts into a custom table with incident sync. A storage-account export imported nightly adds latency and provides no bidirectional sync. Emailing alerts to a mailbox is fragile, loses structure, and is not the supported alert-ingestion path."
+                "correctIndex": 3,
+                "explanation": "The Microsoft Defender for Cloud connector in Microsoft Sentinel streams its security alerts into Sentinel and supports bidirectional incident synchronization, so investigations stay aligned across both products — exactly the requirement. Azure Monitor diagnostic settings on VMs carry resource diagnostics, not Defender for Cloud security alerts with incident sync. A storage-account export imported nightly adds hours of latency and provides no bidirectional incident sync. Emailing alerts to a mailbox is fragile, loses structured fields, and is not a supported alert-ingestion path."
               },
               {
                 "q": "A SOC running Microsoft Defender for Endpoint wants confirmed malicious files on developer workstations to be remediated automatically, but actions on production servers must wait for an analyst's approval. Which configuration achieves this with the least administrative effort?",
                 "choices": [
-                  "Set the global tenant automation level to Full and exclude all server device names from automated investigation runs in the Defender for Endpoint settings",
-                  "Create two device groups and set workstations to Full automatic remediation while servers require analyst approval for any remediation action taken",
-                  "Disable automated investigation tenant-wide and have analysts review and approve every remediation action manually — disabling automation removes the Full automatic remediation benefit for workstations and forces analysts to approve every alert rather than only server analyst-approval cases",
-                  "Tag developer workstations as Tier 1 and add an indicator rule that blocks automated remediation against server FQDNs across the entire tenant scope"
+                  "Set the tenant automation level to Full and exclude all server device names from automated investigation runs in MDE settings",
+                  "Disable automated investigation across the tenant and have analysts review and approve every remediation action manually for both fleets",
+                  "Tag developer workstations as Tier 1 and add an indicator rule that blocks automated remediation against server FQDNs in the tenant",
+                  "Create two device groups and set workstations to Full automatic remediation while servers require analyst approval for remediation actions"
                 ],
-                "correctIndex": 1,
-                "explanation": "Device groups in Microsoft Defender for Endpoint scope the automated investigation and remediation (AIR) level independently per group. Workstations set to Full let MDE auto-remediate confirmed threats, while a Semi-level on servers (require approval for any remediation) holds actions pending analyst review. A single tenant-wide automation level cannot differ per device. Disabling AIR removes the value of the platform. Indicator rules block IOCs — they do not gate AIR behavior on a device subset."
+                "correctIndex": 3,
+                "explanation": "Device groups in Microsoft Defender for Endpoint scope the automated investigation and remediation (AIR) level independently per group. Workstations set to Full let MDE auto-remediate confirmed threats, while a Semi-level on servers holds actions pending analyst approval. A single tenant-wide automation level cannot differ per device, and excluding servers from AIR entirely just stops investigation rather than gating remediation. Disabling AIR tenant-wide removes the automation benefit on the workstation fleet too. Indicator rules block specific IOCs and do not control AIR behavior on a device subset."
               },
               {
                 "q": "During an active incident, a SOC analyst confirms an endpoint is executing ransomware and must immediately cut off its network communication while preserving the machine for forensic investigation, all from the Microsoft Defender portal. Which Defender for Endpoint response action should they take?",
                 "choices": [
                   "Run an antivirus scan on the device and wait for the scan results before taking any further containment action",
-                  "Add the device to a restricted app execution policy so only Microsoft-signed binaries are allowed to run on it",
-                  "Isolate the device, which blocks its network connectivity while keeping it manageable from the Defender portal for investigation",
-                  "Stop and quarantine the offending file across the organization using an indicator, then leave the device fully online"
+                  "Isolate the device, which blocks its network connectivity while keeping it manageable from the Defender portal",
+                  "Add the device to a restricted app execution policy so only Microsoft-signed binaries are allowed to run",
+                  "Stop and quarantine the offending file across the organization using an indicator, then leave the device online"
                 ],
-                "correctIndex": 2,
-                "explanation": "Device isolation in Defender for Endpoint severs the machine's network connectivity to stop the ransomware spreading while keeping the Defender agent connected so analysts can investigate and later release it — meeting both goals. Running a scan first delays containment while encryption continues. Restricting app execution limits new processes but does not cut existing network communication. Stopping and quarantining the file via an indicator addresses that file but leaves the device online and able to communicate."
+                "correctIndex": 1,
+                "explanation": "Device isolation in Defender for Endpoint severs the machine's network connectivity to stop the ransomware spreading while keeping the Defender agent connected so analysts can investigate and later release it — meeting both requirements. Running a scan first delays containment while encryption and lateral movement continue. Restricting app execution limits new process launches but does not cut existing C2 or SMB connections the ransomware is already using. Stopping and quarantining the file via an indicator addresses that specific binary but leaves the device online and able to communicate."
               },
               {
                 "q": "A team must prevent users on unmanaged devices from downloading files from SharePoint Online while still allowing browser-based read access. Which combination of Microsoft controls delivers exactly this requirement?",
                 "choices": [
-                  "An Intune app protection policy on the SharePoint mobile app that prevents save-as operations to non-corporate storage from any unmanaged device platform",
-                  "A SharePoint Online unmanaged-devices policy that requires a managed device plus Microsoft Purview sensitivity labels that mark these files as confidential",
-                  "An Entra Conditional Access policy that grants access only after MFA plus a Defender for Cloud Apps access policy that blocks the user session entirely",
+                  "An Intune app protection policy on the SharePoint mobile app that prevents save-as operations to non-corporate storage on the device",
+                  "An Entra Conditional Access policy that grants access only after MFA plus a Defender for Cloud Apps access policy that blocks the user session",
+                  "A SharePoint Online unmanaged-devices policy that requires a managed device plus Microsoft Purview sensitivity labels marking the files as confidential",
                   "An Entra Conditional Access policy that routes the session through Defender for Cloud Apps plus a session policy that blocks downloads of sensitive files"
                 ],
                 "correctIndex": 3,
-                "explanation": "Conditional Access App Control routes the session through Defender for Cloud Apps' reverse proxy; a session policy can block downloads of files matching label, classification, or content-inspection criteria while keeping read in the browser. The unmanaged-devices policy in SharePoint blocks access (or limits to view-only without download) at a coarser level and is not paired with sensitivity-aware enforcement. An access policy makes a binary allow/block decision and cannot enforce per-action controls. Intune app protection covers mobile apps, not browser SharePoint."
+                "explanation": "Conditional Access App Control routes the browser session through Defender for Cloud Apps' reverse proxy; a session policy can block downloads matching label, classification, or content-inspection criteria while keeping read access in the browser — exactly the requirement. Intune app protection covers mobile apps, not browser SharePoint. A Defender for Cloud Apps access policy makes a binary allow/block decision at sign-in and cannot enforce per-action controls like block-download-while-allow-view. The SharePoint unmanaged-devices policy blocks access entirely (or limits to view-only at a coarse level) and is not paired with sensitivity-aware enforcement."
               },
               {
                 "q": "Microsoft Defender for Cloud Apps generates an 'Impossible travel' alert for a user who signed in from two distant countries within minutes. The SOC wants to confirm whether this is a true compromise before disabling the account. Which investigation step in Defender for Cloud Apps is most appropriate first?",
                 "choices": [
-                  "Immediately suspend the user in Microsoft Entra ID and reset their password before reviewing any of the related activity",
-                  "Review the user's activity log and the alert's related sign-in events in the activity log to assess context such as IP, device, and prior behavior",
+                  "Immediately suspend the user in Microsoft Entra ID and reset their password before reviewing any related activity",
+                  "Review the user's activity log and the related sign-in events to assess context such as IP, device, and prior behavior",
                   "Add both source IP addresses to the corporate firewall block list and close the alert as resolved without further review",
                   "Lower the impossible-travel detection sensitivity so the policy stops generating this category of alert for the user going forward"
                 ],
                 "correctIndex": 1,
-                "explanation": "Reviewing the user's activity log and the related sign-in events lets the analyst weigh context — IPs, devices, VPN use, and historical patterns — to decide whether the alert is a true compromise before acting, which is the correct first investigative step. Suspending and resetting the password immediately is a response action taken before confirming the verdict. Blocking the IPs and closing the alert skips investigation entirely. Lowering detection sensitivity suppresses future alerts rather than investigating the current one."
+                "explanation": "Reviewing the user's activity log and the related sign-in events lets the analyst weigh context — IPs, devices, VPN use, and historical patterns — to decide whether the alert is a true compromise before acting, which is the correct first investigative step. Suspending and resetting the password immediately is a response action taken before confirming the verdict. Blocking the IPs and closing the alert skips investigation entirely and may block legitimate VPN exit nodes used by many other users. Lowering detection sensitivity suppresses future alerts rather than investigating the current one."
               },
               {
                 "q": "An analyst opens an incident in the Microsoft Defender portal that correlates alerts from Defender for Endpoint, Defender for Office 365, and Defender for Identity. They want a single KQL query joining device, email, and identity telemetry. Which table set is correct?",
                 "choices": [
-                  "AlertEvidence and AlertInfo alone, since advanced hunting inside the Defender portal exposes only those two consolidated alert-level tables to authorized hunters",
-                  "SecurityEvent, OfficeActivity, and SigninLogs in the Microsoft Sentinel workspace tables exposed through the Log Analytics query interface for that workspace",
-                  "WindowsEvent, AzureActivity, and AADNonInteractiveUserSignInLogs in the same Log Analytics workspace bound to the Defender portal connector for hunting",
-                  "DeviceProcessEvents, EmailEvents, and IdentityLogonEvents in the Microsoft Defender XDR advanced hunting schema accessed through the unified Defender portal"
+                  "WindowsEvent, AzureActivity, and AADNonInteractiveUserSignInLogs in the Log Analytics workspace bound to the Defender connector",
+                  "SecurityEvent, OfficeActivity, and SigninLogs in the Microsoft Sentinel workspace via the Log Analytics query interface",
+                  "DeviceProcessEvents, EmailEvents, and IdentityLogonEvents in the Microsoft Defender XDR advanced hunting schema",
+                  "AlertEvidence and AlertInfo alone, since advanced hunting in the Defender portal exposes only those two alert-level tables"
                 ],
-                "correctIndex": 3,
-                "explanation": "The Microsoft Defender XDR advanced hunting schema exposes Device*, Email*, Identity*, App*, Cloud*, and Alert* tables and joins them across product telemetry inside the Defender portal. Sentinel-side tables (SecurityEvent, SigninLogs, OfficeActivity) live in Log Analytics and are queried from Sentinel, not from the Defender portal hunting page. AlertEvidence/AlertInfo exist but are a small subset; raw activity tables sit alongside them."
+                "correctIndex": 2,
+                "explanation": "The Microsoft Defender XDR advanced hunting schema exposes Device*, Email*, Identity*, App*, Cloud*, and Alert* tables and joins them across product telemetry inside the Defender portal — exactly what the analyst needs. WindowsEvent / AzureActivity / AADNonInteractiveUserSignInLogs live in Log Analytics for Sentinel, not in the Defender portal's hunting page. SecurityEvent / OfficeActivity / SigninLogs are also Sentinel-side Log Analytics tables. AlertEvidence and AlertInfo exist in advanced hunting but are a small subset; the raw activity tables provide the cross-product event detail the analyst is joining on."
               }
             ]
           },
@@ -350,7 +350,7 @@
     "timeMinutes": 23
   },
   "meta": {
-    "generatedAt": "2026-06-04T11:52:48.149Z",
+    "generatedAt": "2026-06-11T07:40:36.634Z",
     "totalNodes": 13,
     "totalQuestions": 16,
     "nodeTypes": [

@@ -58,34 +58,34 @@
               {
                 "q": "A team must continuously deliver clickstream events to Amazon S3 in Apache Parquet, with no code to manage shards or consumer applications, while batching events into roughly 5-minute files. Which AWS service is the best fit?",
                 "choices": [
+                  "Amazon Data Firehose with Parquet format conversion enabled and a 300-second buffer interval",
                   "Amazon Kinesis Data Streams with a custom Lambda consumer that writes Parquet to S3 each minute",
                   "Amazon MSK Connect running a Kafka Connect S3 sink the team configures and tunes for Parquet",
-                  "Amazon Data Firehose with Parquet format conversion enabled and a 300-second buffer interval",
                   "AWS Glue streaming ETL job triggered every five minutes from an Amazon EventBridge schedule"
                 ],
-                "correctIndex": 2,
+                "correctIndex": 0,
                 "explanation": "Amazon Data Firehose (formerly Kinesis Data Firehose) is fully managed, can convert incoming records to Parquet or ORC, and natively buffers by size or by time interval (up to 900 seconds) before writing to S3 — no shards or consumer applications to operate. Kinesis Data Streams requires you to build and scale a consumer application yourself. MSK Connect on Kafka Connect adds Kafka topology and connector tuning the team explicitly wants to avoid. Glue streaming jobs run continuously rather than on a 5-minute schedule and would need additional configuration to land Parquet files cleanly."
               },
               {
                 "q": "A Kinesis Data Streams application must keep events for the same user_id strictly in order, while scaling throughput across many users. How should producers configure each record?",
                 "choices": [
-                  "Use the user_id as the partition key so all records for one user hash to the same shard in order",
                   "Set the explicit hash key to a random value so writes are distributed evenly across every shard",
+                  "Use the user_id as the partition key so all records for one user hash to the same shard in order",
                   "Configure each producer to write to a single fixed shard to guarantee in-order delivery for users",
                   "Aggregate user events client-side and write one batched record per minute regardless of user id"
                 ],
-                "correctIndex": 0,
+                "correctIndex": 1,
                 "explanation": "Kinesis preserves ordering within a single shard, and a record's partition key determines which shard it lands on. Using user_id as the partition key keeps per-user ordering while spreading aggregate load across many shards. Randomizing the explicit hash key would scatter the same user's events across shards and break ordering. Pinning all writes to a single shard caps throughput at one shard's limits (1 MB/s, 1000 records/s). Minute-level client-side batching introduces latency and loses per-event ordering granularity."
               },
               {
                 "q": "A team must capture every row-level INSERT, UPDATE, and DELETE from an Amazon RDS for MySQL database and continuously land the changes in an S3 data lake with minimal load on the source database. Which approach is the best fit?",
                 "choices": [
                   "Schedule an hourly AWS Glue JDBC full-table extract and overwrite the S3 dataset on each run",
-                  "Use AWS DMS with a change data capture (CDC) task reading the MySQL binary log and an S3 target endpoint",
                   "Enable a DynamoDB stream on the table and forward records to S3 with an AWS Lambda consumer",
+                  "Use AWS DMS in CDC mode reading the MySQL binary log with an S3 target endpoint",
                   "Run a nightly mysqldump on the RDS instance and upload the resulting SQL file to the S3 bucket"
                 ],
-                "correctIndex": 1,
+                "correctIndex": 2,
                 "explanation": "AWS DMS CDC reads the MySQL binary log to capture row-level inserts, updates, and deletes with low impact on the source, and an S3 target endpoint writes the ongoing changes into the lake. An hourly Glue full extract re-scans the whole table each run, missing intra-hour deletes and putting heavy repeated load on the source. DynamoDB streams only exist on DynamoDB tables, not RDS for MySQL, so they cannot capture RDS changes. A nightly mysqldump is a full snapshot, not continuous CDC, and cannot represent individual delete operations between dumps."
               },
               {
@@ -190,22 +190,22 @@
                 "q": "A daily Glue ETL job writes its output to S3 as thousands of small files, and downstream Athena queries are slow because of the large number of tiny objects. Which change most directly improves read performance for the downstream queries?",
                 "choices": [
                   "Increase the Glue worker type to G.2X so each task has more memory while still emitting one file per partition key value",
+                  "Coalesce or repartition the output DynamicFrame/DataFrame so the job writes fewer, larger files per partition",
                   "Enable S3 Transfer Acceleration on the destination bucket so the small files are read back to Athena faster",
-                  "Switch the job to write CSV instead of Parquet so each row group is smaller and parses more quickly in Athena",
-                  "Coalesce or repartition the output DynamicFrame/DataFrame so the job writes fewer, larger files per partition"
+                  "Switch the job to write CSV instead of Parquet so each row group is smaller and parses more quickly in Athena"
                 ],
-                "correctIndex": 3,
+                "correctIndex": 1,
                 "explanation": "The small-files problem is solved by reducing file count: coalescing or repartitioning before the write produces fewer, larger objects (ideally 128 MB+), which cuts the per-object overhead Athena pays when listing and opening files. Increasing worker size gives more memory but does not change the number of output files. S3 Transfer Acceleration speeds long-distance uploads over the public internet and has no effect on Athena read latency for many small files. Switching to CSV makes things worse — CSV is row-oriented and loses columnar pruning, increasing bytes scanned."
               },
               {
                 "q": "An Apache Spark job on Amazon EMR repeatedly fails with executor out-of-memory errors when joining a very large fact table to a small lookup table. Which optimization most directly addresses the failure?",
                 "choices": [
                   "Increase the number of shuffle partitions so each task processes a larger slice of the join in one pass",
+                  "Use a broadcast join to send the small lookup to every executor and skip shuffling the large table",
                   "Cache the large fact table in memory with persist(MEMORY_ONLY) before performing the join operation",
-                  "Use a broadcast join so the small lookup table is sent to every executor and the large table is not shuffled",
                   "Disable speculative execution so executors do not duplicate tasks and consume additional heap memory"
                 ],
-                "correctIndex": 2,
+                "correctIndex": 1,
                 "explanation": "A broadcast join ships the small lookup table to every executor and joins locally, avoiding the expensive shuffle and skew that drive executor OOMs when one side of the join is large. Increasing shuffle partitions actually makes each task smaller, not larger — and the option's reasoning is inverted. Caching the large fact table in memory consumes more heap and worsens the OOM. Disabling speculative execution affects retried straggler tasks, not the memory pressure caused by shuffling a large join."
               },
               {
@@ -222,12 +222,12 @@
               {
                 "q": "A Redshift fact table with billions of rows is joined daily to a 50-million-row customer dimension on customer_id. Which distribution choice minimizes data shuffle during the join?",
                 "choices": [
-                  "DISTSTYLE EVEN on both tables so each slice carries an equal share of rows for parallel processing",
                   "DISTSTYLE KEY on customer_id for both tables so matching rows land on the same compute slice",
+                  "DISTSTYLE EVEN on both tables so each slice carries an equal share of rows for parallel processing",
                   "DISTSTYLE ALL on the fact table so every node holds the full copy used during the join phase",
-                  "DISTSTYLE AUTO on the fact table and DISTSTYLE ALL on the dimension regardless of its size"
+                  "DISTSTYLE AUTO on the fact table and DISTSTYLE ALL on the 50-million-row customer dimension"
                 ],
-                "correctIndex": 1,
+                "correctIndex": 0,
                 "explanation": "When two tables share the same DISTKEY, Redshift co-locates rows with matching key values on the same slice and the join executes locally with no network shuffle. DISTSTYLE EVEN distributes rows round-robin, so matching customer_id rows scatter across slices and force a redistribution at join time. DISTSTYLE ALL on a billion-row fact would be impractically large (each node holds the full copy). DISTSTYLE ALL is intended for small lookup tables (typically a few million rows); a 50-million-row dimension wastes considerable storage on every node."
               },
               {
@@ -236,7 +236,7 @@
                   "Add a random suffix to the date partition key and use Scan with FilterExpression to read by date",
                   "Switch the table to provisioned mode at a much higher write capacity to absorb the daily spike",
                   "Enable DynamoDB Accelerator (DAX) so writes are cached and asynchronously batched to the base table",
-                  "Use date_only as the sort key and a high-cardinality field such as order_id as the new partition key"
+                  "Use a high-cardinality field such as order_id as the partition key with date_only as the sort key"
                 ],
                 "correctIndex": 3,
                 "explanation": "Promoting a high-cardinality attribute (order_id) to the partition key spreads writes across many partitions and eliminates the hot partition; keeping date_only as the sort key still allows efficient per-day Query operations via a GSI on date_only or a partition-overloaded design. A random suffix would spread writes but force expensive Scan + FilterExpression to read by date. Raising provisioned capacity does not fix data skew — a single partition still caps at ~1000 WCU/3000 RCU. DAX is a read-through cache for reads and does not absorb write traffic."
@@ -244,23 +244,23 @@
               {
                 "q": "An Athena workload scans a JSON dataset partitioned by event_date and is both slow and expensive. The team wants the largest reduction in bytes scanned with minimal query rewrites. Which change has the greatest impact?",
                 "choices": [
-                  "Convert the underlying data to Apache Parquet so Athena reads only the columns each query selects",
                   "Re-encode the JSON files using gzip compression so each query downloads fewer total bytes from S3",
+                  "Convert the underlying data to Apache Parquet so Athena reads only the columns each query selects",
                   "Switch the Athena engine version to the latest release available in the workgroup configuration",
                   "Increase the per-query data scanned limit in the workgroup so larger result sets are not throttled"
                 ],
-                "correctIndex": 0,
+                "correctIndex": 1,
                 "explanation": "Parquet is a columnar format, so Athena reads only the columns referenced by a query; combined with partition pruning this typically reduces bytes scanned (and Athena cost) by an order of magnitude or more. Gzipped JSON is still row-oriented — every query reads the full row even to project a single column. Engine version upgrades give marginal gains for the same data layout. Raising the workgroup scan limit caps cost runaway but does not lower per-query bytes scanned."
               },
               {
                 "q": "A pipeline must run nightly with up to fifty interdependent Python tasks, retry logic per task, and rich DAG visualization familiar to the existing data team. Which orchestrator is the best fit?",
                 "choices": [
                   "AWS Step Functions Standard workflow with one state per task and per-state retry policies on errors",
-                  "Amazon MWAA, the managed Apache Airflow service that runs Python DAGs with task-level retries",
                   "Amazon EventBridge Scheduler rules that fire each task at a specific time and order independently",
+                  "Amazon MWAA, the managed Apache Airflow service that runs Python DAGs with task-level retries",
                   "Amazon SageMaker Pipelines orchestrating the data tasks as steps inside a single training pipeline"
                 ],
-                "correctIndex": 1,
+                "correctIndex": 2,
                 "explanation": "Amazon MWAA (managed Airflow) is purpose-built for Python-centric DAGs with per-task retries and the familiar Airflow web UI for DAG visualization. Step Functions excels at orchestrating AWS service calls and supports per-state retries, but it lacks Airflow's Python-DAG ergonomics and visualization the team already knows. EventBridge Scheduler fires jobs at a time but offers no dependency graph between tasks. SageMaker Pipelines is an ML-pipeline primitive — not the right tool for a general 50-task Python ETL graph."
               }
             ]
@@ -299,7 +299,7 @@
     "timeMinutes": 23
   },
   "meta": {
-    "generatedAt": "2026-06-04T11:52:48.090Z",
+    "generatedAt": "2026-06-11T07:40:36.538Z",
     "totalNodes": 11,
     "totalQuestions": 16,
     "nodeTypes": [

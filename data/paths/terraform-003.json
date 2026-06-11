@@ -151,12 +151,12 @@
                 "right": "List/map comprehension"
               },
               {
-                "left": "A `sensitive = true` value should APPEAR in a `null_resource` provisioner comman",
-                "right": "Explicitly removes the `"
+                "left": "A data-source query may return 0 or 1 results, and accessing it directly errors ",
+                "right": "`one(list)`"
               },
               {
-                "left": "A Terraform configuration needs to READ a YAML config file (`config.yaml`) and c",
-                "right": "Parses YAML to Terraform"
+                "left": "A `sensitive = true` value should APPEAR in a `null_resource` provisioner comman",
+                "right": "Explicitly removes the `"
               }
             ]
           },
@@ -303,10 +303,6 @@
                 "right": "`terraform plan`"
               },
               {
-                "left": "The `terraform state` subcommand family provides operations on the state file: l",
-                "right": "Family of state operations"
-              },
-              {
                 "left": "A team's Terraform files have INCONSISTENT formatting (mixed indentation, misali",
                 "right": "`terraform fmt`"
               },
@@ -317,6 +313,10 @@
               {
                 "left": "A complex configuration has hundreds of resources with implicit + explicit depen",
                 "right": "`terraform graph`"
+              },
+              {
+                "left": "A pipeline must capture the VPC ID produced by Terraform and pass it to a downst",
+                "right": "`terraform output`"
               }
             ]
           },
@@ -419,15 +419,15 @@
             "livesAllowed": 3,
             "questions": [
               {
-                "q": "Terraform tracks the mapping between configuration resources and real-world infrastructure IDs in a STATE file (default `terraform.tfstate`). Without state, Terraform couldn't (a) know what's already created, (b) detect drift, (c) plan deletions. Best practice: store state REMOTELY (S3, Terraform Cloud) with locking + encryption. Which describes state?",
+                "q": "How does Terraform know which real-world infrastructure already exists, detect drift, and plan deletions between runs?",
                 "choices": [
-                  "Just a log file",
-                  "JSON file mapping config resources →",
-                  "Provider cache",
-                  "Config backup"
+                  "By re-discovering every resource through the provider API on each run",
+                  "From the `.terraform/` provider-plugin cache in the working directory",
+                  "From the state file, which maps configuration resources to real infrastructure IDs",
+                  "From a log file Terraform appends to after each apply"
                 ],
-                "correctIndex": 1,
-                "explanation": "State: Terraform's source of truth. Contains: resource IDs (aws_instance.web → i-1234567890), dependencies, provider metadata, module structure. Remote state (S3+DynamoDB, Terraform Cloud) enables team collaboration and locking. Never manually edit state — use terraform state commands."
+                "correctIndex": 2,
+                "explanation": "The state file records the mapping from each configuration resource to its real-world ID, which is how Terraform detects drift and plans changes. Terraform does not re-discover all resources each run, the .terraform/ cache only holds provider plugins, and there is no apply log that serves as the source of truth."
               },
               {
                 "q": "Terraform automatically writes the PREVIOUS state to a sibling file before each state-mutating operation. If a state save is corrupted or accidentally rolled back, the previous version can be restored. The file name uses a `.backup` suffix. Which file?",
@@ -496,15 +496,15 @@
                 "explanation": "state pull: terraform state pull > state-backup.json. Good for: backing up state before risky operations, reading state programmatically. state push: terraform state push state-backup.json — overwrites remote state. Dangerous: only use for: recovering from corrupted state, migrating state manually. Lock: pull/push respect state locking. Better alternative: use backend migration (terraform init -migrate-state). use for: inspection, backup, migration. state push: uploads local state to remote backend — use carefully, can overwrite remote state. Force push: -force flag if serial number mismatch"
               },
               {
-                "q": "Two destructive-but-different commands. `terraform state rm <address>` — removes the resource FROM STATE; Terraform forgets it; real infra keeps running (orphaned but alive). `terraform destroy -target=<address>` — DELETES the real infrastructure AND removes from state. Which describes the difference?",
+                "q": "You want Terraform to STOP tracking a resource while leaving the real infrastructure running untouched (not deleted). Which command does that?",
                 "choices": [
-                  "Same effect",
-                  "state rm safer",
-                  "`state rm` removes the resource from state",
-                  "Both delete"
+                  "`terraform destroy -target` — removes it from state and deletes the real resource",
+                  "`terraform refresh` — reconciles state with the real infrastructure",
+                  "`terraform untaint` — clears a forced-replacement mark on the resource",
+                  "`terraform state rm` — drops it from state; the real resource keeps running"
                 ],
-                "correctIndex": 2,
-                "explanation": "state rm: terraform state rm aws_instance.web → resource remains in cloud, Terraform no longer tracks it. Use: transitioning to different management, resource that can't/shouldn't be destroyed. destroy -target: DELETES the real resource then updates state. If you want to keep the resource but stop managing: state rm then resource configuration can be removed."
+                "correctIndex": 3,
+                "explanation": "terraform state rm removes the resource from state only; the real object keeps running, now unmanaged. destroy -target actually deletes the infrastructure. refresh updates state to match reality but keeps managing the resource. untaint only clears a taint mark and changes nothing about tracking."
               }
             ]
           },
@@ -640,15 +640,15 @@
                 "explanation": "terraform providers mirror /path/to/mirror: downloads providers to local directory. Configure in ~/.terraformrc or %APPDATA%/terraform.rc: provider_installation { filesystem_mirror { path='/path/to/mirror', include=['registry.terraform.io/*/*'] }, direct { exclude=['registry.terraform.io/*/*'] } }. For air-gapped environments, regulated networks, or offline CI/CD."
               },
               {
-                "q": "A Terraform configuration's `terraform { required_providers { aws = { source = \"hashicorp/aws\"; version = \"~> 5.0\" } } }` declares which providers the configuration needs + their source + version constraint. Terraform reads this at init to download + lock. Required for non-default providers (anything besides historical built-ins). Which describes required_providers?",
+                "q": "A configuration uses the `aws` provider plus a custom third-party provider. Where do you declare each provider's source address and version constraint so `terraform init` can download and lock them?",
                 "choices": [
-                  "Third-party only",
-                  "Same as provider block",
-                  "Optional",
-                  "Declares required providers and their sources / versions inside the `terraform`"
+                  "In a `provider` block, one per provider, at the configuration root",
+                  "In a `required_providers` block inside the `terraform` block",
+                  "In the `backend` block alongside the state-storage settings",
+                  "In the generated `.terraform.lock.hcl`, edited by hand"
                 ],
-                "correctIndex": 3,
-                "explanation": "required_providers: terraform { required_providers { aws = { source='hashicorp/aws', version='~>4.0' }, custom = { source='myorg.com/providers/custom', version='1.0' } } }. All providers should be declared. terraform init respects these constraints. Lock file records resolved versions. Without required_providers: Terraform may use any available version."
+                "correctIndex": 1,
+                "explanation": "required_providers (inside the terraform block) names each provider's source and version so init can fetch and lock them. A provider block configures an already-declared provider (region, credentials) — it does not declare source/version. The backend block configures state storage. The lock file is generated from required_providers, not hand-authored."
               },
               {
                 "q": "A configuration needs UNIQUE random suffixes for resource names (avoid name collisions across re-applies). `hashicorp/random` provider provides `random_id`, `random_string`, `random_password`, `random_uuid`, `random_pet`, `random_shuffle` resources. Values are generated ONCE at create + stored in state (stable across applies until destroy / recreate). Which describes it?",
@@ -662,15 +662,15 @@
                 "explanation": "random_string: generates random alphanumeric string. random_id: generates random bytes in hex/base64. random_password: generates strong password. random_integer: random number in range. These resources are stable after creation (don't regenerate on each apply unless keepers change). integers, UUIDs, passwords) within Terraform configurations — commonly used for: unique resource names (S3 buckets, database passwords), avoiding naming conflicts, generating entropy for resources that require unique IDs"
               },
               {
-                "q": "Provisioning a managed DB takes ~5 min for the cluster to fully become available — the resource is 'created' but not yet 'usable'. A downstream resource that depends on the DB might fail. The `time_sleep` resource (from `hashicorp/time` provider) introduces a configurable delay between resource creations: `resource \"time_sleep\" \"wait_5m\" { depends_on = [aws_db_instance.main]; create_duration = \"5m\" }`. Which describes it?",
+                "q": "A managed DB takes ~5 minutes to become usable after it reports 'created', and a dependent resource fails if it proceeds too early. Which inserts a fixed delay between resource creations?",
                 "choices": [
-                  "From `hashicorp/time` provider",
-                  "Debug pause",
-                  "Timeout config",
-                  "Rate limit"
+                  "A `timeouts { create = \"5m\" }` block on the DB resource",
+                  "A `retry` block that re-runs the dependent resource until the DB is ready",
+                  "Raising `-parallelism` so the DB finishes before its dependents",
+                  "The `time_sleep` resource from the `hashicorp/time` provider, with `create_duration`"
                 ],
-                "correctIndex": 0,
-                "explanation": "time_sleep.wait_30_seconds { create_duration = '30s' depends_on = [aws_instance.db] }. Other resources depend on this sleep. Use sparingly — prefer proper readiness checks. time_static: captures current time as a static value for tagging/versioning. creates a delay between resource creation steps. Use when: a resource needs time to become available after creation (e.g., wait 30s after creating a database before creating a dependent service)"
+                "correctIndex": 3,
+                "explanation": "time_sleep (hashicorp/time) creates a resource whose only effect is a configurable delay, wired with depends_on. A timeouts block caps how long Terraform waits for the DB's own creation, not an extra delay for dependents. Terraform has no retry block, and -parallelism controls concurrency, not ordering delays."
               }
             ]
           },
@@ -844,37 +844,37 @@
             "livesAllowed": 3,
             "questions": [
               {
-                "q": "Two related Terraform files: (A) DECLARES input variables — their type, default, description, validation, sensitivity. (B) ASSIGNS values to those variables (or `*.auto.tfvars` files auto-load). The pair lets configurations be reusable across environments. Which mapping?",
+                "q": "A reusable module separates WHERE input variables are declared (type, default, validation) from WHERE their values are assigned per environment. Which mapping is correct?",
                 "choices": [
-                  "`variables.tf` DECLARES variables (type, default, description, validation, sensitive)",
-                  "variables.tf assigns default values",
-                  "Same file different names",
-                  "tfvars only for secrets"
-                ],
-                "correctIndex": 0,
-                "explanation": "Variables: declared in variables.tf (or any .tf file): variable 'region' { type=string, default='us-east-1' }. Values in: terraform.tfvars (auto-loaded), *.auto.tfvars (auto-loaded), -var flag, TF_VAR_name env var, interactive prompt. .tfvars not committed to git if contains secrets. descriptions, defaults, and validation rules. terraform.tfvars: assigns actual values to those variables. Separation of concerns: declare structure separately from values. .tfvars files can be environment-specific (dev.tfvars, prod.tfvars)"
-              },
-              {
-                "q": "A variable `environment` must only accept `dev`, `staging`, `prod`. Terraform supports CUSTOM VALIDATION via a `validation { condition = …; error_message = … }` block inside the variable declaration. If the condition is false, Terraform raises the error with the given message at plan time. Which describes variable validation?",
-                "choices": [
-                  "Strings only",
-                  "Type-checking only",
-                  "Custom validation conditions in `variable` blocks",
-                  "Paid version"
-                ],
-                "correctIndex": 2,
-                "explanation": "Validation: variable 'environment' { validation { condition = contains(['dev','staging','prod'], var.environment), error_message = 'Must be dev, staging, or prod.' } }. Condition: any expression returning bool. Can use regexall, length, can function. Multiple validation blocks allowed. Replaces error-prone runtime failures with clear validation messages."
-              },
-              {
-                "q": "A Terraform variable should hold STRUCTURED data with NAMED attributes and per-attribute types. The OBJECT type constraint names each attribute and its sub-type. Useful for complex inputs. Which describes it?",
-                "choices": [
-                  "Resource reference",
-                  "Same as map",
-                  "JSON object only",
-                  "Structured type with NAMED attributes of specific types"
+                  "`variables.tf` assigns values; `*.tfvars` declares the variables",
+                  "`outputs.tf` declares the variables; `terraform.tfstate` assigns them",
+                  "Both files declare variables; values can come only from the CLI",
+                  "`variables.tf` declares the variables; `*.tfvars` files assign their values"
                 ],
                 "correctIndex": 3,
-                "explanation": "object type: variable 'config' { type=object({ instance_type=string, instance_count=number, enable_monitoring=bool }) }. Access: var.config.instance_type. Nested: object with object. optional(TYPE, DEFAULT): mark attribute optional with default value (Terraform 1.3+). More readable than multiple separate variables for related configuration."
+                "explanation": "variables.tf holds variable blocks (type, default, description, validation); *.tfvars (and *.auto.tfvars) supply concrete values per environment. The reversed mapping is wrong. outputs.tf exports values and state is not an input source. Values can come from tfvars, -var, or env vars — not only the CLI."
+              },
+              {
+                "q": "A variable `environment` must accept only `dev`, `staging`, or `prod`, rejecting any other value at plan time with a clear message. Which Terraform feature enforces this?",
+                "choices": [
+                  "A `validation` block with a `condition` and `error_message`",
+                  "Setting `type = string` so Terraform rejects any non-string input",
+                  "A `default` value that lists the three allowed environments",
+                  "Marking the variable `sensitive = true` so bad values are hidden"
+                ],
+                "correctIndex": 0,
+                "explanation": "A validation block (condition = contains([\"dev\",\"staging\",\"prod\"], var.environment)) fails the plan with its error_message when the value is out of range. type = string only checks that the input is a string, not which strings are allowed. A default is just the fallback when no value is supplied — it never restricts what a user can pass. sensitive only hides the value in output; it performs no validation."
+              },
+              {
+                "q": "A Terraform input variable must hold structured data with named attributes, each with its own type — e.g. `instance_type` (string), `count` (number), `monitoring` (bool). Which type constraint fits?",
+                "choices": [
+                  "`object({...})`, a structured type with named attributes of specific types",
+                  "`map(string)`, a collection of values addressed by arbitrary string keys",
+                  "`tuple([...])`, an ordered sequence of elements addressed by index",
+                  "`any`, which accepts any value and defers all type checking"
+                ],
+                "correctIndex": 0,
+                "explanation": "object({ instance_type = string, count = number, monitoring = bool }) names each attribute and pins its type, so Terraform validates the shape and you reference var.x.instance_type. map(string) forces every value to the same type and has no named, per-attribute typing. tuple is positional (indexed), not named. any disables type checking entirely, losing the per-attribute guarantees."
               },
               {
                 "q": "A Terraform variable type set to `any` accepts a value of ANY type. Terraform infers the actual type from the value provided. Useful for generic helpers, but loses static type-checking. Better practice: use SPECIFIC types when possible. Which describes `any`?",
@@ -1139,15 +1139,15 @@
                 "explanation": "CLI workspaces are a lightweight, single-backend state-isolation feature — handy for env-per-state in a small project. TFC workspaces are full isolation boundaries: per-workspace variables, secrets, RBAC, run history, VCS link. They are not 1:1 with CLI workspaces, neither has been deprecated, and they solve very different problems."
               },
               {
-                "q": "Each Terraform workspace has its OWN state file. Resources / outputs / data in workspace A are invisible to workspace B. They DO share the configuration code (same .tf files). State isolation is per-workspace: local backend stores in `terraform.tfstate.d/<name>/`; remote backends use prefixed keys. Which describes state isolation?",
+                "q": "Two Terraform workspaces use the SAME `.tf` files, yet resources created in workspace A are invisible to workspace B. What is isolated per workspace?",
                 "choices": [
-                  "Workspaces share variables",
-                  "Each workspace has a completely separate state file",
-                  "Share state",
-                  "Enterprise required"
+                  "The state file — each workspace has its own separate state",
+                  "The configuration code — each workspace keeps its own copy of the `.tf` files",
+                  "The provider plugins — each workspace downloads its own provider versions",
+                  "The variable values — each workspace requires a different `variables.tf`"
                 ],
-                "correctIndex": 1,
-                "explanation": "Workspace state isolation: fundamentally separate states. Same configuration, different state = different infrastructure instances (dev database and prod database). terraform.workspace in code: customize per workspace. Variable values: set per workspace in Terraform Cloud, or use separate .tfvars files per workspace."
+                "correctIndex": 0,
+                "explanation": "Workspaces share one configuration but each gets its own state (local: terraform.tfstate.d/<name>/; remote: a prefixed key), so their resources don't see each other. The code, providers, and variable declarations are shared across workspaces."
               },
               {
                 "q": "Two related Terraform concepts: (A) Terraform CLI workspace — a named instance of state inside a single backend (e.g. `default`, `dev`, `prod`); switched with `terraform workspace select`. (B) Terraform Cloud workspace — a TFC-level isolation boundary with its own variables, run history, state file, and RBAC. Which statement correctly distinguishes them?",
@@ -1397,7 +1397,7 @@
     "timeMinutes": 45
   },
   "meta": {
-    "generatedAt": "2026-06-04T11:52:48.153Z",
+    "generatedAt": "2026-06-11T07:40:36.639Z",
     "totalNodes": 65,
     "totalQuestions": 161,
     "nodeTypes": [

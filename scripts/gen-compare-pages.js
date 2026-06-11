@@ -21,7 +21,7 @@ const SALARY_DIR = path.join(ROOT, 'data', 'salary');
 const INDEX_JSON = path.join(ROOT, 'data', 'index.json');
 const OUT_DIR  = path.join(ROOT, 'compare');
 
-const CACHE_BUST = 'v=133';
+const CACHE_BUST = 'v=134';
 
 /* ── data lookups ─────────────────────────────────────────────── */
 const certPacks = (function () {
@@ -344,6 +344,11 @@ function renderIndex(comparisons, legacyPages) {
   <meta property="og:url" content="https://certquests.com/compare/" />
   <meta property="og:title" content="Comparateur de certifications IT — CertQuests" />
   <meta property="og:description" content="Comparatifs sans bullshit : AWS vs Azure vs GCP, CCNA vs Network+, CISSP vs Security+. Verdict par profil, sources citées." />
+  <meta property="og:image" content="https://certquests.com/src/assets/og/og-default.png?v=1" />
+  <meta property="og:image:width" content="1200" />
+  <meta property="og:image:height" content="630" />
+  <meta property="og:image:type" content="image/png" />
+  <meta name="twitter:image" content="https://certquests.com/src/assets/og/og-default.png?v=1" />
   <meta name="twitter:card" content="summary_large_image" />
   <meta name="twitter:title" content="Comparateur de certifications IT — CertQuests" />
   <meta name="twitter:description" content="Comparatifs sans bullshit : AWS vs Azure vs GCP, CCNA vs Network+, CISSP vs Security+. Verdict par profil, sources citées." />

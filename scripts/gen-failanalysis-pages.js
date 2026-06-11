@@ -17,7 +17,7 @@ const ROOT = path.resolve(__dirname, '..');
 const DATA_DIR = path.join(ROOT, 'data', 'fail-analysis');
 const OUT_DIR  = path.join(ROOT, 'fail-analysis');
 
-const CACHE_BUST = 'v=106';
+const CACHE_BUST = 'v=134';
 
 function esc(s) {
   return String(s == null ? '' : s)
@@ -228,6 +228,16 @@ function renderIndex(items) {
   <meta name="description" content="Post-mortems des examens cert IT : top 5 erreurs récurrentes par cert, sources communautaires, conseils correctifs concrets. CCNA, AWS SAA, RHCSA et plus." />
   <meta name="robots" content="index, follow" />
   <link rel="canonical" href="https://certquests.com/fail-analysis/" />
+  <meta property="og:type" content="website" />
+  <meta property="og:url" content="https://certquests.com/fail-analysis/" />
+  <meta property="og:title" content="Pourquoi les gens ratent leurs certifs IT — analyses · CertQuests" />
+  <meta property="og:description" content="Post-mortems des examens cert IT : top 5 erreurs récurrentes par cert, sources communautaires, conseils correctifs concrets. CCNA, AWS SAA, RHCSA et plus." />
+  <meta property="og:image" content="https://certquests.com/src/assets/og/og-default.png?v=1" />
+  <meta property="og:image:width" content="1200" />
+  <meta property="og:image:height" content="630" />
+  <meta property="og:image:type" content="image/png" />
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:image" content="https://certquests.com/src/assets/og/og-default.png?v=1" />
   <link rel="manifest" href="/manifest.json" />
   <link rel="icon" href="/favicon.ico?v=4" sizes="any" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
