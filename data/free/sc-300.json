@@ -3,10 +3,10 @@
     "id": "sc-300",
     "name": "Microsoft Identity and Access Administrator (SC-300)",
     "vendor": "Microsoft",
-    "version": "1.0.0",
-    "question_count": 10,
-    "last_updated": "2026-06-06",
-    "notes": "Initial pack: 10 questions covering Microsoft Entra ID administration — external identities (B2B), Conditional Access, phishing-resistant authentication, Identity Protection, Privileged Identity Management, Access Reviews, app registrations, hybrid identity, managed identities, and Entitlement Management. Authored 2026-06-06 [scheduled-agent]."
+    "version": "1.1.0",
+    "question_count": 22,
+    "last_updated": "2026-06-11",
+    "notes": "Initial pack: 10 questions covering Microsoft Entra ID administration — external identities (B2B), Conditional Access, phishing-resistant authentication, Identity Protection, Privileged Identity Management, Access Reviews, app registrations, hybrid identity, managed identities, and Entitlement Management. Authored 2026-06-06 [scheduled-agent]. v1.1: +12 — break-glass accounts, legacy-auth block, sign-in vs user risk, PHS resilience, dynamic groups, SSPR combined registration, admin consent, SAML SSO, group licensing, Authentication Administrator, log export, authentication strengths."
   },
   "questions": [
     {
@@ -197,6 +197,222 @@
         "sc-300"
       ],
       "difficulty": "medium"
+    },
+    {
+      "id": "sc300-011",
+      "question": "While rolling out conditional access policies tenant-wide, what should you do FIRST to avoid locking every administrator out if a policy is misconfigured?",
+      "options": [
+        "Create cloud-only emergency access (break-glass) accounts excluded from all conditional access policies, with credentials secured and monitored",
+        "Enable security defaults alongside the conditional access policies so the tenant has a redundant baseline layer of enforcement if a policy is ever deleted or misconfigured by an administrator",
+        "Configure all new policies to apply to the Global Administrator role before any other users",
+        "Take a manual backup of every policy definition so misconfigurations can be redeployed quickly"
+      ],
+      "correct": 0,
+      "explanation": "Break-glass accounts are the documented safeguard: cloud-only, excluded from CA (and from MFA federation dependencies), with long random credentials stored securely and sign-ins alerted on. Security defaults cannot coexist with CA policies; targeting admins first maximises the lockout blast radius; policy backups help you fix a lockout you can no longer sign in to fix.",
+      "tags": [
+        "conditional-access",
+        "emergency-access",
+        "sc-300"
+      ],
+      "difficulty": "medium"
+    },
+    {
+      "id": "sc300-012",
+      "question": "Sign-in logs show password-spray attempts succeeding past MFA because attackers use IMAP and SMTP AUTH, which cannot enforce MFA. How do you stop this while keeping modern clients working?",
+      "options": [
+        "Raise the password-expiry frequency to 30 days so sprayed credentials expire before attackers can use them",
+        "Require all mailbox access to go through a VPN appliance that performs its own MFA challenge",
+        "Create a conditional access policy that blocks legacy authentication clients",
+        "Enable self-service password reset so users can quickly recover compromised accounts"
+      ],
+      "correct": 2,
+      "explanation": "Legacy protocols (IMAP, POP, SMTP AUTH, older Office clients) cannot perform MFA, so the fix is a CA policy with the 'legacy authentication clients' condition set to block — modern auth clients are untouched. Faster expiry and SSPR react after compromise rather than preventing it; a VPN in front of Exchange Online isn't how the service is accessed.",
+      "tags": [
+        "conditional-access",
+        "legacy-authentication",
+        "sc-300"
+      ],
+      "difficulty": "medium"
+    },
+    {
+      "id": "sc300-013",
+      "question": "In Microsoft Entra ID Protection, what is the difference between SIGN-IN risk and USER risk?",
+      "options": [
+        "Sign-in risk applies only to guests, while user risk applies only to member accounts in the tenant",
+        "Sign-in risk scores the probability that a specific authentication attempt isn't from the identity owner; user risk scores the probability the identity itself is compromised",
+        "Sign-in risk is computed only when conditional access is licensed, while user risk is always available for free",
+        "Sign-in risk evaluates the strength of the password presented at each individual logon attempt, while user risk evaluates how long ago the account's password was last changed and whether it appears in breach corpora published since then"
+      ],
+      "correct": 1,
+      "explanation": "Sign-in risk is per-authentication (anonymous IP, impossible travel, unfamiliar properties of this attempt); user risk is per-identity (leaked credentials, attacker-pattern behavior accumulating over time). Typical remediations differ accordingly: risky sign-ins get MFA challenges, risky users get forced secure password change. Licensing and guest/member status don't define the split.",
+      "tags": [
+        "identity-protection",
+        "risk-policies",
+        "sc-300"
+      ],
+      "difficulty": "medium"
+    },
+    {
+      "id": "sc300-014",
+      "question": "A company syncing identities from AD DS wants users to authenticate to Entra ID even during a complete on-premises outage, with minimal infrastructure. Which hybrid authentication method fits?",
+      "options": [
+        "Pass-through authentication, because its lightweight agents keep validating credentials when domain controllers are down",
+        "AD FS federation with a load-balanced farm and a WAP server pair in the perimeter network",
+        "Password hash synchronization",
+        "Certificate-based authentication issued from the on-premises enterprise PKI infrastructure"
+      ],
+      "correct": 2,
+      "explanation": "PHS copies password hashes (re-hashed) to Entra ID, so the cloud validates credentials itself — sign-in keeps working when on-premises is completely down, with nothing to host. PTA agents validate against domain controllers, so a DC outage breaks sign-in; AD FS adds a farm to operate and shares the same dependency; on-prem PKI-based auth also depends on the on-prem estate.",
+      "tags": [
+        "hybrid-identity",
+        "password-hash-sync",
+        "sc-300"
+      ],
+      "difficulty": "medium"
+    },
+    {
+      "id": "sc300-015",
+      "question": "Every user whose department attribute equals 'Sales' must automatically appear in a group used for app assignment, with membership maintained as people join and leave the department. What do you create?",
+      "options": [
+        "A dynamic security group with the membership rule user.department -eq \"Sales\"",
+        "An administrative unit scoped to the Sales department with role assignments inside it",
+        "A Microsoft 365 group with welcome email disabled and owners from the Sales leadership team",
+        "An assigned security group plus a quarterly access review to add and remove members"
+      ],
+      "correct": 0,
+      "explanation": "Dynamic groups evaluate a membership rule against directory attributes continuously — `user.department -eq \"Sales\"` adds and removes members as the attribute changes, no manual upkeep. Administrative units scope admin permissions, not app assignment; an assigned group with reviews still requires humans to process changes; ownership doesn't automate membership.",
+      "tags": [
+        "groups",
+        "dynamic-membership",
+        "sc-300"
+      ],
+      "difficulty": "easy"
+    },
+    {
+      "id": "sc300-016",
+      "question": "You want users to be able to reset their own forgotten passwords after verifying two methods, and to register those methods together with MFA in a single experience. What do you enable?",
+      "options": [
+        "The banned-password list combined with smart lockout thresholds tuned for the organization's risk profile",
+        "Self-service password reset with two required methods, using combined security information registration",
+        "Windows Hello for Business with cloud Kerberos trust deployed to all corporate workstations",
+        "A conditional access policy granting access only after a terms-of-use acceptance and device compliance check"
+      ],
+      "correct": 1,
+      "explanation": "SSPR lets users reset passwords after proving the configured number of authentication methods; combined registration enrolls SSPR and MFA methods in one wizard so users register once. Password protection (banned lists/lockout) hardens passwords but doesn't reset them; Hello for Business replaces passwords on devices; CA controls access, not recovery.",
+      "tags": [
+        "sspr",
+        "authentication-methods",
+        "sc-300"
+      ],
+      "difficulty": "easy"
+    },
+    {
+      "id": "sc300-017",
+      "question": "A new line-of-business application requests the Microsoft Graph application permission Mail.Read for all mailboxes. Individual users cannot approve it. Why, and what is required?",
+      "options": [
+        "The request is malformed — application permissions only exist for first-party Microsoft applications",
+        "The tenant's user-consent setting is too restrictive and should be relaxed to allow all verified publishers",
+        "Each mailbox owner must individually approve the permission from their My Apps portal page",
+        "Application permissions act without a signed-in user and always require administrator consent"
+      ],
+      "correct": 3,
+      "explanation": "Application (app-only) permissions let the app act as itself across the tenant — reading every mailbox here — so they always require admin consent; user consent only ever covers delegated permissions within the user's own access. Relaxing user-consent settings wouldn't change that, per-user approval isn't a mechanism for app-only access, and third-party apps can absolutely use application permissions.",
+      "tags": [
+        "app-registrations",
+        "consent",
+        "sc-300"
+      ],
+      "difficulty": "medium"
+    },
+    {
+      "id": "sc300-018",
+      "question": "A SaaS vendor's application appears in the Entra application gallery and supports federated single sign-on. Which protocol configuration will the enterprise application typically use for browser-based SSO?",
+      "options": [
+        "SAML 2.0, exchanging a signed assertion between Entra ID and the vendor's service",
+        "Password-based SSO with the browser extension vaulting and replaying shared credentials",
+        "RADIUS, with Entra ID acting as the network policy server for the vendor application",
+        "LDAP bind redirected from the vendor's directory to the Entra ID tenant endpoint"
+      ],
+      "correct": 0,
+      "explanation": "Gallery apps with federated SSO use SAML 2.0 (or OpenID Connect): Entra ID authenticates the user and posts a signed assertion to the vendor's ACS URL, with attributes/claims mapped in the enterprise app. Password vaulting is the fallback for apps without federation; RADIUS is network access authentication; cloud apps don't perform LDAP binds against Entra ID.",
+      "tags": [
+        "enterprise-apps",
+        "saml-sso",
+        "sc-300"
+      ],
+      "difficulty": "easy"
+    },
+    {
+      "id": "sc300-019",
+      "question": "New employees in the 'Engineering-EU' group must automatically receive Microsoft 365 E5 licenses, and lose them on leaving the group. What does the identity admin configure?",
+      "options": [
+        "An access package whose approval workflow includes the licensing desk as a mandatory stage",
+        "A logic app polling the group hourly and calling the licensing API for any membership deltas",
+        "Group-based licensing: assign the E5 license to the group so membership drives assignment",
+        "A PIM-eligible licensing role that members activate when they need to use the products"
+      ],
+      "correct": 2,
+      "explanation": "Group-based licensing attaches licenses to a group; Entra ID assigns and removes them as membership changes, with error reporting for conflicts or seat exhaustion. An access package governs access requests, not license SKUs; a polling logic app reinvents the built-in feature; PIM manages role elevation, not product licensing.",
+      "tags": [
+        "licensing",
+        "group-based-licensing",
+        "sc-300"
+      ],
+      "difficulty": "easy"
+    },
+    {
+      "id": "sc300-020",
+      "question": "Helpdesk staff must reset passwords and re-register MFA for standard users only — never for administrators — following least privilege. Which built-in Entra role should they hold?",
+      "options": [
+        "Privileged Authentication Administrator, restricted by an administrative unit containing helpdesk staff",
+        "Authentication Administrator",
+        "Security Administrator, since password resets are a security-sensitive operation by definition",
+        "User Administrator, which includes full authentication method management for every directory role"
+      ],
+      "correct": 1,
+      "explanation": "Authentication Administrator can reset passwords and manage authentication methods for non-administrator users — precisely the scope described. Privileged Authentication Administrator extends that power to admins (too much); Security Administrator manages security features, not user credentials; User Administrator manages users and groups but its credential powers don't extend to all method management for admins either.",
+      "tags": [
+        "entra-roles",
+        "least-privilege",
+        "sc-300"
+      ],
+      "difficulty": "hard"
+    },
+    {
+      "id": "sc300-021",
+      "question": "Compliance requires keeping Entra sign-in logs for two years and querying them with KQL alongside other security data. The portal only retains them for 30 days. What do you configure?",
+      "options": [
+        "Diagnostic settings exporting SignInLogs to a Log Analytics workspace (with archive/long-term retention configured)",
+        "A scheduled PowerShell script that pages through the Microsoft Graph sign-in API nightly and writes timestamped CSV files to a retention file share",
+        "Entra ID Governance access reviews on the sign-in activity of all privileged role holders",
+        "A browser bookmark folder of filtered sign-in log views recreated by the SOC each month"
+      ],
+      "correct": 0,
+      "explanation": "Diagnostic settings stream Entra logs (SignInLogs, AuditLogs and more) to Log Analytics, where KQL, workbooks and Sentinel can use them and retention/archive policies satisfy the two-year mandate. CSV exports lose structure and query power; access reviews recertify access rather than retain logs; saved portal views still expire with the 30-day backend retention.",
+      "tags": [
+        "monitoring",
+        "log-analytics",
+        "sc-300"
+      ],
+      "difficulty": "medium"
+    },
+    {
+      "id": "sc300-022",
+      "question": "Security mandates that access to the payroll application require PHISHING-RESISTANT authentication — SMS and authenticator push are not acceptable. How is this enforced in conditional access?",
+      "options": [
+        "Set the policy's session control to sign-in frequency of one hour for the payroll application",
+        "Mark the payroll app as requiring 'high' sign-in risk so Identity Protection challenges every attempt",
+        "Require multifactor authentication in the policy's grant control, which automatically excludes SMS and authenticator push for applications that are tagged as sensitive in the tenant",
+        "Use an authentication strength grant control limited to phishing-resistant methods (FIDO2, Windows Hello, certificate-based)"
+      ],
+      "correct": 3,
+      "explanation": "Authentication strengths let a CA policy require a specific set of methods; the built-in phishing-resistant strength allows only FIDO2 security keys/passkeys, Windows Hello for Business and certificate-based authentication. A plain 'require MFA' grant accepts any registered MFA method including SMS; sign-in frequency and risk settings don't constrain which methods satisfy the challenge.",
+      "tags": [
+        "conditional-access",
+        "authentication-strengths",
+        "sc-300"
+      ],
+      "difficulty": "hard"
     }
   ]
 }

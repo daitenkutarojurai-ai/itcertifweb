@@ -3,10 +3,10 @@
     "id": "dp-203",
     "name": "Microsoft Azure Data Engineer Associate DP-203",
     "vendor": "Microsoft",
-    "version": "1.0.0",
-    "question_count": 12,
-    "last_updated": "2026-05-29",
-    "notes": "[new pack: 12 authored DP-203 questions covering data storage design, data processing, data security, and optimization; answer positions balanced 3/3/3/3] [scheduled-agent]"
+    "version": "1.1.0",
+    "question_count": 22,
+    "last_updated": "2026-06-11",
+    "notes": "[new pack: 12 authored DP-203 questions covering data storage design, data processing, data security, and optimization; answer positions balanced 3/3/3/3] [scheduled-agent]. v1.1: +10 — self-hosted IR, COPY INTO, SCD2, Delta time travel, session windows, medallion layers, Spark pool choice, tumbling window triggers, Event Hubs partition keys, failure alerting."
   },
   "questions": [
     {
@@ -247,6 +247,186 @@
       ],
       "difficulty": "easy",
       "_normalized": true
+    },
+    {
+      "id": "dp203-013",
+      "question": "An Azure Data Factory pipeline must copy data from a SQL Server instance that lives on a private corporate network with no public endpoint. What does the integration require?",
+      "options": [
+        "A self-hosted integration runtime installed on a machine that can reach the SQL Server",
+        "The Azure integration runtime with the 'allow trusted Azure services' firewall exception enabled",
+        "An SSIS integration runtime provisioned in the same region as the Data Factory instance",
+        "A REST linked service pointed at the SQL Server's Tabular Data Stream endpoint over port 1433"
+      ],
+      "correct": 0,
+      "explanation": "The self-hosted IR is the bridge to private networks: installed inside the network (or one reachable from it), it executes the copy and dispatches activities the Azure IR cannot reach. The Azure IR only reaches endpoints routable from Azure; the SSIS IR exists to run SSIS packages; REST linked services speak HTTP, not TDS.",
+      "tags": [
+        "data-factory",
+        "integration-runtime",
+        "dp-203"
+      ],
+      "difficulty": "easy"
+    },
+    {
+      "id": "dp203-014",
+      "question": "For bulk-loading Parquet files from ADLS Gen2 into a dedicated SQL pool table, which loading method does Microsoft now recommend for its combination of simplicity and throughput?",
+      "options": [
+        "The bcp command-line utility running on a jumpbox with sixteen parallel client streams",
+        "The COPY INTO statement",
+        "Singleton INSERT statements batched in 1,000-row transactions from the application tier",
+        "Linked-server queries from an Azure SQL Database pulling the files through OPENROWSET"
+      ],
+      "correct": 1,
+      "explanation": "COPY INTO is the recommended loader for dedicated SQL pools: a single T-SQL statement that reads directly from storage with high parallelism, simpler permissions than PolyBase external tables and far less setup than either. bcp and row-by-row INSERTs funnel data through the control node or client; linked servers aren't a Synapse loading path.",
+      "tags": [
+        "synapse",
+        "copy-into",
+        "dp-203"
+      ],
+      "difficulty": "medium"
+    },
+    {
+      "id": "dp203-015",
+      "question": "A Customer dimension must preserve full history: when a customer's segment changes, the old row is kept and a new row becomes current. Which design implements this Type 2 slowly changing dimension?",
+      "options": [
+        "Overwrite the segment column in place on the existing dimension row and rely on the storage account's nightly snapshots whenever historical questions need answering",
+        "Add a Segment_Previous column that always carries the value the attribute held before the latest update",
+        "Surrogate keys with effective-date and end-date (or current-flag) columns; updates close the old row and insert a new one",
+        "Partition the dimension table by calendar year so each year's rows reflect that year's attribute values"
+      ],
+      "correct": 2,
+      "explanation": "SCD Type 2 keeps one row per version of the member: a surrogate key per version, validity dates or an is-current flag, with facts joining on the surrogate key valid at transaction time. Overwriting is Type 1 (history lost); a single 'previous' column is Type 3 (one step of history only); partitioning organizes storage, not attribute versioning.",
+      "tags": [
+        "data-modeling",
+        "scd-type-2",
+        "dp-203"
+      ],
+      "difficulty": "medium"
+    },
+    {
+      "id": "dp203-016",
+      "question": "A Delta Lake table in Databricks was corrupted by a bad merge at 14:30. The team must query the table exactly as it was at 14:00 to validate and restore the data. Which capability do they use?",
+      "options": [
+        "Delta time travel — querying the table with VERSION AS OF or TIMESTAMP AS OF",
+        "The storage account's geo-redundant secondary endpoint, which lags minutes behind the primary",
+        "Spark Structured Streaming's checkpoint directory replayed up to the 14:00 watermark offset",
+        "The vacuum command with a retention window of thirty minutes to roll back the bad files"
+      ],
+      "correct": 0,
+      "explanation": "Delta's transaction log retains previous table versions, so `SELECT … TIMESTAMP AS OF '14:00'` (or RESTORE to that version) reads the pre-merge state directly. GRS secondaries aren't queryable point-in-time copies; streaming checkpoints track source offsets, not table state; VACUUM deletes old files — run carelessly it would destroy the very history needed.",
+      "tags": [
+        "delta-lake",
+        "time-travel",
+        "dp-203"
+      ],
+      "difficulty": "easy"
+    },
+    {
+      "id": "dp203-017",
+      "question": "In Azure Stream Analytics, support-chat events for one visitor arrive in bursts; a 'conversation' should end when no event arrives for 5 minutes, however long the burst lasted. Which window type models this?",
+      "options": [
+        "Tumbling window of five minutes aligned to the wall clock for each visitor partition",
+        "Hopping window of five minutes with a one-minute hop so burst boundaries are smoothed across the overlaps",
+        "Snapshot window grouping all events that share exactly the same arrival timestamp value",
+        "Session window with a five-minute timeout (and a maximum duration), partitioned by visitor"
+      ],
+      "correct": 3,
+      "explanation": "Session windows grow while events keep arriving and close after the configured gap of inactivity — the natural model for conversations, user sessions and bursts of telemetry. Tumbling and hopping windows have fixed clock-driven boundaries that split conversations arbitrarily; snapshot windows group same-timestamp events only.",
+      "tags": [
+        "stream-analytics",
+        "session-window",
+        "dp-203"
+      ],
+      "difficulty": "medium"
+    },
+    {
+      "id": "dp203-018",
+      "question": "A lakehouse follows the medallion architecture. What distinguishes the BRONZE layer from silver and gold?",
+      "options": [
+        "Bronze stores aggregated, business-ready tables that analysts consume in BI dashboards",
+        "Bronze holds raw data as ingested from sources, kept with minimal transformation for replay and audit",
+        "Bronze contains the conformed, deduplicated entities shared by every downstream domain team",
+        "Bronze is the temporary staging area where source extracts are deleted immediately after each successful downstream load completes"
+      ],
+      "correct": 1,
+      "explanation": "Bronze is the raw landing layer — source-shaped, append-oriented, preserving history so pipelines can be replayed and audited. Silver holds the cleaned, conformed, deduplicated entities; gold serves curated, aggregated business-level tables for consumption. Bronze data is deliberately retained, not deleted after load.",
+      "tags": [
+        "lakehouse",
+        "medallion-architecture",
+        "dp-203"
+      ],
+      "difficulty": "easy"
+    },
+    {
+      "id": "dp203-019",
+      "question": "A transformation step requires Python with scikit-learn over a few hundred gigabytes of Parquet, producing features written back to the lake. Which Synapse compute is the right tool?",
+      "options": [
+        "A dedicated SQL pool, with the Python logic rewritten as T-SQL window functions and CASE expressions",
+        "A serverless SQL pool, since it can already read the Parquet files in place without any loading",
+        "An Apache Spark pool running the Python code as a notebook or Spark job over the files",
+        "The Data Factory copy activity with a mapping data flow expression implementing the model"
+      ],
+      "correct": 2,
+      "explanation": "Spark pools execute Python (PySpark + libraries like scikit-learn) at scale directly over lake files — exactly the workload described. SQL pools execute T-SQL only: rewriting an ML featurization in T-SQL is impractical, and serverless SQL is a query engine, not a Python runtime. Mapping data flows offer visual transformations, not arbitrary Python.",
+      "tags": [
+        "synapse",
+        "spark-pool",
+        "dp-203"
+      ],
+      "difficulty": "easy"
+    },
+    {
+      "id": "dp203-020",
+      "question": "An ADF pipeline must run for every hourly slice of data, support automatic backfill of the last 90 days, retry failed slices individually, and allow slice N to depend on slice N-1. Which trigger type provides all of this?",
+      "options": [
+        "A tumbling window trigger",
+        "A schedule trigger firing at minute zero of every hour in the factory's local time zone",
+        "A storage event trigger on the landing container filtered to blobs ending in .complete",
+        "A manual trigger invoked hourly by an Azure Automation runbook with a 90-day loop parameter"
+      ],
+      "correct": 0,
+      "explanation": "Tumbling window triggers are stateful per-window: each hourly window is tracked individually, past windows backfill automatically from the start time, failed windows retry in isolation, and self-dependency chains window N on N-1. Schedule triggers are fire-and-forget with no window state; event triggers react to blobs, not time slices; a runbook reimplements all of it by hand.",
+      "tags": [
+        "data-factory",
+        "tumbling-window-trigger",
+        "dp-203"
+      ],
+      "difficulty": "medium"
+    },
+    {
+      "id": "dp203-021",
+      "question": "Telemetry from thousands of devices flows through Azure Event Hubs, and downstream processing requires that each individual device's events are consumed in the order they were sent. What ensures this?",
+      "options": [
+        "Raising the Event Hubs throughput units so the service never needs to reorder under load",
+        "Setting the device ID as the partition key, since ordering is guaranteed within a partition",
+        "Enabling the Capture feature so events are also written to storage in arrival order",
+        "Publishing with AMQP instead of HTTPS, because AMQP provides global ordering across partitions"
+      ],
+      "correct": 1,
+      "explanation": "Event Hubs guarantees order within a partition only; using the device ID as partition key routes each device's events to one partition, preserving per-device order while still scaling across partitions. Throughput units affect capacity, not ordering; Capture archives whatever order partitions had; no protocol provides cross-partition global ordering.",
+      "tags": [
+        "event-hubs",
+        "partitioning",
+        "dp-203"
+      ],
+      "difficulty": "medium"
+    },
+    {
+      "id": "dp203-022",
+      "question": "The on-call engineer must be paged whenever any production ADF pipeline run fails, without anyone watching the monitoring UI. What is the Azure-native way to set this up?",
+      "options": [
+        "Increase the activity retry count to ten so failures self-heal before anyone needs paging",
+        "Enable verbose logging on every activity and review the output files during business hours",
+        "Add an If Condition activity at the end of each production pipeline that sends an email to the team's shared mailbox whenever the preceding activity reports failure",
+        "An Azure Monitor metric alert on the 'Failed pipeline runs' metric, with an action group that pages the on-call"
+      ],
+      "correct": 3,
+      "explanation": "Data Factory emits metrics to Azure Monitor; an alert rule on Failed pipeline runs tied to an action group (SMS, push, voice, webhook to PagerDuty/Opsgenie) pages the on-call automatically and covers every pipeline centrally. An If Condition only runs if the pipeline reaches it — many failures never do; retries and log reviews don't notify anyone.",
+      "tags": [
+        "monitoring",
+        "azure-monitor-alerts",
+        "dp-203"
+      ],
+      "difficulty": "medium"
     }
   ]
 }

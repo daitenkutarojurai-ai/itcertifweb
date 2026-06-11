@@ -6,44 +6,44 @@
   "chapters": [
     {
       "id": "ch1",
-      "title": "Part 1",
-      "tag": "part-1",
+      "title": "Synapse",
+      "tag": "synapse",
       "nodes": [
         {
           "id": "c1-concept",
           "type": "concept",
-          "title": "Storage concepts: Key Ideas",
-          "content": "Cloud storage comes in three flavors with very different cost/perf trade-offs: object (think S3), block (think EBS / managed disks), and file (think EFS / Azure Files / Filestore). Pick wrong and you either overpay or hit performance ceilings.",
+          "title": "Synapse: Key Ideas",
+          "content": "Quick primer on Synapse. Tap to flip cards covering the most-asked exam ideas in this domain.",
           "flashcards": [
             {
-              "front": "Object vs block vs file storage — when do you use each?",
-              "back": "Object (S3, Blob, GCS) for unstructured data, backups, static sites, data lakes — flat namespace, HTTP API, infinite scale. Block (EBS, managed disks) for OS disks and databases — low latency, single attach. File (EFS, NFS) when multiple VMs need a shared POSIX filesystem."
+              "front": "You are loading a multi-terabyte sales fact table into a dedicated SQL pool in Azure Synapse Analytics. The table is almost always joined to large dimension tables on CustomerKey. Which table design minimizes data movement during those joins?",
+              "back": "Hash distribution on the join column (CustomerKey) co-locates matching rows on the same distribution, so joins on that key run without shuffling data between nodes. Round-robin spreads rows evenly but forces data movement on joins. Replicated tables are meant for small dimensions (roughly under 2 GB), not multi-terabyte facts. Heap versus clustered index controls storage and indexing, not distribution, so it does not address join data movement."
             },
             {
-              "front": "What is a storage class / tier?",
-              "back": "Same data, different SLA and price. Hot tier (frequent access, expensive read, cheap retrieval). Cold/archive tier (rare access, cheap to store, expensive to read, retrieval latency from minutes to hours). Lifecycle policies move data between tiers automatically."
+              "front": "A 50 MB product dimension table in a dedicated SQL pool is joined to many large fact tables. You want each Compute node to hold a full local copy so joins avoid shuffling the table at query time. Which distribution should you choose?",
+              "back": "A replicated table stores a full copy on every Compute node, eliminating data movement for joins with small dimension tables (recommended for tables under about 2 GB). Hash and round-robin distributions split rows across distributions, so the table must be moved or shuffled at join time. Partitioning controls how rows are grouped for pruning and maintenance; it does not place a full copy on each node."
             },
             {
-              "front": "Why use server-side encryption?",
-              "back": "Data is encrypted at rest by the storage service using either provider-managed keys (default, no extra config) or your own keys via KMS. This protects against physical disk theft and meets compliance baselines without changing your app code."
+              "front": "You want to run ad-hoc T-SQL queries directly over Parquet files in Azure Data Lake Storage Gen2 without provisioning or paying for a running cluster, and be billed per terabyte of data processed. Which Azure Synapse capability should you use?",
+              "back": "The serverless SQL pool requires no provisioned infrastructure, is billed per terabyte of data processed, and queries files in the lake directly using OPENROWSET (or external tables). A dedicated SQL pool reserves and bills compute (DWUs) whether or not it is queried. A Spark pool uses notebooks and Spark, not pay-per-query T-SQL over files. Azure Analysis Services is a separate tabular modeling engine, not a lake query service."
             },
             {
-              "front": "What's storage durability vs availability?",
-              "back": "Durability is the chance your data won't be lost (object stores claim ~11 9s — 99.999999999%). Availability is the chance you can reach it right now (typically 4 9s — 99.99%). Durability is multi-region replication; availability is how many concurrent failures the service tolerates."
+              "front": "For bulk-loading Parquet files from ADLS Gen2 into a dedicated SQL pool table, which loading method does Microsoft now recommend for its combination of simplicity and throughput?",
+              "back": "COPY INTO is the recommended loader for dedicated SQL pools: a single T-SQL statement that reads directly from storage with high parallelism, simpler permissions than PolyBase external tables and far less setup than either. bcp and row-by-row INSERTs funnel data through the control node or client; linked servers aren't a Synapse loading path."
             }
           ],
-          "source": "concept-library",
-          "sourceTag": "storage"
+          "source": "auto-derived"
         },
         {
           "id": "c1-quiz1",
           "type": "quiz",
-          "title": "Part 1 — Drill 1",
+          "title": "Synapse — Drill 1",
           "questionIds": [
-            "dp203-003",
+            "dp203-019",
             "dp203-001",
             "dp203-002",
-            "dp203-004"
+            "dp203-006",
+            "dp203-014"
           ]
         },
         {
@@ -78,40 +78,52 @@
                 "explanation": "A replicated table stores a full copy on every Compute node, eliminating data movement for joins with small dimension tables (recommended for tables under about 2 GB). Hash and round-robin distributions split rows across distributions, so the table must be moved or shuffled at join time. Partitioning controls how rows are grouped for pruning and maintenance; it does not place a full copy on each node."
               },
               {
-                "q": "You are provisioning an Azure Storage account that will serve as a data lake for Azure Synapse and Databricks, and you need directory-level POSIX ACLs plus atomic directory operations. Which option must you enable?",
+                "q": "You want to run ad-hoc T-SQL queries directly over Parquet files in Azure Data Lake Storage Gen2 without provisioning or paying for a running cluster, and be billed per terabyte of data processed. Which Azure Synapse capability should you use?",
                 "choices": [
-                  "Geo-redundant storage (GRS)",
-                  "The hierarchical namespace (Azure Data Lake Storage Gen2)",
-                  "Soft delete for blobs",
-                  "The Network File System (NFS) 3.0 protocol"
+                  "A dedicated SQL pool",
+                  "An Apache Spark pool",
+                  "The built-in serverless SQL pool with OPENROWSET",
+                  "Azure Analysis Services"
                 ],
-                "correctIndex": 1,
-                "explanation": "Enabling the hierarchical namespace turns a general-purpose v2 account into Azure Data Lake Storage Gen2, which adds true directories, atomic directory operations, and POSIX-style ACLs. GRS is a replication and redundancy setting. Soft delete protects against accidental deletion but adds no directory semantics. NFS 3.0 is a separate access protocol and is not what provides ACLs and directory structure for analytics."
+                "correctIndex": 2,
+                "explanation": "The serverless SQL pool requires no provisioned infrastructure, is billed per terabyte of data processed, and queries files in the lake directly using OPENROWSET (or external tables). A dedicated SQL pool reserves and bills compute (DWUs) whether or not it is queried. A Spark pool uses notebooks and Spark, not pay-per-query T-SQL over files. Azure Analysis Services is a separate tabular modeling engine, not a lake query service."
               },
               {
-                "q": "Queries against a large Parquet dataset in your data lake almost always filter by date. How should you organize the files so that a serverless SQL pool reads only the relevant data?",
+                "q": "For bulk-loading Parquet files from ADLS Gen2 into a dedicated SQL pool table, which loading method does Microsoft now recommend for its combination of simplicity and throughput?",
                 "choices": [
-                  "Store every file in a single flat container",
-                  "Compress all files into one large ZIP archive per year",
-                  "Name files sequentially (file001, file002, ...) with no folders",
-                  "Store files in date-based folder partitions such as /year=2026/month=05/day=29/"
+                  "The bcp command-line utility running on a jumpbox with sixteen parallel client streams",
+                  "The COPY INTO statement",
+                  "Singleton INSERT statements batched in 1,000-row transactions from the application tier",
+                  "Linked-server queries from an Azure SQL Database pulling the files through OPENROWSET"
                 ],
-                "correctIndex": 3,
-                "explanation": "Partitioning the lake into date-based folders lets the engine apply partition elimination (pruning) using filepath() predicates, so only folders matching the date filter are scanned. A single flat container or sequential file names force a full scan. A ZIP archive is not a splittable analytical format and must be fully read and decompressed, defeating pruning."
+                "correctIndex": 1,
+                "explanation": "COPY INTO is the recommended loader for dedicated SQL pools: a single T-SQL statement that reads directly from storage with high parallelism, simpler permissions than PolyBase external tables and far less setup than either. bcp and row-by-row INSERTs funnel data through the control node or client; linked servers aren't a Synapse loading path."
+              },
+              {
+                "q": "A transformation step requires Python with scikit-learn over a few hundred gigabytes of Parquet, producing features written back to the lake. Which Synapse compute is the right tool?",
+                "choices": [
+                  "A dedicated SQL pool, with the Python logic rewritten as T-SQL window functions and CASE expressions",
+                  "A serverless SQL pool, since it can already read the Parquet files in place without any loading",
+                  "An Apache Spark pool running the Python code as a notebook or Spark job over the files",
+                  "The Data Factory copy activity with a mapping data flow expression implementing the model"
+                ],
+                "correctIndex": 2,
+                "explanation": "Spark pools execute Python (PySpark + libraries like scikit-learn) at scale directly over lake files — exactly the workload described. SQL pools execute T-SQL only: rewriting an ML featurization in T-SQL is impractical, and serverless SQL is a query engine, not a Python runtime. Mapping data flows offer visual transformations, not arbitrary Python."
               }
             ]
           },
-          "title": "Part 1 — Lightning Round"
+          "title": "Synapse — Lightning Round"
         },
         {
           "id": "c1-boss",
           "type": "subboss",
-          "title": "Boss: Part 1",
+          "title": "Boss: Synapse",
           "questionIds": [
-            "dp203-003",
+            "dp203-019",
             "dp203-001",
             "dp203-002",
-            "dp203-004"
+            "dp203-006",
+            "dp203-014"
           ]
         },
         {
@@ -125,130 +137,11 @@
     },
     {
       "id": "ch2",
-      "title": "Part 2",
-      "tag": "part-2",
+      "title": "Data Factory",
+      "tag": "data-factory",
       "nodes": [
         {
           "id": "c2-concept",
-          "type": "concept",
-          "title": "Data-Lake File Formats: Key Ideas",
-          "content": "Choosing the right file format for a data lake drives query speed, storage cost, and schema flexibility. Data engineering exams test columnar vs row-based formats, compression, partitioning, schema evolution, and predicate pushdown.",
-          "flashcards": [
-            {
-              "front": "Columnar vs row-based formats — when to use each?",
-              "back": "Columnar formats (Parquet, ORC) store values by column, so analytical queries scan only needed columns and compress well; row-based formats (Avro, CSV/JSON) store whole records together, better for write-heavy ingestion and reading full rows."
-            },
-            {
-              "front": "What is predicate pushdown and why do Parquet/ORC enable it?",
-              "back": "Predicate pushdown filters data at the storage layer using column statistics (min/max, row-group metadata) so the engine skips irrelevant blocks, reading far less data than a full scan of CSV or JSON."
-            },
-            {
-              "front": "How do these formats handle schema evolution?",
-              "back": "Avro is strong for schema evolution because each file carries its schema and supports adding/removing fields with defaults; Parquet/ORC also support evolution like adding columns, while CSV/JSON have no enforced schema and break silently on change."
-            },
-            {
-              "front": "How do compression and partitioning improve a data lake?",
-              "back": "Columnar formats compress efficiently (Snappy, GZIP, Zstd) since similar values sit together; partitioning by columns like date splits data into folders so queries prune whole partitions, scanning less data and cutting cost."
-            }
-          ],
-          "source": "concept-library",
-          "sourceTag": "file-formats"
-        },
-        {
-          "id": "c2-quiz1",
-          "type": "quiz",
-          "title": "Part 2 — Drill 1",
-          "questionIds": [
-            "dp203-005",
-            "dp203-006",
-            "dp203-007",
-            "dp203-008"
-          ]
-        },
-        {
-          "id": "c2-game",
-          "type": "minigame",
-          "gameType": "lightning",
-          "mode": "lightning-round",
-          "data": {
-            "secondsPerQuestion": 7,
-            "livesAllowed": 3,
-            "questions": [
-              {
-                "q": "You need a file format for large analytical tables in the data lake that stores data by column, compresses well, and supports predicate and column pushdown for Spark and serverless SQL queries. Which format best fits?",
-                "choices": [
-                  "Apache Parquet",
-                  "Line-delimited JSON",
-                  "CSV",
-                  "Plain text logs"
-                ],
-                "correctIndex": 0,
-                "explanation": "Parquet is a columnar, compressed, self-describing format that supports column pruning and predicate pushdown, making it ideal for analytical queries in Spark and Synapse serverless SQL. JSON and CSV are row-oriented text formats that must be parsed in full and lack column statistics, so they scan far more data. Plain text logs are unstructured and even less efficient for analytics."
-              },
-              {
-                "q": "You want to run ad-hoc T-SQL queries directly over Parquet files in Azure Data Lake Storage Gen2 without provisioning or paying for a running cluster, and be billed per terabyte of data processed. Which Azure Synapse capability should you use?",
-                "choices": [
-                  "A dedicated SQL pool",
-                  "An Apache Spark pool",
-                  "The built-in serverless SQL pool with OPENROWSET",
-                  "Azure Analysis Services"
-                ],
-                "correctIndex": 2,
-                "explanation": "The serverless SQL pool requires no provisioned infrastructure, is billed per terabyte of data processed, and queries files in the lake directly using OPENROWSET (or external tables). A dedicated SQL pool reserves and bills compute (DWUs) whether or not it is queried. A Spark pool uses notebooks and Spark, not pay-per-query T-SQL over files. Azure Analysis Services is a separate tabular modeling engine, not a lake query service."
-              },
-              {
-                "q": "An Azure Data Factory pipeline must copy only rows inserted or changed since the previous run from a SQL source. Which approach implements this incremental load?",
-                "choices": [
-                  "Always run a full copy and let the sink deduplicate",
-                  "Store a high-watermark value (such as max LastModified) and copy only rows greater than the stored watermark",
-                  "Use a tumbling window of one second on the source",
-                  "Disable the staging area on the Copy activity"
-                ],
-                "correctIndex": 1,
-                "explanation": "The watermark pattern records the last processed value (such as the maximum LastModified or an incrementing key), then each run copies only rows greater than that stored value and updates the watermark afterward. A full copy every run is not incremental and wastes resources. Tumbling windows schedule pipeline runs but do not by themselves filter changed rows. The staging setting affects PolyBase/COPY staging, not change detection."
-              },
-              {
-                "q": "In an Azure Stream Analytics job you must report the event count for each fixed, non-overlapping 30-second interval, with every event belonging to exactly one window. Which windowing function should you use?",
-                "choices": [
-                  "Hopping window",
-                  "Sliding window",
-                  "Session window",
-                  "Tumbling window"
-                ],
-                "correctIndex": 3,
-                "explanation": "A tumbling window divides time into fixed-length, contiguous, non-overlapping segments, so each event falls into exactly one window, which is ideal for counting events per 30 seconds. Hopping windows can overlap, so an event may appear in several. Sliding windows produce output as events enter or leave and overlap continuously. Session windows group bursts of activity separated by gaps, so their length varies."
-              }
-            ]
-          },
-          "title": "Part 2 — Lightning Round"
-        },
-        {
-          "id": "c2-boss",
-          "type": "subboss",
-          "title": "Boss: Part 2",
-          "questionIds": [
-            "dp203-005",
-            "dp203-006",
-            "dp203-007",
-            "dp203-008"
-          ]
-        },
-        {
-          "id": "c2-chest",
-          "type": "chest",
-          "title": "Treasure Chest",
-          "rewardXp": 30,
-          "cosmeticKey": "chapter-2"
-        }
-      ]
-    },
-    {
-      "id": "ch3",
-      "title": "Part 3",
-      "tag": "part-3",
-      "nodes": [
-        {
-          "id": "c3-concept",
           "type": "concept",
           "title": "Security fundamentals: Key Ideas",
           "content": "Security is about layering defenses so no single failure compromises a system. Most exams test the same core ideas: least privilege, defense in depth, the CIA triad, and the shared-responsibility line between you and your cloud provider.",
@@ -274,14 +167,134 @@
           "sourceTag": "security"
         },
         {
+          "id": "c2-quiz1",
+          "type": "quiz",
+          "title": "Data Factory — Drill 1",
+          "questionIds": [
+            "dp203-012",
+            "dp203-013",
+            "dp203-007",
+            "dp203-020"
+          ]
+        },
+        {
+          "id": "c2-game",
+          "type": "minigame",
+          "gameType": "lightning",
+          "mode": "lightning-round",
+          "data": {
+            "secondsPerQuestion": 7,
+            "livesAllowed": 3,
+            "questions": [
+              {
+                "q": "An Azure Data Factory pipeline must copy only rows inserted or changed since the previous run from a SQL source. Which approach implements this incremental load?",
+                "choices": [
+                  "Always run a full copy and let the sink deduplicate",
+                  "Store a high-watermark value (such as max LastModified) and copy only rows greater than the stored watermark",
+                  "Use a tumbling window of one second on the source",
+                  "Disable the staging area on the Copy activity"
+                ],
+                "correctIndex": 1,
+                "explanation": "The watermark pattern records the last processed value (such as the maximum LastModified or an incrementing key), then each run copies only rows greater than that stored value and updates the watermark afterward. A full copy every run is not incremental and wastes resources. Tumbling windows schedule pipeline runs but do not by themselves filter changed rows. The staging setting affects PolyBase/COPY staging, not change detection."
+              },
+              {
+                "q": "An Azure Data Factory pipeline must authenticate to Azure Data Lake Storage Gen2 without storing any account keys, secrets, or connection strings in the linked service. What is the recommended approach?",
+                "choices": [
+                  "Embed the storage account key directly in the linked service",
+                  "Generate a long-lived SAS token and paste it into the pipeline",
+                  "Store the account key in the pipeline parameters",
+                  "Use the data factory's managed identity and grant it the Storage Blob Data Contributor role"
+                ],
+                "correctIndex": 3,
+                "explanation": "A system-assigned or user-assigned managed identity lets Data Factory authenticate to Storage through Microsoft Entra ID with no secrets in the configuration; you grant it an RBAC role such as Storage Blob Data Contributor on the account or container. Embedding the account key or storing it in parameters exposes a powerful long-lived secret. A long-lived SAS token is still a secret that must be rotated and can leak, so it is not the recommended secret-free option."
+              },
+              {
+                "q": "An Azure Data Factory pipeline must copy data from a SQL Server instance that lives on a private corporate network with no public endpoint. What does the integration require?",
+                "choices": [
+                  "A self-hosted integration runtime installed on a machine that can reach the SQL Server",
+                  "The Azure integration runtime with the 'allow trusted Azure services' firewall exception enabled",
+                  "An SSIS integration runtime provisioned in the same region as the Data Factory instance",
+                  "A REST linked service pointed at the SQL Server's Tabular Data Stream endpoint over port 1433"
+                ],
+                "correctIndex": 0,
+                "explanation": "The self-hosted IR is the bridge to private networks: installed inside the network (or one reachable from it), it executes the copy and dispatches activities the Azure IR cannot reach. The Azure IR only reaches endpoints routable from Azure; the SSIS IR exists to run SSIS packages; REST linked services speak HTTP, not TDS."
+              },
+              {
+                "q": "An ADF pipeline must run for every hourly slice of data, support automatic backfill of the last 90 days, retry failed slices individually, and allow slice N to depend on slice N-1. Which trigger type provides all of this?",
+                "choices": [
+                  "A tumbling window trigger",
+                  "A schedule trigger firing at minute zero of every hour in the factory's local time zone",
+                  "A storage event trigger on the landing container filtered to blobs ending in .complete",
+                  "A manual trigger invoked hourly by an Azure Automation runbook with a 90-day loop parameter"
+                ],
+                "correctIndex": 0,
+                "explanation": "Tumbling window triggers are stateful per-window: each hourly window is tracked individually, past windows backfill automatically from the start time, failed windows retry in isolation, and self-dependency chains window N on N-1. Schedule triggers are fire-and-forget with no window state; event triggers react to blobs, not time slices; a runbook reimplements all of it by hand."
+              }
+            ]
+          },
+          "title": "Data Factory — Lightning Round"
+        },
+        {
+          "id": "c2-boss",
+          "type": "subboss",
+          "title": "Boss: Data Factory",
+          "questionIds": [
+            "dp203-012",
+            "dp203-013",
+            "dp203-007",
+            "dp203-020"
+          ]
+        },
+        {
+          "id": "c2-chest",
+          "type": "chest",
+          "title": "Treasure Chest",
+          "rewardXp": 30,
+          "cosmeticKey": "chapter-2"
+        }
+      ]
+    },
+    {
+      "id": "ch3",
+      "title": "Mixed Topics",
+      "tag": "mixed-topics",
+      "nodes": [
+        {
+          "id": "c3-concept",
+          "type": "concept",
+          "title": "Mixed exam topics: Key Ideas",
+          "content": "Some exam objectives don't fit neatly into a single domain — they span protocols, tools, or concepts covered briefly in multiple sections. These cards treat each item as a stand-alone fact, the way an exam question presents it: one concept, one answer.",
+          "flashcards": [
+            {
+              "front": "What is the difference between a hub, a switch, and a router?",
+              "back": "Hub: Layer 1, repeats every frame to all ports — all devices share bandwidth, collisions guaranteed. Switch: Layer 2, forwards frames using a MAC address table to only the destination port — full duplex, no collisions, each port gets full bandwidth. Router: Layer 3, makes forwarding decisions based on IP address, connects different networks. Hub is legacy; switches dominate LAN; routers are at network edges."
+            },
+            {
+              "front": "What is RAID 5 and how many drives can it tolerate losing?",
+              "back": "RAID 5 stripes data and parity across at least 3 drives. Any single drive failure can be recovered by reconstructing missing data from the remaining drives and parity. It cannot tolerate 2 simultaneous drive failures. Effective capacity = (N-1) × drive size. Read performance is excellent; write requires parity recalculation. RAID 6 tolerates 2 failures using double parity."
+            },
+            {
+              "front": "What does a proxy server do, and how does a forward proxy differ from a reverse proxy?",
+              "back": "Forward proxy: sits between clients and the internet on behalf of clients — used for content filtering, caching, and anonymizing outbound requests (the server sees the proxy's IP). Reverse proxy: sits in front of servers on behalf of the server — used for load balancing, SSL termination, caching, and hiding backend topology (the client sees the proxy's IP). Both intermediate HTTP, but they protect opposite sides."
+            },
+            {
+              "front": "What is the purpose of a DMZ in network architecture?",
+              "back": "A demilitarized zone is a network segment between the untrusted internet and the trusted internal network, typically protected by two firewalls (or two interfaces on one firewall). Public-facing services (web, email, DNS) sit in the DMZ: internet can reach them but not the internal network; if the DMZ host is compromised, the inner firewall still blocks access to the internal LAN."
+            }
+          ],
+          "source": "concept-library",
+          "sourceTag": "mixed-topics"
+        },
+        {
           "id": "c3-quiz1",
           "type": "quiz",
-          "title": "Part 3 — Drill 1",
+          "title": "Mixed Topics — Drill 1",
           "questionIds": [
             "dp203-010",
-            "dp203-012",
-            "dp203-009",
-            "dp203-011"
+            "dp203-003",
+            "dp203-005",
+            "dp203-016",
+            "dp203-018"
           ]
         },
         {
@@ -294,15 +307,26 @@
             "livesAllowed": 3,
             "questions": [
               {
-                "q": "In Azure Databricks you must incrementally ingest new files as they land in a Data Lake Storage Gen2 folder, processing only files not seen before and without re-listing the entire directory each run. Which feature is designed for this?",
+                "q": "In an Azure Stream Analytics job you must report the event count for each fixed, non-overlapping 30-second interval, with every event belonging to exactly one window. Which windowing function should you use?",
                 "choices": [
-                  "Auto Loader (the cloudFiles source in Structured Streaming)",
-                  "A static batch read with spark.read.parquet over the whole folder",
-                  "The COPY INTO command run as a one-time full load",
-                  "Manually deleting files after each successful read"
+                  "Hopping window",
+                  "Sliding window",
+                  "Session window",
+                  "Tumbling window"
                 ],
-                "correctIndex": 0,
-                "explanation": "Auto Loader uses the cloudFiles source to incrementally and efficiently process new files as they arrive, tracking processed files through checkpoints (and optional file notifications) so it never reprocesses or fully re-lists the directory. A static spark.read reprocesses everything each run. A single COPY INTO is a one-time bulk load, not continuous incremental ingestion. Deleting source files is destructive and loses the raw data."
+                "correctIndex": 3,
+                "explanation": "A tumbling window divides time into fixed-length, contiguous, non-overlapping segments, so each event falls into exactly one window, which is ideal for counting events per 30 seconds. Hopping windows can overlap, so an event may appear in several. Sliding windows produce output as events enter or leave and overlap continuously. Session windows group bursts of activity separated by gaps, so their length varies."
+              },
+              {
+                "q": "In Azure Stream Analytics, support-chat events for one visitor arrive in bursts; a 'conversation' should end when no event arrives for 5 minutes, however long the burst lasted. Which window type models this?",
+                "choices": [
+                  "Tumbling window of five minutes aligned to the wall clock for each visitor partition",
+                  "Hopping window of five minutes with a one-minute hop so burst boundaries are smoothed across the overlaps",
+                  "Snapshot window grouping all events that share exactly the same arrival timestamp value",
+                  "Session window with a five-minute timeout (and a maximum duration), partitioned by visitor"
+                ],
+                "correctIndex": 3,
+                "explanation": "Session windows grow while events keep arriving and close after the configured gap of inactivity — the natural model for conversations, user sessions and bursts of telemetry. Tumbling and hopping windows have fixed clock-driven boundaries that split conversations arbitrarily; snapshot windows group same-timestamp events only."
               },
               {
                 "q": "Support staff must see customer email addresses with most characters hidden (for example aXXX@XXXX.com) while the underlying stored values stay unchanged and privileged roles still see full data. Which Azure SQL or Synapse feature provides this?",
@@ -327,29 +351,66 @@
                 "explanation": "Row-Level Security uses an inline table-valued predicate function bound to the table through a security policy, so the engine transparently filters rows (for example by region) for every query without changing application code. Column-level security restricts which columns, not which rows, are visible. Dynamic Data Masking only obscures displayed values. Per-region views can work but are not automatic, scale poorly, and are easy to bypass if base-table access is granted."
               },
               {
-                "q": "An Azure Data Factory pipeline must authenticate to Azure Data Lake Storage Gen2 without storing any account keys, secrets, or connection strings in the linked service. What is the recommended approach?",
+                "q": "You are provisioning an Azure Storage account that will serve as a data lake for Azure Synapse and Databricks, and you need directory-level POSIX ACLs plus atomic directory operations. Which option must you enable?",
                 "choices": [
-                  "Embed the storage account key directly in the linked service",
-                  "Generate a long-lived SAS token and paste it into the pipeline",
-                  "Store the account key in the pipeline parameters",
-                  "Use the data factory's managed identity and grant it the Storage Blob Data Contributor role"
+                  "Geo-redundant storage (GRS)",
+                  "The hierarchical namespace (Azure Data Lake Storage Gen2)",
+                  "Soft delete for blobs",
+                  "The Network File System (NFS) 3.0 protocol"
+                ],
+                "correctIndex": 1,
+                "explanation": "Enabling the hierarchical namespace turns a general-purpose v2 account into Azure Data Lake Storage Gen2, which adds true directories, atomic directory operations, and POSIX-style ACLs. GRS is a replication and redundancy setting. Soft delete protects against accidental deletion but adds no directory semantics. NFS 3.0 is a separate access protocol and is not what provides ACLs and directory structure for analytics."
+              },
+              {
+                "q": "Queries against a large Parquet dataset in your data lake almost always filter by date. How should you organize the files so that a serverless SQL pool reads only the relevant data?",
+                "choices": [
+                  "Store every file in a single flat container",
+                  "Compress all files into one large ZIP archive per year",
+                  "Name files sequentially (file001, file002, ...) with no folders",
+                  "Store files in date-based folder partitions such as /year=2026/month=05/day=29/"
                 ],
                 "correctIndex": 3,
-                "explanation": "A system-assigned or user-assigned managed identity lets Data Factory authenticate to Storage through Microsoft Entra ID with no secrets in the configuration; you grant it an RBAC role such as Storage Blob Data Contributor on the account or container. Embedding the account key or storing it in parameters exposes a powerful long-lived secret. A long-lived SAS token is still a secret that must be rotated and can leak, so it is not the recommended secret-free option."
+                "explanation": "Partitioning the lake into date-based folders lets the engine apply partition elimination (pruning) using filepath() predicates, so only folders matching the date filter are scanned. A single flat container or sequential file names force a full scan. A ZIP archive is not a splittable analytical format and must be fully read and decompressed, defeating pruning."
+              },
+              {
+                "q": "You need a file format for large analytical tables in the data lake that stores data by column, compresses well, and supports predicate and column pushdown for Spark and serverless SQL queries. Which format best fits?",
+                "choices": [
+                  "Apache Parquet",
+                  "Line-delimited JSON",
+                  "CSV",
+                  "Plain text logs"
+                ],
+                "correctIndex": 0,
+                "explanation": "Parquet is a columnar, compressed, self-describing format that supports column pruning and predicate pushdown, making it ideal for analytical queries in Spark and Synapse serverless SQL. JSON and CSV are row-oriented text formats that must be parsed in full and lack column statistics, so they scan far more data. Plain text logs are unstructured and even less efficient for analytics."
+              },
+              {
+                "q": "In Azure Databricks you must incrementally ingest new files as they land in a Data Lake Storage Gen2 folder, processing only files not seen before and without re-listing the entire directory each run. Which feature is designed for this?",
+                "choices": [
+                  "Auto Loader (the cloudFiles source in Structured Streaming)",
+                  "A static batch read with spark.read.parquet over the whole folder",
+                  "The COPY INTO command run as a one-time full load",
+                  "Manually deleting files after each successful read"
+                ],
+                "correctIndex": 0,
+                "explanation": "Auto Loader uses the cloudFiles source to incrementally and efficiently process new files as they arrive, tracking processed files through checkpoints (and optional file notifications) so it never reprocesses or fully re-lists the directory. A static spark.read reprocesses everything each run. A single COPY INTO is a one-time bulk load, not continuous incremental ingestion. Deleting source files is destructive and loses the raw data."
               }
             ]
           },
-          "title": "Part 3 — Lightning Round"
+          "title": "Mixed Topics — Lightning Round"
         },
         {
           "id": "c3-boss",
           "type": "subboss",
-          "title": "Boss: Part 3",
+          "title": "Boss: Mixed Topics",
           "questionIds": [
-            "dp203-010",
-            "dp203-012",
+            "dp203-008",
+            "dp203-017",
+            "dp203-011",
+            "dp203-004",
             "dp203-009",
-            "dp203-011"
+            "dp203-015",
+            "dp203-021",
+            "dp203-022"
           ]
         },
         {
@@ -370,9 +431,9 @@
     "timeMinutes": 23
   },
   "meta": {
-    "generatedAt": "2026-06-11T14:01:37.300Z",
+    "generatedAt": "2026-06-11T14:10:05.623Z",
     "totalNodes": 16,
-    "totalQuestions": 12,
+    "totalQuestions": 22,
     "nodeTypes": [
       "concept",
       "quiz",
