@@ -3,10 +3,10 @@
     "id": "az-700",
     "name": "Azure Network Engineer Associate (AZ-700)",
     "vendor": "Microsoft",
-    "version": "1.0.1",
-    "question_count": 12,
-    "last_updated": "2026-05-23",
-    "notes": "Initial pack — 12 questions across the AZ-700 exam domains: hybrid connectivity, core networking, routing, network security, private access, and load balancing. keyword-balance pass."
+    "version": "1.1.0",
+    "question_count": 22,
+    "last_updated": "2026-06-11",
+    "notes": "Initial pack — 12 questions across the AZ-700 exam domains: hybrid connectivity, core networking, routing, network security, private access, and load balancing. keyword-balance pass. v1.1: +10 — ASGs, NAT gateway SNAT, ExpressRoute peerings, P2S VPN, service vs private endpoints, Bastion, DNS Private Resolver, Traffic Analytics, Front Door, DDoS Network Protection."
   },
   "questions": [
     {
@@ -233,6 +233,186 @@
         "network-watcher",
         "connection-monitor",
         "monitoring",
+        "az-700"
+      ],
+      "difficulty": "medium"
+    },
+    {
+      "id": "az700-013",
+      "question": "NSG rules reference dozens of individual VM IP addresses for the web, app and database tiers, and every scale-out means editing rules. How do you simplify this while keeping tier-to-tier restrictions?",
+      "options": [
+        "Application security groups: tag each NIC with its tier's ASG and write NSG rules between ASGs",
+        "Replace the NSG with an Azure Firewall policy that uses FQDN rules for each tier's VM hostnames",
+        "Move each tier into its own dedicated virtual network connected through global VNet peering",
+        "Assign static private IPs from reserved ranges per tier and reference the ranges in the rules"
+      ],
+      "correct": 0,
+      "explanation": "ASGs make NSG rules membership-based: NICs join the web/app/db ASG and rules say 'allow app-asg → db-asg:1433' — new instances inherit the rules by joining the group, no rule edits. Reserved ranges still need manual discipline and rule sprawl; per-tier VNets add peering complexity for a filtering problem; Azure Firewall FQDN rules target outbound internet names, not east-west tiering.",
+      "tags": [
+        "nsg",
+        "application-security-groups",
+        "az-700"
+      ],
+      "difficulty": "easy"
+    },
+    {
+      "id": "az700-014",
+      "question": "VMs in a subnet make thousands of short outbound connections to the same external service and start failing intermittently with SNAT port exhaustion behind a public load balancer. What is the recommended fix?",
+      "options": [
+        "Enable TCP reset on idle timeout on the load balancer so exhausted flows recycle faster under load",
+        "Associate a NAT gateway with the subnet so outbound flows use its scalable SNAT port pool",
+        "Add a second public IP to each VM's NIC so half the flows originate from a different address",
+        "Lower the load balancer health probe interval so unhealthy ports are reclaimed more quickly"
+      ],
+      "correct": 1,
+      "explanation": "NAT Gateway is Azure's recommended outbound path: it provides up to 64k SNAT ports per attached public IP (scalable to 16 IPs), dynamic allocation, and takes precedence over load-balancer outbound SNAT for the subnet. TCP reset and probe tuning don't add ports; per-VM public IPs remove SNAT but expose every VM directly — the wrong trade.",
+      "tags": [
+        "nat-gateway",
+        "snat-exhaustion",
+        "az-700"
+      ],
+      "difficulty": "medium"
+    },
+    {
+      "id": "az700-015",
+      "question": "An ExpressRoute circuit must carry traffic to the company's own VNets AND to Microsoft 365 endpoints. Which peering configuration is correct?",
+      "options": [
+        "Public peering for the VNets and private peering for Microsoft 365, with route filters on both paths",
+        "Private peering alone, since Microsoft 365 endpoints resolve to private addresses over ExpressRoute",
+        "Private peering for the VNets and Microsoft peering (with route filters) for Microsoft 365",
+        "Two separate circuits, because a single ExpressRoute circuit supports only one peering type at a time"
+      ],
+      "correct": 2,
+      "explanation": "Private peering extends your network to your VNets; Microsoft peering carries traffic to Microsoft public services (Microsoft 365, Azure PaaS public endpoints), with route filters selecting which service prefixes you receive. One circuit supports both peerings simultaneously; 'public peering' is retired; Microsoft 365 endpoints remain public addresses even over ExpressRoute.",
+      "tags": [
+        "expressroute",
+        "peering-types",
+        "az-700"
+      ],
+      "difficulty": "medium"
+    },
+    {
+      "id": "az700-016",
+      "question": "Fifteen developers working from home need individual encrypted access to VMs in a VNet, authenticated with Microsoft Entra ID, without installing a branch VPN device anywhere. What do you deploy?",
+      "options": [
+        "A site-to-site VPN from each developer's home router to the VNet's gateway subnet",
+        "Point-to-site VPN on the virtual network gateway with Microsoft Entra authentication",
+        "ExpressRoute Direct with a partner exchange port reserved for the development team",
+        "VNet service endpoints configured for the Microsoft.Compute resource provider"
+      ],
+      "correct": 1,
+      "explanation": "Point-to-site VPN is per-device: each developer runs the Azure VPN Client, authenticates with Entra ID, and gets an encrypted tunnel into the VNet — no on-premises hardware. Site-to-site assumes a VPN device per site (home routers ×15 is the wrong model); ExpressRoute is dedicated circuit infrastructure; service endpoints connect subnets to PaaS services, not users to VNets.",
+      "tags": [
+        "vpn",
+        "point-to-site",
+        "az-700"
+      ],
+      "difficulty": "easy"
+    },
+    {
+      "id": "az700-017",
+      "question": "What is the key difference between a service endpoint and a private endpoint for reaching an Azure Storage account from a VNet?",
+      "options": [
+        "Service endpoints require a DNS zone per service, while private endpoints work without any DNS changes",
+        "Service endpoints encrypt the traffic, while private endpoints rely on the application layer for encryption",
+        "Private endpoints are free of charge, while service endpoints are billed per gigabyte processed",
+        "A service endpoint optimizes the route to the service's PUBLIC endpoint; a private endpoint gives the service a PRIVATE IP inside your VNet"
+      ],
+      "correct": 3,
+      "explanation": "Service endpoints keep traffic on the Azure backbone toward the service's public address and identify your subnet to its firewall; the service never enters your address space. A private endpoint injects a NIC with a private IP from your VNet, reachable over VPN/ExpressRoute and from peered networks — which is why it needs private DNS zones, costs per-hour/per-GB, and is the choice for full network isolation.",
+      "tags": [
+        "private-link",
+        "service-endpoints",
+        "az-700"
+      ],
+      "difficulty": "medium"
+    },
+    {
+      "id": "az700-018",
+      "question": "Security policy forbids public IP addresses on any IaaS VM, yet administrators need browser-based RDP and SSH to VMs across several VNets. Which service satisfies this?",
+      "options": [
+        "Azure Bastion (Standard or higher) deployed in a hub VNet reachable from the spoke VNets",
+        "Just-in-time VM access in Defender for Cloud opening management ports on request for approved sources",
+        "An internal load balancer with inbound NAT rules mapping high ports to each VM's RDP port",
+        "Network security group rules restricting 3389 and 22 to the administrators' home IP ranges"
+      ],
+      "correct": 0,
+      "explanation": "Bastion provides TLS-wrapped RDP/SSH through the portal (or native client) directly to private IPs — VMs need no public address, and with Standard SKU + IP-based connection it reaches peered VNets from a hub deployment. JIT and NSG scoping still presuppose a public path to the VM; an internal LB with NAT rules is only reachable from inside the network anyway and just relocates the problem.",
+      "tags": [
+        "bastion",
+        "secure-management",
+        "az-700"
+      ],
+      "difficulty": "easy"
+    },
+    {
+      "id": "az700-019",
+      "question": "On-premises clients must resolve names in an Azure Private DNS zone (privatelink.database.windows.net) to reach private endpoints. Conditional forwarders cannot target the 168.63.129.16 resolver across VPN. What should you deploy?",
+      "options": [
+        "A secondary copy of the private zone hosted on the on-premises DNS servers with zone transfers",
+        "Azure DNS Private Resolver with an inbound endpoint that on-premises DNS servers forward to",
+        "Custom DNS settings on every on-premises client pointing directly at the Azure-provided resolver",
+        "A public DNS zone with the same records, so resolution succeeds from any network location"
+      ],
+      "correct": 1,
+      "explanation": "DNS Private Resolver's inbound endpoint exposes a routable private IP inside the VNet that on-premises servers can conditionally forward to; queries then resolve against linked private zones. 168.63.129.16 is link-local and unreachable over VPN/ExpressRoute (whether forwarded from servers or set on clients); private zones don't support transfers out; publishing private endpoint IPs in public DNS leaks topology and breaks the privacy model.",
+      "tags": [
+        "dns",
+        "private-resolver",
+        "az-700"
+      ],
+      "difficulty": "hard"
+    },
+    {
+      "id": "az700-020",
+      "question": "The security team asks which on-premises subnets have been connecting to which Azure VMs over the past month, with traffic volumes, visualized geographically. Which capability answers this?",
+      "options": [
+        "Connection troubleshoot in Network Watcher run against each VM pair the team cares about",
+        "Effective security rules view exported weekly for every network interface in the subscription",
+        "NSG flow logs analyzed with Traffic Analytics",
+        "Azure Monitor metrics on each NIC summed across the month with a workbook visualization"
+      ],
+      "correct": 2,
+      "explanation": "Flow logs record allowed/denied flows per NSG (source, destination, port, bytes); Traffic Analytics aggregates them in Log Analytics into traffic patterns, talking-pairs, and geo-mapped visualizations over time — exactly the retrospective question asked. Connection troubleshoot and effective rules are point-in-time diagnostics; NIC metrics give byte counters with no flow-level who-to-whom detail.",
+      "tags": [
+        "network-watcher",
+        "traffic-analytics",
+        "az-700"
+      ],
+      "difficulty": "medium"
+    },
+    {
+      "id": "az700-021",
+      "question": "A global HTTP application needs TLS termination at Microsoft's edge, anycast-based instant failover between regional backends, URL-path routing, and an integrated WAF. Which service is designed for this combination?",
+      "options": [
+        "Traffic Manager with performance routing fronting regional application gateways in each geography",
+        "Azure Front Door (Standard/Premium)",
+        "A cross-region load balancer distributing layer-4 flows to regional public load balancers",
+        "Application Gateway v2 instances deployed per region behind a round-robin DNS record set"
+      ],
+      "correct": 1,
+      "explanation": "Front Door is the global layer-7 entry point: anycast edge POPs terminate TLS close to users, route on paths/headers, fail over near-instantly (no DNS TTL wait), and Premium integrates the WAF. Traffic Manager is DNS-based — failover waits on TTLs and it can't terminate TLS or route paths; cross-region LB is layer 4; per-region gateways behind DNS round-robin reinvent Traffic Manager poorly.",
+      "tags": [
+        "front-door",
+        "global-routing",
+        "az-700"
+      ],
+      "difficulty": "medium"
+    },
+    {
+      "id": "az700-022",
+      "question": "After a volumetric attack against a public-facing workload, the business wants tuned, telemetry-backed DDoS mitigation on its public IPs, cost protection guarantees, and access to a rapid-response team. What do you enable?",
+      "options": [
+        "Azure DDoS Network Protection on the virtual network hosting the public IP addresses",
+        "The default infrastructure-level DDoS protection that Azure applies to every public IP for free",
+        "A WAF policy in prevention mode attached to the application gateway fronting the workload",
+        "Azure Firewall Premium with IDPS signatures set to alert-and-deny for inbound traffic flows"
+      ],
+      "correct": 0,
+      "explanation": "DDoS Network Protection (the paid tier) adds adaptive, per-resource tuned mitigation, attack telemetry and diagnostics, the DDoS Rapid Response team, and cost protection credits — the asks in the scenario. The free infrastructure protection is untuned and offers none of those guarantees; WAF stops layer-7 application attacks, not volumetric floods; Firewall IDPS inspects permitted flows rather than absorbing volumetric attacks.",
+      "tags": [
+        "ddos-protection",
+        "security",
         "az-700"
       ],
       "difficulty": "medium"
