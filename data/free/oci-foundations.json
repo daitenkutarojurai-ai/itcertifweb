@@ -3,10 +3,10 @@
     "id": "oci-foundations",
     "name": "Oracle Cloud Infrastructure Foundations Associate (1Z0-1085-24)",
     "vendor": "Oracle",
-    "version": "1.0.0",
-    "question_count": 12,
-    "last_updated": "2026-06-02",
-    "notes": "Initial release — OCI Foundations 2024 (1Z0-1085-24): regions/ADs/FDs, IAM compartments and policies, VCN networking, compute shapes, block and object storage, Autonomous Database, Vault, Free Tier, and pricing models."
+    "version": "1.1.0",
+    "question_count": 22,
+    "last_updated": "2026-06-11",
+    "notes": "Initial release — OCI Foundations 2024 (1Z0-1085-24): regions/ADs/FDs, IAM compartments and policies, VCN networking, compute shapes, block and object storage, Autonomous Database, Vault, Free Tier, and pricing models. v1.1: +10 — NAT gateway, NSG vs security list, FastConnect, OKE, Functions, autoscaling pools, instance principals, tenancy/root compartment, Monitoring+Notifications, three-dimension SLAs."
   },
   "questions": [
     {
@@ -234,6 +234,186 @@
         "oci-foundations"
       ],
       "difficulty": "easy"
+    },
+    {
+      "id": "oci-foundations-013",
+      "question": "Instances in a private OCI subnet must download OS updates from repositories on the public internet, but must never accept inbound connections initiated from the internet. Which gateway does this require?",
+      "options": [
+        "Internet gateway, with security lists blocking inbound traffic to the subnet",
+        "Dynamic routing gateway attached to the VCN and advertised over BGP",
+        "NAT gateway",
+        "Local peering gateway connecting the private subnet to a public VCN"
+      ],
+      "correct": 2,
+      "explanation": "A NAT gateway gives private-subnet instances outbound-only internet access: connections can be initiated outward, but no inbound connection can be initiated from the internet. An internet gateway enables bidirectional public connectivity (and belongs with public subnets); a DRG connects to on-premises networks; local peering joins VCNs, not the internet.",
+      "tags": [
+        "networking",
+        "nat-gateway",
+        "oci-foundations"
+      ],
+      "difficulty": "easy"
+    },
+    {
+      "id": "oci-foundations-014",
+      "question": "An architect wants firewall rules that apply only to a specific group of compute instances' VNICs, rather than to every resource in the subnet. Which OCI feature provides this?",
+      "options": [
+        "Security lists referenced from the subnet's route table entries",
+        "Network security groups (NSGs) with the rules applied to member VNICs",
+        "A WAF policy attached to each instance's primary private IP address",
+        "Compartment policies restricting which users may create the instances"
+      ],
+      "correct": 1,
+      "explanation": "NSGs are virtual firewalls scoped to the VNICs you place in them, so different instance groups in the same subnet can carry different rules. Security lists apply to every VNIC in the subnet (and have nothing to do with route tables); WAF protects HTTP applications at the edge; IAM compartment policies govern who can manage resources, not packet flow.",
+      "tags": [
+        "networking",
+        "nsg-vs-security-list",
+        "oci-foundations"
+      ],
+      "difficulty": "medium"
+    },
+    {
+      "id": "oci-foundations-015",
+      "question": "A bank needs private connectivity from its on-premises data centre to OCI with consistent latency and bandwidth guarantees that the public internet cannot provide. Which OCI service fits?",
+      "options": [
+        "Site-to-Site VPN over redundant internet circuits with IPSec encryption enabled",
+        "A service gateway configured for all Oracle Services Network services in the region",
+        "An internet gateway with TLS enforced for every connection to the VCN",
+        "FastConnect"
+      ],
+      "correct": 3,
+      "explanation": "FastConnect is OCI's dedicated private circuit offering — traffic bypasses the internet entirely, with predictable latency and provisioned bandwidth. Site-to-Site VPN is encrypted but still rides the public internet, so performance varies; service gateways reach Oracle services from inside a VCN; an internet gateway is by definition public connectivity.",
+      "tags": [
+        "connectivity",
+        "fastconnect",
+        "oci-foundations"
+      ],
+      "difficulty": "easy"
+    },
+    {
+      "id": "oci-foundations-016",
+      "question": "A development team wants to run containerized microservices on managed Kubernetes without operating the control plane themselves. Which OCI service do they use?",
+      "options": [
+        "Container Engine for Kubernetes (OKE)",
+        "OCI Registry (OCIR), which both stores images and schedules them onto compute",
+        "Oracle Functions with each microservice packaged as a separate function",
+        "Compute instance pools with Docker installed through cloud-init scripts"
+      ],
+      "correct": 0,
+      "explanation": "OKE is OCI's managed Kubernetes: Oracle operates the control plane while the team manages workloads and node pools. OCIR is the container image registry — it stores images but doesn't run them; Functions suits event-driven, short-lived code rather than long-running services; hand-rolled Docker on instance pools means operating the orchestration yourself.",
+      "tags": [
+        "containers",
+        "oke",
+        "oci-foundations"
+      ],
+      "difficulty": "easy"
+    },
+    {
+      "id": "oci-foundations-017",
+      "question": "A piece of code must run only when an object lands in an Object Storage bucket, scale to zero between events, and bill only for execution time. Which OCI service matches?",
+      "options": [
+        "A dedicated VM kept running with a cron job polling the bucket every few seconds",
+        "OCI Functions triggered through an Events rule on the bucket",
+        "An OKE cluster running a deployment with a single always-on consumer pod",
+        "Autonomous Database with a scheduled PL/SQL job reading the bucket's contents"
+      ],
+      "correct": 1,
+      "explanation": "OCI Functions is the serverless option: event-driven via the Events service (such as an object-created event on a bucket), scales to zero when idle, and bills per execution. A polling VM and an always-on pod cost money around the clock; a database scheduler runs on a timetable, not on the event, and ties compute to the wrong service.",
+      "tags": [
+        "serverless",
+        "oci-functions",
+        "oci-foundations"
+      ],
+      "difficulty": "medium"
+    },
+    {
+      "id": "oci-foundations-018",
+      "question": "A web tier on OCI must automatically add instances when average CPU exceeds 75% and remove them when load subsides. Which combination implements this?",
+      "options": [
+        "A flexible shape on one instance, since OCPUs are added automatically under load",
+        "Two identical instances placed in different fault domains behind a public load balancer with sticky sessions",
+        "An instance pool from an instance configuration, with an autoscaling policy on CPU utilization",
+        "A burstable instance whose baseline is set to half of its maximum OCPU allocation"
+      ],
+      "correct": 2,
+      "explanation": "Horizontal autoscaling in OCI is built from an instance configuration (the template), an instance pool (the managed set) and an autoscaling policy on a metric such as CPU. Flexible shapes fix their OCPU count at launch — they don't grow under load; two static instances provide HA, not elasticity; burstable instances flex within one VM only.",
+      "tags": [
+        "compute",
+        "autoscaling",
+        "oci-foundations"
+      ],
+      "difficulty": "medium"
+    },
+    {
+      "id": "oci-foundations-019",
+      "question": "A script running ON an OCI compute instance must call OCI APIs to manage Object Storage — without any API keys or credentials stored on the instance. What enables this?",
+      "options": [
+        "A dynamic group matching the instance, with a policy granting the group access — the instance authenticates via instance principals",
+        "A free-tier service user account whose API signing key pair is baked into the instance's custom golden image at build time, then rotated quarterly",
+        "The instance's public IP address registered as a trusted source in the tenancy's authentication settings",
+        "Auth tokens generated for the administrator and written into the instance's cloud-init metadata"
+      ],
+      "correct": 0,
+      "explanation": "Instance principals let a compute instance authenticate as itself: a dynamic group defines which instances qualify (by compartment, OCID or tags) and IAM policies grant that group permissions — no stored secrets anywhere. Baked-in API keys and tokens in metadata are exactly the stored credentials to avoid, and OCI does not authenticate API callers by source IP.",
+      "tags": [
+        "iam",
+        "instance-principals",
+        "oci-foundations"
+      ],
+      "difficulty": "medium"
+    },
+    {
+      "id": "oci-foundations-020",
+      "question": "What is the relationship between a tenancy and compartments in OCI?",
+      "options": [
+        "A tenancy is created inside each compartment to hold that compartment's billing records",
+        "The tenancy is the root compartment; all other compartments are created within it as a hierarchy",
+        "Tenancies and compartments are unrelated — one organizes users, the other organizes regions",
+        "Each subscribed region requires its own separate tenancy, and compartments cannot span more than one of them"
+      ],
+      "correct": 1,
+      "explanation": "The tenancy IS the root compartment of the account: every other compartment nests beneath it (up to six levels deep), forming the hierarchy used for organization, IAM policy scoping and cost tracking. Compartments are global constructs that span regions, and an account has exactly one tenancy regardless of how many regions it subscribes to.",
+      "tags": [
+        "iam",
+        "tenancy-compartments",
+        "oci-foundations"
+      ],
+      "difficulty": "easy"
+    },
+    {
+      "id": "oci-foundations-021",
+      "question": "Operations wants an email whenever a production instance's CPU stays above 90% for five minutes. Which two OCI services work together to deliver this?",
+      "options": [
+        "Logging Analytics parsing syslog entries and Object Storage archiving the matched events",
+        "Cloud Guard detecting the condition and Vault storing the alert recipient addresses",
+        "The Events service matching a CPU-threshold event type and an OCI Function sending the mail through SMTP",
+        "Monitoring, with an alarm on the CPU metric publishing to a Notifications topic the team subscribes to"
+      ],
+      "correct": 3,
+      "explanation": "Metric alarms live in the Monitoring service; when the alarm fires it publishes to a Notifications topic, whose subscriptions (email, SMS, PagerDuty, Functions…) deliver the alert. Events reacts to resource lifecycle changes, not metric thresholds; Cloud Guard targets security posture; Logging Analytics analyzes logs rather than metrics.",
+      "tags": [
+        "observability",
+        "monitoring-notifications",
+        "oci-foundations"
+      ],
+      "difficulty": "medium"
+    },
+    {
+      "id": "oci-foundations-022",
+      "question": "Oracle differentiates its cloud SLAs by covering three distinct dimensions for key services. Which set is it?",
+      "options": [
+        "Availability, management, and performance",
+        "Availability, durability, and confidentiality",
+        "Latency, throughput, and consistency",
+        "Recovery time, recovery point, and retention"
+      ],
+      "correct": 0,
+      "explanation": "OCI's end-to-end SLAs cover availability (the service is reachable), management (you can manage it — control-plane operations work), and performance (it delivers stated performance levels) — a trio Oracle highlights against competitors' availability-only SLAs, and a favorite Foundations exam fact. The other sets mix storage, distributed-systems and backup vocabulary.",
+      "tags": [
+        "sla",
+        "oci-value-proposition",
+        "oci-foundations"
+      ],
+      "difficulty": "medium"
     }
   ]
 }
