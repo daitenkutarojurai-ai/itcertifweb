@@ -59,22 +59,82 @@
   // table. Never throws — failures are logged via dbg() and console.warn so
   // the legacy write (which runs immediately before this) keeps the user's
   // progress safe even if the v2 table is unreachable.
-  async function pushV2(table, payload, conflictKeys) {
+  // One raw upsert attempt. Returns true on success, false on any failure
+  // (error response or throw). Never throws.
+  async function attemptUpsert(table, payload, conflictKeys) {
     try {
       var sb = client();
-      if (!sb) return;
+      if (!sb) return false;
       var res = await sb.from(table).upsert(payload, { onConflict: conflictKeys });
       if (res && res.error) {
         dbg('[cq-sync v2] upsert failed', table, res.error.message);
         if (typeof console !== 'undefined' && console.warn) {
           console.warn('[sync v2] upsert failed', table, res.error.message);
         }
+        return false;
       }
+      return true;
     } catch (e) {
       dbg('[cq-sync v2] threw', table, e && e.message);
       if (typeof console !== 'undefined' && console.warn) {
         console.warn('[sync v2] threw', table, e && e.message);
       }
+      return false;
+    }
+  }
+
+  // Dual-write helper. On failure, the payload is queued to a localStorage
+  // backlog and retried on the next `online` / sign-in, so a single network
+  // blip no longer permanently drops a one-shot write (laurel, path node,
+  // heart, daily) until an unrelated event of the same type fires.
+  async function pushV2(table, payload, conflictKeys) {
+    var ok = await attemptUpsert(table, payload, conflictKeys);
+    if (!ok) enqueueBacklog(table, payload, conflictKeys);
+    return ok;
+  }
+
+  /* ── Offline write backlog ──────────────────────────────────────────── */
+  var BACKLOG_KEY = 'cq-sync-backlog-v1';
+  var BACKLOG_MAX = 300;
+  var flushingBacklog = false;
+
+  // Stable identity for a queued write so re-firing the same logical write
+  // (same table + same conflict-key values) collapses to one latest entry
+  // instead of stacking duplicates.
+  function backlogId(table, payload, conflictKeys) {
+    var keys = String(conflictKeys || '').split(',').map(function (k) { return k.trim(); });
+    var parts = keys.map(function (k) { return k + '=' + (payload ? payload[k] : ''); });
+    return table + '|' + parts.join('&');
+  }
+  function enqueueBacklog(table, payload, conflictKeys) {
+    var q = readKey(BACKLOG_KEY, []);
+    if (!Array.isArray(q)) q = [];
+    var id = backlogId(table, payload, conflictKeys);
+    q = q.filter(function (e) { return e && e.id !== id; });
+    q.push({ id: id, table: table, payload: payload, conflictKeys: conflictKeys });
+    if (q.length > BACKLOG_MAX) q = q.slice(q.length - BACKLOG_MAX);
+    writeKey(BACKLOG_KEY, q);
+    dbg('[cq-sync] queued failed write', id, '(backlog', q.length + ')');
+  }
+  async function flushBacklog() {
+    if (flushingBacklog) return;
+    if (!client() || !userId()) return;
+    if (typeof navigator !== 'undefined' && navigator.onLine === false) return;
+    var q = readKey(BACKLOG_KEY, []);
+    if (!Array.isArray(q) || !q.length) return;
+    flushingBacklog = true;
+    try {
+      var remaining = [];
+      for (var i = 0; i < q.length; i++) {
+        var e = q[i];
+        if (!e || !e.table) continue;
+        var ok = await attemptUpsert(e.table, e.payload, e.conflictKeys);
+        if (!ok) remaining.push(e); // keep for the next reconnect
+      }
+      writeKey(BACKLOG_KEY, remaining);
+      dbg('[cq-sync] backlog flush done — sent', q.length - remaining.length, 'kept', remaining.length);
+    } finally {
+      flushingBacklog = false;
     }
   }
 
@@ -506,6 +566,8 @@
       // Defer one frame so any other listener (e.g., the UI chip swap) runs
       // first — improves perceived latency on the sign-in modal close.
       setTimeout(bootstrap, 0);
+      // Drain any writes that failed while signed out / offline.
+      setTimeout(flushBacklog, 0);
     } else {
       bootstrapped = false;
       // Invalidate any in-flight pullAll so it stops writing the previous
@@ -556,6 +618,9 @@
     pushDailyToday();
   });
 
+  // Network came back — retry anything that failed while offline.
+  window.addEventListener('online', function () { flushBacklog(); });
+
   /* ═══════ Public API ════════════════════════════════════════════════ */
   // Tiny surface — most consumers don't need this; sync runs automatically.
   // Exposed for advanced callers (e.g., a "sync now" button on a future
@@ -566,6 +631,7 @@
     pushWeeklyXp: pushWeeklyXp,
     isoWeek: isoWeek,
     pullAll: pullAll,
+    flushBacklog: flushBacklog,
     isReady: function () { return bootstrapped; },
   };
 

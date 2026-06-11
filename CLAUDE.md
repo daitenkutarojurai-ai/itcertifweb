@@ -312,6 +312,9 @@ cq-debug                '1' to enable [cq-*] console.warn output in stats.js,
                           path.js, sync.js, etc. (off in production)
 cq-mobile-prompt-dismissed-at
 cq-mascot-dismissed-at, cq-mascot-tip-idx
+cq-sync-backlog-v1      [ { id, table, payload, conflictKeys } ] — queued
+                          cloud writes that failed offline; sync.js flushes
+                          them on `online` / next sign-in (capped at 300).
 ```
 
 When the user is signed in, every `cq-*` key listed above (except the

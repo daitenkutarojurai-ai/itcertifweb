@@ -17,7 +17,7 @@ const ROOT = path.resolve(__dirname, '..');
 const DATA_DIR = path.join(ROOT, 'data', 'prompts');
 const OUT_DIR  = path.join(ROOT, 'prompt-dungeon');
 
-const CACHE_BUST = 'v=134';
+const CACHE_BUST = 'v=135';
 
 function esc(s) {
   return String(s == null ? '' : s)
