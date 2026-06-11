@@ -1520,6 +1520,40 @@ competition-driven, community-driven** layer. Highest-priority builds:
 
 ---
 
+## 📦 Content expansion R18 (2026-06-11)
+
+Scheduled-agent run targeting the comparator cluster — the longest-quiet content
+cluster since R17 (last touched 2026-06-04 with R12's aws-sap-c02-vs-aws-saa-c03).
+One new high-search-volume, high-commercial-intent comparison the dataset was
+missing despite both certs being shipped packs (`cism.json` + `cissp.json`):
+
+- **+1 Cert Comparator page** (cluster 17 → 18):
+  - `cism-vs-cissp` — the perennial RSSI / Security Architect career-direction
+    decision. 9 verdict rows covering: RSSI / Security Manager / Head of GRC
+    en secteur régulé FR (CISM), Security Architect / Cloud Security Lead /
+    tech US-multinationale (CISSP), 5-7 ans technique cherchant la première
+    cert senior (CISSP), pilote déjà une équipe / programme ISO 27001 / SOC 2
+    (CISM), pas encore 5 ans d'XP validés (CISSP via Associate of (ISC)²),
+    cabinet GRC / Big 4 (CISM aligne avec CISA/CRISC), maximiser le salaire FR
+    en anglais (CISSP — médiane senior 85k€ APEC/Hays 2026), passer les deux
+    (CISSP d'abord), durabilité 15-20 ans sur le CV (CISSP, scope plus large).
+  - `salaryAlias: "cissp"` résout la médiane France (85k€ senior) ; la CISM
+    n'a pas encore de fiche salaire donc la cellule affiche "—" proprement.
+  - Data + generator pattern matches `_schema.md` (no schema drift). Title
+    60 chars, meta description 157 chars, Article JSON-LD, canonical, OG
+    tags, cache-busted CSS (?v=133) — contraintes du brief respectées.
+- `scripts/gen-compare-pages.js` `CACHE_BUST` bumped v=128 → v=133 to align
+  with the current global `?v=` key — regeneration restée idempotente sur les
+  17 comparateurs existants (déjà à v=133 dans le HTML, le const du générateur
+  s'était désynchronisé — la dérive récurrente documentée en 6.x).
+- `npm run gen-compare` regenerated 18 comparator pages + the `/compare/`
+  index (idempotent — only the new page + index changed). sitemap.xml +1
+  entry (priority 0.85, monthly changefreq, lastmod 2026-06-11); compare
+  index lastmod bumped to 2026-06-11.
+- 265/265 tests still pass. No CSS/JS cache version bump (new HTML/data only).
+
+---
+
 ## 📦 Content expansion R17 (2026-06-10)
 
 Scheduled-agent run targeting the ToolRadar cluster — the longest-quiet content
