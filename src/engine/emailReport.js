@@ -59,6 +59,15 @@ function buildPayload({ email, subscribe, results, packId, packName, mode }) {
   };
 }
 
+/* 10s cap on the Worker round-trip — mobile connections can hang a fetch
+   indefinitely, leaving the results UI stuck on "Sending…". No retry: the
+   endpoint isn't idempotent (a blind retry could double-send the email). */
+function fetchWithTimeout(url, opts, ms = 10000) {
+  const ctrl = new AbortController();
+  const t = setTimeout(() => ctrl.abort(), ms);
+  return fetch(url, { ...opts, signal: ctrl.signal }).finally(() => clearTimeout(t));
+}
+
 /**
  * Submit a quiz report. Returns { ok: boolean, message: string }.
  * Never throws — UI relies on the structured return value.
@@ -75,7 +84,7 @@ export async function submitReport(input) {
   const cheatsheetSent = wrongCount > 0;
 
   try {
-    const res = await fetch(REPORT_API_URL, {
+    const res = await fetchWithTimeout(REPORT_API_URL, {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify(buildPayload(input)),
@@ -114,7 +123,7 @@ export async function submitNewsletter(email) {
     return { ok: false, message: 'Please enter a valid email address.' };
   }
   try {
-    const res = await fetch(REPORT_API_URL, {
+    const res = await fetchWithTimeout(REPORT_API_URL, {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify({
