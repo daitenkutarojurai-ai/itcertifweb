@@ -3,10 +3,10 @@
     "id": "consul-003",
     "name": "HashiCorp Certified: Consul Associate (003)",
     "vendor": "HashiCorp",
-    "version": "1.0.0",
-    "question_count": 12,
-    "last_updated": "2026-05-26",
-    "notes": "Initial pack — 12 scenario-style questions across Consul architecture (servers, clients, Raft, gossip), service discovery and registration, health checks, KV store, ACLs, the service mesh (Connect, sidecar proxy, intentions), snapshot operations, and WAN federation."
+    "version": "1.1.0",
+    "question_count": 22,
+    "last_updated": "2026-06-11",
+    "notes": "Initial pack — 12 scenario-style questions across Consul architecture (servers, clients, Raft, gossip), service discovery and registration, health checks, KV store, ACLs, the service mesh (Connect, sidecar proxy, intentions), snapshot operations, and WAN federation. v1.1: +10 — DNS discovery, client vs server agents, gossip key vs TLS, terminating gateway, mesh gateway, prepared-query failover, blocking queries, consul-template, service splitter, KV vs Vault."
   },
   "questions": [
     {
@@ -230,6 +230,186 @@
         "wan-federation",
         "multi-datacenter",
         "architecture",
+        "consul-003"
+      ],
+      "difficulty": "medium"
+    },
+    {
+      "id": "consul-003-013",
+      "question": "An application resolves `db.service.consul` through its local Consul agent's DNS interface. What does Consul return?",
+      "options": [
+        "Every instance of the db service regardless of health, ordered by registration time",
+        "The address only of the Raft leader, which proxies all requests to db instances",
+        "Addresses of healthy instances of the db service (failing instances are excluded)",
+        "A CNAME pointing to the service's entry in the global federation catalog"
+      ],
+      "correct": 2,
+      "explanation": "Consul DNS is health-aware service discovery: queries for name.service.consul return only instances whose health checks pass, so failing nodes drop out of rotation automatically. Unhealthy instances are filtered, the leader doesn't proxy data traffic, and no federation CNAME indirection exists.",
+      "tags": [
+        "dns-interface",
+        "service-discovery",
+        "consul-003"
+      ],
+      "difficulty": "easy"
+    },
+    {
+      "id": "consul-003-014",
+      "question": "What is the functional difference between a Consul agent running in CLIENT mode and one in SERVER mode?",
+      "options": [
+        "Client agents participate in Raft consensus and store the full service catalog locally, while server agents are only responsible for executing health checks against workloads",
+        "Clients are used in production while server mode exists only for development laptops",
+        "Client agents handle the service mesh data plane while servers terminate all mTLS traffic",
+        "Servers maintain cluster state via Raft consensus; clients are lightweight agents that register services, run checks and forward queries to servers"
+      ],
+      "correct": 3,
+      "explanation": "Servers (3 or 5 per datacenter) replicate state through Raft and answer queries authoritatively; clients run on every workload node, own local service registration and health checking, and forward RPCs to servers. The data plane is Envoy sidecars, not agents; both modes are production components.",
+      "tags": [
+        "architecture",
+        "client-vs-server",
+        "consul-003"
+      ],
+      "difficulty": "easy"
+    },
+    {
+      "id": "consul-003-015",
+      "question": "A Consul deployment must encrypt (a) the UDP gossip traffic between all agents and (b) the RPC/HTTP traffic to servers. Which mechanisms cover (a) and (b) respectively?",
+      "options": [
+        "A shared symmetric gossip encryption key for (a); TLS certificates for (b)",
+        "TLS certificates for (a); the ACL bootstrap token transmitted with each RPC for (b)",
+        "Consul intentions for (a); a shared symmetric gossip key distributed to clients for (b)",
+        "IPsec tunnels managed by Consul for (a); SSH port forwarding between agents for (b)"
+      ],
+      "correct": 0,
+      "explanation": "Serf gossip uses a pre-shared symmetric key (`encrypt` in the config, generated with `consul keygen`); RPC and HTTP interfaces use TLS with certificates (and verify_incoming/verify_outgoing). Intentions authorize mesh service traffic, ACL tokens authenticate API calls — neither encrypts gossip — and Consul manages neither IPsec nor SSH.",
+      "tags": [
+        "security",
+        "encryption",
+        "consul-003"
+      ],
+      "difficulty": "medium"
+    },
+    {
+      "id": "consul-003-016",
+      "question": "Services inside the Consul service mesh must call a third-party SaaS API that cannot run a sidecar proxy. Which mesh component represents and routes traffic to such external destinations?",
+      "options": [
+        "An ingress gateway exposing the SaaS API as a virtual service inside the mesh",
+        "A terminating gateway, with the external service registered behind it",
+        "A mesh gateway configured with the SaaS endpoint as its upstream peer",
+        "An exported-services configuration entry naming the third-party API"
+      ],
+      "correct": 1,
+      "explanation": "Terminating gateways sit at the mesh edge for OUTBOUND traffic to destinations that can't join the mesh: external services are registered and the gateway terminates mTLS on their behalf. Ingress gateways handle traffic entering the mesh; mesh gateways bridge datacenters/partitions; exported-services shares services across admin partitions or peers.",
+      "tags": [
+        "service-mesh",
+        "terminating-gateway",
+        "consul-003"
+      ],
+      "difficulty": "medium"
+    },
+    {
+      "id": "consul-003-017",
+      "question": "Two federated Consul datacenters have overlapping private IP ranges and no direct routability between their pod networks. Service mesh traffic must still flow between them. What enables this?",
+      "options": [
+        "NAT appliances translating each datacenter's ranges into a shared address plan",
+        "A WAN gossip pool with TCP and UDP port 8302 opened bidirectionally between every pair of server nodes across both sites",
+        "Prepared queries that redirect cross-datacenter requests through the Raft leader",
+        "Mesh gateways in each datacenter routing cross-DC service traffic by SNI, without flat network connectivity"
+      ],
+      "correct": 3,
+      "explanation": "Mesh gateways solve exactly this: each datacenter exposes one routable endpoint, and gateways route mTLS traffic by SNI header to the right destination service — overlapping or non-routable internal networks stay untouched. WAN gossip federates control-plane membership, not service traffic; prepared queries select instances, they don't carry packets; NAT re-engineering is what gateways avoid.",
+      "tags": [
+        "mesh-gateway",
+        "federation",
+        "consul-003"
+      ],
+      "difficulty": "medium"
+    },
+    {
+      "id": "consul-003-018",
+      "question": "When the local datacenter's `payments` service has no healthy instances, lookups should automatically return healthy instances from datacenter `dc2`. Which Consul feature implements this for DNS consumers?",
+      "options": [
+        "A prepared query with failover targeting, resolved via its .query.consul DNS name",
+        "A watch on the payments service that rewrites /etc/resolv.conf when health changes",
+        "Raft leader forwarding, which transparently retries lookups in peer datacenters",
+        "An intention allowing payments in dc2 to impersonate the local service identity"
+      ],
+      "correct": 0,
+      "explanation": "Prepared queries encapsulate lookup policy — including failover to other datacenters in order or by RTT — and DNS clients consume them via name.query.consul, getting dc2 instances when local health is empty. Watches trigger scripts but rewriting resolv.conf is not a failover design; Raft doesn't forward lookups across DCs; intentions authorize connections, not discovery.",
+      "tags": [
+        "prepared-queries",
+        "failover",
+        "consul-003"
+      ],
+      "difficulty": "medium"
+    },
+    {
+      "id": "consul-003-019",
+      "question": "A configuration service polls the Consul KV store every 2 seconds for changes, generating constant load. How should it watch for changes instead?",
+      "options": [
+        "Subscribe to the Serf gossip pool directly and parse the broadcast membership messages for any embedded KV delta records",
+        "Use blocking queries — long-polling with the X-Consul-Index so requests return only when data changes",
+        "Read the Raft log directly from a server agent's data directory on a schedule",
+        "Lower the agent's anti-entropy interval so KV changes propagate to clients faster"
+      ],
+      "correct": 1,
+      "explanation": "Blocking queries are Consul's change-notification primitive: pass the last X-Consul-Index and the HTTP call parks until the watched data changes (or the wait times out), eliminating tight polling. Gossip carries membership, not KV contents; the Raft log is private to servers; anti-entropy syncs agent state and is unrelated to client polling.",
+      "tags": [
+        "kv-store",
+        "blocking-queries",
+        "consul-003"
+      ],
+      "difficulty": "medium"
+    },
+    {
+      "id": "consul-003-020",
+      "question": "An HAProxy configuration file must be regenerated and reloaded automatically whenever backend services register or deregister in Consul. Which tool is purpose-built for this?",
+      "options": [
+        "consul-template, rendering the config from catalog data and running the reload command on change",
+        "consul snapshot agent, exporting the catalog to disk on every registration event",
+        "consul lock, holding a distributed semaphore around HAProxy restarts so only one proxy in the fleet ever reloads at a time",
+        "envconsul, injecting the backend list into HAProxy's environment at process start"
+      ],
+      "correct": 0,
+      "explanation": "consul-template watches Consul (catalog, KV, Vault) through blocking queries, re-renders templated files when inputs change, and executes a command — the canonical pattern for legacy load balancers fed by service discovery. Snapshot agent does backups; consul lock coordinates mutual exclusion; envconsul sets environment variables at launch, not live config files.",
+      "tags": [
+        "consul-template",
+        "integration",
+        "consul-003"
+      ],
+      "difficulty": "easy"
+    },
+    {
+      "id": "consul-003-021",
+      "question": "A team wants to send 10% of traffic for the `search` service to version 2 and 90% to version 1, based on service metadata, inside the Consul mesh. Which configuration entries implement this L7 traffic split?",
+      "options": [
+        "Two separate intentions weighted 10 and 90 between the consuming service and each of the two search service versions",
+        "A service-resolver defining v1/v2 subsets plus a service-splitter assigning 90/10 weights",
+        "An ACL policy granting the v2 service identity read access to a tenth of requests",
+        "A prepared query with near=_agent so a tenth of agents resolve to the v2 instances"
+      ],
+      "correct": 1,
+      "explanation": "L7 traffic management uses config entries: the service-resolver carves the service into subsets (by Service.Meta.version), and the service-splitter routes weighted percentages across subsets — Envoy enforces the split. Intentions are allow/deny (optionally L7 paths), not weighted; ACLs and prepared queries don't apportion request percentages.",
+      "tags": [
+        "service-splitter",
+        "canary",
+        "consul-003"
+      ],
+      "difficulty": "medium"
+    },
+    {
+      "id": "consul-003-022",
+      "question": "A team stores database passwords in the Consul KV store, arguing 'it has ACLs'. What is the architecturally sound objection?",
+      "options": [
+        "Consul KV entries are limited to 512 bytes, which is too small for most credentials",
+        "KV values cannot be protected by ACL policies, only service registrations can be",
+        "Consul KV stores values unencrypted at rest in Raft logs/snapshots and offers no secret lifecycle (leasing, rotation, revocation, audit) — use Vault for secrets",
+        "KV reads always require a full Raft round-trip through the elected leader in another availability zone, making credential fetches too slow for production request paths"
+      ],
+      "correct": 2,
+      "explanation": "Consul KV is configuration storage: values sit unencrypted in server data (Raft log, snapshots), and there is no dynamic-secret machinery — no leases, rotation, revocation or audit trail. Vault provides exactly that lifecycle and encrypts at rest. The KV limit is 512 KB not bytes, ACLs do cover KV paths, and default reads don't require leader round-trips.",
+      "tags": [
+        "security",
+        "vault-vs-kv",
         "consul-003"
       ],
       "difficulty": "medium"
