@@ -3,10 +3,10 @@
     "id": "dp-600",
     "name": "Microsoft Fabric Analytics Engineer Associate (DP-600)",
     "vendor": "Microsoft",
-    "version": "1.0.0",
-    "question_count": 12,
-    "last_updated": "2026-05-30",
-    "notes": "Initial pack — 12 scenario-style questions across the four DP-600 domains: plan and manage an analytics solution, prepare and serve data, implement and manage semantic models, explore and analyze data."
+    "version": "1.1.0",
+    "question_count": 22,
+    "last_updated": "2026-06-11",
+    "notes": "Initial pack — 12 scenario-style questions across the four DP-600 domains: plan and manage an analytics solution, prepare and serve data, implement and manage semantic models, explore and analyze data. v1.1: +10 — lakehouse vs warehouse, shortcuts, deployment pipelines, Direct Lake fallback, Git integration, XMLA tools, saveAsTable, default vs custom models, cross-database T-SQL, Gen2 incremental refresh."
   },
   "questions": [
     {
@@ -233,6 +233,186 @@
         "purview",
         "sensitivity-labels",
         "governance",
+        "dp-600"
+      ],
+      "difficulty": "medium"
+    },
+    {
+      "id": "dp-600-013",
+      "question": "In Microsoft Fabric, one team's engineers transform data with Spark notebooks while analysts insist on writing full T-SQL DML (INSERT/UPDATE) against curated tables. Which item types support each group's PRIMARY write workload?",
+      "options": [
+        "Lakehouse for the Spark engineers; Warehouse for the T-SQL analysts",
+        "Warehouse for the Spark engineers; Lakehouse for the T-SQL analysts",
+        "KQL database for the engineers; semantic model for the analysts' DML",
+        "Both groups must share a Warehouse, since lakehouses store no tables"
+      ],
+      "correct": 0,
+      "explanation": "The lakehouse is the Spark-first item — notebooks read/write Delta tables natively, and its SQL analytics endpoint is read-only T-SQL. The warehouse is the T-SQL-first item with full DML/DDL support. Both store Delta in OneLake, so each team can still read the other's data; KQL databases target real-time telemetry and semantic models aren't writable stores.",
+      "tags": [
+        "fabric",
+        "lakehouse-vs-warehouse",
+        "dp-600"
+      ],
+      "difficulty": "easy"
+    },
+    {
+      "id": "dp-600-014",
+      "question": "Curated Delta tables already exist in an ADLS Gen2 account owned by another platform team. Fabric users need to query them from a lakehouse WITHOUT duplicating the data or building a copy pipeline. What should be created?",
+      "options": [
+        "A Dataflow Gen2 with incremental refresh copying the tables into OneLake each hour",
+        "A OneLake shortcut in the lakehouse pointing at the ADLS Gen2 location",
+        "A Copy activity in a Data pipeline landing snapshots into the Files area nightly",
+        "A mirrored database configured against the storage account's blob endpoint"
+      ],
+      "correct": 1,
+      "explanation": "Shortcuts virtualize external storage (ADLS Gen2, S3, GCS, other OneLake locations) into the lakehouse namespace — queries read the source directly, no duplication, no refresh schedule, instant consistency. Dataflows and Copy activities are copy machinery; mirroring replicates operational databases (SQL, Cosmos, Snowflake), not arbitrary storage accounts.",
+      "tags": [
+        "onelake",
+        "shortcuts",
+        "dp-600"
+      ],
+      "difficulty": "easy"
+    },
+    {
+      "id": "dp-600-015",
+      "question": "Fabric content must flow Dev → Test → Prod with controlled promotion, environment-specific data source rules, and comparison of what differs between stages. Which Fabric capability provides this?",
+      "options": [
+        "Deployment pipelines, assigning a workspace per stage and deploying with deployment rules",
+        "Exporting each item as a .pbip project file and importing it manually into the next workspace at every stage of the release",
+        "OneLake shortcuts from the production workspace into the development lakehouse",
+        "Workspace roles, granting developers Viewer in Prod and Admin in the Dev workspace"
+      ],
+      "correct": 0,
+      "explanation": "Deployment pipelines bind Dev/Test/Prod workspaces into stages with one-click promotion, per-stage deployment rules (swap connections/parameters), and a diff view of changed items. Manual export/import has no rules or comparison; shortcuts share data, not content lifecycle; workspace roles control access, not promotion.",
+      "tags": [
+        "alm",
+        "deployment-pipelines",
+        "dp-600"
+      ],
+      "difficulty": "medium"
+    },
+    {
+      "id": "dp-600-016",
+      "question": "A Direct Lake semantic model sometimes answers queries much slower than usual, and monitoring shows those queries were served via DirectQuery. What causes a Direct Lake model to fall back like this?",
+      "options": [
+        "The Fabric capacity entered a paused or throttled state during those windows, forcing all semantic model traffic through import mode caches instead",
+        "Row-level security on the model always disables Direct Lake for every affected user",
+        "The model exceeded Direct Lake guardrails (or queried unsupported objects such as SQL views), so the engine fell back to DirectQuery through the SQL endpoint",
+        "A scheduled refresh was running concurrently, which locks Delta tables for reading"
+      ],
+      "correct": 2,
+      "explanation": "Direct Lake reads Delta files directly, but falls back to DirectQuery when guardrails are exceeded (row counts/model size for the SKU) or when the model references things only the SQL endpoint can resolve — like views. Fallback is per-query and silent except for latency. Paused capacity fails outright; RLS works in Direct Lake (defined in the model); Delta reads aren't locked by refresh.",
+      "tags": [
+        "direct-lake",
+        "fallback",
+        "dp-600"
+      ],
+      "difficulty": "hard"
+    },
+    {
+      "id": "dp-600-017",
+      "question": "An analytics team wants its Fabric workspace items version-controlled: commits on every change, branches for features, pull-request review before merge. What does Fabric provide natively?",
+      "options": [
+        "Workspace Git integration, connecting the workspace to an Azure DevOps or GitHub repository",
+        "Automatic OneLake snapshots of every item taken on a fixed fifteen-minute schedule",
+        "OneLake shortcuts created from the production workspace back into the development lakehouse so item changes replicate automatically",
+        "Semantic model backup files written to ADLS Gen2 by the XMLA endpoint on commit"
+      ],
+      "correct": 0,
+      "explanation": "Workspace-level Git integration syncs supported item definitions to a repo branch: changes commit from the workspace, branches and PRs follow normal Git flow, and workspaces can sync from a branch (the basis of branch-per-developer patterns). Snapshots, API polling and XMLA backups are not source control.",
+      "tags": [
+        "git-integration",
+        "alm",
+        "dp-600"
+      ],
+      "difficulty": "easy"
+    },
+    {
+      "id": "dp-600-018",
+      "question": "A modeler wants to manage a Fabric semantic model with Tabular Editor and run DAX queries from DAX Studio. What must be true for these external tools to connect?",
+      "options": [
+        "The XMLA endpoint is enabled for read-write on the capacity, and the tools connect via the workspace's XMLA connection string",
+        "The model must first be exported to a .pbix file and reopened in Power BI Desktop",
+        "External tools require the model to be migrated from Direct Lake to import mode first",
+        "An on-premises data gateway must be installed and registered to broker every external tool connection into the Fabric service"
+      ],
+      "correct": 0,
+      "explanation": "Fabric capacities expose the XMLA endpoint; with read-write enabled in capacity settings, tools speaking the Analysis Services protocol (Tabular Editor, DAX Studio, SSMS) connect straight to the workspace and operate on deployed models. No .pbix export, storage-mode migration, or gateway is involved for cloud-to-cloud connections.",
+      "tags": [
+        "xmla-endpoint",
+        "external-tools",
+        "dp-600"
+      ],
+      "difficulty": "medium"
+    },
+    {
+      "id": "dp-600-019",
+      "question": "In a Fabric notebook, transformed Spark DataFrame results must land in the lakehouse as a managed Delta table named gold_sales, replacing prior contents each run. Which statement does this?",
+      "options": [
+        "df.write.format(\"delta\").mode(\"overwrite\").saveAsTable(\"gold_sales\")",
+        "df.toPandas().to_csv(\"/lakehouse/default/Tables/gold_sales.csv\")",
+        "df.createOrReplaceTempView(\"gold_sales\")",
+        "spark.sql(\"COPY INTO gold_sales FROM source_dataframe WITH (MODE = 'REPLACE', FORMAT = 'DELTA')\")"
+      ],
+      "correct": 0,
+      "explanation": "saveAsTable with the delta format and overwrite mode writes a managed Delta table into the lakehouse Tables area — discoverable by the SQL endpoint and semantic models. CSV in Files isn't a Delta table; a temp view exists only for the Spark session; the COPY syntax shown isn't valid Spark SQL.",
+      "tags": [
+        "notebooks",
+        "delta-tables",
+        "dp-600"
+      ],
+      "difficulty": "easy"
+    },
+    {
+      "id": "dp-600-020",
+      "question": "What is the recommended practice regarding the DEFAULT semantic model that Fabric creates for a lakehouse or warehouse, when a team needs governed measures, RLS and a curated star schema for reporting?",
+      "options": [
+        "Add the measures and security roles directly to the default semantic model, since it stays synchronized with the underlying tables automatically",
+        "Create a separate custom semantic model over the curated tables and build measures, relationships and RLS there",
+        "Delete the default model so Fabric regenerates it with the curated design on next refresh",
+        "Export the default model weekly and re-import it as a backup of the reporting layer"
+      ],
+      "correct": 1,
+      "explanation": "The default model is a convenience layer managed by the system; serious reporting should use a purpose-built custom semantic model where you control tables included, relationships, measures, RLS roles and lifecycle (Git, deployment pipelines). Building on the default couples you to system behavior; deleting it doesn't produce a curated design; exports aren't governance.",
+      "tags": [
+        "semantic-models",
+        "default-model",
+        "dp-600"
+      ],
+      "difficulty": "medium"
+    },
+    {
+      "id": "dp-600-021",
+      "question": "An analyst on the warehouse needs to join a warehouse table to a table that lives in a lakehouse in the SAME workspace, entirely in T-SQL. What makes this possible?",
+      "options": [
+        "Cross-database queries using three-part names against the lakehouse's SQL analytics endpoint",
+        "It is impossible in T-SQL — lakehouse data must first be copied into warehouse tables with a pipeline before any join can run",
+        "Only via a Spark notebook that writes the join result back into the warehouse tables area",
+        "Defining an external table in the warehouse with OPENROWSET over the lakehouse files"
+      ],
+      "correct": 0,
+      "explanation": "Within a workspace, the warehouse can query other warehouses and lakehouse SQL endpoints with three-part naming (lakehouse_name.schema.table) — joins across items run in one T-SQL statement, no copying. Spark and pipelines work but aren't required; OPENROWSET over files bypasses the Delta table abstraction unnecessarily.",
+      "tags": [
+        "warehouse",
+        "cross-database-queries",
+        "dp-600"
+      ],
+      "difficulty": "medium"
+    },
+    {
+      "id": "dp-600-022",
+      "question": "A Dataflow Gen2 ingests a large transactional table daily, but reprocessing all history every run is slow and wasteful. Only recent rows ever change. What should the engineer enable?",
+      "options": [
+        "Incremental refresh on the dataflow, defining the date column and refresh window so only recent partitions reprocess",
+        "Staging disabled on every query so transformations stream without persistence",
+        "A second identical dataflow scheduled to run hourly so the reprocessing load is spread more evenly across the whole day",
+        "Fast copy mode, which automatically deduplicates previously loaded rows on ingest"
+      ],
+      "correct": 0,
+      "explanation": "Incremental refresh in Dataflow Gen2 partitions data by a datetime column and reprocesses only the configured recent window, leaving historical partitions untouched — the standard fix for full-reload pain. Disabling staging changes execution internals, duplicate dataflows double the waste, and fast copy accelerates ingestion but doesn't skip unchanged history.",
+      "tags": [
+        "dataflow-gen2",
+        "incremental-refresh",
         "dp-600"
       ],
       "difficulty": "medium"
