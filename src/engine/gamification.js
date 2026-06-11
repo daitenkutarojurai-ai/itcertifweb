@@ -236,7 +236,14 @@ const DAILY_GOAL     = 50;
 const DAILY_XP_KEY   = 'itcertif_daily_xp';
 const DAILY_DATE_KEY = 'itcertif_daily_date';
 
-function todayStr() { return new Date().toISOString().slice(0, 10); }
+function todayStr() {
+  // Local calendar day (matches stats.js / daily.js) — not UTC, so the daily
+  // XP reset lines up with the streak the rest of the app shows.
+  var d = new Date();
+  return d.getFullYear() + '-' +
+    String(d.getMonth() + 1).padStart(2, '0') + '-' +
+    String(d.getDate()).padStart(2, '0');
+}
 
 export function getDailyXP() {
   if (localStorage.getItem(DAILY_DATE_KEY) !== todayStr()) {

@@ -1,4 +1,4 @@
-/* CertQuests core bundle — generated 2026-06-04T06:45:15.863Z
+/* CertQuests core bundle — generated 2026-06-11T06:16:43.823Z
  *
  * This file is concatenated by scripts/build-core.js. Do not edit by hand;
  * edit the source modules in src/*.js and re-run `npm run build-core`.
@@ -66,6 +66,16 @@
   }
 
   window.cqApp = Object.freeze({ isApp, platform, isStandalone });
+
+  // Register the service worker on EVERY page (cq-core loads sitewide), not
+  // just the homepage — SEO deep-link visitors must get offline + SWR caching
+  // too. Idempotent: the browser no-ops a repeat register for the same URL.
+  if ('serviceWorker' in navigator && !window.__cqSwReg) {
+    window.__cqSwReg = true;
+    window.addEventListener('load', function () {
+      navigator.serviceWorker.register('/sw.js', { scope: '/' }).catch(function () {});
+    });
+  }
 })();
 
 
@@ -929,6 +939,7 @@ if (typeof module !== 'undefined' && module.exports) {
     setTimeout(function () { modal.classList.add('is-open'); }, 10);
     modal.querySelector('.cq-hearts-close').addEventListener('click', close);
     modal.querySelector('.cq-hearts-backdrop').addEventListener('click', close);
+    modal.addEventListener('cq:a11y-escape', close);
     function close() {
       modal.classList.remove('is-open');
       setTimeout(function () { modal.remove(); }, 200);
@@ -1019,6 +1030,7 @@ if (typeof module !== 'undefined' && module.exports) {
     fillEl.style.transform = 'scaleX(' + ((REGEN_MS - msLeft) / REGEN_MS).toFixed(4) + ')';
 
     overlay.querySelector('.cq-out-of-life-close').addEventListener('click', dismiss);
+    overlay.addEventListener('cq:a11y-escape', dismiss);
     function dismiss() {
       clearInterval(tick);
       overlay.classList.remove('is-open');

@@ -402,8 +402,10 @@
       desc = node.content || 'Flashcards covering the key ideas in this chapter.';
       meta2 = `${(node.flashcards || []).length} flashcards · ~1 min`;
     } else if (node.type === 'minigame') {
-      desc = 'Match each prompt to its correct answer. Quick and fun.';
-      meta2 = `${(node.pairs || []).length} pairs · ~2 min`;
+      var mgData = (node.data && typeof node.data === 'object') ? node.data : {};
+      var mgCount = (mgData.questions || mgData.items || mgData.rounds || node.pairs || []).length;
+      desc = 'A quick drill to lock in this chapter. Fast and fun.';
+      meta2 = (mgCount ? mgCount + ' rounds · ' : '') + '~2 min';
     } else if (node.type === 'subboss') {
       desc = 'Harder questions filtered from this chapter. Beat it to unlock the next chapter.';
       meta2 = `${(node.questionIds || []).length} questions · ~10 min · big XP`;
@@ -1558,8 +1560,8 @@
     try {
       var s = JSON.parse(localStorage.getItem('cq-stats-v1') || '{}');
       var pp = s.perPack && s.perPack[packId];
-      if (pp && Number(pp.questionsAnswered) >= 5) {
-        userPct = Math.round(Number(pp.correctAnswered) / Number(pp.questionsAnswered) * 100);
+      if (pp && Number(pp.qa) >= 5) {
+        userPct = Math.round(Number(pp.correct) / Number(pp.qa) * 100);
       }
     } catch (_) {}
 

@@ -38,7 +38,7 @@ export function incrementQuizCount() {
 /** Stub: call this from IAP success callback when payment is confirmed */
 export function activatePremium() {
   localStorage.setItem(PREMIUM_KEY, 'true');
-  console.log('[Premium] Activated');
+  if (window.cqDbg) console.log('[Premium] Activated');
 }
 
 // ─── Gate checks ──────────────────────────────────────────────────────────────

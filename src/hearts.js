@@ -203,6 +203,7 @@
     setTimeout(function () { modal.classList.add('is-open'); }, 10);
     modal.querySelector('.cq-hearts-close').addEventListener('click', close);
     modal.querySelector('.cq-hearts-backdrop').addEventListener('click', close);
+    modal.addEventListener('cq:a11y-escape', close);
     function close() {
       modal.classList.remove('is-open');
       setTimeout(function () { modal.remove(); }, 200);
@@ -293,6 +294,7 @@
     fillEl.style.transform = 'scaleX(' + ((REGEN_MS - msLeft) / REGEN_MS).toFixed(4) + ')';
 
     overlay.querySelector('.cq-out-of-life-close').addEventListener('click', dismiss);
+    overlay.addEventListener('cq:a11y-escape', dismiss);
     function dismiss() {
       clearInterval(tick);
       overlay.classList.remove('is-open');

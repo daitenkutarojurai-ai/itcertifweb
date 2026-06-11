@@ -11,6 +11,16 @@ const KEYS = {
   streakDate: 'itcertif_streak_date',
 };
 
+// Local calendar day (matches stats.js / daily.js). Using UTC here caused the
+// streak shown on train.html to disagree with the header/profile streak for
+// users in negative UTC offsets practising in the evening.
+function localDay(ms) {
+  const d = ms == null ? new Date() : new Date(ms);
+  return d.getFullYear() + '-' +
+    String(d.getMonth() + 1).padStart(2, '0') + '-' +
+    String(d.getDate()).padStart(2, '0');
+}
+
 // ─── Read ──────────────────────────────────────────────────────────────────────
 
 export function getProgress() {
@@ -30,8 +40,8 @@ export function getTotalQuizCount() {
 export function getStreak() {
   // Auto-reset streak if last quiz was > 1 calendar day ago
   const lastDate = localStorage.getItem(KEYS.streakDate);
-  const today    = new Date().toISOString().slice(0, 10);
-  const yesterday = new Date(Date.now() - 86400000).toISOString().slice(0, 10);
+  const today    = localDay();
+  const yesterday = localDay(Date.now() - 86400000);
   if (lastDate && lastDate < yesterday) {
     // More than 1 day gap — streak broken
     localStorage.setItem(KEYS.streak, '0');
@@ -47,7 +57,7 @@ export function getPackProgress(packId) {
 
 /** Returns true if the user has completed at least one quiz today */
 export function hasQuizzedToday() {
-  const today = new Date().toISOString().slice(0, 10);
+  const today = localDay();
   return localStorage.getItem(KEYS.streakDate) === today;
 }
 
@@ -80,9 +90,9 @@ export function saveQuizResult(packId, result) {
   localStorage.setItem(KEYS.history, JSON.stringify(history));
 
   // Update daily streak
-  const today = new Date().toISOString().slice(0, 10);
+  const today = localDay();
   const lastDate = localStorage.getItem(KEYS.streakDate);
-  const yesterday = new Date(Date.now() - 86400000).toISOString().slice(0, 10);
+  const yesterday = localDay(Date.now() - 86400000);
 
   if (lastDate === today) {
     // Already studied today — streak stays the same

@@ -44,6 +44,7 @@ if (window.__cqAuthInit) {
       persistSession: true,
       autoRefreshToken: true,
       detectSessionInUrl: true, // pick up the magic-link callback ?code= param
+      flowType: 'pkce', // keep OAuth + recovery tokens out of the URL fragment
     },
   });
 

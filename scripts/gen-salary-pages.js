@@ -20,7 +20,7 @@ const ROOT = path.resolve(__dirname, '..');
 const DATA_DIR = path.join(ROOT, 'data', 'salary');
 const OUT_DIR  = path.join(ROOT, 'salaire');
 
-const CACHE_BUST = 'v=106';
+const CACHE_BUST = 'v=134';
 
 function esc(s) {
   return String(s == null ? '' : s)
@@ -140,23 +140,24 @@ function jsonLd(d, payback) {
     '@context': 'https://schema.org',
     '@graph': [
       {
-        '@type': 'JobPosting',
+        // Occupation (not JobPosting) — these are salary guides, not job
+        // openings. JobPosting on non-hiring pages risks a Google spammy-
+        // structured-data manual action; Occupation is the purpose-built type
+        // for salary estimates.
+        '@type': 'Occupation',
         '@id': url + '#salary',
-        'title': `${d.certTitle} — Salaire ${d.countryLabel}`,
+        'name': `${d.certTitle} — ${d.countryLabel}`,
         'description': `Fourchettes salariales (junior/senior/lead), postes accessibles, progression carrière 5 ans et ROI pour la certification ${d.certTitle} en ${d.countryLabel}. Données mises à jour ${d.lastReviewed}.`,
-        'baseSalary': {
-          '@type': 'MonetaryAmount',
+        'occupationLocation': { '@type': 'Country', 'name': d.countryLabel },
+        'estimatedSalary': {
+          '@type': 'MonetaryAmountDistribution',
+          'name': 'base',
           'currency': d.currency,
-          'value': {
-            '@type': 'QuantitativeValue',
-            'minValue': d.bands.junior.min,
-            'maxValue': d.bands.lead.max,
-            'unitText': 'YEAR'
-          }
-        },
-        'datePosted': d.lastReviewed + '-01',
-        'url': url,
-        'hiringOrganization': { '@type': 'Organization', 'name': 'CertQuests', 'url': 'https://certquests.com/' }
+          'duration': 'P1Y',
+          'percentile10': d.bands.junior.min,
+          'median': d.bands.senior.median,
+          'percentile90': d.bands.lead.max
+        }
       },
       {
         '@type': 'BreadcrumbList',

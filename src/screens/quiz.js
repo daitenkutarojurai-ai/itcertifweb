@@ -339,10 +339,18 @@ function renderQuestion(container) {
 
 function startTimer(container) {
   updateTimerUI(container);
+  // Wall-clock deadline rather than a tick counter: browsers throttle
+  // setInterval in hidden tabs (≥1/min), which would freeze a tick-based
+  // countdown and let a timed exam be paused by backgrounding. Deriving
+  // timeLeft from Date.now() each tick keeps the clock honest and the
+  // question auto-times-out the moment the tab regains focus.
+  const deadline = Date.now() + timeLeft * 1000;
+  let lastShown = timeLeft;
   timerInterval = setInterval(() => {
-    timeLeft--;
+    timeLeft = Math.max(0, Math.ceil((deadline - Date.now()) / 1000));
     updateTimerUI(container);
-    if (timeLeft <= 5 && timeLeft > 0) playTick();
+    if (timeLeft <= 5 && timeLeft > 0 && timeLeft !== lastShown) playTick();
+    lastShown = timeLeft;
     if (timeLeft <= 0) { clearInterval(timerInterval); handleTimeout(container); }
   }, 1000);
 }
@@ -781,7 +789,7 @@ function finishQuiz() {
     const onLvl = (ev) => {
       const d = (ev && ev.detail) || {};
       playLevelUp();
-      showLevelUpOverlay(container, { icon: d.newStageEmoji || '⭐', title: d.newStageName || `Level ${d.newLevel || ''}` });
+      showLevelUpOverlay(null, { icon: d.newStageEmoji || '⭐', title: d.newStageName || `Level ${d.newLevel || ''}` });
     };
     window.addEventListener('cq:level-up', onLvl, { once: true });
     window.dispatchEvent(new CustomEvent('cq:session-complete', {

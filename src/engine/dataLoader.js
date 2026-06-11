@@ -77,7 +77,7 @@ export async function loadPack(filename) {
     // Try fallback using just the basename
     const basename = filename.split('/').pop();
     if (FALLBACK[basename]) {
-      console.info(`[DataLoader] Using embedded fallback for ${basename}`);
+      if (window.cqDbg) console.info(`[DataLoader] Using embedded fallback for ${basename}`);
       return FALLBACK[basename];
     }
     console.error(`[DataLoader] Failed to load ${filename}:`, e.message);

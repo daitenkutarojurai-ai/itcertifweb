@@ -41,4 +41,14 @@
   }
 
   window.cqApp = Object.freeze({ isApp, platform, isStandalone });
+
+  // Register the service worker on EVERY page (cq-core loads sitewide), not
+  // just the homepage — SEO deep-link visitors must get offline + SWR caching
+  // too. Idempotent: the browser no-ops a repeat register for the same URL.
+  if ('serviceWorker' in navigator && !window.__cqSwReg) {
+    window.__cqSwReg = true;
+    window.addEventListener('load', function () {
+      navigator.serviceWorker.register('/sw.js', { scope: '/' }).catch(function () {});
+    });
+  }
 })();

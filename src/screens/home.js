@@ -290,9 +290,20 @@ function attachListeners(container, navigate, brands) {
   let targetBrandId = null;
   let targetPackId  = null;
 
+  // Legacy / external links sometimes use a friendly slug that isn't the real
+  // pack id. Normalise before resolving so the CTA autostarts instead of
+  // dead-ending on the generic pack list.
+  const PACK_ALIASES = {
+    'terraform': 'terraform-003',
+    'terraform-associate': 'terraform-003',
+    'linux-plus': 'comptia-linux',
+    'kubernetes-cka': 'cka',
+    'ccna-200-301': 'ccna',
+  };
   if (packParam) {
-    const b = brands.find(br => br.packs.some(p => p.id === packParam));
-    if (b) { targetBrandId = b.id; targetPackId = packParam; }
+    const resolved = PACK_ALIASES[packParam] || packParam;
+    const b = brands.find(br => br.packs.some(p => p.id === resolved));
+    if (b) { targetBrandId = b.id; targetPackId = resolved; }
   }
   if (!targetBrandId && brandParam) {
     const b = brands.find(br => br.id === brandParam);

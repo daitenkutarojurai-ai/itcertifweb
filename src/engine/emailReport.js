@@ -81,10 +81,10 @@ export async function submitReport(input) {
       body: JSON.stringify(buildPayload(input)),
     });
     if (!res.ok) {
-      const text = await res.text().catch(() => '');
+      const body = await res.json().catch(() => null);
       return {
         ok: false,
-        message: text && text.length < 200 ? text : 'Could not send the report. Please try again later.',
+        message: (body && body.message) || 'Could not send the report. Please try again later.',
       };
     }
     let okMsg;
@@ -127,10 +127,10 @@ export async function submitNewsletter(email) {
       }),
     });
     if (!res.ok) {
-      const text = await res.text().catch(() => '');
+      const body = await res.json().catch(() => null);
       return {
         ok: false,
-        message: text && text.length < 200 ? text : 'Could not subscribe. Please try again later.',
+        message: (body && body.message) || 'Could not subscribe. Please try again later.',
       };
     }
     return { ok: true, message: 'You\'re subscribed — welcome!' };
