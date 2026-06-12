@@ -1520,6 +1520,48 @@ competition-driven, community-driven** layer. Highest-priority builds:
 
 ---
 
+## 📦 Content expansion R19 (2026-06-12)
+
+Scheduled-agent run targeting the DevStack cluster — the longest-quiet content
+cluster since R18 (last touched 2026-06-05 with R13's Hugging Face dossier).
+One new high-traffic, abundantly-sourced dossier the cluster was missing:
+
+- **+1 DevStack dossier** (cluster 13 → 14):
+  - `shopify` — un des plus gros monolithes Ruby on Rails encore en production
+    (pattern "Modular Monolith" assumé publiquement, packwerk open-sourcé),
+    MySQL sharded via Vitess (déploiement parmi les plus gros au monde), edge en
+    OpenResty/Lua, Go pour les services périphériques (Storefront Renderer,
+    Identity), React Native pour les apps mobiles (Shop / Admin / POS), GCP +
+    GKE côté infra, architecture en "pods" (cellules isolées) pour limiter le
+    blast radius. 18 composants documentés sur 6 catégories (Backend / Data
+    store / Streaming / Frontend-Mobile / Infra-cloud / Data-ML), 5
+    contributions OSS référencées (Liquid, Polaris, Toxiproxy, IdentityCache,
+    shopify_api).
+  - **Sources publiques uniquement** : shopify.engineering (blog ingé extrêmement
+    riche — posts spécifiques cités pour "Deconstructing the Monolith", "Five
+    Years of React Native at Shopify", "A Pods Architecture To Allow Shopify
+    To Scale"), github.com/Shopify (orga publique : Liquid, Polaris, Toxiproxy,
+    IdentityCache repos publics), shopify.com/careers (offres listant Ruby /
+    Go / React Native / Python+PySpark). Pas de rumeurs internes — disclaimer
+    "stack interne plus large" repris du template.
+  - Organization JSON-LD avec sameAs vers blog + careers, freshness pill verte
+    (lastReviewed "2026-06"), schema-valide vs `_schema.md`. Title 56 chars,
+    meta description ~360 chars (le générateur enrobe le `tldr`). Tag
+    `ecommerce` nouveau dans la grille de filtres.
+- `scripts/gen-devstack-pages.js` `CACHE_BUST` était déjà à v=135 (aligné sur
+  le `?v=` global) — pas de bump générateur nécessaire cette fois. Les 13
+  pages existantes ont été régénérées idempotentes ; les diffs sont limités à
+  des `<meta description>` synchronisées avec des `tldr` mis à jour depuis la
+  dernière régen (drift documentaire mineur, pas un changement de structure).
+- `npm run gen-devstack` regenerated 14 dossiers + the `/devstack/` index
+  (idempotent — seul le nouveau dossier + l'index ont changé en structure ;
+  les autres pages ne diffèrent qu'en `<meta description>` synchronisée).
+- sitemap.xml +1 entry (priority 0.8, monthly changefreq, lastmod 2026-06-12);
+  devstack index lastmod bumped 2026-05-15 → 2026-06-12.
+- 265/265 tests still pass. No CSS/JS cache version bump (new HTML/data only).
+
+---
+
 ## 📦 Content expansion R18 (2026-06-11)
 
 Scheduled-agent run targeting the comparator cluster — the longest-quiet content
