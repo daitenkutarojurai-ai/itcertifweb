@@ -6,8 +6,8 @@
   "chapters": [
     {
       "id": "ch1",
-      "title": "Part 1",
-      "tag": "part-1",
+      "title": "Plug Ins",
+      "tag": "plug-ins",
       "nodes": [
         {
           "id": "c1-concept",
@@ -38,12 +38,13 @@
         {
           "id": "c1-quiz1",
           "type": "quiz",
-          "title": "Part 1 — Drill 1",
+          "title": "Plug Ins — Drill 1",
           "questionIds": [
-            "pl-400-003",
             "pl-400-001",
-            "pl-400-002",
-            "pl-400-004"
+            "pl-400-004",
+            "pl-400-013",
+            "pl-400-014",
+            "pl-400-012"
           ]
         },
         {
@@ -67,28 +68,6 @@
                 "explanation": "The Dataverse event pipeline has four stages: PreValidation (10, outside the database transaction), PreOperation (20, inside the transaction and before the core write), MainOperation (30, reserved for the platform), and PostOperation (40, inside the transaction and after the core write). For a plug-in that needs both transactional rollback on failure and access to uncommitted values from the Target, PreOperation is the right stage — PreValidation is outside the transaction so it cannot roll back, PostOperation runs after the write has already happened, and MainOperation is reserved for the platform."
               },
               {
-                "q": "A team needs a reusable star-rating control that runs inside both model-driven app forms and canvas apps, displays bound numeric data from a Dataverse column, and ships through the standard solution layering process. Which Power Platform technology should they build?",
-                "choices": [
-                  "A JavaScript web resource attached to the form's OnLoad event using Xrm.Page",
-                  "A Power Apps canvas component library shared from a single canvas app",
-                  "A Power Apps Component Framework (PCF) code component built with the pcf-scripts CLI",
-                  "A custom HTML web resource embedded in an iframe on the form"
-                ],
-                "correctIndex": 2,
-                "explanation": "The Power Apps Component Framework (PCF) is purpose-built for reusable, data-bound UI controls that work in model-driven forms, views, dashboards, and canvas apps. PCF components are authored with the pcf-scripts CLI (npm package), packaged into a solution, and bound to Dataverse columns through a manifest. JavaScript web resources can attach script to forms but do not produce a packaged, reusable control; canvas component libraries only work inside canvas apps; HTML web resources in iframes cannot be data-bound to a column and are not reusable across app types."
-              },
-              {
-                "q": "A developer needs to expose a third-party REST API that uses OAuth 2.0 client credentials to every maker in the tenant so it can be used from Power Apps and Power Automate. They already have the OpenAPI 2.0 definition. What is the most appropriate object to create?",
-                "choices": [
-                  "A custom connector, registered with the OpenAPI definition, configured with the OAuth 2.0 client credentials authentication type, and shared with the organization",
-                  "A Dataverse virtual table that points at the REST endpoint with a custom data provider plug-in",
-                  "An on-premises data gateway pointing at the REST endpoint so connector traffic is proxied through it",
-                  "A Power Automate child flow that wraps the REST call and is published as a managed solution"
-                ],
-                "correctIndex": 0,
-                "explanation": "Custom connectors are the canonical wrapper for REST APIs in Power Platform: import the OpenAPI (Swagger) definition, choose an authentication type (OAuth 2.0, API key, Basic, Microsoft Entra ID, generic OAuth, etc.), define triggers/actions, then share the connector with users or the entire organization. Virtual tables are for surfacing external data as Dataverse rows, not for action-style API calls. On-premises gateways are for on-prem data sources, not Internet-reachable REST APIs. Child flows wrap reusable Power Automate logic but do not expose the API itself as a first-class connector to other apps."
-              },
-              {
                 "q": "A maker requires that whenever an Opportunity is set to Won, the related Account's Credit Limit is increased by a percentage that depends on the deal value, the change must be transactional with the Opportunity update, and the rule must run regardless of whether the change is made from a model-driven app, a canvas app, a flow, or the Web API. Which automation should the developer build?",
                 "choices": [
                   "A Dataverse business rule scoped to All Forms, with an If/Then action that updates the Account",
@@ -98,20 +77,54 @@
                 ],
                 "correctIndex": 3,
                 "explanation": "When the rule has to fire on every channel that writes to Dataverse (UI, Power Automate, Web API, integrations) and has to be transactional with the source write, the right tool is a synchronous plug-in on the Update message in the PostOperation stage, with the filtering attribute set to StateCode so the plug-in only runs when the status changes. Business rules are evaluated client-side on forms (and only partially server-side) so they will not fire from many channels and cannot perform cross-table updates with this kind of logic. Power Fx OnSave only fires in that canvas app. A scheduled flow is not transactional and introduces a delay."
+              },
+              {
+                "q": "A plug-in must call an external HTTPS API and parse the JSON response. The developer notices that calls work in unit tests but fail when the plug-in is deployed and registered in isolation (sandbox) mode. What is the correct understanding of the sandbox restriction?",
+                "choices": [
+                  "The sandbox blocks all outbound HTTP traffic; isolation must be set to None and the assembly stored on disk for any external call to succeed",
+                  "The sandbox blocks access to local disk and the registry but permits outbound HTTPS calls; the failure is therefore caused by the assembly being too large to load",
+                  "The sandbox runs in full trust; the failure is caused by missing System.Net.Http references that must be added via NuGet at registration time",
+                  "The sandbox blocks access to the file system, the registry, certain reflection, and other system resources, but does permit outbound HTTP/HTTPS calls — failures are usually authentication, allow-listed-port (80/443/HTTPS-only), or response-time related, not the network call itself"
+                ],
+                "correctIndex": 3,
+                "explanation": "All plug-ins in Dataverse must run in the sandbox (isolation mode = Sandbox); 'None' is not supported in online environments. The sandbox blocks access to the file system, the registry, parts of reflection, system event logs, and a few other resources, but it does permit outbound HTTP and HTTPS calls on the standard ports, with a two-minute execution limit per call. So a failing external call is almost always due to authentication, network egress restrictions on the target side, port restrictions, exceeding the time limit, or unhandled exceptions — not the network call itself being blocked. None-isolation and on-disk assemblies are not options online, and the sandbox is not full-trust."
+              },
+              {
+                "q": "A plug-in must run AFTER an Account is created and the database transaction has committed, to call an external billing API. Registering it in the pre-operation or post-operation synchronous stages risks rolling back the transaction if the API is slow. What is the correct registration?",
+                "choices": [
+                  "Synchronous, pre-validation stage, so the external billing API is invoked before any database work for the Account create begins at all",
+                  "Asynchronous, post-operation stage, so it runs after the transaction commits without blocking it",
+                  "Synchronous, post-operation stage, with a long timeout to accommodate the external call",
+                  "A real-time workflow on create, since workflows cannot affect plug-in transactions"
+                ],
+                "correctIndex": 1,
+                "explanation": "Asynchronous post-operation plug-ins execute outside the main transaction after commit via the async service — the external call can't roll back the Account create and won't block the user. Synchronous stages (pre-validation, pre/post-operation) run inside the transaction, so a slow API delays or rolls it back; a real-time workflow is also synchronous and carries the same risk."
+              },
+              {
+                "q": "In a plug-in's pre-operation Update step, a developer needs the value a field held BEFORE the update to compare against the new value. Which property of the execution context provides the prior value?",
+                "choices": [
+                  "InputParameters[\"Target\"], which always carries the complete record including unchanged fields",
+                  "PostEntityImages, captured automatically for every registered Update step at runtime",
+                  "PreEntityImages, when a pre-image was registered on the step for the needed attributes",
+                  "SharedVariables, where the platform stores the prior field values for plug-in chains"
+                ],
+                "correctIndex": 2,
+                "explanation": "A registered pre-image snapshots specified attributes as they were before the operation; the plug-in reads PreEntityImages to get old values. The Target only contains the attributes being changed (not unchanged ones, and showing new values); post-images hold after-values; SharedVariables pass data between plug-ins, not field history."
               }
             ]
           },
-          "title": "Part 1 — Lightning Round"
+          "title": "Plug Ins — Lightning Round"
         },
         {
           "id": "c1-boss",
           "type": "subboss",
-          "title": "Boss: Part 1",
+          "title": "Boss: Plug Ins",
           "questionIds": [
-            "pl-400-003",
             "pl-400-001",
-            "pl-400-002",
-            "pl-400-004"
+            "pl-400-004",
+            "pl-400-013",
+            "pl-400-014",
+            "pl-400-012"
           ]
         },
         {
@@ -125,44 +138,56 @@
     },
     {
       "id": "ch2",
-      "title": "Part 2",
-      "tag": "part-2",
+      "title": "Mixed Topics",
+      "tag": "mixed-topics",
       "nodes": [
         {
           "id": "c2-concept",
           "type": "concept",
-          "title": "Microsoft Dataverse: Key Ideas",
-          "content": "Dataverse is the data platform underneath the Power Platform — a managed, relational store with built-in security, business logic, and a uniform Web API. PL-400 leans on it heavily: most Power Apps, plug-ins, and automations read and write Dataverse.",
+          "title": "Mixed exam topics: Key Ideas",
+          "content": "Some exam objectives don't fit neatly into a single domain — they span protocols, tools, or concepts covered briefly in multiple sections. These cards treat each item as a stand-alone fact, the way an exam question presents it: one concept, one answer.",
           "flashcards": [
             {
-              "front": "What is a Dataverse table (formerly entity)?",
-              "back": "A table is a typed set of rows with columns, relationships, keys, and its own security. Standard tables (Account, Contact) ship with the platform; custom tables are added per solution. Each table exposes an OData/Web API endpoint automatically."
+              "front": "What is the difference between a hub, a switch, and a router?",
+              "back": "Hub: Layer 1, repeats every frame to all ports — all devices share bandwidth, collisions guaranteed. Switch: Layer 2, forwards frames using a MAC address table to only the destination port — full duplex, no collisions, each port gets full bandwidth. Router: Layer 3, makes forwarding decisions based on IP address, connects different networks. Hub is legacy; switches dominate LAN; routers are at network edges."
             },
             {
-              "front": "How do you query Dataverse from code?",
-              "back": "Use the Web API — an OData v4 REST endpoint at /api/data/v9.x. GET with $select/$filter/$expand for reads, POST/PATCH/DELETE for writes. The SDK (IOrganizationService) wraps the same operations for plug-ins and server-side code."
+              "front": "What is RAID 5 and how many drives can it tolerate losing?",
+              "back": "RAID 5 stripes data and parity across at least 3 drives. Any single drive failure can be recovered by reconstructing missing data from the remaining drives and parity. It cannot tolerate 2 simultaneous drive failures. Effective capacity = (N-1) × drive size. Read performance is excellent; write requires parity recalculation. RAID 6 tolerates 2 failures using double parity."
             },
             {
-              "front": "How is access controlled in Dataverse?",
-              "back": "Security roles grant privileges (create/read/write/delete/append) at access levels (user, business unit, parent-child, organization). Rows are owned by a user or team; business units scope visibility. This is row- and column-level security, not just table-level."
+              "front": "What does a proxy server do, and how does a forward proxy differ from a reverse proxy?",
+              "back": "Forward proxy: sits between clients and the internet on behalf of clients — used for content filtering, caching, and anonymizing outbound requests (the server sees the proxy's IP). Reverse proxy: sits in front of servers on behalf of the server — used for load balancing, SSL termination, caching, and hiding backend topology (the client sees the proxy's IP). Both intermediate HTTP, but they protect opposite sides."
             },
             {
-              "front": "Business rules vs plug-ins for logic?",
-              "back": "Business rules are no-code, run on the form and server for simple validation/defaults. Plug-ins are .NET code on the event pipeline for complex or cross-table logic. Prefer the lightest tool that meets the requirement — business rules first, plug-ins when you need real code."
+              "front": "What is the purpose of a DMZ in network architecture?",
+              "back": "A demilitarized zone is a network segment between the untrusted internet and the trusted internal network, typically protected by two firewalls (or two interfaces on one firewall). Public-facing services (web, email, DNS) sit in the DMZ: internet can reach them but not the internal network; if the DMZ host is compromised, the inner firewall still blocks access to the internal LAN."
             }
           ],
           "source": "concept-library",
-          "sourceTag": "dataverse"
+          "sourceTag": "mixed-topics"
         },
         {
           "id": "c2-quiz1",
           "type": "quiz",
-          "title": "Part 2 — Drill 1",
+          "title": "Mixed Topics — Drill 1",
           "questionIds": [
+            "pl-400-003",
             "pl-400-005",
+            "pl-400-009",
+            "pl-400-018",
+            "pl-400-020"
+          ]
+        },
+        {
+          "id": "c2-quiz2",
+          "type": "quiz",
+          "title": "Mixed Topics — Drill 2",
+          "questionIds": [
+            "pl-400-022",
+            "pl-400-002",
             "pl-400-006",
-            "pl-400-007",
-            "pl-400-008"
+            "pl-400-007"
           ]
         },
         {
@@ -174,6 +199,39 @@
             "secondsPerQuestion": 7,
             "livesAllowed": 3,
             "questions": [
+              {
+                "q": "A team needs a reusable star-rating control that runs inside both model-driven app forms and canvas apps, displays bound numeric data from a Dataverse column, and ships through the standard solution layering process. Which Power Platform technology should they build?",
+                "choices": [
+                  "A JavaScript web resource attached to the form's OnLoad event using Xrm.Page",
+                  "A Power Apps canvas component library shared from a single canvas app",
+                  "A Power Apps Component Framework (PCF) code component built with the pcf-scripts CLI",
+                  "A custom HTML web resource embedded in an iframe on the form"
+                ],
+                "correctIndex": 2,
+                "explanation": "The Power Apps Component Framework (PCF) is purpose-built for reusable, data-bound UI controls that work in model-driven forms, views, dashboards, and canvas apps. PCF components are authored with the pcf-scripts CLI (npm package), packaged into a solution, and bound to Dataverse columns through a manifest. JavaScript web resources can attach script to forms but do not produce a packaged, reusable control; canvas component libraries only work inside canvas apps; HTML web resources in iframes cannot be data-bound to a column and are not reusable across app types."
+              },
+              {
+                "q": "A Power Apps component framework (PCF) code component must read and write the bound column's value on the form. Which lifecycle method supplies the latest context (and is where the control should request a re-render of changed values)?",
+                "choices": [
+                  "init, which fires once and holds the only reference to the bound value for the control's lifetime",
+                  "updateView, called by the framework whenever bound data or context changes",
+                  "getOutputs, which the framework polls continuously to push values back to the form",
+                  "destroy, where the current value must be cached before the control is torn down"
+                ],
+                "correctIndex": 1,
+                "explanation": "updateView receives the refreshed context each time bound properties or layout change — the control reads current values there and updates its UI. init runs once for setup; getOutputs returns changed values back to the host (called after notifyOutputChanged), it isn't a polling source of inputs; destroy is cleanup only."
+              },
+              {
+                "q": "A developer needs to expose a third-party REST API that uses OAuth 2.0 client credentials to every maker in the tenant so it can be used from Power Apps and Power Automate. They already have the OpenAPI 2.0 definition. What is the most appropriate object to create?",
+                "choices": [
+                  "A custom connector, registered with the OpenAPI definition, configured with the OAuth 2.0 client credentials authentication type, and shared with the organization",
+                  "A Dataverse virtual table that points at the REST endpoint with a custom data provider plug-in",
+                  "An on-premises data gateway pointing at the REST endpoint so connector traffic is proxied through it",
+                  "A Power Automate child flow that wraps the REST call and is published as a managed solution"
+                ],
+                "correctIndex": 0,
+                "explanation": "Custom connectors are the canonical wrapper for REST APIs in Power Platform: import the OpenAPI (Swagger) definition, choose an authentication type (OAuth 2.0, API key, Basic, Microsoft Entra ID, generic OAuth, etc.), define triggers/actions, then share the connector with users or the entire organization. Virtual tables are for surfacing external data as Dataverse rows, not for action-style API calls. On-premises gateways are for on-prem data sources, not Internet-reachable REST APIs. Child flows wrap reusable Power Automate logic but do not expose the API itself as a first-class connector to other apps."
+              },
               {
                 "q": "A solution architect must choose between a canvas app and a model-driven app. The requirements are: a strongly opinionated record-centric UI generated from a Dataverse table's forms and views, role-based security driven by Dataverse security roles, and standard business process flows on each record. Which app type fits, and why?",
                 "choices": [
@@ -217,82 +275,7 @@
                 ],
                 "correctIndex": 3,
                 "explanation": "The When a row is added, modified, or deleted Dataverse trigger supports server-side filtering and column scoping, which keeps flow runs and API consumption down. Change type chooses Added/Modified. Filter rows takes an OData expression (`prioritycode eq 1` for High) so the trigger fires only on matching rows. Select columns lists the trigger columns so updates to other columns do not fire the flow. Two separate flows duplicate maintenance and miss the column-scope optimization. An in-flow Condition wastes a run for every Case change. Polling every minute is expensive and misses near-real-time changes."
-              }
-            ]
-          },
-          "title": "Part 2 — Lightning Round"
-        },
-        {
-          "id": "c2-boss",
-          "type": "subboss",
-          "title": "Boss: Part 2",
-          "questionIds": [
-            "pl-400-005",
-            "pl-400-006",
-            "pl-400-007",
-            "pl-400-008"
-          ]
-        },
-        {
-          "id": "c2-chest",
-          "type": "chest",
-          "title": "Treasure Chest",
-          "rewardXp": 30,
-          "cosmeticKey": "chapter-2"
-        }
-      ]
-    },
-    {
-      "id": "ch3",
-      "title": "Part 3",
-      "tag": "part-3",
-      "nodes": [
-        {
-          "id": "c3-concept",
-          "type": "concept",
-          "title": "Power Platform solutions and ALM: Key Ideas",
-          "content": "Solutions are how you package, version, and move Power Platform components (tables, apps, flows, plug-ins) between environments. Application Lifecycle Management (ALM) on PL-400 is about doing that reliably from dev to test to production.",
-          "flashcards": [
-            {
-              "front": "Managed vs unmanaged solutions?",
-              "back": "Unmanaged is the editable, source form you build in your dev environment — components can be changed and the solution itself isn't a deployment boundary. Managed is the locked, deployable artifact you import into test/production; it can be cleanly upgraded or uninstalled. Develop unmanaged, ship managed."
-            },
-            {
-              "front": "Why use multiple environments?",
-              "back": "Separate dev, test, and production environments isolate change: you build in dev, validate in test, and release to production by importing the managed solution. Never edit components directly in production — it breaks the ALM chain and can't be cleanly upgraded."
-            },
-            {
-              "front": "How do you automate solution deployment?",
-              "back": "Use the Power Platform Build Tools (or Power Platform CLI 'pac') in a pipeline to export the unmanaged solution from dev, build a managed version, and import it to the next environment. Pipelines in Power Platform also provide a managed, low-code path for the same export/import flow."
-            },
-            {
-              "front": "What are environment variables and connection references for?",
-              "back": "They externalise per-environment values (URLs, IDs) and connections so the same managed solution works in dev, test, and prod without hard-coded settings. You set their values at or after import — a key practice for clean, repeatable deployments."
-            }
-          ],
-          "source": "concept-library",
-          "sourceTag": "solutions"
-        },
-        {
-          "id": "c3-quiz1",
-          "type": "quiz",
-          "title": "Part 3 — Drill 1",
-          "questionIds": [
-            "pl-400-009",
-            "pl-400-010",
-            "pl-400-011",
-            "pl-400-012"
-          ]
-        },
-        {
-          "id": "c3-game",
-          "type": "minigame",
-          "gameType": "lightning",
-          "mode": "lightning-round",
-          "data": {
-            "secondsPerQuestion": 7,
-            "livesAllowed": 3,
-            "questions": [
+              },
               {
                 "q": "A team has built a solution in their development environment containing a custom table, two model-driven apps, and a plug-in assembly. They want to deploy it to test and production in a way that prevents target-environment makers from modifying its components and supports clean uninstall. Which solution type should they export?",
                 "choices": [
@@ -303,61 +286,32 @@
                 ],
                 "correctIndex": 0,
                 "explanation": "Managed solutions are the canonical ALM artifact for non-development environments: components are read-only to target-environment users, dependencies are enforced, and uninstalling the managed solution removes its components. Unmanaged solutions are containers used during development; importing them into production lets anyone modify the components and there is no clean uninstall. Patches are an optional layering mechanism on top of a managed base, not a replacement for managed deployment. Solution Packager is a tooling option for source control, not a substitute for the managed/unmanaged distinction."
-              },
-              {
-                "q": "A developer must publish every Dataverse Account create and update event onto an existing Azure Service Bus queue so a downstream microservice can consume them. They want to use the lowest-code Microsoft-supported path that runs asynchronously and survives the destination being temporarily offline. What should they build?",
-                "choices": [
-                  "An Azure Function with a Dataverse trigger that authenticates as an application user and calls the Service Bus SDK",
-                  "A service endpoint registered with the Plug-in Registration Tool, pointing at the Service Bus queue, and a step that posts the Account Create and Update messages asynchronously to the endpoint",
-                  "A synchronous plug-in on Account Create and Update that calls the Service Bus REST API directly from the plug-in sandbox",
-                  "A Logic App with a recurrence trigger that polls Dataverse every minute and enqueues new accounts"
-                ],
-                "correctIndex": 1,
-                "explanation": "Dataverse has native support for Azure Service Bus integration through service endpoints, registered with the Plug-in Registration Tool: the platform posts the OrganizationServiceContext for the matched messages onto a Service Bus queue, topic, relay, or event hub. Steps are typically asynchronous, so messages are retried if the destination is offline. An Azure Function + SDK call is more code than necessary. A synchronous plug-in calling Service Bus directly blocks the user, has no built-in retry, and the sandbox restricts outbound calls. A polling Logic App adds latency and misses the native asynchronous integration."
-              },
-              {
-                "q": "A back-end service running outside Microsoft 365 needs to call the Dataverse Web API on behalf of no human user, with its own non-interactive identity, restricted to a single security role. Which Dataverse object must the developer create, and against what is it authenticated?",
-                "choices": [
-                  "A regular licensed user with a service-style display name, signed in via a username and password stored in Azure Key Vault",
-                  "A guest user invited through Microsoft Entra B2B, assigned the security role and signed in via device-code OAuth flow",
-                  "An application user in the environment, linked by Application ID to a Microsoft Entra ID app registration, authenticated by OAuth 2.0 client credentials, and assigned a least-privilege security role",
-                  "A team of type Owner in the environment that uses the team's object ID as a service principal at sign-in"
-                ],
-                "correctIndex": 2,
-                "explanation": "Server-to-server (S2S) authentication to Dataverse is done by creating an application user in the environment that is linked by Application ID to a Microsoft Entra ID app registration; the back-end service then authenticates with the OAuth 2.0 client credentials flow (client ID + client secret or certificate) and receives a token scoped to that application user. The application user is assigned a security role like any other user, so least-privilege still applies. Licensed users with password sign-in do not satisfy the non-interactive requirement and contradict modern auth guidance. B2B guests are still interactive identities. Teams cannot themselves sign in."
-              },
-              {
-                "q": "A plug-in must call an external HTTPS API and parse the JSON response. The developer notices that calls work in unit tests but fail when the plug-in is deployed and registered in isolation (sandbox) mode. What is the correct understanding of the sandbox restriction?",
-                "choices": [
-                  "The sandbox blocks all outbound HTTP traffic; isolation must be set to None and the assembly stored on disk for any external call to succeed",
-                  "The sandbox blocks access to local disk and the registry but permits outbound HTTPS calls; the failure is therefore caused by the assembly being too large to load",
-                  "The sandbox runs in full trust; the failure is caused by missing System.Net.Http references that must be added via NuGet at registration time",
-                  "The sandbox blocks access to the file system, the registry, certain reflection, and other system resources, but does permit outbound HTTP/HTTPS calls — failures are usually authentication, allow-listed-port (80/443/HTTPS-only), or response-time related, not the network call itself"
-                ],
-                "correctIndex": 3,
-                "explanation": "All plug-ins in Dataverse must run in the sandbox (isolation mode = Sandbox); 'None' is not supported in online environments. The sandbox blocks access to the file system, the registry, parts of reflection, system event logs, and a few other resources, but it does permit outbound HTTP and HTTPS calls on the standard ports, with a two-minute execution limit per call. So a failing external call is almost always due to authentication, network egress restrictions on the target side, port restrictions, exceeding the time limit, or unhandled exceptions — not the network call itself being blocked. None-isolation and on-disk assemblies are not options online, and the sandbox is not full-trust."
               }
             ]
           },
-          "title": "Part 3 — Lightning Round"
+          "title": "Mixed Topics — Lightning Round"
         },
         {
-          "id": "c3-boss",
+          "id": "c2-boss",
           "type": "subboss",
-          "title": "Boss: Part 3",
+          "title": "Boss: Mixed Topics",
           "questionIds": [
-            "pl-400-009",
+            "pl-400-008",
+            "pl-400-016",
+            "pl-400-017",
+            "pl-400-019",
+            "pl-400-021",
+            "pl-400-015",
             "pl-400-010",
-            "pl-400-011",
-            "pl-400-012"
+            "pl-400-011"
           ]
         },
         {
-          "id": "c3-chest",
+          "id": "c2-chest",
           "type": "chest",
           "title": "Treasure Chest",
           "rewardXp": 30,
-          "cosmeticKey": "chapter-3"
+          "cosmeticKey": "chapter-2"
         }
       ]
     }
@@ -370,9 +324,9 @@
     "timeMinutes": 23
   },
   "meta": {
-    "generatedAt": "2026-06-12T06:21:33.466Z",
-    "totalNodes": 16,
-    "totalQuestions": 12,
+    "generatedAt": "2026-06-12T06:25:50.885Z",
+    "totalNodes": 12,
+    "totalQuestions": 22,
     "nodeTypes": [
       "concept",
       "quiz",

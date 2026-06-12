@@ -3,10 +3,10 @@
     "id": "pl-400",
     "name": "Microsoft Power Platform Developer Associate (PL-400)",
     "vendor": "Microsoft",
-    "version": "1.0.0",
-    "question_count": 12,
-    "last_updated": "2026-05-31",
-    "notes": "Initial pack — 12 scenario-style questions across the seven PL-400 domains: technical design, Dataverse configuration, Power Apps, business process automation, UX extension, platform extension (plug-ins / PCF), and integrations."
+    "version": "1.1.0",
+    "question_count": 22,
+    "last_updated": "2026-06-12",
+    "notes": "Initial pack — 12 scenario-style questions across the seven PL-400 domains: technical design, Dataverse configuration, Power Apps, business process automation, UX extension, platform extension (plug-ins / PCF), and integrations. v1.1: +10 — async post-op plug-in, pre-entity images, PCF updateView, QueryExpression projection, webhooks/Service Bus, managed solutions, client-script OnChange, plug-in trace log, application user S2S auth, entity-scoped business rules."
   },
   "questions": [
     {
@@ -238,6 +238,186 @@
         "pl-400"
       ],
       "difficulty": "hard"
+    },
+    {
+      "id": "pl-400-013",
+      "question": "A plug-in must run AFTER an Account is created and the database transaction has committed, to call an external billing API. Registering it in the pre-operation or post-operation synchronous stages risks rolling back the transaction if the API is slow. What is the correct registration?",
+      "options": [
+        "Synchronous, pre-validation stage, so the external billing API is invoked before any database work for the Account create begins at all",
+        "Asynchronous, post-operation stage, so it runs after the transaction commits without blocking it",
+        "Synchronous, post-operation stage, with a long timeout to accommodate the external call",
+        "A real-time workflow on create, since workflows cannot affect plug-in transactions"
+      ],
+      "correct": 1,
+      "explanation": "Asynchronous post-operation plug-ins execute outside the main transaction after commit via the async service — the external call can't roll back the Account create and won't block the user. Synchronous stages (pre-validation, pre/post-operation) run inside the transaction, so a slow API delays or rolls it back; a real-time workflow is also synchronous and carries the same risk.",
+      "tags": [
+        "plug-ins",
+        "execution-pipeline",
+        "pl-400"
+      ],
+      "difficulty": "medium"
+    },
+    {
+      "id": "pl-400-014",
+      "question": "In a plug-in's pre-operation Update step, a developer needs the value a field held BEFORE the update to compare against the new value. Which property of the execution context provides the prior value?",
+      "options": [
+        "InputParameters[\"Target\"], which always carries the complete record including unchanged fields",
+        "PostEntityImages, captured automatically for every registered Update step at runtime",
+        "PreEntityImages, when a pre-image was registered on the step for the needed attributes",
+        "SharedVariables, where the platform stores the prior field values for plug-in chains"
+      ],
+      "correct": 2,
+      "explanation": "A registered pre-image snapshots specified attributes as they were before the operation; the plug-in reads PreEntityImages to get old values. The Target only contains the attributes being changed (not unchanged ones, and showing new values); post-images hold after-values; SharedVariables pass data between plug-ins, not field history.",
+      "tags": [
+        "plug-ins",
+        "entity-images",
+        "pl-400"
+      ],
+      "difficulty": "medium"
+    },
+    {
+      "id": "pl-400-015",
+      "question": "A Power Apps component framework (PCF) code component must read and write the bound column's value on the form. Which lifecycle method supplies the latest context (and is where the control should request a re-render of changed values)?",
+      "options": [
+        "init, which fires once and holds the only reference to the bound value for the control's lifetime",
+        "updateView, called by the framework whenever bound data or context changes",
+        "getOutputs, which the framework polls continuously to push values back to the form",
+        "destroy, where the current value must be cached before the control is torn down"
+      ],
+      "correct": 1,
+      "explanation": "updateView receives the refreshed context each time bound properties or layout change — the control reads current values there and updates its UI. init runs once for setup; getOutputs returns changed values back to the host (called after notifyOutputChanged), it isn't a polling source of inputs; destroy is cleanup only.",
+      "tags": [
+        "pcf",
+        "control-lifecycle",
+        "pl-400"
+      ],
+      "difficulty": "hard"
+    },
+    {
+      "id": "pl-400-016",
+      "question": "A developer must query Dataverse for the 50 most recently modified active accounts in California, returning only name and revenue, from custom .NET code using the SDK. Which approach is idiomatic and efficient?",
+      "options": [
+        "Retrieve every account in the organization with RetrieveMultiple and no filter, then sort the entire collection and trim it to fifty rows in memory on the client",
+        "A QueryExpression (or FetchXML) with column set name+revenue, conditions on state and region, ordered by modifiedon, top count 50",
+        "Call RetrieveAllEntities to load the metadata, then iterate accounts checking each field manually",
+        "Issue one Retrieve per account GUID gathered from a separate unfiltered query of the table"
+      ],
+      "correct": 1,
+      "explanation": "QueryExpression/FetchXML pushes filtering (statecode, address state), projection (only name+revenue), ordering (modifiedon desc) and TopCount to the server — minimal data over the wire. Retrieving all rows and filtering client-side wastes bandwidth and throttling budget; RetrieveAllEntities is a metadata call; per-GUID Retrieve loops are N+1 round-trips.",
+      "tags": [
+        "dataverse-sdk",
+        "query-patterns",
+        "pl-400"
+      ],
+      "difficulty": "medium"
+    },
+    {
+      "id": "pl-400-017",
+      "question": "An external system must be notified within seconds whenever a Dataverse Case is created or updated, reliably and at scale, without polling. Which integration mechanism does Microsoft recommend?",
+      "options": [
+        "Register a webhook or Azure Service Bus endpoint via the Dataverse event publishing (plug-in registration) pipeline",
+        "A scheduled flow that queries modified Cases every minute and posts changes onward",
+        "A synchronous plug-in that opens an HTTP connection to the external system inline",
+        "A Power BI streaming dataset that the external billing system subscribes to in order to receive Case change notifications as they are pushed"
+      ],
+      "correct": 0,
+      "explanation": "Dataverse can publish events asynchronously to webhooks or Azure Service Bus (queues/topics) through plug-in registration — near-real-time, decoupled, and resilient via the async/Service Bus delivery. Minute polling adds latency and load; a synchronous inline HTTP plug-in blocks the transaction and risks rollback; Power BI streaming datasets are for visuals, not system integration.",
+      "tags": [
+        "integration",
+        "webhooks-service-bus",
+        "pl-400"
+      ],
+      "difficulty": "medium"
+    },
+    {
+      "id": "pl-400-018",
+      "question": "A solution is ready to ship to a customer who must NOT be able to edit its components, and the developer wants a clean upgrade path for future versions. How should the solution be exported?",
+      "options": [
+        "As an unmanaged solution, so the customer can adjust components if their needs change",
+        "As a managed solution, which locks customization and supports versioned upgrades and clean uninstall",
+        "By copying the development environment's full database backup directly into the customer's production tenant during the maintenance window",
+        "As individual component files zipped together and imported one at a time by the customer"
+      ],
+      "correct": 1,
+      "explanation": "Managed solutions are the distribution format: components are locked from direct editing (only via supported customization layers), versions upgrade cleanly, and uninstalling removes the solution's components. Unmanaged is for source/development and merges editably into the target; database copies and loose component files aren't supported ALM artifacts.",
+      "tags": [
+        "alm",
+        "managed-solutions",
+        "pl-400"
+      ],
+      "difficulty": "easy"
+    },
+    {
+      "id": "pl-400-019",
+      "question": "A model-driven form must call a developer's TypeScript function on field change to validate and conditionally show a notification. How is the handler correctly wired and given access to the form?",
+      "options": [
+        "Add the web resource to the form libraries and register the function on the column's OnChange event, passing the execution context",
+        "Embed the script inside an HTML web resource shown in an iframe on the form, which then reaches into the parent form's DOM to manipulate fields directly",
+        "Place the .js file in a SharePoint document library the form links to at runtime each load",
+        "Register the function as a real-time workflow step that runs whenever the column changes"
+      ],
+      "correct": 0,
+      "explanation": "Client scripting is added as a JScript web resource referenced in the form's libraries, with the function bound to the OnChange (or OnLoad/OnSave) event and 'pass execution context as first parameter' enabled so it can call formContext APIs. Iframe DOM hacking is unsupported and breaks across updates; external script hosting isn't supported; workflows are server-side and can't manipulate the open form.",
+      "tags": [
+        "client-scripting",
+        "form-events",
+        "pl-400"
+      ],
+      "difficulty": "medium"
+    },
+    {
+      "id": "pl-400-020",
+      "question": "A custom API and several plug-ins in production are throwing intermittent errors, but only for some users. The developer needs server-side execution detail — input parameters, exceptions, custom traces — to diagnose. What should they use?",
+      "options": [
+        "The Plug-in Trace Log, with tracing enabled and ITracingService.Trace calls in the code",
+        "Browser developer tools, capturing the network tab while a failing user repeats the action",
+        "Azure Application Insights attached to the Power Platform admin center's usage reports",
+        "The solution history list, which records each plug-in's last execution outcome per user"
+      ],
+      "correct": 0,
+      "explanation": "The Plug-in Trace Log captures server-side execution: messages written via ITracingService.Trace, exception details and context, when tracing is enabled (all or exception-only). Browser tools see only the client request/response; Application Insights integration is powerful but the built-in trace log is the direct answer here; solution history tracks imports, not runtime execution.",
+      "tags": [
+        "debugging",
+        "plug-in-trace-log",
+        "pl-400"
+      ],
+      "difficulty": "easy"
+    },
+    {
+      "id": "pl-400-021",
+      "question": "A registered service must call the Dataverse Web API unattended (no signed-in user) from a nightly Azure job. Which authentication setup does Microsoft recommend?",
+      "options": [
+        "Hard-code a dedicated administrator's username and password inside the nightly Azure job's configuration and authenticate interactively as that user each run",
+        "An Entra app registration with a client secret/certificate, granted access through a Dataverse application user",
+        "A shared service mailbox account with MFA disabled so the job can sign in non-interactively",
+        "The Dataverse organization service URL with anonymous access enabled for the job's IP range"
+      ],
+      "correct": 1,
+      "explanation": "Server-to-server auth uses an Entra app registration (client credentials with a secret or, preferably, a certificate) mapped to a Dataverse application user with a security role — no human identity, no interactive sign-in. Hard-coded user passwords and MFA-disabled accounts are credential anti-patterns; Dataverse has no anonymous access mode.",
+      "tags": [
+        "authentication",
+        "application-user",
+        "pl-400"
+      ],
+      "difficulty": "medium"
+    },
+    {
+      "id": "pl-400-022",
+      "question": "A maker needs simple logic — 'when an Opportunity's Probability exceeds 80, set Priority to High' — to run server-side on every create and update, with no code and minimal maintenance. Which Dataverse feature is the lightest fit?",
+      "options": [
+        "A C# plug-in registered on the Opportunity create and update messages",
+        "A scheduled Power Automate cloud flow re-evaluating all opportunities each hour",
+        "A Dataverse business rule scoped to the entity, with a condition and a set-value action",
+        "A JavaScript OnChange handler that sets the field whenever Probability changes on the form"
+      ],
+      "correct": 2,
+      "explanation": "Business rules scoped to 'Entity' run server-side on create and update with no code — a condition plus set-field action covers this exactly and is the lowest-maintenance option. A plug-in is code for a no-code job; a scheduled flow adds latency and runs needlessly across all rows; a form OnChange script only fires in the UI, missing API/import-driven changes.",
+      "tags": [
+        "business-rules",
+        "low-code-logic",
+        "pl-400"
+      ],
+      "difficulty": "easy"
     }
   ]
 }
