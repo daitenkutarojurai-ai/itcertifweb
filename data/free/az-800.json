@@ -3,10 +3,10 @@
     "id": "az-800",
     "name": "Windows Server Hybrid Administrator Associate (AZ-800)",
     "vendor": "Microsoft",
-    "version": "1.0.0",
-    "question_count": 12,
-    "last_updated": "2026-05-26",
-    "notes": "Initial pack — 12 questions across the AZ-800 exam domains: Active Directory Domain Services, hybrid identity and management with Azure Arc and Windows Admin Center, Hyper-V and containers, on-premises and hybrid networking, and storage and file services."
+    "version": "1.1.0",
+    "question_count": 22,
+    "last_updated": "2026-06-12",
+    "notes": "Initial pack — 12 questions across the AZ-800 exam domains: Active Directory Domain Services, hybrid identity and management with Azure Arc and Windows Admin Center, Hyper-V and containers, on-premises and hybrid networking, and storage and file services. v1.1: +10 — RODC, GPO precedence, gMSA, SMB over QUIC, sites/subnets, Server Core management, Storage Replica async, DNS scavenging, hotpatch, shared-nothing live migration."
   },
   "questions": [
     {
@@ -235,6 +235,186 @@
         "az-800"
       ],
       "difficulty": "medium"
+    },
+    {
+      "id": "az800-013",
+      "question": "A branch office with weak physical security needs local authentication performance, but stolen hardware must not yield privileged credentials, and no changes may originate from that office's directory copy. Which AD DS role fits?",
+      "options": [
+        "A read-only domain controller (RODC) with a password replication policy excluding privileged accounts",
+        "A writable domain controller in its own forest joined by a one-way external trust",
+        "A standalone member server running the LSASS caching service for branch logons",
+        "A global catalog server deployed in the branch with universal group membership caching disabled so lookups always traverse the WAN link"
+      ],
+      "correct": 0,
+      "explanation": "RODCs hold a read-only copy of the database, accept no originating changes, and cache only the passwords its replication policy allows — privileged accounts excluded, so theft exposes nothing critical and delegated local admin doesn't grant domain rights. A separate forest is heavy machinery; there is no standalone 'LSASS caching service'; GC caching options affect logon lookups, not credential exposure.",
+      "tags": [
+        "ad-ds",
+        "rodc",
+        "az-800"
+      ],
+      "difficulty": "medium"
+    },
+    {
+      "id": "az800-014",
+      "question": "A computer object sits in OU Sales under OU Workstations in domain contoso.com, with GPOs linked at site, domain, and both OUs. Two GPOs set the same value differently. Absent enforcement or blocking, whose setting wins?",
+      "options": [
+        "The site-linked GPO, because site-level links are always processed with the highest final priority in the chain",
+        "The GPO linked to the Sales OU — the closest link to the object is applied last and prevails",
+        "The domain-linked GPO, since domain scope always overrides organizational unit scope",
+        "Whichever GPO has the lower globally unique identifier when sorted alphabetically"
+      ],
+      "correct": 1,
+      "explanation": "Processing order is Local → Site → Domain → OU (parent to child), and later application overwrites earlier conflicting values — so the GPO linked nearest the object (the Sales OU) wins by default. Enforced links and Block Inheritance alter this, which is exactly why the exam states their absence; GUIDs play no role.",
+      "tags": [
+        "group-policy",
+        "precedence",
+        "az-800"
+      ],
+      "difficulty": "easy"
+    },
+    {
+      "id": "az800-015",
+      "question": "A Windows service across 30 servers runs under a shared domain account whose password hasn't changed in years. You want automatic password management, per-host constrained usage, and no password known to humans. What do you implement?",
+      "options": [
+        "A group managed service account (gMSA), authorized for those 30 hosts, with the service configured to run under it",
+        "A new standard user account with a 64-character password stored in a sealed envelope",
+        "Local virtual accounts (NT SERVICE\\name) on each server replacing the domain identity",
+        "A scheduled task that rotates the shared account's password every month and then updates the logon credentials on each of the thirty services in turn"
+      ],
+      "correct": 0,
+      "explanation": "gMSAs have AD-managed 240-byte passwords rotated automatically every 30 days, retrievable only by the computers you authorize — no human ever knows the secret, and SPN/Kerberos handling is built in. Sealed envelopes and rotation scripts leave humans in the loop and break services on every rotation race; virtual accounts are local identities that can't authenticate as one principal across 30 machines.",
+      "tags": [
+        "ad-ds",
+        "gmsa",
+        "az-800"
+      ],
+      "difficulty": "medium"
+    },
+    {
+      "id": "az800-016",
+      "question": "Remote workers need to reach on-premises SMB file shares from anywhere WITHOUT a VPN, over an encrypted, firewall-friendly transport on port 443. Which Windows Server 2022 capability provides this?",
+      "options": [
+        "SMB over QUIC on Windows Server 2022 Azure Edition, tunnelling SMB 3.1.1 in TLS 1.3 over UDP 443",
+        "WebDAV publishing of every file share through an IIS reverse proxy with basic authentication",
+        "Opening TCP 445 inbound on the corporate firewall restricted to employees' home IP ranges",
+        "DirectAccess with the IP-HTTPS transition technology, deployed from a Windows Server 2012 R2 remote access template kept for compatibility"
+      ],
+      "correct": 0,
+      "explanation": "SMB over QUIC wraps standard SMB in QUIC/TLS 1.3 on UDP 443 — 'SMB VPN-less', traversing firewalls like HTTPS with certificate-based encryption, an Azure Edition flagship feature. Exposing TCP 445 to the internet is the canonical anti-pattern; WebDAV changes the protocol and loses SMB semantics; DirectAccess is deprecated technology pre-dating the requirement.",
+      "tags": [
+        "smb-over-quic",
+        "file-services",
+        "az-800"
+      ],
+      "difficulty": "medium"
+    },
+    {
+      "id": "az800-017",
+      "question": "Users in the Madrid office intermittently authenticate against domain controllers in Sydney, causing slow logons. The DCs are healthy. What is the FIRST thing to verify in Active Directory?",
+      "options": [
+        "That sites and subnet objects are defined correctly so Madrid's IP ranges map to the Madrid site",
+        "That the PDC emulator FSMO role is held by a domain controller physically located in the Madrid office rather than in Sydney",
+        "That universal group membership caching is enabled on the Sydney domain controllers",
+        "That SYSVOL replication has converged by forcing a non-authoritative DFSR restore"
+      ],
+      "correct": 0,
+      "explanation": "DC locator steers clients to their own site's DCs — but only if subnet objects covering the client IP ranges are created and associated with the right site. Missing/wrong subnet mappings are the classic cause of cross-ocean authentication. PDC placement matters for password chaining, not locator behavior; UGMC and SYSVOL repair address different symptoms.",
+      "tags": [
+        "ad-sites",
+        "subnets",
+        "az-800"
+      ],
+      "difficulty": "medium"
+    },
+    {
+      "id": "az800-018",
+      "question": "You administer Server Core installations with no desktop experience. A colleague insists 'you cannot manage them without reinstalling the GUI'. Which combination is the actual management story?",
+      "options": [
+        "Windows Admin Center, PowerShell remoting, RSAT tools from a workstation, and sconfig locally",
+        "Only the keyboard at the physical console, since Server Core blocks all remote management",
+        "Re-running setup to convert to Desktop Experience, which Windows Server 2022 supports in place",
+        "Installing a third-party window manager from the Microsoft Store on the Core host"
+      ],
+      "correct": 0,
+      "explanation": "Server Core is managed remotely by design: WAC in the browser, PowerShell remoting/WinRM, RSAT MMC consoles targeting it from admin workstations, and sconfig for local basics. Remote management is on by default, the Desktop Experience cannot be added in place on 2016+ (reinstall required — the colleague has it backwards), and there is no Store window manager for Core.",
+      "tags": [
+        "server-core",
+        "management",
+        "az-800"
+      ],
+      "difficulty": "easy"
+    },
+    {
+      "id": "az800-019",
+      "question": "A two-site deployment needs volume replication for a file workload where the second site may lag slightly behind, since the WAN round-trip is 40 ms and write latency must stay low at the primary. Which Storage Replica mode is appropriate?",
+      "options": [
+        "Asynchronous replication — writes commit locally and replicate to the remote site shortly after",
+        "Synchronous replication, since it is the only mode Storage Replica supports across sites",
+        "Hyper-V Replica with 30-second replication intervals applied directly to the file server's data volume through the replica broker",
+        "DFS Replication of the volume's block device through a staging folder on each member"
+      ],
+      "correct": 0,
+      "explanation": "Storage Replica async mode acknowledges writes locally and ships log data to the partner continuously — built for higher-latency WANs where sync mode (which waits for the remote write, recommended ≤5 ms RTT) would throttle the application. Both modes exist; Hyper-V Replica replicates VMs, not arbitrary server volumes; DFSR replicates closed files, not blocks, and is unfit for open data sets.",
+      "tags": [
+        "storage-replica",
+        "disaster-recovery",
+        "az-800"
+      ],
+      "difficulty": "medium"
+    },
+    {
+      "id": "az800-020",
+      "question": "DNS zones are accumulating records for machines that no longer exist, breaking some name-based checks. What is the supported mechanism to remove stale records automatically?",
+      "options": [
+        "DNS aging and scavenging, configured on the zone and enabled on the server with appropriate refresh intervals",
+        "Reducing every record's time-to-live to sixty seconds so that stale entries expire out of the zone file and resolver caches quickly",
+        "A nightly script deleting all records older than thirty days regardless of their owner",
+        "Switching the zone from Active Directory-integrated storage to a standard primary file"
+      ],
+      "correct": 0,
+      "explanation": "Aging tracks each dynamically-registered record's last refresh timestamp; scavenging deletes records whose no-refresh + refresh windows have elapsed — the supported lifecycle for dynamic DNS hygiene. TTL governs cache lifetime, not zone contents; blanket deletion scripts kill static records and healthy hosts; zone storage type is orthogonal to staleness.",
+      "tags": [
+        "dns",
+        "scavenging",
+        "az-800"
+      ],
+      "difficulty": "easy"
+    },
+    {
+      "id": "az800-021",
+      "question": "Compliance demands security patches on a fleet of Windows Server 2022 Datacenter: Azure Edition VMs with the fewest possible reboots. Which capability directly reduces reboot frequency for monthly security updates?",
+      "options": [
+        "Hotpatch, applying security updates to in-memory code with reboots only at periodic baselines",
+        "Cluster-Aware Updating with a maintenance window defined for every fourth weekend",
+        "Delivery Optimization peering between the virtual machines so monthly updates download faster within each virtual network segment",
+        "Switching the servers to the Long-Term Servicing Channel to receive fewer updates"
+      ],
+      "correct": 0,
+      "explanation": "Hotpatch (an Azure Edition capability) patches running processes without restarting Windows for most months, requiring reboots only at quarterly baseline updates — directly cutting reboot count. CAU orchestrates reboots across a cluster but doesn't remove them; Delivery Optimization speeds downloads; servicing channels change feature cadence, not security-update reboots.",
+      "tags": [
+        "hotpatch",
+        "azure-edition",
+        "az-800"
+      ],
+      "difficulty": "medium"
+    },
+    {
+      "id": "az800-022",
+      "question": "You must live-migrate VMs between two standalone Hyper-V hosts (no cluster, no shared storage) in the same domain. Which feature and prerequisite make this possible?",
+      "options": [
+        "Shared-nothing live migration, with constrained delegation (or CredSSP) configured for the hosts and migration networks enabled",
+        "Storage migration only — without a cluster, running VMs can never move between hosts",
+        "Quick migration, exporting the VM while suspended and importing it on the destination",
+        "Hyper-V Replica with planned failover and reversed replication, which transparently performs the equivalent of a live migration between the standalone hosts"
+      ],
+      "correct": 0,
+      "explanation": "Shared-nothing live migration moves a running VM and its storage between standalone hosts over the network; it requires migration enabled on both hosts and authentication configured — Kerberos constrained delegation for remote management, or CredSSP with local sign-in. Clusters are not required; quick migration incurs downtime; Replica's planned failover is a brief outage failover, not live migration.",
+      "tags": [
+        "hyper-v",
+        "live-migration",
+        "az-800"
+      ],
+      "difficulty": "hard"
     }
   ]
 }

@@ -3,10 +3,10 @@
     "id": "az-801",
     "name": "Configuring Windows Server Hybrid Advanced Services (AZ-801)",
     "vendor": "Microsoft",
-    "version": "1.0.0",
-    "question_count": 12,
-    "last_updated": "2026-05-27",
-    "notes": "Initial pack — 12 questions across the AZ-801 exam domains: securing Windows Server on-premises and hybrid infrastructures, implementing and managing high availability, disaster recovery, server and workload migration, and monitoring and troubleshooting Windows Server environments."
+    "version": "1.1.0",
+    "question_count": 22,
+    "last_updated": "2026-06-12",
+    "notes": "Initial pack — 12 questions across the AZ-801 exam domains: securing Windows Server on-premises and hybrid infrastructures, implementing and managing high availability, disaster recovery, server and workload migration, and monitoring and troubleshooting Windows Server environments. v1.1: +10 — cloud witness, CAU, AD Recycle Bin, repadmin, ASR test failover, Defender for Identity, SMB signing, Azure Update Manager, Windows LAPS, CSV 5120 triage."
   },
   "questions": [
     {
@@ -236,6 +236,186 @@
         "az-801"
       ],
       "difficulty": "easy"
+    },
+    {
+      "id": "az801-013",
+      "question": "A two-node failover cluster spans two sites with no third site available for a file-share witness. Which quorum witness avoids the need for any additional on-premises infrastructure?",
+      "options": [
+        "A cloud witness using an Azure Storage account as the arbitration point",
+        "A disk witness carved from the replicated SAN LUN shared across both sites",
+        "Node-majority quorum, which two-node clusters use safely without any witness",
+        "A USB witness drive attached to the network switch interconnecting the sites"
+      ],
+      "correct": 0,
+      "explanation": "Cloud witness stores the arbitration blob in Azure Storage — a third vote with no third site, ideal for stretch and two-node clusters. A disk witness on replicated storage can split-brain with the replication itself; two nodes without a witness lose quorum when either node fails (50% is not a majority); a USB-on-switch witness exists for small S2D scenarios with specific hardware, not arbitrary multi-site clusters.",
+      "tags": [
+        "failover-clustering",
+        "cloud-witness",
+        "az-801"
+      ],
+      "difficulty": "medium"
+    },
+    {
+      "id": "az801-014",
+      "question": "Monthly patching of an 8-node Hyper-V cluster is manual: drain a node, patch, reboot, resume, repeat. Which feature automates the whole sequence while keeping workloads online?",
+      "options": [
+        "Cluster-Aware Updating (CAU), orchestrating drain → patch → reboot → failback across nodes automatically",
+        "dcdiag /test:dns /dnsbasic executed against the PDC emulator only, with verbose output redirected to a text file for review",
+        "Hotpatching every node so the cluster never needs any orchestrated reboots again",
+        "Live migration scripts triggered by Windows Update's restart-pending event log entry"
+      ],
+      "correct": 0,
+      "explanation": "CAU is purpose-built: it places each node in maintenance (draining roles via live migration), applies updates, reboots, verifies, and moves to the next node — one node at a time, workloads stay running. Patching all nodes simultaneously takes the cluster down; hotpatch (Azure Edition) reduces but doesn't eliminate reboots and isn't orchestration; homegrown event-triggered scripts are CAU minus the safety logic.",
+      "tags": [
+        "cluster-aware-updating",
+        "patching",
+        "az-801"
+      ],
+      "difficulty": "easy"
+    },
+    {
+      "id": "az801-015",
+      "question": "An administrator accidentally deleted an OU containing 60 user accounts. The AD Recycle Bin was enabled last year. What does recovery look like?",
+      "options": [
+        "Restore the OU and its users with Restore-ADObject (or the Active Directory Administrative Center), attributes and group memberships intact",
+        "Recreate the accounts manually; new SIDs are unavoidable and access must be re-granted",
+        "Perform an authoritative restore from a system state backup after booting a DC into DSRM",
+        "Export the tombstone objects with LDP.exe and reanimate them one at a time, accepting that most attributes and group memberships are lost in the process"
+      ],
+      "correct": 0,
+      "explanation": "With the Recycle Bin enabled, deleted objects retain all attributes (including SID and memberships) for the deleted-object lifetime and restore in place — restore the parent OU first, then the children. Manual recreation and tombstone reanimation lose attributes/SIDs precisely as the distractors describe; DSRM authoritative restores are the legacy path the Recycle Bin makes unnecessary for this case.",
+      "tags": [
+        "ad-recycle-bin",
+        "recovery",
+        "az-801"
+      ],
+      "difficulty": "medium"
+    },
+    {
+      "id": "az801-016",
+      "question": "Logons are slow and some GPOs apply inconsistently. You suspect AD replication problems among nine domain controllers. Which command gives the fastest fleet-wide replication health summary?",
+      "options": [
+        "repadmin /replsummary",
+        "dcdiag /test:dns /dnsbasic against the PDC emulator only",
+        "nltest /dsgetdc:contoso.com from an affected workstation",
+        "Get-ADUser -Filter * piped to Measure-Object on each domain controller"
+      ],
+      "correct": 0,
+      "explanation": "repadmin /replsummary aggregates replication status across all DCs — largest deltas, failure counts and percentages per source/destination — the standard first look. dcdiag's DNS test checks one infrastructure dependency on one DC; nltest finds which DC a client picked; counting users measures nothing about replication convergence.",
+      "tags": [
+        "ad-replication",
+        "repadmin",
+        "az-801"
+      ],
+      "difficulty": "medium"
+    },
+    {
+      "id": "az801-017",
+      "question": "Auditors require proof that the Azure Site Recovery DR plan for on-premises VMs actually works — WITHOUT disrupting production replication or the running workloads. What does ASR provide for this?",
+      "options": [
+        "Test failover, booting isolated copies of the VMs in Azure from recovery points while replication continues",
+        "Planned failover executed during business hours with immediate failback afterwards",
+        "Pausing replication for the duration of the audit and presenting the auditors with the most recent replication health report from the vault",
+        "Deleting and re-enabling replication to demonstrate the initial seeding completes"
+      ],
+      "correct": 0,
+      "explanation": "Test failover spins the replicated VMs up in an isolated Azure network from a chosen recovery point — production and ongoing replication untouched — then cleans up, producing exactly the audit evidence required (and ASR best practice says run it regularly). Planned failover is a real cutover with downtime; pausing replication or re-seeding proves nothing about recoverability.",
+      "tags": [
+        "azure-site-recovery",
+        "dr-testing",
+        "az-801"
+      ],
+      "difficulty": "easy"
+    },
+    {
+      "id": "az801-018",
+      "question": "The security team wants detection of identity attacks — Pass-the-Ticket, DCSync, lateral movement reconnaissance — based on domain controller traffic and events. Which Microsoft solution provides these detections?",
+      "options": [
+        "Microsoft Defender for Identity, with sensors installed on the domain controllers",
+        "Microsoft Defender Antivirus with cloud-delivered protection set to the High level",
+        "AppLocker policies in audit mode forwarding events to a central collector server",
+        "Windows Firewall with Advanced Security logging dropped packets on the DC subnet"
+      ],
+      "correct": 0,
+      "explanation": "Defender for Identity sensors parse DC network traffic and events to detect credential-theft tradecraft: DCSync replication abuse, Pass-the-Hash/Ticket, suspicious LDAP/Kerberos reconnaissance, and lateral movement paths. Antivirus catches malware on endpoints, AppLocker constrains executables, firewall logs show traffic — none model identity-protocol attack behavior.",
+      "tags": [
+        "defender-for-identity",
+        "security",
+        "az-801"
+      ],
+      "difficulty": "medium"
+    },
+    {
+      "id": "az801-019",
+      "question": "A penetration test relayed SMB connections to a file server because clients negotiated unsigned sessions. Which hardening closes SMB relay on Windows Server 2022?",
+      "options": [
+        "Requiring SMB signing (and where supported, SMB encryption) via policy on servers and clients",
+        "Migrating all shares from SMB to NFS exports with anonymous UID mapping disabled",
+        "Restricting SMB to the IPv6 protocol, which embeds cryptographic flow protection",
+        "Renaming the administrative shares on every file server so that automated relay tooling cannot guess the target paths it needs"
+      ],
+      "correct": 0,
+      "explanation": "Relay works because an attacker can forward authentication to a server that accepts unsigned sessions; mandatory SMB signing makes relayed sessions fail integrity checks, and SMB 3.1.1 encryption goes further. NFS swaps the protocol rather than fixing authentication; IPv6 provides no such inherent protection; share names are irrelevant to relaying credentials.",
+      "tags": [
+        "smb-hardening",
+        "relay-attacks",
+        "az-801"
+      ],
+      "difficulty": "medium"
+    },
+    {
+      "id": "az801-020",
+      "question": "200 on-premises and AWS-hosted Windows servers are Azure Arc-enabled. Compliance needs one view of missing OS updates across all of them, with scheduled patch deployments. Which Azure service delivers this?",
+      "options": [
+        "Azure Update Manager, assessing and patching Arc-enabled machines alongside Azure VMs",
+        "Microsoft Intune, enrolling each server through the Company Portal application",
+        "Azure Policy guest configuration assignments auditing the WSUS-related registry keys and update agent settings on every server",
+        "Windows Server Update Services replicated to one upstream server per environment"
+      ],
+      "correct": 0,
+      "explanation": "Azure Update Manager (successor to Automation Update Management) provides update assessment, one-off and scheduled deployments, and compliance reporting across Azure VMs and Arc-connected machines wherever they run. Intune targets client endpoints, not server patch orchestration; Policy guest configuration audits settings rather than deploying updates; WSUS federates content but not the unified cloud view.",
+      "tags": [
+        "azure-update-manager",
+        "arc",
+        "az-801"
+      ],
+      "difficulty": "easy"
+    },
+    {
+      "id": "az801-021",
+      "question": "Every member server keeps a permanently enabled local Administrator account for break-glass use. Security wants each password unique, rotated automatically, escrowed centrally, with retrieval audited. What is the current Microsoft solution?",
+      "options": [
+        "Windows LAPS, escrowing managed local administrator passwords to Active Directory or Microsoft Entra ID with rotation and audited retrieval",
+        "A domain Group Policy preference that sets one strong local Administrator password identically across all member servers from a central XML definition",
+        "Disabling the local Administrator account everywhere and relying on domain accounts only",
+        "Storing per-server passwords in a shared Excel workbook on the administrative file share"
+      ],
+      "correct": 0,
+      "explanation": "Windows LAPS (built into current Windows Server) manages the local admin password per machine: random, rotated on schedule, escrowed to AD or Entra ID, ACL/role-gated retrieval with auditing, plus post-use rotation. Identical GPO-set passwords enable lateral movement (and setting passwords via GPP is deprecated as plaintext-recoverable); disabling local admin removes break-glass; spreadsheets are the anti-pattern LAPS replaces.",
+      "tags": [
+        "windows-laps",
+        "credential-hygiene",
+        "az-801"
+      ],
+      "difficulty": "easy"
+    },
+    {
+      "id": "az801-022",
+      "question": "After a SAN firmware update, a CSV-backed Hyper-V cluster logs event 5120 (STATUS_IO_TIMEOUT) and VMs briefly pause during storage path failovers. Which diagnostic sequence is most appropriate FIRST?",
+      "options": [
+        "Validate MPIO path health and SAN fabric (Get-MPIOStatistics, fabric logs), then run the cluster Validate-Storage tests in a maintenance window",
+        "Evict each node in turn and rebuild the cluster from scratch with fresh storage LUNs",
+        "Disable the CSV block cache on all cluster shared volumes immediately, since read caching is the documented root cause of 5120 timeout events",
+        "Convert the CSVs to ReFS immediately, because NTFS cannot recover from I/O timeouts"
+      ],
+      "correct": 0,
+      "explanation": "Event 5120 means a CSV lost its direct I/O path and redirected — after SAN firmware changes, the suspects are multipath and fabric: check MPIO path states and SAN-side errors, then validate storage in a controlled window. Rebuilding the cluster destroys evidence and uptime for no diagnosis; CSV cache is not the documented cause; the filesystem choice is unrelated to path timeouts.",
+      "tags": [
+        "failover-clustering",
+        "csv-troubleshooting",
+        "az-801"
+      ],
+      "difficulty": "hard"
     }
   ]
 }

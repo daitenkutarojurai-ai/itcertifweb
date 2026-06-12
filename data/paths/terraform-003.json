@@ -147,16 +147,16 @@
                 "right": "`templatefile(path, vars)`"
               },
               {
-                "left": "A configuration has `var.users` = list of objects. It needs ONLY the admin names",
-                "right": "List/map comprehension"
-              },
-              {
                 "left": "A data-source query may return 0 or 1 results, and accessing it directly errors ",
                 "right": "`one(list)`"
               },
               {
-                "left": "A `sensitive = true` value should APPEAR in a `null_resource` provisioner comman",
-                "right": "Explicitly removes the `"
+                "left": "Inside a variable validation you want to test whether `var.config.deeply.nested.",
+                "right": "`can(expression)`"
+              },
+              {
+                "left": "HCL EXPRESSIONS include: literal values (strings, numbers, booleans, lists, maps",
+                "right": "Expressions include"
               }
             ]
           },
@@ -295,10 +295,6 @@
           "data": {
             "pairs": [
               {
-                "left": "An engineer runs `terraform init` in a fresh clone of an infrastructure-as-code ",
-                "right": "Initialises a working directory"
-              },
-              {
                 "left": "A team wants to PREVIEW Terraform changes before applying them. The command buil",
                 "right": "`terraform plan`"
               },
@@ -317,6 +313,10 @@
               {
                 "left": "A pipeline must capture the VPC ID produced by Terraform and pass it to a downst",
                 "right": "`terraform output`"
+              },
+              {
+                "left": "An admin wants to inspect the contents of a state file or a saved plan in a huma",
+                "right": "`terraform show`"
               }
             ]
           },
@@ -421,8 +421,8 @@
               {
                 "q": "How does Terraform know which real-world infrastructure already exists, detect drift, and plan deletions between runs?",
                 "choices": [
-                  "By re-discovering every resource through the provider API on each run",
                   "From the `.terraform/` provider-plugin cache in the working directory",
+                  "By re-discovering every resource through the provider API on each run",
                   "From the state file, which maps configuration resources to real infrastructure IDs",
                   "From a log file Terraform appends to after each apply"
                 ],
@@ -433,64 +433,64 @@
                 "q": "Terraform automatically writes the PREVIOUS state to a sibling file before each state-mutating operation. If a state save is corrupted or accidentally rolled back, the previous version can be restored. The file name uses a `.backup` suffix. Which file?",
                 "choices": [
                   "Provider download cache",
-                  "`terraform.tfstate.backup`",
+                  "Manual backup",
                   "Config backup",
-                  "Manual backup"
+                  "`terraform.tfstate.backup`"
                 ],
-                "correctIndex": 1,
+                "correctIndex": 3,
                 "explanation": "tfstate.backup: created before terraform apply modifies state. Contains state from before this apply. One-level safety net. For teams: use remote state with versioning (S3 with versioning enabled, Terraform Cloud). terraform state commands modify state — always backup first with: terraform state pull > backup.tfstate."
               },
               {
                 "q": "A platform team has 5 engineers all running `terraform apply` against the same configuration. With LOCAL state, two simultaneous applies corrupt the state file. The fix: store state in a SHARED REMOTE BACKEND (S3 + DynamoDB lock, or Terraform Cloud, etc.) with encryption + access control. Which describes remote state + its value?",
                 "choices": [
-                  "Requires Terraform Enterprise",
-                  "CI/CD only",
-                  "Local state with git — anti-pattern; state contains secrets and resource IDs; a shared backend (S3, GCS, Consul) is needed so the whole team reads the same cloud state",
-                  "Store `terraform.tfstate` in a shared backend (S3, GCS, Azure Blob, Consul, Terraform Cloud)"
+                  "Run Terraform exclusively from a CI/CD pipeline owned by one engineer",
+                  "Commit the local .tfstate file to git so everyone can pull the latest version",
+                  "Store terraform.tfstate in a shared backend such as S3+DynamoDB or Terraform Cloud",
+                  "Upgrade every workstation to Terraform Enterprise edition for state sharing"
                 ],
-                "correctIndex": 3,
-                "explanation": "Remote state backends: S3+DynamoDB (AWS), Azure Blob + Table, GCS, Terraform Cloud, Consul. DynamoDB: state locking (prevents concurrent applies). S3 versioning: state history. terraform_remote_state: read outputs from another state. Configure: terraform { backend 'S3' { bucket, key, region, dynamodb_table } }. Azure Storage, GCS, Terraform Cloud) instead of locally — enables: team collaboration (all members access same state), state locking (prevent concurrent applies), state versioning, access control, and cross-workspace state sharing via remote state data source"
+                "correctIndex": 2,
+                "explanation": "Remote state backends: S3+DynamoDB (AWS), Azure Blob + Table, GCS, Terraform Cloud, Consul. DynamoDB: state locking (prevents concurrent applies). S3 versioning: state history. terraform_remote_state: read outputs from another state. Configure: terraform { backend 'S3' { bucket, key, region, dynamodb_table } }. Azure Storage, GCS, Terraform Cloud) instead of locally — enables: team collaboration (all members access same state), state locking (prevent concurrent applies), state versioning, access control, and cross-workspace state sharing via remote state data source Why the distractors are wrong — B: Anti-pattern; state contains secrets and resource IDs; a shared backend (S3, GCS, Consul) is needed so the whole team reads the same cloud state."
               },
               {
                 "q": "Two engineers `terraform apply` simultaneously against the SAME remote state. Without protection their applies could race and corrupt state. The backend supports a LOCK — first apply acquires it (via DynamoDB lease, GCS atomic write, etc.), the second apply WAITS or fails. Lock released on apply completion. Which describes state locking?",
                 "choices": [
-                  "Team workspaces only",
-                  "Permanent",
-                  "Terraform Cloud only",
-                  "Triggered automatically on any state-mutating operation (plan,"
+                  "Acquired automatically on every state-mutating run such as plan or apply",
+                  "Held permanently once granted until manually released by an administrator",
+                  "Only available on Terraform Cloud and not on backends such as S3+DynamoDB",
+                  "Restricted to team workspaces and unavailable in personal workspaces"
                 ],
-                "correctIndex": 3,
+                "correctIndex": 0,
                 "explanation": "State locking: supported by most remote backends (S3+DynamoDB, Azure Blob, GCS, Terraform Cloud). Local backend: no locking. Lock timeout: -lock-timeout=10m. If lock not released (crash): force-unlock with ID from error message. Concurrent applies: second apply waits or fails depending on backend configuration. destroy, state operations), Terraform acquires a lock — prevents concurrent operations from corrupting state. With DynamoDB backend: creates lock entry. Lock released after operation completes. Force unlock: terraform force-unlock LOCK_ID (use with caution)"
               },
               {
                 "q": "A `terraform { backend \"s3\" { bucket = … key = … } }` block defines WHERE Terraform stores state and (optionally) WHERE plan / apply RUN. Default is `local` (state in `terraform.tfstate`). Remote backends include `s3`, `azurerm`, `gcs`, `consul`, `kubernetes`, `remote` (Terraform Cloud / Enterprise). Which describes a backend?",
                 "choices": [
-                  "Cloud provider API",
-                  "Module registry",
-                  "Provider API endpoint",
-                  "Backend = where Terraform stores state and"
+                  "Backend means the cloud provider's REST API endpoint that Terraform calls",
+                  "Backend defines where Terraform stores state and where runs execute",
+                  "Backend is the module registry from which sources are downloaded",
+                  "Backend is the provider's API endpoint receiving resource CRUD calls"
                 ],
-                "correctIndex": 3,
+                "correctIndex": 1,
                 "explanation": "Backends: local backend (default — state in working directory). Remote backends: store state centrally. Enhanced backends (Terraform Cloud): also run operations remotely. Partial configuration: sensitive backend config (credentials) via env vars or -backend-config file (not committed to VCS). Migration: terraform init -migrate-state copies state to new backend. for some backends, where operations (plan/apply) run. Types: local (default, .tfstate file), remote (Terraform Cloud), S3, Azure Blob, GCS, Consul, HTTP. Backend configuration in terraform block. Switching backends: terraform init -reconfigure or -migrate-state"
               },
               {
                 "q": "A team refactors: `aws_instance.web` moves under `module.web_tier`. They want to UPDATE STATE (no real cloud destroy / create) — the resource is the same physical instance. `terraform state mv aws_instance.web module.web_tier.aws_instance.web` rewrites the state in place. The MODERN alternative is a `moved` block in code. Which describes `state mv`?",
                 "choices": [
-                  "Migrates backend",
-                  "Moves resource to region",
-                  "Moves tfstate file",
-                  "Moves a resource WITHIN state from one"
+                  "Moves the on-disk terraform.tfstate file from one directory to another",
+                  "Moves a resource WITHIN state from one address to another without recreating it",
+                  "Migrates the configured backend from one type to another preserving state",
+                  "Moves a deployed resource between cloud regions without recreating it"
                 ],
-                "correctIndex": 3,
+                "correctIndex": 1,
                 "explanation": "state mv: terraform state mv aws_instance.web module.web.aws_instance.main. Renames in state only, no API calls. Prerequisite: update configuration to use new name/path, then terraform state mv to match. After mv: terraform plan should show 0 changes. Alternative: moved block (declarative approach in 1.1+). changes the address Terraform uses to track it. Use cases: rename resource in code (avoid destroy+recreate), move resource into a module, adopt imported resources. Run before applying code changes that rename resources"
               },
               {
                 "q": "Two backend-state CLI subcommands. `terraform state pull` — DOWNLOADS the current state from the remote backend, prints to stdout (or pipe to file). `terraform state push <file>` — UPLOADS a state file to the remote backend (DANGEROUS: overwrites without lock by default; only with `-force` if state version mismatched). Which describes them?",
                 "choices": [
-                  "Downloads providers",
-                  "`state pull` downloads remote state to",
-                  "Pulls modules",
-                  "Syncs automatically"
+                  "Both commands are deprecated wrappers around terraform refresh",
+                  "state pull downloads remote state and state push uploads a local file",
+                  "Both commands manage module downloads from the registry",
+                  "Both commands re-download providers from the registry to local cache"
                 ],
                 "correctIndex": 1,
                 "explanation": "state pull: terraform state pull > state-backup.json. Good for: backing up state before risky operations, reading state programmatically. state push: terraform state push state-backup.json — overwrites remote state. Dangerous: only use for: recovering from corrupted state, migrating state manually. Lock: pull/push respect state locking. Better alternative: use backend migration (terraform init -migrate-state). use for: inspection, backup, migration. state push: uploads local state to remote backend — use carefully, can overwrite remote state. Force push: -force flag if serial number mismatch"
@@ -498,13 +498,13 @@
               {
                 "q": "You want Terraform to STOP tracking a resource while leaving the real infrastructure running untouched (not deleted). Which command does that?",
                 "choices": [
-                  "`terraform destroy -target` — removes it from state and deletes the real resource",
-                  "`terraform refresh` — reconciles state with the real infrastructure",
-                  "`terraform untaint` — clears a forced-replacement mark on the resource",
-                  "`terraform state rm` — drops it from state; the real resource keeps running"
+                  "`terraform destroy -target`",
+                  "`terraform state rm`",
+                  "`terraform untaint`",
+                  "`terraform refresh`"
                 ],
-                "correctIndex": 3,
-                "explanation": "terraform state rm removes the resource from state only; the real object keeps running, now unmanaged. destroy -target actually deletes the infrastructure. refresh updates state to match reality but keeps managing the resource. untaint only clears a taint mark and changes nothing about tracking."
+                "correctIndex": 1,
+                "explanation": "terraform state rm removes the resource from state only; the real object keeps running, now unmanaged. destroy -target actually deletes the infrastructure. refresh updates state to match reality but keeps managing the resource. untaint only clears a taint mark and changes nothing about tracking. drops it from state; the real resource keeps running. Why the distractors are wrong — A: Removes it from state and deletes the real resource. C: Clears a forced-replacement mark on the resource. D: Reconciles state with the real infrastructure."
               }
             ]
           },
@@ -587,21 +587,21 @@
               {
                 "q": "A `terraform` block declares `required_providers { aws = { source = \"hashicorp/aws\"; version = \"~> 5.0\" } }`. The version constraint uses operators: `=` exact, `!=` exclude, `>`, `>=`, `<`, `<=`, `~>` (pessimistic — major.minor pinned, patch free). Which describes Terraform provider version constraints?",
                 "choices": [
-                  "Auto-selected",
-                  "Major only",
-                  "No pinning",
-                  "Constraint operators"
+                  "Constraint operators such as =, !=, >, <, >=, <=, ~> for version pinning",
+                  "Auto-selected by Terraform with no way to pin a specific version",
+                  "No version pinning is supported and the latest provider is always installed",
+                  "Only major version numbers can be pinned, not minor or patch versions"
                 ],
-                "correctIndex": 3,
+                "correctIndex": 0,
                 "explanation": "Version constraints: ~>3.0 (>=3.0, <4.0 — allow minor but not major). ~>3.2.0 (>=3.2.0, <3.3.0 — allow patch only). Best practice: pin major version (~>3.0), allow minor updates. Lock file: .terraform.lock.hcl records exact version used — commit to VCS for reproducibility. terraform init -upgrade: update to latest matching."
               },
               {
                 "q": "Terraform writes a LOCKFILE `.terraform.lock.hcl` after `init`. It pins the EXACT version + SHA-256 checksums of every provider downloaded. Subsequent `init`s on other machines / CI verify the same versions + checksums — preventing silent provider upgrades + supply-chain swaps. Should be COMMITTED to version control. Which describes it?",
                 "choices": [
-                  "Debug log",
-                  "Local override",
-                  "State cache",
-                  "Dependency lockfile"
+                  "State cache that keeps a local copy of remote state for performance",
+                  "Debug log file written by Terraform when TF_LOG is enabled",
+                  "Local provider override file that points init at on-disk plugin binaries",
+                  "Dependency lockfile that pins exact provider versions and checksums"
                 ],
                 "correctIndex": 3,
                 "explanation": "Lock file: introduced in Terraform 0.14. Records: provider version, constraints, checksums (sha256 hashes for all platforms). Commit to version control — ensures all team members and CI use identical provider versions. terraform init -upgrade: updates to latest matching versions, regenerates lock file. Never manually edit."
@@ -609,67 +609,67 @@
               {
                 "q": "A Terraform configuration needs to deploy AWS resources in TWO regions (us-east-1 + eu-west-1). Without intervention only ONE `aws` provider config can exist per module. Provider ALIASES let you declare multiple configurations of the same provider type. Resources select via `provider = aws.east`. Which describes aliases?",
                 "choices": [
-                  "Version aliases",
-                  "Alternate names",
-                  "Allow using the same provider",
-                  "Optional names"
+                  "Provider aliases are optional display names that show in the CLI logs",
+                  "Provider aliases are alternate vendor brands selectable at apply time",
+                  "Provider aliases are version-pin labels recorded in the dependency lock",
+                  "Provider aliases let the same provider be declared multiple times with different configs"
                 ],
-                "correctIndex": 2,
+                "correctIndex": 3,
                 "explanation": "Provider aliases: default provider (no alias), aliased providers (explicit alias). Resources use aliased provider: resource 'aws_instance' 'replica' { provider = aws.us-west }. Use cases: multi-region deployments, different accounts (dev/prod), different organizations. Modules inherit provider from root unless configured with providers argument."
               },
               {
                 "q": "A team using Terraform across Linux + macOS + Windows wants the lockfile (`.terraform.lock.hcl`) to record checksums for ALL THREE OS platforms — so CI/CD on Linux + dev on Mac + ops on Windows verify against the same lock. `terraform providers lock -platform=linux_amd64 -platform=darwin_arm64 -platform=windows_amd64` adds those platforms' checksums. Which describes the command?",
                 "choices": [
-                  "Prevents updates",
-                  "Disables auto-update",
-                  "Adds / updates provider checksums",
-                  "Locks Terraform version"
+                  "Locks Terraform to the current providers and rejects future updates entirely",
+                  "Adds or updates provider checksums for the requested OS/arch platforms",
+                  "Pins the Terraform CLI version that must run against the configuration",
+                  "Disables provider auto-update so init never refreshes lockfile checksums"
                 ],
-                "correctIndex": 2,
+                "correctIndex": 1,
                 "explanation": "terraform providers lock: update lock file with checksums for specified platforms. Use when: team uses Mac (arm64) + CI uses Linux (amd64) — run providers lock for both platforms so lock file works everywhere. Also: providers mirror (cache providers), providers schema (show schema), providers list (show configured providers)."
               },
               {
                 "q": "An ENTERPRISE in a RESTRICTED NETWORK (no internet from infra runners) needs Terraform providers but can't fetch from `registry.terraform.io`. They run `terraform providers mirror /local/mirror` on a connected host, copy the directory to the air-gapped network, then configure Terraform CLI to use the local mirror via `.terraformrc` or `terraform { provider_installation { … } }`. Which describes it?",
                 "choices": [
-                  "Provider backup",
-                  "Clones provider repo",
-                  "Downloads provider plugins to a local",
-                  "Duplicates provider config"
+                  "Downloads provider plugins to a local mirror directory for air-gapped use",
+                  "Duplicates the provider configuration block across every module file",
+                  "Clones the upstream provider git repo into the working directory",
+                  "Backs up the currently installed provider plugins to a tarball"
                 ],
-                "correctIndex": 2,
+                "correctIndex": 0,
                 "explanation": "terraform providers mirror /path/to/mirror: downloads providers to local directory. Configure in ~/.terraformrc or %APPDATA%/terraform.rc: provider_installation { filesystem_mirror { path='/path/to/mirror', include=['registry.terraform.io/*/*'] }, direct { exclude=['registry.terraform.io/*/*'] } }. For air-gapped environments, regulated networks, or offline CI/CD."
               },
               {
                 "q": "A configuration uses the `aws` provider plus a custom third-party provider. Where do you declare each provider's source address and version constraint so `terraform init` can download and lock them?",
                 "choices": [
-                  "In a `provider` block, one per provider, at the configuration root",
-                  "In a `required_providers` block inside the `terraform` block",
+                  "In the generated `.terraform.lock.hcl`, edited by hand",
                   "In the `backend` block alongside the state-storage settings",
-                  "In the generated `.terraform.lock.hcl`, edited by hand"
+                  "In a `provider` block, one per provider, at the configuration root",
+                  "In a `required_providers` block inside the `terraform` block"
                 ],
-                "correctIndex": 1,
+                "correctIndex": 3,
                 "explanation": "required_providers (inside the terraform block) names each provider's source and version so init can fetch and lock them. A provider block configures an already-declared provider (region, credentials) — it does not declare source/version. The backend block configures state storage. The lock file is generated from required_providers, not hand-authored."
               },
               {
                 "q": "A configuration needs UNIQUE random suffixes for resource names (avoid name collisions across re-applies). `hashicorp/random` provider provides `random_id`, `random_string`, `random_password`, `random_uuid`, `random_pet`, `random_shuffle` resources. Values are generated ONCE at create + stored in state (stable across applies until destroy / recreate). Which describes it?",
                 "choices": [
-                  "Random infrastructure",
-                  "Shuffle provider",
-                  "Generates random values (strings, integers,",
-                  "Test framework"
+                  "A test framework that asserts random sample values during plan",
+                  "A provider that generates random values such as strings, ids, passwords",
+                  "A meta-provider that randomly picks the upstream cloud provider per apply",
+                  "A provider that shuffles already-deployed infrastructure between regions"
                 ],
-                "correctIndex": 2,
+                "correctIndex": 1,
                 "explanation": "random_string: generates random alphanumeric string. random_id: generates random bytes in hex/base64. random_password: generates strong password. random_integer: random number in range. These resources are stable after creation (don't regenerate on each apply unless keepers change). integers, UUIDs, passwords) within Terraform configurations — commonly used for: unique resource names (S3 buckets, database passwords), avoiding naming conflicts, generating entropy for resources that require unique IDs"
               },
               {
                 "q": "A managed DB takes ~5 minutes to become usable after it reports 'created', and a dependent resource fails if it proceeds too early. Which inserts a fixed delay between resource creations?",
                 "choices": [
-                  "A `timeouts { create = \"5m\" }` block on the DB resource",
                   "A `retry` block that re-runs the dependent resource until the DB is ready",
-                  "Raising `-parallelism` so the DB finishes before its dependents",
-                  "The `time_sleep` resource from the `hashicorp/time` provider, with `create_duration`"
+                  "A `timeouts { create = \"5m\" }` block on the DB resource",
+                  "The `time_sleep` resource from the `hashicorp/time` provider, with `create_duration`",
+                  "Raising `-parallelism` so the DB finishes before its dependents"
                 ],
-                "correctIndex": 3,
+                "correctIndex": 2,
                 "explanation": "time_sleep (hashicorp/time) creates a resource whose only effect is a configurable delay, wired with depends_on. A timeouts block caps how long Terraform waits for the DB's own creation, not an extra delay for dependents. Terraform has no retry block, and -parallelism controls concurrency, not ordering delays."
               }
             ]
@@ -757,16 +757,16 @@
                 "right": "Module inputs"
               },
               {
-                "left": "The Terraform Registry hosts modules under a 3-part name + provider format: `mod",
-                "right": "`<NAMESPACE>/<MODULE>/<PROVIDER>"
-              },
-              {
                 "left": "A team consumes a MODULE published in a private git repository. The `source` arg",
                 "right": "Git source"
               },
               {
                 "left": "A Terraform module's STANDARD file layout: `main.tf` (resources + data sources),",
                 "right": "Standard module layout"
+              },
+              {
+                "left": "A platform team builds infrastructure from focused modules — `vpc`, `eks`, `rds`",
+                "right": "Composition"
               }
             ]
           },
@@ -847,22 +847,22 @@
                 "q": "A reusable module separates WHERE input variables are declared (type, default, validation) from WHERE their values are assigned per environment. Which mapping is correct?",
                 "choices": [
                   "`variables.tf` assigns values; `*.tfvars` declares the variables",
-                  "`outputs.tf` declares the variables; `terraform.tfstate` assigns them",
+                  "`variables.tf` declares the variables; `*.tfvars` files assign their values",
                   "Both files declare variables; values can come only from the CLI",
-                  "`variables.tf` declares the variables; `*.tfvars` files assign their values"
+                  "`outputs.tf` declares the variables; `terraform.tfstate` assigns them"
                 ],
-                "correctIndex": 3,
+                "correctIndex": 1,
                 "explanation": "variables.tf holds variable blocks (type, default, description, validation); *.tfvars (and *.auto.tfvars) supply concrete values per environment. The reversed mapping is wrong. outputs.tf exports values and state is not an input source. Values can come from tfvars, -var, or env vars — not only the CLI."
               },
               {
                 "q": "A variable `environment` must accept only `dev`, `staging`, or `prod`, rejecting any other value at plan time with a clear message. Which Terraform feature enforces this?",
                 "choices": [
-                  "A `validation` block with a `condition` and `error_message`",
+                  "Marking the variable `sensitive = true` so bad values are hidden",
                   "Setting `type = string` so Terraform rejects any non-string input",
-                  "A `default` value that lists the three allowed environments",
-                  "Marking the variable `sensitive = true` so bad values are hidden"
+                  "A `validation` block with a `condition` and `error_message`",
+                  "A `default` value that lists the three allowed environments"
                 ],
-                "correctIndex": 0,
+                "correctIndex": 2,
                 "explanation": "A validation block (condition = contains([\"dev\",\"staging\",\"prod\"], var.environment)) fails the plan with its error_message when the value is out of range. type = string only checks that the input is a string, not which strings are allowed. A default is just the fallback when no value is supplied — it never restricts what a user can pass. sensitive only hides the value in output; it performs no validation."
               },
               {
@@ -879,12 +879,12 @@
               {
                 "q": "A Terraform variable type set to `any` accepts a value of ANY type. Terraform infers the actual type from the value provided. Useful for generic helpers, but loses static type-checking. Better practice: use SPECIFIC types when possible. Which describes `any`?",
                 "choices": [
-                  "Special type constraint",
-                  "Disables type-checking",
                   "Object",
-                  "List"
+                  "Disables type-checking",
+                  "List",
+                  "Special type constraint"
                 ],
-                "correctIndex": 0,
+                "correctIndex": 3,
                 "explanation": "any: variable 'config' { type=any }. Accepts any type — list, map, string, object, etc. Use sparingly: loses type checking benefits. Useful for: pass-through variables that just forward to another module, complex dynamic structures where type varies. Prefer specific types with optional() for structured optional fields."
               },
               {
@@ -901,13 +901,13 @@
               {
                 "q": "A `variable` block needs to reject any value the caller passes that isn't an SSH-compatible CIDR (must match the regex `^\\d+\\.\\d+\\.\\d+\\.\\d+\\/\\d+$`). The check should run at plan time and fail with a clear message before any resource is touched. Which Terraform feature implements this?",
                 "choices": [
-                  "An `assert` block at the root module level — `assert` is not a valid top-level Terraform block; the correct way to enforce a constraint with a custom error_message on a variable is a `validation` block inside the variable declaration",
-                  "A `validation { condition = … error_message = … }` block on the variable",
                   "A `precondition` block inside every resource that reads the variable",
+                  "A `validation { condition = … error_message = … }` block on the variable",
+                  "An `assert` block at the root module level",
                   "A `lifecycle { prevent_destroy = true }` block, which validates inputs"
                 ],
                 "correctIndex": 1,
-                "explanation": "Variable-level validation lives inside the variable block itself: `validation { condition = can(regex(\"^…\", var.cidr)); error_message = \"…\" }`. It fires at plan time. There is no `assert` block. `precondition`/`postcondition` are lifecycle features for resources and outputs (1.2+) and don't gate variable values directly. `prevent_destroy` only blocks destroy operations."
+                "explanation": "Variable-level validation lives inside the variable block itself: `validation { condition = can(regex(\"^…\", var.cidr)); error_message = \"…\" }`. It fires at plan time. There is no `assert` block. `precondition`/`postcondition` are lifecycle features for resources and outputs (1.2+) and don't gate variable values directly. `prevent_destroy` only blocks destroy operations. Why the distractors are wrong — C: `assert` is not a valid top-level Terraform block; the correct way to enforce a constraint with a custom error_message on a variable is a `validation` block inside the variable declaration."
               }
             ]
           },
@@ -977,10 +977,10 @@
               {
                 "q": "HashiCorp Terraform Cloud is a managed SaaS that provides BEYOND open-source Terraform: (1) shared remote state with locking, (2) remote plan + apply execution (so secrets stay in the platform), (3) policy as code (Sentinel / OPA), (4) cost estimation, (5) VCS integration (auto-plan on PR, apply on merge), (6) team-based RBAC + audit, (7) private module registry. Which describes Terraform Cloud?",
                 "choices": [
-                  "Just hosting",
-                  "Managed Terraform service providing",
-                  "Enterprise only",
-                  "Monitoring platform"
+                  "A monitoring platform for observing running cloud workloads in real time",
+                  "Managed Terraform service offering remote state, runs, policies, and SSO",
+                  "Enterprise-only paid edition of the Terraform CLI binary",
+                  "A pure file-hosting service for storing the .tfstate file in the cloud"
                 ],
                 "correctIndex": 1,
                 "explanation": "Terraform Cloud (free tier available): remote state, remote execution (runs in HashiCorp infrastructure), VCS integration (GitHub/GitLab), cost estimation, private module registry. Teams: per-workspace access control, review and approval workflows. Terraform Enterprise: self-hosted version for air-gapped environments or compliance requirements."
@@ -988,20 +988,20 @@
               {
                 "q": "A team uses Terraform Cloud as their `remote` backend. From a developer laptop they run `terraform apply`. Instead of running plan and apply locally, the CLI uploads the configuration, Terraform Cloud executes plan + apply in its own remote execution environment, then streams output back to the CLI. What is this workflow called?",
                 "choices": [
-                  "Speculative-only plans — the CLI-driven workflow means TFC executes the full plan and apply on its own infrastructure and streams output to the terminal; speculative plans are a separate concept",
-                  "Local execution mode — Terraform Cloud is used only for state storage",
-                  "CLI-driven run workflow — TFC executes plan + apply and streams output",
-                  "Agent pool execution — only available with self-hosted Terraform Enterprise"
+                  "Local execution mode",
+                  "CLI-driven run workflow",
+                  "Agent pool execution",
+                  "Speculative-only plans"
                 ],
-                "correctIndex": 2,
-                "explanation": "The CLI-driven run workflow uses `cloud {}` (or the legacy `remote` backend) to trigger a remote run in Terraform Cloud whenever the developer types `terraform plan` or `apply` locally. Provider credentials live in TFC, the plan and apply execute there, and logs stream back. Local-execution mode is the alternative where TFC only stores state. Speculative plans run on PRs in the VCS-driven workflow. Agent pools relate to private network targets."
+                "correctIndex": 1,
+                "explanation": "The CLI-driven run workflow uses `cloud {}` (or the legacy `remote` backend) to trigger a remote run in Terraform Cloud whenever the developer types `terraform plan` or `apply` locally. Provider credentials live in TFC, the plan and apply execute there, and logs stream back. Local-execution mode is the alternative where TFC only stores state. Speculative plans run on PRs in the VCS-driven workflow. Agent pools relate to private network targets. TFC executes plan + apply and streams output. Why the distractors are wrong — A: Local-execution mode means TFC stores only the state and the actual plan/apply runs on the developer laptop. C: Agent-pool execution is reserved for self-hosted runners reaching private network targets. D: Speculative-only plans are the VCS-driven PR workflow that never applies to real infrastructure."
               },
               {
                 "q": "HashiCorp ships THREE tiers of Terraform. (OSS) Free CLI, local plan / apply, no shared state or governance. (Cloud) Managed SaaS — remote state, remote runs, free tier + paid teams + governance. (Enterprise) On-prem deployment — same features as Cloud + private installation. Which describes the distinction?",
                 "choices": [
-                  "Enterprise = bigger Cloud",
-                  "OSS = all Cloud features",
                   "Pricing only",
+                  "OSS = all Cloud features",
+                  "Enterprise = bigger Cloud",
                   "OSS: free CLI, local operations,"
                 ],
                 "correctIndex": 3,
@@ -1011,33 +1011,33 @@
                 "q": "Terraform Cloud supports a VCS-driven workflow. A TFC workspace is connected to a GitHub, GitLab, or Bitbucket repository. Pull requests trigger speculative plans whose output is posted as a PR comment; merges to the default branch trigger applies (auto or with a manual gate). Drift detection runs on a schedule. Which describes this workflow?",
                 "choices": [
                   "Apply runs only when CLI is invoked locally",
-                  "TFC's CLI-only workflow — apply happens on each developer's machine",
-                  "TFC's VCS-driven workflow — PRs speculatively plan, merges apply",
-                  "TFC's API-driven workflow — only available when calling the runs endpoint"
+                  "TFC's VCS-driven workflow",
+                  "TFC's API-driven workflow",
+                  "TFC's CLI-only workflow"
                 ],
-                "correctIndex": 2,
-                "explanation": "VCS-driven is one of three TFC run-trigger modes alongside CLI-driven and API-driven. The defining property is that runs are triggered automatically by repository events: a PR opens → speculative plan, a merge to main → apply. Drift detection adds a scheduled plan on top. CLI-driven workflows trigger from `terraform apply` on a laptop; API-driven from a direct call to the runs endpoint."
+                "correctIndex": 1,
+                "explanation": "VCS-driven is one of three TFC run-trigger modes alongside CLI-driven and API-driven. The defining property is that runs are triggered automatically by repository events: a PR opens → speculative plan, a merge to main → apply. Drift detection adds a scheduled plan on top. CLI-driven workflows trigger from `terraform apply` on a laptop; API-driven from a direct call to the runs endpoint. PRs speculatively plan, merges apply. Why the distractors are wrong — C: Only available when calling the runs endpoint. D: Apply happens on each developer's machine."
               },
               {
                 "q": "A Terraform Cloud plan introduces 12 EC2 instances + 3 RDS databases. Before approving the apply, the team wants to KNOW THE MONTHLY COST DELTA. Terraform Cloud's Cost Estimation feature analyses plan output, integrates with cloud-provider pricing, and posts a $/month diff alongside the plan. Combine with a Sentinel policy that fails on > $X delta. Which describes the feature?",
                 "choices": [
                   "Hourly only",
                   "Performance analysis",
-                  "Terraform Cloud feature",
-                  "Free open-source"
+                  "Free open-source",
+                  "Terraform Cloud feature"
                 ],
-                "correctIndex": 2,
+                "correctIndex": 3,
                 "explanation": "Cost estimation: runs after plan, before apply. Shows: prior monthly estimate, new monthly estimate, delta (change in cost). Uses public pricing APIs. Not 100% accurate (reserved pricing, volume discounts not considered). Integrates with Sentinel: can block applies that exceed cost thresholds."
               },
               {
                 "q": "Your Terraform Cloud workspace uses a remote backend. You run `terraform plan` locally — what happens to the plan execution?",
                 "choices": [
-                  "The plan is uploaded to Terraform Cloud and executed there, streaming logs back to your terminal",
                   "Terraform Cloud rejects the local plan and requires you to use the web UI to trigger runs",
-                  "The plan runs locally on your machine using your local credentials and state is synced to Terraform Cloud after",
-                  "The plan runs locally but uses the Terraform Cloud API to fetch the current state for comparison"
+                  "The plan runs locally but uses the Terraform Cloud API to fetch the current state for comparison",
+                  "The plan is uploaded to Terraform Cloud and executed there, streaming logs back to your terminal",
+                  "The plan runs locally on your machine using your local credentials and state is synced to Terraform Cloud after"
                 ],
-                "correctIndex": 0,
+                "correctIndex": 2,
                 "explanation": "When using the Terraform Cloud remote backend (or HCP Terraform), running `terraform plan` locally sends the configuration to Terraform Cloud, which executes the plan in a managed runner on the Terraform Cloud infrastructure. Logs are streamed back to your terminal in real time. This ensures consistent execution environment, access to workspace variables/secrets, and run history. Plans do not execute locally when using the remote backend — your credentials are not used directly."
               }
             ]
@@ -1108,56 +1108,56 @@
               {
                 "q": "A SINGLE Terraform configuration must manage `dev`, `staging`, and `prod` environments. Each environment needs its own state file. Terraform supports this via NAMED instances of state within the same configuration; switching with `terraform workspace select <name>`. Each workspace has its own state but they share configuration code. Which concept?",
                 "choices": [
-                  "Named instances of state within a single",
+                  "Module container",
                   "VCS branch",
                   "Separate Terraform installation",
-                  "Module container"
+                  "Named instances of state within a single"
                 ],
-                "correctIndex": 0,
+                "correctIndex": 3,
                 "explanation": "Workspaces: terraform workspace new prod, terraform workspace select prod, terraform workspace list. State stored separately per workspace. Access current workspace in config: terraform.workspace. Limitations: same backend config for all workspaces. For complex multi-env: consider separate directories with shared modules instead."
               },
               {
                 "q": "A single Terraform configuration manages `dev`, `staging`, `prod` via workspaces. To switch active workspace: `terraform workspace select prod`. To create a new one: `terraform workspace new sandbox`. The active workspace controls which state file is read/written. Multi-workspace pattern shares CODE while isolating STATE per environment. Which describes select?",
                 "choices": [
-                  "Creates new",
-                  "Switches between existing",
-                  "Selects provider",
-                  "Imports workspace"
+                  "Switches between existing workspaces such as dev, staging, prod",
+                  "Selects which provider configuration becomes active for the run",
+                  "Imports an existing workspace from a remote backend by name",
+                  "Creates a brand-new workspace if one with the name does not exist"
                 ],
-                "correctIndex": 1,
+                "correctIndex": 0,
                 "explanation": "Workspaces: terraform workspace new dev, terraform workspace select prod. terraform.workspace: current workspace name. locals { env_config = { dev={size='t3.micro'}, prod={size='m5.large'} }[terraform.workspace] }. Workspace per environment: simple, same code. Separate directories: more isolation, better for very different environments."
               },
               {
                 "q": "Two unrelated concepts share the word 'workspace': (A) `terraform.workspace` — a CLI-only feature that swaps the state-file suffix within a single backend; (B) Terraform Cloud workspaces — a TFC-level isolation boundary with its own variables, secrets, run history, state, and RBAC. Which statement correctly distinguishes them?",
                 "choices": [
-                  "CLI workspaces map 1:1 onto TFC workspaces",
+                  "CLI workspaces swap state within one backend; TFC workspaces isolate everything",
                   "CLI workspaces have been deprecated and Cloud workspaces replace them",
-                  "Both are identical features — only the storage location differs",
-                  "CLI workspaces swap state within one backend; TFC workspaces isolate everything"
+                  "Both are identical features",
+                  "CLI workspaces map 1:1 onto TFC workspaces"
                 ],
-                "correctIndex": 3,
-                "explanation": "CLI workspaces are a lightweight, single-backend state-isolation feature — handy for env-per-state in a small project. TFC workspaces are full isolation boundaries: per-workspace variables, secrets, RBAC, run history, VCS link. They are not 1:1 with CLI workspaces, neither has been deprecated, and they solve very different problems."
+                "correctIndex": 0,
+                "explanation": "CLI workspaces are a lightweight, single-backend state-isolation feature — handy for env-per-state in a small project. TFC workspaces are full isolation boundaries: per-workspace variables, secrets, RBAC, run history, VCS link. They are not 1:1 with CLI workspaces, neither has been deprecated, and they solve very different problems. Why the distractors are wrong — C: Only the storage location differs."
               },
               {
                 "q": "Two Terraform workspaces use the SAME `.tf` files, yet resources created in workspace A are invisible to workspace B. What is isolated per workspace?",
                 "choices": [
-                  "The state file — each workspace has its own separate state",
-                  "The configuration code — each workspace keeps its own copy of the `.tf` files",
-                  "The provider plugins — each workspace downloads its own provider versions",
-                  "The variable values — each workspace requires a different `variables.tf`"
+                  "The variable values",
+                  "The state file",
+                  "The provider plugins",
+                  "The configuration code"
                 ],
-                "correctIndex": 0,
-                "explanation": "Workspaces share one configuration but each gets its own state (local: terraform.tfstate.d/<name>/; remote: a prefixed key), so their resources don't see each other. The code, providers, and variable declarations are shared across workspaces."
+                "correctIndex": 1,
+                "explanation": "Workspaces share one configuration but each gets its own state (local: terraform.tfstate.d/<name>/; remote: a prefixed key), so their resources don't see each other. The code, providers, and variable declarations are shared across workspaces. each workspace has its own separate state. Why the distractors are wrong — A: Each workspace requires a different `variables.tf`. C: Each workspace downloads its own provider versions. D: Each workspace keeps its own copy of the `.tf` files."
               },
               {
                 "q": "Two related Terraform concepts: (A) Terraform CLI workspace — a named instance of state inside a single backend (e.g. `default`, `dev`, `prod`); switched with `terraform workspace select`. (B) Terraform Cloud workspace — a TFC-level isolation boundary with its own variables, run history, state file, and RBAC. Which statement correctly distinguishes them?",
                 "choices": [
-                  "CLI workspaces are named instances of state within one backend",
-                  "Both concepts are identical",
                   "CLI workspaces require Terraform Cloud as their backend to function",
-                  "Workspaces (CLI and Cloud) have both been deprecated in Terraform 1.x"
+                  "CLI workspaces are named instances of state within one backend",
+                  "Workspaces (CLI and Cloud) have both been deprecated in Terraform 1.x",
+                  "Both concepts are identical"
                 ],
-                "correctIndex": 0,
+                "correctIndex": 1,
                 "explanation": "CLI workspaces share the same backend and only swap which state file is active — handy for quick env-per-state, but easy to apply to the wrong one. Cloud workspaces are first-class isolation: each has its own variables, runs, history, RBAC, and VCS link. When using TFC as the backend, `terraform workspace` commands map onto TFC workspaces, but the two concepts are not interchangeable."
               }
             ]
@@ -1349,20 +1349,20 @@
                 "right": "Data sources support `"
               },
               {
-                "left": "Two separate Terraform configurations share infrastructure: STACK A creates a VP",
-                "right": "Accesses outputs from ANOTHER"
-              },
-              {
                 "left": "A `resource \"aws_db_instance\"` block declares `lifecycle { prevent_destroy = tru",
                 "right": "`lifecycle` meta-argument"
               },
               {
-                "left": "A resource creation sometimes takes longer than the provider's default timeout (",
-                "right": "Per-resource `timeouts` block"
+                "left": "Inside a resource block, Terraform supports two condition gates. PRECONDITION ru",
+                "right": "`precondition` runs BEFORE resource"
               },
               {
-                "left": "Terraform 1.5+ introduces a `check` block at root configuration level. It declar",
-                "right": "Terraform 1.5+ `check` block"
+                "left": "A variable should accept only DNS-safe names (lowercase, alphanumeric, hyphen, 3",
+                "right": "`condition = can(regex(\"^patte"
+              },
+              {
+                "left": "A `variable \"db_password\" { sensitive = true; type = string }` flags the variabl",
+                "right": "Marks values as sensitive"
               }
             ]
           },
@@ -1397,7 +1397,7 @@
     "timeMinutes": 45
   },
   "meta": {
-    "generatedAt": "2026-06-11T19:01:07.560Z",
+    "generatedAt": "2026-06-12T06:21:33.475Z",
     "totalNodes": 65,
     "totalQuestions": 161,
     "nodeTypes": [
