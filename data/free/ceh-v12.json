@@ -1,0 +1,266 @@
+{
+  "meta": {
+    "id": "ceh-v12",
+    "name": "EC-Council Certified Ethical Hacker (CEH v12)",
+    "vendor": "EC-Council",
+    "version": "1.0.0",
+    "question_count": 12,
+    "last_updated": "2026-06-16",
+    "notes": " [initial author pass (scheduled-agent 2026-06-16): 12 questions covering the 9 CEH v12 modules (recon, scanning/sniffing, system hacking, malware, web/SQLi, wireless, DoS, cryptography, cloud/IoT). Correct positions spread 3/3/3/3 across the four option slots. Parallel option phrasing; distractors are plausible CEH-adjacent terms rather than throwaway wrong answers; explanations name each distractor to teach the differentiator.]"
+  },
+  "questions": [
+    {
+      "id": "cehv12-001",
+      "question": "During an external assessment, a pentester wants to map open TCP ports on a target while avoiding a full three-way handshake that would be logged by the application. Which nmap scan type is BEST suited?",
+      "options": [
+        "TCP Connect scan (-sT) — completes the full three-way handshake using the OS connect() syscall",
+        "FIN scan (-sF) — sends bare FIN packets and infers state from the lack of a RST response",
+        "ACK scan (-sA) — used to map firewall rule sets rather than determine open ports",
+        "SYN (half-open / stealth) scan (-sS) — sends SYN, reads SYN/ACK or RST, then tears the session down with RST"
+      ],
+      "correct": 3,
+      "explanation": "An SYN (half-open) scan sends a SYN, reads the SYN/ACK or RST response to classify the port, then immediately sends a RST so the connection is never fully established — the application layer therefore does not log a session. It requires raw-socket privileges (root/Administrator). 'TCP Connect (-sT)' explicitly completes the handshake via connect(), which is exactly what the scenario tries to avoid. 'FIN scan (-sF)' is stealthier still but only works against strict RFC 793 stacks (most modern Windows hosts treat any non-SYN as closed and answer with RST regardless of port state, so it produces unreliable results). 'ACK scan (-sA)' does not determine open vs. closed — it maps whether a firewall is stateful by checking if the ACK is filtered, so it answers a different question.",
+      "tags": [
+        "scanning",
+        "nmap",
+        "stealth-scan",
+        "ceh-v12"
+      ],
+      "difficulty": "easy",
+      "domain": "Network and Perimeter Hacking",
+      "_normalized": true
+    },
+    {
+      "id": "cehv12-002",
+      "question": "A red-team operator pulls WHOIS records, enumerates DNS, scrapes LinkedIn employee titles, and reviews the target's public GitHub repositories — without ever sending a packet directly to the target's production network. Which reconnaissance category is this?",
+      "options": [
+        "Active footprinting — packets are sent directly to the target so banners and service versions can be enumerated",
+        "Vulnerability scanning — automated tools probe known CVEs against services running on the target hosts",
+        "Passive reconnaissance — information is gathered from third-party sources without sending traffic to the target itself",
+        "Social engineering — pretexting calls or phishing emails are used to elicit information directly from staff"
+      ],
+      "correct": 2,
+      "explanation": "Passive reconnaissance gathers information from third-party sources (registries, search engines, public code, social media) without sending probes that would appear in the target's logs. The target sees no traffic, so detection is essentially impossible. 'Active footprinting' is the opposite — banner grabbing, traceroute, ping sweeps and similar techniques all touch the target. 'Vulnerability scanning' is a noisy active step (Nessus, OpenVAS) that fires CVE checks at the host. 'Social engineering' involves direct human interaction with employees and is also active because the attacker contacts the organization. Only the third-party-only collection in the scenario qualifies as passive.",
+      "tags": [
+        "reconnaissance",
+        "footprinting",
+        "osint",
+        "ceh-v12"
+      ],
+      "difficulty": "easy",
+      "domain": "Reconnaissance Techniques",
+      "_normalized": true
+    },
+    {
+      "id": "cehv12-003",
+      "question": "An attacker who has extracted NTLM hashes from a compromised Windows host re-authenticates to other servers using the raw hash, without ever cracking it to plaintext. Which underlying weakness makes a Pass-the-Hash attack possible?",
+      "options": [
+        "Local Security Authority Subsystem Service caches the user's plaintext password indefinitely in process memory",
+        "NTLM authentication treats the password hash itself as the credential — the protocol never requires the plaintext to be presented",
+        "The SAM database stores account passwords using a reversible encryption that the attacker can decrypt with the boot key",
+        "Kerberos pre-authentication is downgraded to RC4-HMAC whenever a workstation joins a legacy domain"
+      ],
+      "correct": 1,
+      "explanation": "In NTLM, the client proves knowledge of the password by encrypting a server-supplied challenge with a key derived from the password hash. The hash is therefore functionally equivalent to the password — anyone holding it can complete the challenge/response, so cracking it to plaintext is unnecessary. Mitigations are LAPS, restricted-admin / credential guard, tiered admin and disabling NTLM where possible. 'LSASS caches plaintext' is wrong on modern Windows: it caches credential material in a form usable for SSO, but Credential Guard isolates this and patched Windows does not retain reusable plaintext for interactive logons by default. 'SAM stores reversible encryption' is false — SAM stores LM/NTLM hashes (one-way), not reversible ciphertext. 'Kerberos downgrade to RC4' enables Kerberoasting/AS-REP attacks, which are distinct from PtH and do not rely on NTLM at all.",
+      "tags": [
+        "system-hacking",
+        "pass-the-hash",
+        "ntlm",
+        "credential-attack",
+        "ceh-v12"
+      ],
+      "difficulty": "medium",
+      "domain": "System Hacking Phases and Attack Techniques",
+      "_normalized": true
+    },
+    {
+      "id": "cehv12-004",
+      "question": "Malware loads a signed kernel-mode driver that hooks system-call tables so that specific processes, files and registry keys are invisible to user-mode tools such as Task Manager, dir and regedit. Which malware category does this BEST describe?",
+      "options": [
+        "Kernel-mode rootkit — operates at ring 0 and modifies OS internals so its presence is hidden from user-mode utilities",
+        "Banking trojan — performs form-grabbing and webinjects in the browser to steal credentials at submission time",
+        "Crypto-ransomware — enumerates user files, encrypts them with a per-victim key and demands payment for the decryptor",
+        "Polymorphic worm — replicates across the network by mutating its payload to evade signature-based antivirus detection"
+      ],
+      "correct": 0,
+      "explanation": "A kernel-mode (ring-0) rootkit installs itself inside the operating system kernel — typically as a driver — and intercepts system calls or directly manipulates kernel objects (DKOM) so that the artifacts it lists are filtered out before user-mode tools ever see them. Detection therefore requires booting from clean media, comparing offline file-system views, or using kernel-level integrity tooling such as PatchGuard / HVCI / Secure Boot. 'Banking trojan' steals credentials but does not hide kernel objects. 'Crypto-ransomware' is loud by design — it wants the victim to notice, so concealment is not its goal. 'Polymorphic worm' addresses signature evasion via payload mutation, but the hiding here is achieved through OS subversion, not by changing the binary's signature.",
+      "tags": [
+        "malware",
+        "rootkit",
+        "kernel-mode",
+        "ceh-v12"
+      ],
+      "difficulty": "easy",
+      "domain": "System Hacking Phases and Attack Techniques",
+      "_normalized": true
+    },
+    {
+      "id": "cehv12-005",
+      "question": "An attacker is plugged into a modern switched LAN and wants to capture traffic flowing between two other hosts on the same VLAN that they are not on the path of. Which technique enables this on commodity switches without special hardware?",
+      "options": [
+        "Enabling promiscuous mode on the attacker's NIC so it accepts frames addressed to other MACs",
+        "Performing a DNS zone transfer (AXFR) against the segment's primary nameserver",
+        "Requesting that the switch mirror the relevant ports to the attacker via SPAN / port-mirroring",
+        "Poisoning the ARP caches of the two victims so each one resolves the other's IP to the attacker's MAC"
+      ],
+      "correct": 3,
+      "explanation": "ARP spoofing inserts the attacker as a transparent man-in-the-middle: by sending unsolicited ARP replies, each victim caches the attacker's MAC for the other's IP, so the switch then forwards their frames to the attacker, who relays them after sniffing. Defences are Dynamic ARP Inspection, DHCP snooping bindings, and static ARP for critical hosts. 'Promiscuous mode' is necessary to read frames the NIC receives but a switch will not deliver other hosts' unicast frames to that port in the first place. 'DNS zone transfer' enumerates DNS records — useful for footprinting, but not a sniffing primitive on the LAN. 'SPAN / port-mirroring' would work, but it requires administrative access to the switch (the attacker normally does not have it) — the question asks how to do this on commodity switches without that level of access.",
+      "tags": [
+        "sniffing",
+        "arp-spoofing",
+        "mitm",
+        "ceh-v12"
+      ],
+      "difficulty": "medium",
+      "domain": "Network and Perimeter Hacking",
+      "_normalized": true
+    },
+    {
+      "id": "cehv12-006",
+      "question": "A login form concatenates user input directly into the SQL statement without parameterization. The attacker enters the username `admin' --` and any password, and is logged in as admin. Which web-attack class is this and what is the precise mechanism?",
+      "options": [
+        "Reflected cross-site scripting — the attacker's payload is echoed back into the response and executes in the victim's browser",
+        "In-band SQL injection (authentication bypass via comment) — the `--` comments out the rest of the WHERE clause, including the password check",
+        "Cross-site request forgery — the victim's authenticated browser is tricked into submitting a state-changing request to the application",
+        "LDAP injection — operators such as `*)(&` are injected into a directory-search filter to broaden the result set"
+      ],
+      "correct": 1,
+      "explanation": "Concatenating untrusted input into SQL is the textbook SQL-injection class. The single quote closes the username literal and the `--` comments out everything after it on that line — so the WHERE clause becomes `WHERE username='admin'`, the password test is dropped, and the application authenticates the attacker as admin. This is an in-band (classic / tautology) SQLi used for authentication bypass. Parameterized queries / prepared statements remove the attack surface entirely. 'Reflected XSS' injects script into a rendered response, not into a SQL statement. 'CSRF' rides an already-authenticated session — it does not bypass authentication. 'LDAP injection' uses LDAP filter metacharacters (`*`, `(`, `)`, `&`, `|`) against a directory server, not SQL.",
+      "tags": [
+        "web-hacking",
+        "sql-injection",
+        "authentication-bypass",
+        "ceh-v12"
+      ],
+      "difficulty": "easy",
+      "domain": "Web Application Hacking",
+      "_normalized": true
+    },
+    {
+      "id": "cehv12-007",
+      "question": "A single-page application reads its hash fragment via `location.hash` and writes it straight into `innerHTML`. An attacker shares a link of the form `https://app.example/#<img src=x onerror=alert(1)>`. The payload never reaches the server. Which XSS variant is this?",
+      "options": [
+        "Reflected (Type-I) XSS — the payload travels through the server in a query parameter and is reflected back into the rendered HTML response",
+        "Stored (Type-II) XSS — the payload is persisted in a database or filesystem and served back to any later visitor",
+        "DOM-based (Type-0) XSS — the malicious data flows from a client-side source into a client-side sink without ever leaving the browser",
+        "Blind XSS — the payload fires only inside an administrative interface that the attacker themselves cannot directly observe"
+      ],
+      "correct": 2,
+      "explanation": "DOM-based XSS occurs entirely client-side: a script reads attacker-controlled data from a DOM source (here `location.hash`) and passes it to a dangerous DOM sink (here `innerHTML`) without the server ever seeing the payload — browser fragments are not sent in HTTP requests. The fix is to use safe sinks (`textContent`, framework-bound templates) or contextual escaping such as DOMPurify. 'Reflected XSS' would require the server to echo the payload back in its response, which does not happen with a fragment. 'Stored XSS' would require persistence on the server. 'Blind XSS' describes WHERE the payload eventually fires (in an admin console invisible to the attacker), not how it is delivered — and the question is about delivery mechanics.",
+      "tags": [
+        "web-hacking",
+        "xss",
+        "dom-xss",
+        "ceh-v12"
+      ],
+      "difficulty": "medium",
+      "domain": "Web Application Hacking",
+      "_normalized": true
+    },
+    {
+      "id": "cehv12-008",
+      "question": "WPA2-Personal is vulnerable to offline dictionary attacks against captured four-way handshakes (and the PMKID variant against single beacons). Which specific WPA3-Personal mechanism makes that offline cracking infeasible?",
+      "options": [
+        "Simultaneous Authentication of Equals (SAE / Dragonfly) — a password-authenticated key exchange that requires an online guess per attempt and provides forward secrecy",
+        "Mandatory 192-bit Commercial National Security Algorithm Suite — required for every WPA3-Personal client and AP regardless of deployment",
+        "Static rotation of the GTK (Group Temporal Key) every 60 seconds, derived from the pre-shared key with no client interaction",
+        "Caching of the PMKID inside Beacon and Probe-Response frames so roaming clients can re-associate without re-authenticating"
+      ],
+      "correct": 0,
+      "explanation": "SAE (a.k.a. Dragonfly) is a password-authenticated key exchange: each guess at the password requires a full online handshake with the AP, so capturing frames and cracking offline at GPU speeds — the entire WPA2 PSK attack model — stops working. SAE also provides forward secrecy, so even a future password disclosure does not decrypt previously captured sessions. The 192-bit CNSA suite is associated with WPA3-Enterprise, not Personal — calling it 'mandatory for every WPA3 client' is wrong. Periodic GTK rotation existed in WPA2 and is unrelated to PSK offline cracking. PMKID caching in Beacons/Probe-Responses is precisely the WPA2 weakness Jens Steube exploited; WPA3 does not advertise PMKID this way.",
+      "tags": [
+        "wireless",
+        "wpa3",
+        "sae",
+        "ceh-v12"
+      ],
+      "difficulty": "medium",
+      "domain": "Wireless Network Hacking",
+      "_normalized": true
+    },
+    {
+      "id": "cehv12-009",
+      "question": "An attacker sends small DNS queries with the victim's IP spoofed as the source to a list of open recursive resolvers. The resolvers reply to the victim with much larger responses, saturating the victim's link. Which two characteristics of this attack are the primary enablers?",
+      "options": [
+        "Recursive resolvers always answer queries received on TCP port 53 only, which simplifies routing to the spoofed victim",
+        "Modern resolvers transparently compress responses so that signature-based volumetric defences see only the small inbound query",
+        "DNSSEC signatures encrypt the payload end-to-end, preventing intermediate networks from rate-limiting amplified traffic",
+        "DNS responses are several times larger than the corresponding queries (a high amplification factor) and the UDP source address can be spoofed"
+      ],
+      "correct": 3,
+      "explanation": "DNS reflection/amplification rests on two facts: (1) DNS over UDP allows the source IP to be spoofed so the response goes to the victim instead of the attacker, and (2) the response (especially for ANY, large TXT or DNSSEC-signed zones) is many times larger than the query — amplification factors of 30× or more are routine — so the attacker spends a fraction of the bandwidth the victim has to absorb. Mitigations: BCP 38 ingress filtering, closing open resolvers, response-rate limiting, anycast scrubbing. The other options are incorrect: DNS is primarily UDP/53 (not TCP-only), there is no transparent compression that defeats volumetric defences, and DNSSEC signs but does not encrypt — it actually makes responses LARGER, which makes amplification worse, not better.",
+      "tags": [
+        "ddos",
+        "amplification",
+        "dns",
+        "ceh-v12"
+      ],
+      "difficulty": "medium",
+      "domain": "Network and Perimeter Hacking",
+      "_normalized": true
+    },
+    {
+      "id": "cehv12-010",
+      "question": "A pentester recovers a database of unsalted MD5 password hashes and cracks 70% of them in minutes using a precomputed rainbow table. Which defensive change at the application layer would have made this specific attack effectively useless?",
+      "options": [
+        "Switching the storage algorithm from MD5 to SHA-1 while keeping the hashes unsalted",
+        "Generating a unique random salt per password and storing it alongside the hash, ideally combined with a memory-hard KDF such as bcrypt / Argon2",
+        "Wrapping each stored hash with AES-128 encryption using a key kept inside the same database server",
+        "Truncating the resulting hash to 64 bits so that fewer characters need to be presented at login time"
+      ],
+      "correct": 1,
+      "explanation": "A unique random salt per password makes every hash unique even when users pick the same password, which renders precomputed tables (rainbow tables, lookup tables) useless — an attacker would need to build one table per salt, defeating the precomputation. Pairing the salt with a memory-hard KDF (bcrypt, scrypt, Argon2id) additionally slows each guess by orders of magnitude. 'SHA-1 unsalted' just swaps one fast unsalted hash for another and is itself broken — rainbow tables exist for SHA-1 as well. 'AES-wrap with a key on the same server' fails the assumed threat model: if the attacker dumped the hashes, they almost certainly also have the key. 'Truncate to 64 bits' makes brute force EASIER (smaller search space) and increases collisions; it is the opposite of what is needed.",
+      "tags": [
+        "cryptography",
+        "password-hashing",
+        "salting",
+        "ceh-v12"
+      ],
+      "difficulty": "easy",
+      "domain": "Cryptography",
+      "_normalized": true
+    },
+    {
+      "id": "cehv12-011",
+      "question": "A pentester discovers that a corporate AWS S3 bucket containing customer invoices has been left with a public-read bucket ACL and `s3:GetObject` allowed in its policy for `Principal: \"*\"`. Which cloud-attack category from the CEH v12 cloud module BEST describes the underlying issue?",
+      "options": [
+        "Cloud misconfiguration — specifically, an object-storage exposure caused by an over-permissive ACL / bucket policy granting public read",
+        "Virtual-machine / hypervisor escape — a guest workload breaks out of its VM and reads the host's memory",
+        "Container breakout — a process inside an unprivileged container escapes the namespace and gains code execution on the node",
+        "SaaS API token theft — an OAuth refresh token is exfiltrated from a developer's machine and replayed against the SaaS provider"
+      ],
+      "correct": 0,
+      "explanation": "Cloud misconfiguration — over-permissive identity, network and storage settings — is consistently the leading cause of cloud breaches (cited in every major cloud-security report) and is treated as its own threat in the CEH v12 cloud module. Publicly readable S3 buckets are the canonical example: scanning the public IPv4 space and S3 namespaces for `200 OK` GETs reliably surfaces sensitive data left in misconfigured tenants. Controls: AWS Block Public Access at account and bucket level, IAM Access Analyzer, and CSPM/SSPM tooling. 'Hypervisor escape' and 'container breakout' are isolation failures inside the compute plane and unrelated to bucket ACLs. 'SaaS API token theft' is a credential-exfiltration issue against a SaaS provider, not an IaaS storage exposure.",
+      "tags": [
+        "cloud",
+        "misconfiguration",
+        "s3",
+        "ceh-v12"
+      ],
+      "difficulty": "easy",
+      "domain": "Cloud Computing",
+      "_normalized": true
+    },
+    {
+      "id": "cehv12-012",
+      "question": "An IP camera ships with a fixed Telnet account `root / xc3511` documented in its service manual and not changeable through the web UI. The Mirai botnet famously enrolled hundreds of thousands of similar devices. Which OWASP IoT / CEH v12 IoT threat does this exemplify?",
+      "options": [
+        "Lack of a secure firmware-update mechanism — devices cannot receive signed patches once shipped",
+        "Insecure data transfer and storage — the device transmits telemetry over an unauthenticated cleartext channel",
+        "Use of weak, guessable or hard-coded credentials — accounts are pre-set, identical across units and cannot be rotated by the owner",
+        "Insecure ecosystem interfaces — the companion mobile or web app exposes IDOR-style endpoints that authorize horizontally"
+      ],
+      "correct": 2,
+      "explanation": "Hard-coded, vendor-set credentials that the owner cannot rotate is the textbook example of OWASP IoT Top 10 #1 — 'Weak, Guessable or Hard-coded Passwords' — and is also the exact vector Mirai used: a small list of factory default Telnet/SSH logins enrolled hundreds of thousands of cameras and DVRs into a DDoS botnet. The fix is to require unique per-device credentials at first boot and to disable obsolete management protocols (Telnet) outright. 'Lack of secure update' (OWASP IoT #4) prevents fielded fixes but is not what enables the initial compromise here. 'Insecure data transfer and storage' is about TLS / encryption-at-rest, not about login credentials. 'Insecure ecosystem interfaces' covers the companion app/cloud-API tier, which is downstream of the device-credential issue described.",
+      "tags": [
+        "iot",
+        "hard-coded-credentials",
+        "mirai",
+        "ceh-v12"
+      ],
+      "difficulty": "easy",
+      "domain": "Mobile Platform, IoT, and OT Hacking",
+      "_normalized": true
+    }
+  ]
+}
