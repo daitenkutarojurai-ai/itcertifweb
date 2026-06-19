@@ -1,0 +1,197 @@
+{
+  "meta": {
+    "id": "dp-420",
+    "name": "Designing and Implementing Cloud-Native Applications Using Microsoft Azure Cosmos DB (DP-420)",
+    "vendor": "Microsoft",
+    "version": "1.0.0",
+    "question_count": 10,
+    "last_updated": "2026-06-19",
+    "notes": "Initial pack covering core DP-420 objectives: partition keys, request units, consistency levels, multi-region writes, change feed, indexing, TTL, transactional batches, SDK connection mode, and throughput modes."
+  },
+  "questions": [
+    {
+      "id": "dp-420-001",
+      "question": "You are designing an Azure Cosmos DB for NoSQL container that will store ~50 GB of e-commerce order documents per day. Most operational queries filter by customerId and need single-partition execution to stay under 10 RUs. A handful of nightly analytics jobs aggregate across all customers and are allowed to fan out. Which property should you select as the partition key?",
+      "options": [
+        "orderDate, because partitioning by day produces an even time-based distribution and naturally bounds each logical partition to a day of traffic",
+        "orderId, because it is the document id and the platform always routes id-based lookups to a single partition for free",
+        "customerId, because it carries high cardinality and matches the dominant filter, keeping hot reads single-partition",
+        "status, because it has only a few values which keeps the number of logical partitions small and easy to monitor"
+      ],
+      "correct": 2,
+      "explanation": "A good Azure Cosmos DB partition key is high-cardinality, evenly distributes both storage and request volume, and matches the dominant query filter so reads can stay single-partition. customerId scales horizontally and lets the operational queries hit one logical partition under 10 RUs while the cross-customer nightly jobs can still fan out. orderDate concentrates today's writes onto one partition (hot-partition antipattern). orderId is unique per document, so it is useless for filtering whole customers and id-only lookups still need the partition key to be efficient. status has very low cardinality and would produce a handful of huge, hot partitions.",
+      "tags": [
+        "cosmos-db",
+        "partition-key",
+        "dp-420"
+      ],
+      "difficulty": "intermediate"
+    },
+    {
+      "id": "dp-420-002",
+      "question": "A team running an Azure Cosmos DB for NoSQL workload has unpredictable, bursty traffic during business hours and goes idle overnight. They want to keep p99 latency low during bursts without paying for peak capacity 24/7, and they will never need more than 4 000 RU/s. Which throughput mode is the best fit for the container?",
+      "options": [
+        "Manual provisioned throughput pinned at 4 000 RU/s, so the maximum capacity is always reserved and predictable",
+        "Autoscale provisioned throughput with a 4 000 RU/s max, so the floor scales between 400 and 4 000 RU/s based on real-time usage",
+        "Serverless, because it is the cheapest option for any workload that fits inside the per-container 50 GB and 5 000 RU/s caps",
+        "Dedicated throughput on the database with manual 4 000 RU/s shared across every container, regardless of per-container traffic"
+      ],
+      "correct": 1,
+      "explanation": "Autoscale provisioned throughput sets a maximum (Tmax) and automatically scales the container between 10% of Tmax and Tmax based on real-time usage, billed per hour at the highest RU/s seen — ideal for bursty, intermittently idle workloads. Manual provisioning at 4 000 RU/s pays the peak rate even overnight. Serverless is meant for spiky low-volume dev/test or sporadic traffic and caps each container at 5 000 RU/s and 1 TB, but it does not guarantee burst capacity the way autoscale does — and 24/7 high-burst workloads usually cost more on serverless than autoscale. Shared database throughput would force every other container in the database to compete for the same 4 000 RU/s pool.",
+      "tags": [
+        "cosmos-db",
+        "throughput",
+        "dp-420"
+      ],
+      "difficulty": "intermediate"
+    },
+    {
+      "id": "dp-420-003",
+      "question": "An online catalogue uses Azure Cosmos DB for NoSQL and the client requirements state: reads from any region must always return either the latest committed write or, at worst, a version that lags by no more than 5 seconds, and they must never see writes go backwards. Which consistency level should you configure on the account?",
+      "options": [
+        "Strong, because it returns the most recent committed write globally and is the only level that prevents stale reads of any kind",
+        "Bounded staleness, because it lets you cap the lag by time or operations and still guarantees monotonic, ordered reads globally",
+        "Session, because it guarantees read-your-writes within a session and offers the lowest latency for single-user scenarios",
+        "Eventual, because the catalogue can tolerate any lag and eventual offers the highest availability and throughput at the lowest cost"
+      ],
+      "correct": 1,
+      "explanation": "Bounded staleness is the only consistency level that lets you explicitly cap how stale a read can be, by time (e.g. 5 seconds) or by number of operations, while still guaranteeing global monotonic reads and consistent prefix — perfect when the SLA reads 'no older than N seconds.' Strong gives zero lag but blocks multi-region writes and adds latency. Session only guarantees consistency within the same client session token and offers no time-based bound. Eventual gives no lag bound at all and can briefly show writes out of order.",
+      "tags": [
+        "cosmos-db",
+        "consistency",
+        "dp-420"
+      ],
+      "difficulty": "intermediate"
+    },
+    {
+      "id": "dp-420-004",
+      "question": "You are enabling multi-region writes on an Azure Cosmos DB for NoSQL account that is replicated to East US, West Europe and Southeast Asia. Two regions occasionally update the same document at nearly the same time. You need writes to never be lost and you want the application — not the platform — to decide who wins. What should you configure?",
+      "options": [
+        "Last-Writer-Wins conflict resolution on the system _ts property, so the most recent timestamp wins automatically without app code",
+        "Last-Writer-Wins conflict resolution on a custom integer column updated by every writer, so the highest value wins automatically",
+        "Custom conflict resolution by registering a merge stored procedure, so the SDK calls it for every conflicting write",
+        "Custom conflict resolution with no stored procedure, so conflicts are written to the conflicts feed for the application to resolve asynchronously"
+      ],
+      "correct": 3,
+      "explanation": "With multi-region writes you pick a conflict-resolution policy at container creation. 'Custom — no merge procedure' routes every conflict to the per-container conflicts feed (ReadConflictsAsync in the SDK) so the application owns the resolution logic — exactly what 'application decides who wins, never lose a write' requires. The LWW options pick a winner automatically and silently drop the loser, so they fail the 'never lost' clause. Custom with a stored procedure also picks a winner automatically (the proc runs inside the engine) and does not let the application decide on its own schedule.",
+      "tags": [
+        "cosmos-db",
+        "multi-region",
+        "conflict-resolution",
+        "dp-420"
+      ],
+      "difficulty": "advanced"
+    },
+    {
+      "id": "dp-420-005",
+      "question": "A telemetry container in Azure Cosmos DB for NoSQL must stream every insert and update into Azure Functions for near-real-time processing, in the order they occur per logical partition, and the processor must be able to scale out across multiple workers without missing events. Which feature should you use?",
+      "options": [
+        "Continuous backup point-in-time restore, because it can replay every change after a given timestamp into the consumer",
+        "The change feed in latest-version mode consumed by Azure Functions via the Cosmos DB trigger, which checkpoints per lease",
+        "A SQL query with ORDER BY _ts polled every few seconds by the function, which guarantees ordered delivery across partitions",
+        "The Azure Cosmos DB analytical store with Synapse Link, which mirrors changes into a column store for downstream consumers"
+      ],
+      "correct": 1,
+      "explanation": "The change feed exposes an ordered stream of inserts and updates per logical partition. In latest-version mode (the default) you get one record per change with the current document state, and consuming it via the Azure Functions Cosmos DB trigger uses a lease container so multiple function instances can scale out — each lease checkpoints independently. Point-in-time restore is a recovery tool, not a streaming API. Polling with ORDER BY _ts misses deletes, scales poorly under RU pressure, and only orders within a partition, not across. Synapse Link copies data to an analytical store sized for batch analytics, not low-latency streaming.",
+      "tags": [
+        "cosmos-db",
+        "change-feed",
+        "dp-420"
+      ],
+      "difficulty": "intermediate"
+    },
+    {
+      "id": "dp-420-006",
+      "question": "A container in Azure Cosmos DB for NoSQL has a default indexing policy and the team is unhappy with write RU charges. Profiling shows queries only ever filter by /tenantId and /createdAt, and never on the dozens of other properties that documents carry. What is the most effective indexing change to lower write RUs while keeping those queries fast?",
+      "options": [
+        "Switch the indexing mode to None and rely on a partition-key lookup for every read, accepting that ad-hoc queries will scan",
+        "Keep the default automatic indexing and just lower the consistency level so write commits don't have to wait for index propagation",
+        "Set the indexing mode to consistent, exclude /* and explicitly include only /tenantId/? and /createdAt/?",
+        "Set the indexing mode to lazy and include /*, because lazy indexing skips index updates on writes entirely"
+      ],
+      "correct": 2,
+      "explanation": "Cosmos DB indexes every property by default, which is great for ad-hoc queries but expensive on writes. Switching to an opt-in policy — include only the paths the workload actually uses (/tenantId/? and /createdAt/?), exclude /* for everything else, keep mode 'consistent' — cuts the per-write index cost while keeping the two real query patterns indexed. Mode 'None' disables the index entirely; only point reads on id+partition key work, and any query scans. Lazy indexing has been deprecated for the NoSQL API and was never 'free' — it still costs RUs, just deferred. Consistency level controls reads/writes, not index propagation cost.",
+      "tags": [
+        "cosmos-db",
+        "indexing",
+        "dp-420"
+      ],
+      "difficulty": "advanced"
+    },
+    {
+      "id": "dp-420-007",
+      "question": "A session-store container in Azure Cosmos DB for NoSQL must automatically purge documents seven days after their last update. You want the purge to happen without writing or running any background job. Which configuration should you apply?",
+      "options": [
+        "Enable container-level Time-to-Live with DefaultTimeToLive = 604800, and the engine will delete items 7 days after their _ts updates",
+        "Set DefaultTimeToLive = -1 on the container and rely on the platform's built-in 7-day retention default for session data",
+        "Schedule a stored procedure with the change feed processor that scans every minute and deletes documents older than 7 days",
+        "Enable continuous backup with a 7-day retention window, because that automatically drops items once they fall out of the backup horizon"
+      ],
+      "correct": 0,
+      "explanation": "Container-level Time-to-Live with DefaultTimeToLive set to a positive number of seconds (604800 = 7 days) tells the engine to mark items for deletion that many seconds after their _ts timestamp, which is bumped on every update — exactly the 'purge 7 days after last update' requirement, performed by the engine in the background for free. DefaultTimeToLive = -1 only enables TTL at the container level and requires each item to set its own ttl. The change-feed sweeper works but is the 'write background code' the question rules out. Continuous backup is about restore windows, not data deletion.",
+      "tags": [
+        "cosmos-db",
+        "ttl",
+        "dp-420"
+      ],
+      "difficulty": "easy"
+    },
+    {
+      "id": "dp-420-008",
+      "question": "Inside a single logical partition of an Azure Cosmos DB for NoSQL container, you need to atomically: insert a new ledger entry, update the running balance document, and only commit if the balance stays non-negative — otherwise neither change applies. Which server-side feature is purpose-built for this?",
+      "options": [
+        "A cross-partition transactional batch using TransactionalBatch with WhereIfMatch ETag on every item to coordinate the two writes",
+        "A user-defined function (UDF) that performs the insert and the update inline and returns the new balance to the caller",
+        "A stored procedure executed against the partition key that runs the insert, update and validation in a single ACID transaction",
+        "Two SDK SaveChanges() calls protected by a client-side try/finally that issues a compensating delete if the second call fails"
+      ],
+      "correct": 2,
+      "explanation": "Stored procedures and TransactionalBatch both give ACID within a single logical partition; the question explicitly asks for server-side logic that conditionally rolls back the whole unit if the balance would go negative, which is the canonical stored-procedure use case (server-side JavaScript can throw to abort the transaction). TransactionalBatch is client-driven and cannot run cross-partition (the 'cross-partition' phrasing makes option 0 wrong on its own). UDFs are pure functions usable inside queries — they cannot mutate data. Client-side compensating writes break atomicity: the system can crash between calls and leave the ledger inconsistent.",
+      "tags": [
+        "cosmos-db",
+        "stored-procedure",
+        "transactions",
+        "dp-420"
+      ],
+      "difficulty": "advanced"
+    },
+    {
+      "id": "dp-420-009",
+      "question": "An ASP.NET service co-located in the same Azure region as its Azure Cosmos DB for NoSQL account is seeing tail latencies higher than expected at p99. The SDK is configured with ConnectionMode.Gateway. What single SDK change is most likely to reduce p99 read latency for point reads?",
+      "options": [
+        "Switch ConnectionMode to Direct with TCP, so the SDK opens connections straight to the replica nodes and skips the gateway hop",
+        "Switch ConnectionMode to Direct with HTTPS, so the gateway is bypassed but TLS still runs over the same single port",
+        "Keep Gateway mode but raise the SDK's MaxConnectionLimit to 10 000, so the client opens more parallel gateway connections",
+        "Switch to the older v2 SDK, because gateway-mode performance regressed between v2 and v3 of the .NET SDK"
+      ],
+      "correct": 0,
+      "explanation": "ConnectionMode.Direct with the TCP protocol lets the .NET (and Java) SDK open persistent TCP sessions directly to the back-end replica nodes that own each partition, eliminating the gateway round-trip and giving the lowest, most stable latency — Microsoft's documented recommendation when network rules allow it (ports 10250–20250). Direct over HTTPS is a feature flag for clients that cannot use the TCP range; it still tunnels each call over HTTPS and is slower than Direct/TCP. Raising MaxConnectionLimit cannot beat the architectural hop that Gateway mode adds. The v2 SDK is in maintenance — it does not change the underlying gateway round-trip.",
+      "tags": [
+        "cosmos-db",
+        "sdk",
+        "connection-mode",
+        "dp-420"
+      ],
+      "difficulty": "intermediate"
+    },
+    {
+      "id": "dp-420-010",
+      "question": "A production Azure Cosmos DB for NoSQL container is being hit by an unauthenticated workload from a single subnet, and you must immediately block all traffic from outside an Azure Virtual Network without rotating the account keys. What is the fastest configuration change that achieves this?",
+      "options": [
+        "Set the account's public network access to disabled and add a virtual-network rule for the approved subnet via a service endpoint or private endpoint",
+        "Rotate the primary read-write key and rebuild every client SDK with the new key, then disable the secondary key for redundancy",
+        "Add a server-side firewall rule inside a stored procedure that inspects the source IP and throws when it does not match the allow-list",
+        "Switch the consistency level to Strong, which forces every request through the primary region so the network team can filter it there"
+      ],
+      "correct": 0,
+      "explanation": "Disabling public network access on the Cosmos DB account and adding a virtual-network rule (via VNet service endpoint or private endpoint) is the network-layer control the platform exposes for exactly this scenario — it takes effect immediately and survives key rotation. Rotating keys does not block any IP; whoever has the new key still gets in from anywhere. Stored procedures cannot inspect TCP source IPs — they run inside the engine after the request was authenticated and routed. Consistency level controls replication semantics, not network reachability.",
+      "tags": [
+        "cosmos-db",
+        "networking",
+        "security",
+        "dp-420"
+      ],
+      "difficulty": "intermediate"
+    }
+  ]
+}
