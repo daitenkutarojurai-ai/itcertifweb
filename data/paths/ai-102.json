@@ -86,7 +86,7 @@
                   "Switch the deployment to the Assistants API code-interpreter tool"
                 ],
                 "correctIndex": 2,
-                "explanation": "Function (tool) calling lets the model emit a structured JSON call matching a tools schema you define in the request; your application then runs the real weather or inventory API and returns the result, which the model weaves into its reply. Fine-tuning on past transcripts bakes in stale snapshots of past responses and never invokes a live API at run time. Embedding API reference docs in the prompt only describes the APIs to the model — it cannot invoke them and consumes tokens for context the model cannot act on. The Assistants API code-interpreter tool runs sandboxed Python for data analysis and visualisation, not arbitrary external HTTP API calls, so it is not the orchestrator for this pattern."
+                "explanation": "Function (tool) calling lets the model emit a structured JSON call matching a tools schema you define in the request; your application then runs the real weather or inventory API and returns the result, which the model weaves into its reply. Fine-tuning on past transcripts bakes in stale snapshots of past responses and never invokes a live API at run time, so freshly changing inventory or weather would never surface. Embedding API reference docs in the prompt only describes the APIs to the model — it cannot invoke them and consumes tokens for context the model cannot act on. The Assistants API code-interpreter tool runs sandboxed Python for data analysis and visualisation, not arbitrary external HTTP API calls, so it is not the orchestrator for this pattern."
               },
               {
                 "q": "A bank's Azure OpenAI assistant must never reveal another customer's data even if a user crafts an input designed to override the system instructions. Which Azure AI Content Safety capability is designed to detect that class of attack?",
@@ -97,7 +97,7 @@
                   "Severity-based category filters, which score outputs for hate, violence, self-harm and sexual content"
                 ],
                 "correctIndex": 1,
-                "explanation": "Prompt Shields in Azure AI Content Safety are built to detect jailbreak attacks and indirect prompt-injection attempts that try to override system instructions, matching the described threat. Protected material detection flags known copyrighted text appearing in completions, which is a different content-risk class — it does not analyse user inputs for instruction-override attempts. Groundedness detection checks whether a response is fully supported by provided source data, which addresses hallucination rather than malicious input intent. Severity-based category filters score harmful-content categories such as hate, violence, self-harm and sexual content, not attempted manipulation of the system prompt."
+                "explanation": "Prompt Shields in Azure AI Content Safety are built to detect jailbreak attacks and indirect prompt-injection attempts that try to override system instructions, matching the described threat. Protected material detection flags known copyrighted text appearing in completions, which is a different content-risk class — it does not analyse user inputs for instruction-override attempts. Groundedness detection checks whether a response is fully supported by provided source data, which addresses hallucination rather than malicious input intent and would not catch a crafted user message until it had already steered the answer. Severity-based category filters score harmful-content categories such as hate, violence, self-harm and sexual content, not attempted manipulation of the system prompt."
               }
             ]
           },
@@ -184,7 +184,7 @@
                   "An Azure AI Foundry hub workspace used on its own as the inference endpoint"
                 ],
                 "correctIndex": 2,
-                "explanation": "A multi-service Azure AI services resource exposes a single endpoint and key that authorise Vision, Language, Speech, Translator and other Azure AI APIs, and rolls all usage onto one bill. Provisioning a separate single-service resource per API leaves you managing a distinct endpoint and key for each one and produces a separate line item per service. An API Management gateway can unify routing in front of those resources, but the single-service resources still exist, are still billed individually and still each have their own key — APIM adds a façade rather than consolidating the underlying service. An Azure AI Foundry hub organises projects, models, connections and governance for AI workloads; it is not the resource that serves Vision/Language/Speech/Translator inference traffic."
+                "explanation": "A multi-service Azure AI services resource exposes a single endpoint and key that authorise Vision, Language, Speech, Translator and other Azure AI APIs, and rolls all usage onto one bill. Provisioning a separate single-service resource per API leaves you managing a distinct endpoint and key for each one and produces a separate line item per service. An API Management gateway can unify routing in front of those resources, but the single-service resources still exist, are still billed individually and still each have their own key — APIM adds a facade rather than consolidating the underlying service. An Azure AI Foundry hub organises projects, models, connections and governance for AI workloads; it is not the resource that serves Vision/Language/Speech/Translator inference traffic."
               },
               {
                 "q": "Your team must rotate the access keys on a production Azure AI Language resource without interrupting client traffic that is already in flight. Which sequence is recommended?",
@@ -195,15 +195,15 @@
                   "Delete the resource and recreate it so brand-new keys are issued for both slots"
                 ],
                 "correctIndex": 0,
-                "explanation": "Azure AI resources expose two keys precisely so you can rotate with zero downtime: regenerate the key no client is currently using, migrate every client to that freshly rotated key, then regenerate the other. Regenerating both keys at once invalidates every live connection until all clients have been redeployed with new credentials, creating an authentication-error window. Regenerating the key clients are actively using breaks their in-flight calls immediately because that key value is invalidated the moment the regenerate operation completes. Deleting and recreating the resource also forces a brand-new resource ID and endpoint, so every client must be reconfigured for both the keys and the URL — that is a re-provision, not a key rotation."
+                "explanation": "Azure AI resources expose two keys precisely so you can rotate with zero downtime: regenerate the key no client is currently using, migrate every client to that freshly rotated key, then regenerate the other so the previously active key is also retired. Regenerating both keys at once invalidates every live connection until all clients have been redeployed with new credentials, creating an authentication-error window. Regenerating the key clients are actively using breaks their in-flight calls immediately because that key value is invalidated the moment the regenerate operation completes — there is no overlap window for clients to swap to the new value. Deleting and recreating the resource also forces a brand-new resource ID and endpoint URL, so every client must be reconfigured for both the keys and the URL — that is a re-provision, not a key rotation."
               },
               {
                 "q": "An Azure OpenAI chat application is being moved to production. Security requires that no API key be stored in the app, and that calls be authorized by the application's own Azure identity instead. Which approach should you implement?",
                 "choices": [
-                  "Assign the app a managed identity granted the Cognitive Services OpenAI User role on the resource",
-                  "Store key1 in Azure Key Vault and have the application fetch it at process startup using a vault connection string",
-                  "Inject key2 from the release pipeline into a runtime environment variable that the application reads at boot",
-                  "Front the Azure OpenAI resource with Azure API Management and forward a subscription key on every call"
+                  "Assign the app a managed identity and grant it the Cognitive Services OpenAI User role on the resource",
+                  "Store key1 in Azure Key Vault and have the application fetch it at process startup using a vault connection string, then cache it",
+                  "Inject key2 from the release pipeline into a runtime environment variable that the application reads at boot, refreshing on restart",
+                  "Front the Azure OpenAI resource with Azure API Management and forward a subscription key from the gateway on every call"
                 ],
                 "correctIndex": 0,
                 "explanation": "Assigning the app a managed identity and granting it the Cognitive Services OpenAI User role on the Azure OpenAI resource removes keys entirely — the SDK acquires Microsoft Entra tokens automatically and authorizes calls by the app's own identity, which is the requirement. Fetching key1 from Azure Key Vault still relies on a key — the Azure OpenAI resource is authenticated by that key, not by the app's identity, and the app must additionally hold a vault-access secret. Injecting key2 as an environment variable both stores a key inside the runtime environment and exposes it to anyone who can read the process memory or pipeline logs. Placing Azure API Management in front authorizes the caller against the gateway with a subscription key, but APIM still has to authenticate to the Azure OpenAI resource downstream — typically with a key — so the requirement to eliminate keys is not met."
@@ -217,15 +217,15 @@
                   "An orchestration workflow that routes utterances to other projects"
                 ],
                 "correctIndex": 2,
-                "explanation": "Conversational language understanding (CLU), the successor to LUIS, is purpose-built to predict an intent and extract entities from each utterance within a single trained model. Custom NER extracts named entities only and has no concept of intents, so it cannot classify the utterance itself. Sentiment analysis with opinion mining returns sentiment polarity and aspect-level opinions; it does not learn intents or extract date/location entities. An orchestration workflow connects and routes between an underlying CLU project, custom question answering and other projects — it relies on a CLU project to do the intent-and-entity work rather than performing that classification itself."
+                "explanation": "Conversational language understanding (CLU), the successor to LUIS, is purpose-built to predict an intent and extract entities from each utterance within a single trained model. Custom NER extracts named entities only and has no concept of intents, so it cannot classify the utterance itself — you would still need a second component to handle intent classification. Sentiment analysis with opinion mining returns sentiment polarity and aspect-level opinions; it does not learn intents or extract date/location entities. An orchestration workflow connects and routes between an underlying CLU project, custom question answering and other projects — it relies on a CLU project to do the intent-and-entity work rather than performing that classification itself."
               },
               {
                 "q": "A multilingual support team must translate inbound chat messages into English in real time, automatically detecting the source language of each message without it being specified. Which Azure AI service capability handles this?",
                 "choices": [
-                  "Azure AI Language key phrase extraction, then a separately built translation step over the extracted terms",
-                  "Azure AI Speech speech translation configured for text-to-text language conversion between chat messages",
-                  "Azure AI Language abstractive summarization with the target language parameter set to English on each call",
-                  "Azure AI Translator text translation, which auto-detects the source language on each incoming call"
+                  "Azure AI Language key phrase extraction followed by a separately built translation step over the extracted terms",
+                  "Azure AI Speech speech translation configured for text-to-text conversion between chat messages in different languages",
+                  "Azure AI Language abstractive summarization with the target language parameter set to English on every incoming call",
+                  "Azure AI Translator text translation, with the 'from' parameter omitted so the source language is auto-detected per call"
                 ],
                 "correctIndex": 3,
                 "explanation": "Azure AI Translator's text translation API detects the source language automatically when the 'from' parameter is omitted and returns the translated text in the requested target language, which fits real-time chat translation. Key phrase extraction surfaces salient terms from text; it does not translate, so an extra translation step would still be required and most of the original message would be discarded along the way. Speech translation operates on spoken audio input and produces translated speech or text from audio — it is the wrong modality for typed chat messages even when a text-to-text output mode exists. Abstractive summarization condenses text into a shorter form; it does not translate between languages even when a target-language parameter is supplied, so the output remains in the source language."
@@ -233,10 +233,10 @@
               {
                 "q": "You must extract entities like 'policy number' and 'claim ID' that are specific to your insurer's documents and do not exist in the prebuilt entity categories of Azure AI Language. Which feature should you use?",
                 "choices": [
-                  "Prebuilt named entity recognition (NER) filtered to the Quantity and Number categories",
-                  "Personally identifiable information (PII) detection with the redaction option enabled",
-                  "Entity linking, which associates recognized entities with Wikipedia knowledge-base IDs",
-                  "Custom named entity recognition (custom NER) trained on your labelled documents"
+                  "Prebuilt named entity recognition (NER) filtered down to the Quantity and Number category outputs",
+                  "Personally identifiable information (PII) detection with the redaction option enabled for outputs",
+                  "Entity linking, which associates already-recognized entities with Wikipedia knowledge-base IDs",
+                  "Custom named entity recognition (custom NER) trained on documents you have labelled yourself"
                 ],
                 "correctIndex": 3,
                 "explanation": "Custom NER lets you label your own documents and train a model to extract domain-specific entities such as policy number and claim ID that prebuilt categories do not cover. Prebuilt NER recognizes only Microsoft's fixed category set and cannot learn insurer-specific fields — filtering to Quantity or Number returns generic numeric spans, not labelled policy numbers or claim IDs. PII detection finds and can redact personal data types (names, emails, SSNs), not arbitrary custom business identifiers. Entity linking disambiguates already-recognized entities against a public knowledge base (Wikipedia/Wikidata) and does not extract new custom entity types."
@@ -299,7 +299,7 @@
     "timeMinutes": 23
   },
   "meta": {
-    "generatedAt": "2026-06-12T06:25:50.813Z",
+    "generatedAt": "2026-06-21T02:06:01.422Z",
     "totalNodes": 11,
     "totalQuestions": 16,
     "nodeTypes": [
