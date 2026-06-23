@@ -1,0 +1,63 @@
+{
+  "slug": "azure-cert-prep",
+  "title": "Azure Cert Prep Coach",
+  "tldr": "Hand-written prompts for Azure cert prep (AZ-104, AZ-204, AZ-305, AZ-500): scenario MCQs, wrong-answer post-mortems, SKU decoder, Portal/CLI/Bicep translator.",
+  "vendor": "Azure",
+  "icon": "🪟",
+  "color": "#0078d4",
+  "lastReviewed": "2026-06",
+  "tags": ["study", "cert", "azure", "cloud"],
+  "models": ["Claude 4.7 Opus", "GPT-5", "Gemini 2.5 Pro"],
+  "affiliate": null,
+  "disclaimer": "These prompts assume you've at least skimmed the official Microsoft Learn study guide for your exam. They accelerate study, they don't replace it. Microsoft renames things often (Azure AD → Entra ID, AAD B2C → External ID, SQL DW → Synapse Dedicated Pool) and exam blueprints shift quarterly — always cross-check service names + claims against learn.microsoft.com before trusting an LLM answer.",
+  "prompts": [
+    {
+      "id": "explain-concept",
+      "title": "Deep-explain an Azure concept like I'm a beginner",
+      "use_case": "When Microsoft Learn assumes you already know three other Azure services and you need a mental model from the ground up.",
+      "model_tested": ["Claude 4.7 Opus (2026-06)", "GPT-5 (2026-05)"],
+      "prompt": "Act as a senior Azure Solutions Architect explaining concepts to a junior engineer studying for the <CERT_CODE_E_G_AZ_104> exam.\n\nTopic: <AZURE_SERVICE_OR_CONCEPT>\nMy current level: <BEGINNER | INTERMEDIATE | RUSTY>\nMy use case: <WHAT_I_AM_TRYING_TO_BUILD_OR_LEARN_IT_FOR>\n\nExplain it in 4 layers:\n1. The 1-sentence elevator pitch — what problem it solves.\n2. The 3-bullet mental model — how it actually works under the hood (control plane vs data plane, where it lives in the Azure hierarchy — Tenant / Management Group / Subscription / Resource Group / Resource).\n3. A concrete worked example with numbers, a tiny ASCII diagram, AND the equivalent `az` CLI command to provision it.\n4. The 2-3 most common exam traps for this concept (e.g. RBAC role vs Entra ID role, regional vs zonal vs zone-redundant, ‘System-assigned’ vs ‘User-assigned’ managed identity, classic vs ARM resources, similar-sounding sibling services like Logic Apps vs Functions vs Durable Functions).\n\nKeep it under 350 words. No fluff. If something is commonly misunderstood — especially anything renamed in the last 24 months — call it out as ⚠️ TRAP.",
+      "tips": "Replace <AZURE_SERVICE_OR_CONCEPT> with the exact, current Microsoft name (e.g. ‘Entra ID Conditional Access’, ‘Azure Container Apps revisions’, ‘Storage account redundancy’). If you ask about the old name, the model may explain a deprecated version — pin yourself to the 2026 naming."
+    },
+    {
+      "id": "exam-blanc-10",
+      "title": "Generate 10 exam-style scenario MCQs on demand",
+      "use_case": "Quick drill on a specific Microsoft exam domain when you don't want to use exam dumps (which the Microsoft Certification NDA forbids anyway).",
+      "model_tested": ["Claude 4.7 Opus (2026-06)", "GPT-5 (2026-05)"],
+      "prompt": "Generate 10 multiple-choice questions in the style of the Microsoft <CERT_CODE_E_G_AZ_104> exam, all on the topic of <DOMAIN_OR_SERVICE>.\n\nRules:\n- Each question has exactly 4 options labeled A/B/C/D.\n- 8 must be scenario-based (a Contoso/Fabrikam/Tailwind situation with constraints), not definition recall.\n- Include 2 questions where multiple options look correct but only one matches Microsoft's stated best practice (cite the Well-Architected Framework pillar in the explanation).\n- Include 1 question with a deprecated answer (classic deployment, old SKU, pre-rename service name) so I learn to spot stale content.\n- Use current 2026 service names — Entra ID (not Azure AD), Entra External ID (not Azure AD B2C), Microsoft Sentinel (not Azure Sentinel), Microsoft Defender for Cloud (not Azure Security Center).\n- After ALL 10 questions, give me an answer key in a separate code block (so I can hide it while drilling) with 1-2 sentence explanations and the Microsoft Learn URL pattern (`learn.microsoft.com/azure/<service>/<page>` — you don't need an exact URL, the pattern is fine).",
+      "tips": "Re-prompt with ‘now harder’ or ‘now only multi-select (choose two/three)’ to ramp difficulty. Microsoft exams lean heavily on multi-select for AZ-104 and AZ-500 — practice those explicitly."
+    },
+    {
+      "id": "post-mortem",
+      "title": "Post-mortem a wrong answer (the highest-leverage prompt in this set)",
+      "use_case": "After every practice test. The wrong-answer review is where 80% of the score gain comes from.",
+      "model_tested": ["Claude 4.7 Opus (2026-06)", "GPT-5 (2026-05)", "Gemini 2.5 Pro (2026-05)"],
+      "prompt": "I just got this Azure practice question wrong. Diagnose what I'm missing.\n\nQuestion: <PASTE_QUESTION>\n\nOptions:\nA) <OPT_A>\nB) <OPT_B>\nC) <OPT_C>\nD) <OPT_D>\n\nMy answer: <MY_ANSWER>\nCorrect answer: <CORRECT_ANSWER>\n\nDo this:\n1. In 2 sentences, explain why my answer was wrong — but specifically name which Azure concept I'm confusing (e.g. ‘you're confusing RBAC roles with Entra ID directory roles’, ‘you're confusing Standard_LRS with Standard_ZRS’), not just ‘because X is correct’.\n2. In 2 sentences, explain why the correct answer is right and which Well-Architected pillar it leans on (Reliability / Security / Cost / Performance / Operational Excellence).\n3. Give me the 1 sentence I should memorize about this concept to never miss it again.\n4. List the 2 sibling services / SKUs / features that are commonly confused with this one, with a 1-line differentiator each. Include at least one renamed-service trap if relevant (e.g. AAD → Entra ID).\n\nNo recap of the question. No fluff. Diagnostic mode.",
+      "tips": "The ‘which Azure concept am I confusing’ framing matters far more than the explanation of the correct answer. Most wrong Azure answers come from mixing up two near-twins (Functions vs Logic Apps, Front Door vs Application Gateway, ExpressRoute vs VPN Gateway) — force the model to name the twin."
+    },
+    {
+      "id": "service-decider",
+      "title": "‘Which Azure service should I use?’ decision helper",
+      "use_case": "When the exam question lists 4 services that all sound right (Container Apps vs AKS vs App Service vs Functions, or Synapse vs Fabric vs Databricks vs ADX) and you can't tell which one wins.",
+      "model_tested": ["Claude 4.7 Opus (2026-06)", "GPT-5 (2026-05)"],
+      "prompt": "I'm evaluating which Azure service fits this scenario. Help me decide.\n\nScenario: <DESCRIBE_USE_CASE_INCLUDING_CONSTRAINTS_LIKE_LATENCY_COMPLIANCE_BUDGET_TEAM_SIZE_EXISTING_STACK>\nRegion / compliance constraints: <E_G_FRANCE_CENTRAL_GDPR_DATA_RESIDENCY_OR_NONE>\nCandidates I'm choosing between: <SERVICE_1>, <SERVICE_2>, <SERVICE_3>, <SERVICE_4>\n\nFor each candidate, give me:\n- One-line fit-score: 🟢 ideal / 🟡 workable / 🔴 wrong tool\n- The single feature that makes it fit or not\n- The hidden cost or constraint people forget (egress, idle compute, premium-tier minimum, ‘only billed when warm’ misconceptions, regional availability gaps)\n\nThen give me your final pick + the Azure Well-Architected pillar that supports it (Reliability / Security / Cost / Performance / Operational Excellence).\n\nIf two candidates are tied, name a concrete sub-scenario where each one wins. If one is a renamed/deprecated path I should never pick on a 2026 exam (e.g. classic VMs, ASE v2, Azure DevOps for new greenfield IaC vs GitHub Actions), say so explicitly.",
+      "tips": "Microsoft exam answers almost always come down to a Well-Architected pillar plus a SKU/tier constraint — naming both in your reasoning makes the right answer obvious. If the scenario mentions a budget cap, Cost Optimization is the pillar 80% of the time."
+    },
+    {
+      "id": "sku-tier-decoder",
+      "title": "Decode the SKU/tier maze for a service",
+      "use_case": "Azure ships a wall of SKUs per service (B/S/P/Pv2/Pv3 for App Service, LRS/ZRS/GRS/RA-GRS/GZRS for Storage, Standard/Premium/DTU/vCore for SQL). You need the one comparison table you can memorize before the exam.",
+      "model_tested": ["Claude 4.7 Opus (2026-06)", "GPT-5 (2026-05)"],
+      "prompt": "Build me an exam-grade SKU / tier comparison table for Azure <SERVICE_NAME>, in the context of the <CERT_CODE_E_G_AZ_104> exam.\n\nFormat (markdown table, one row per SKU/tier, no paragraphs):\n\n| SKU / tier | Use it when | Don't use it when | Cost shape | Exam trap |\n\nRules:\n- Cover every SKU / tier that's still on a 2026 exam blueprint. Mark any deprecated or classic-only SKU with ⚠️ and a 1-line ‘never pick on the exam’ note.\n- ‘Cost shape’ is one line — what dimension drives the bill (per-vCore-hour, per-GB-stored, per-execution, per-DTU, ingress free / egress charged, idle-billed vs request-billed).\n- ‘Exam trap’ is the single misconception this SKU triggers (e.g. ‘LRS is in ONE datacenter — losing the datacenter loses your data’, ‘B-series VMs accrue CPU credits — fine for dev, wrong answer for a steady production workload’, ‘Premium SSD v2 has no host-cache, P-series classic does’).\n\nAfter the table, give me:\n1. The default I should pick when the scenario gives no constraints.\n2. The 2 scenario keywords that flip the answer (‘zone-redundant’ → ZRS, ‘steady CPU’ → not B-series, ‘global low-latency reads’ → RA-GRS / Cosmos).\n3. The single sentence I should memorize for this service.",
+      "tips": "Run this once per cert-relevant service and pin the output to your wall. Storage redundancy, App Service plans, SQL purchasing models, and AKS node pool SKUs are the four highest-yield tables for AZ-104 / AZ-204 / AZ-305."
+    },
+    {
+      "id": "portal-cli-bicep-translate",
+      "title": "Translate a task between Portal, Azure CLI, Bicep, and Terraform",
+      "use_case": "Azure exams test all four interfaces. You've done a task in the Portal but the question shows you a Bicep snippet — or vice versa. Convert it cleanly without missing the implicit defaults.",
+      "model_tested": ["Claude 4.7 Opus (2026-06)", "GPT-5 (2026-05)", "Gemini 2.5 Pro (2026-05)"],
+      "prompt": "Translate this Azure provisioning task across all 4 surfaces so I can recognize it in any exam question format.\n\nTask in plain English: <DESCRIBE_TASK_EXACTLY_E_G_CREATE_A_STORAGE_ACCOUNT_NAMED_X_IN_FRANCE_CENTRAL_WITH_GRS_AND_BLOB_PUBLIC_ACCESS_DISABLED>\nTarget exam: <CERT_CODE_E_G_AZ_104>\n\nGive me, in this order:\n\n1. **Portal clickpath** — the exact navigation: ‘Portal → search <X> → + Create → tab <Y> → field <Z> = <VALUE>’. Name the tabs and the fields, not screenshots.\n2. **Azure CLI one-liner** — the smallest `az <group> <subcommand>` that produces the same result. No `az login`, no resource-group create unless it's part of the task. Include the flags the Portal sets by default (--sku, --kind, --allow-blob-public-access false, etc.) so the result really matches.\n3. **Bicep module** — a self-contained `.bicep` file with `param location string = resourceGroup().location`, the resource block, and any outputs the exam typically asks for (`output id string = …`). Use the latest stable apiVersion for 2026.\n4. **Terraform (azurerm provider)** — the equivalent `resource` block. Match the Bicep one-for-one in arguments.\n5. **The 3 implicit defaults** the Portal sets but the CLI / Bicep / Terraform forms make you think about (e.g. ‘Portal defaults TLS 1.2, az defaults TLS 1.0 until you pin --min-tls-version’, ‘Portal disables blob public access by default since 2023, az still defaults to allowed unless you pass --allow-blob-public-access false’). These are the highest-frequency exam traps.\n6. **The verify command** — one `az` command that proves the resource was created with the right config (so you can spot a wrong-default exam question).\n\nNo lectures on what the service does. Treat me like I've passed the practice quizzes and I'm drilling cross-format fluency.",
+      "tips": "Microsoft exams mix interface formats deliberately — you may see a Bicep snippet on one question and a Portal screenshot on the next about the same service. Drill this prompt on every service in your study list and you'll stop losing points to format-recognition gaps."
+    }
+  ]
+}

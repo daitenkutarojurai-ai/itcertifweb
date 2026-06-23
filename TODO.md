@@ -1520,6 +1520,61 @@ competition-driven, community-driven** layer. Highest-priority builds:
 
 ---
 
+## 📦 Content expansion R20 (2026-06-23)
+
+Scheduled-agent run targeting the PromptDungeon cluster — the longest-quiet
+content cluster since R19 (last touched 2026-06-08 with R15's
+`terraform-iac-mastery`, while DevStack / Comparator / ToolRadar / FailBase /
+RealityCheck have all picked up entries more recently). One new high-traffic
+workflow filling the most obvious gap in the cluster — Azure cert study,
+sibling to the long-shipped `aws-cert-prep`:
+
+- **+1 PromptDungeon workflow** (cluster 11 → 12):
+  - `azure-cert-prep` — Microsoft Azure cert prep coach mirroring
+    `aws-cert-prep`'s 5-prompt structure plus a 6th tailored to Azure's
+    interface fragmentation (Portal/CLI/Bicep/Terraform translation).
+    The 6 prompts: (1) deep-explain an Azure concept layered for AZ-104
+    audience, with mandatory ‘renamed-service’ trap-call-outs (Azure AD →
+    Entra ID, AAD B2C → External ID, Azure Sentinel → Microsoft Sentinel),
+    (2) generate 10 scenario MCQs in the Microsoft house style (Contoso/
+    Fabrikam/Tailwind scenarios, multi-select practice, deliberately one
+    deprecated-answer trap per drill), (3) wrong-answer post-mortem forcing
+    the model to name the confused twin-service (Functions vs Logic Apps,
+    Front Door vs Application Gateway, RBAC role vs Entra directory role),
+    (4) which-Azure-service decider tied to a Well-Architected pillar with
+    region/compliance constraints, (5) SKU/tier decoder (the LRS/ZRS/GRS,
+    B/S/P/Pv3, DTU/vCore maze) as a memorisable table with cost-shape +
+    exam-trap columns, (6) cross-format translator (Portal clickpath ↔ az
+    CLI one-liner ↔ Bicep module ↔ Terraform azurerm) plus the 3 implicit
+    Portal defaults the IaC forms force you to think about — the trap that
+    burns AZ-104 candidates on interface-mixed questions.
+  - Targets the AZ-104 / AZ-204 / AZ-305 / AZ-500 / AZ-700 audience the
+    cluster had ZERO prompts for despite Azure being the highest-velocity
+    cert family in recent pack additions (the last month shipped ms-700,
+    dp-420, az-700, az-800, az-801, ms-102, md-102, pl-200, pl-400 plus
+    AZ-courses content). All prompts respect the schema (`<UPPER_KEBAB>`
+    placeholders, no system-prompt magic, `model_tested` dated against
+    Claude 4.7 Opus / GPT-5 / Gemini 2.5 Pro in 2026-06).
+  - `tldr` trimmed to 158 chars so the generator's `<meta description>` /
+    `og:description` stay under the project's ≤160-char SEO rule. Title
+    50 chars including the `— PromptDungeon · CertQuests` suffix. HowTo
+    JSON-LD per page via the generator template. Tags `study, cert, azure,
+    cloud` — slots cleanly into the cluster's existing tag filter.
+- `scripts/gen-prompt-pages.js` `CACHE_BUST` already at v=135 (aligned with
+  the current global `?v=` key) — no generator bump needed. The 11 existing
+  workflow pages regenerated idempotently except for `<meta description>` /
+  `og:description` text re-synchronised to their source-of-truth `tldr` (the
+  recurring sibling-drift documented in R12-R19 — benign, just brings HTML
+  back in line with the JSON).
+- `npm run gen-prompts` regenerated 12 workflow pages + the
+  `/prompt-dungeon/` index. sitemap.xml +1 entry (priority 0.8, monthly
+  changefreq, lastmod 2026-06-23); prompt-dungeon index lastmod bumped
+  2026-06-08 → 2026-06-23.
+- 265/265 tests still pass. No CSS/JS cache version bump (new HTML/data
+  only).
+
+---
+
 ## 📦 Content expansion R19 (2026-06-12)
 
 Scheduled-agent run targeting the DevStack cluster — the longest-quiet content
