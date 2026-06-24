@@ -1,0 +1,252 @@
+{
+  "meta": {
+    "id": "prometheus-pca",
+    "name": "Prometheus Certified Associate (PCA)",
+    "vendor": "Linux Foundation",
+    "version": "1.0.0",
+    "question_count": 12,
+    "last_updated": "2026-06-24",
+    "notes": "[initial release: 12 questions covering all PCA exam domains — Observability concepts, Prometheus fundamentals (architecture, TSDB, service discovery, federation), PromQL (selectors, rate/irate, histogram_quantile, label_replace, aggregation), instrumentation and metric types (counter/gauge/histogram/summary), exporters (node_exporter), recording and alerting rules, Alertmanager routing. Balanced answer positions (3A/3B/3C/3D); operator-lens phrasing throughout]"
+  },
+  "questions": [
+    {
+      "id": "prometheus-pca-001",
+      "question": "A Grafana panel that graphs request throughput over a 6-hour window queries the counter `http_requests_total` with `$__rate_interval` set to 1 minute. Which PromQL function is conventionally chosen and why?",
+      "options": [
+        "`rate(http_requests_total[1m])` — averages the per-second growth of the counter across the whole range, smoothing transient spikes while still accounting for counter resets",
+        "`irate(http_requests_total[1m])` — uses only the two newest samples in the window, which is documented as the recommended choice for long-range smoothed graphs",
+        "`increase(http_requests_total[1m])` — returns a per-second rate by design and is the canonical Prometheus dashboarding choice for long ranges",
+        "`delta(http_requests_total[1m])` — designed for counters, ignores resets, and returns the same per-second value as rate() for monotonically increasing series"
+      ],
+      "correct": 0,
+      "explanation": "`rate()` is the canonical choice for graphing counters because it averages the per-second growth across the entire range vector and accounts for counter resets, producing a smooth long-range curve. `irate()` looks at only the last two samples and is meant for high-resolution alerting on short windows — on a 6-hour panel it produces a spiky graph. `increase()` returns the total number of events in the range (not a per-second value); to graph throughput you would still wrap it as `increase(...)[1m]`-equivalent which is exactly what `rate()` does. `delta()` is intended for gauges and does NOT compensate for counter resets, so applying it to a counter gives wrong results when a process restarts.",
+      "tags": [
+        "promql",
+        "rate",
+        "counters",
+        "prometheus-pca"
+      ],
+      "difficulty": "medium",
+      "_normalized": true
+    },
+    {
+      "id": "prometheus-pca-002",
+      "question": "A team's short-lived batch CronJobs finish before Prometheus has a chance to scrape them, so their metrics never appear in queries. What is the documented Prometheus pattern for capturing metrics from these batch jobs?",
+      "options": [
+        "Add a `prometheus.io/scrape: true` annotation to each CronJob pod so the scrape configuration automatically extends its interval until the pod has produced samples",
+        "Have each batch job push its final metric values to the Prometheus Pushgateway, then have Prometheus scrape the Pushgateway like a normal target",
+        "Have each batch job send metrics over remote_write to a dedicated Prometheus instance running in agent mode, which buffers samples until the central server pulls them",
+        "Modify the batch jobs to keep their `/metrics` HTTP endpoint alive with a long sleep after work completes so the regular scraper reaches them before they exit"
+      ],
+      "correct": 1,
+      "explanation": "The Pushgateway exists precisely for service-level batch jobs whose lifetime is shorter than the scrape interval — the job pushes its final values to the Pushgateway and Prometheus scrapes the Pushgateway as if it were any other target. Annotations do not change scrape interval behaviour. remote_write goes from Prometheus to a long-term storage receiver, not from a job to Prometheus, and 'agent mode' is the receiver-side concept. Holding `/metrics` open with a sleep is the anti-pattern the Pushgateway was designed to avoid; it also pollutes job exit codes and Kubernetes lifecycle expectations.",
+      "tags": [
+        "architecture",
+        "pushgateway",
+        "batch-jobs",
+        "prometheus-pca"
+      ],
+      "difficulty": "easy",
+      "_normalized": true
+    },
+    {
+      "id": "prometheus-pca-003",
+      "question": "Service `api` exposes a histogram named `http_request_duration_seconds_bucket` with `le` labels in seconds (alongside `_sum` and `_count`). Which PromQL expression returns an estimate of the 95th-percentile request latency over the last 5 minutes, grouped by `job`?",
+      "options": [
+        "`quantile(0.95, rate(http_request_duration_seconds_bucket[5m])) by (job)`",
+        "`topk(1, rate(http_request_duration_seconds_sum[5m]) / rate(http_request_duration_seconds_count[5m])) by (job)`",
+        "`histogram_quantile(0.95, sum by (job, le) (rate(http_request_duration_seconds_bucket[5m])))`",
+        "`histogram_quantile(0.95, http_request_duration_seconds_bucket[5m]) / on(job) http_request_duration_seconds_count`"
+      ],
+      "correct": 2,
+      "explanation": "Computing a quantile from a Prometheus histogram requires `histogram_quantile()` applied to the per-second rate of the bucket counters, summed across whatever dimensions you want to collapse while preserving `le`. The canonical form is `histogram_quantile(0.95, sum by (job, le) (rate(bucket[5m])))`. `quantile()` is an aggregation operator that takes scalar values, not histogram buckets, and would return a meaningless number across bucket samples. The `_sum / _count` ratio gives the AVERAGE latency, not the 95th percentile. The last option is syntactically wrong: `histogram_quantile` does not take a range vector as its second argument, and dividing a quantile by `_count` has no semantic meaning.",
+      "tags": [
+        "promql",
+        "histogram",
+        "histogram_quantile",
+        "percentiles",
+        "prometheus-pca"
+      ],
+      "difficulty": "hard",
+      "_normalized": true
+    },
+    {
+      "id": "prometheus-pca-004",
+      "question": "Using Kubernetes service discovery, an operator wants to scrape ONLY the pods that carry the annotation `prometheus.io/scrape=\"true\"` and rewrite the target `__address__` to combine the pod IP with a port advertised through another annotation. Which relabel-config combination matches this intent?",
+      "options": [
+        "A `drop` action on `__meta_kubernetes_pod_label_scrape` matching `true`, followed by a `labelmap` of `__meta_kubernetes_pod_(.+)` to `pod_$1`",
+        "A `keep` action on the source label `__address__` matching the pod IP, followed by `hashmod` over the scrape interval to load-balance pulls between Prometheus replicas",
+        "A `replace` that overwrites the `job` label with the value of the pod annotation, followed by a `labeldrop` of `__meta_kubernetes_.*` to keep storage compact",
+        "A `keep` action on `__meta_kubernetes_pod_annotation_prometheus_io_scrape` matching `true`, then a `replace` that builds `__address__` from `__meta_kubernetes_pod_ip` and `__meta_kubernetes_pod_annotation_prometheus_io_port`"
+      ],
+      "correct": 3,
+      "explanation": "The documented pattern for opt-in pod scraping is exactly this pair: a `keep` step matching the annotation source label so only annotated pods survive target discovery, and a `replace` step that constructs `__address__` from the pod IP and the port annotation. The `drop`/`labelmap` option does the opposite of `keep` (it removes matching targets) and never rewrites the address. The `__address__` `keep`/`hashmod` option misuses `hashmod` (which is for sharding across replicas, not for filtering by IP) and never reads the annotation. The `replace`+`labeldrop` option rewrites `job` but never enforces the opt-in filter, so every pod still gets scraped.",
+      "tags": [
+        "service-discovery",
+        "relabeling",
+        "kubernetes",
+        "prometheus-pca"
+      ],
+      "difficulty": "hard",
+      "_normalized": true
+    },
+    {
+      "id": "prometheus-pca-005",
+      "question": "Which statement is correct about Prometheus 2.x local TSDB storage and retention?",
+      "options": [
+        "The default retention is 15 days; older blocks are removed by the retention enforcer based on `--storage.tsdb.retention.time`, with `--storage.tsdb.retention.size` being opt-in",
+        "By default, samples are retained for 30 days; `--storage.tsdb.retention.time` can only shorten that window, never extend it",
+        "The TSDB writes new samples directly to immutable on-disk blocks; the WAL is replayed only after a clean shutdown to merge cached data into the latest block",
+        "Local storage is the intended primary long-term store for Prometheus; Thanos and Cortex exist solely to add multi-tenancy, not to extend retention"
+      ],
+      "correct": 0,
+      "explanation": "The Prometheus default retention is 15 days, configured via `--storage.tsdb.retention.time`; size-based retention via `--storage.tsdb.retention.size` is opt-in and the two combine with whichever limit triggers first. The 30-day claim is incorrect. The TSDB does NOT write samples directly to immutable blocks — samples land in the in-memory head block backed by the WAL on disk, and the WAL is replayed on EVERY startup (clean or unclean) to recover the head. Local storage is explicitly documented as short-to-medium term; long-term retention is the use case Thanos / Cortex / Mimir address via remote_write and object storage.",
+      "tags": [
+        "tsdb",
+        "storage",
+        "retention",
+        "prometheus-pca"
+      ],
+      "difficulty": "medium",
+      "_normalized": true
+    },
+    {
+      "id": "prometheus-pca-006",
+      "question": "An HTTP server library wants the server itself to compute pre-aggregated request-latency percentiles per handler and expose them so Prometheus can scrape them directly, without anyone running `histogram_quantile()` at query time. Which Prometheus metric type matches that requirement?",
+      "options": [
+        "Counter — counters monotonically increase, and a counter-based client library derives percentiles from the cumulative count at scrape time",
+        "Summary — a summary exposes precomputed quantile time series such as `{quantile=\"0.5\"}` and `{quantile=\"0.99\"}` calculated inside the client",
+        "Gauge — gauges can increase and decrease, and the client library exposes precomputed quantile labels alongside each gauge sample",
+        "Histogram — buckets capture the full distribution, and the client library serialises pre-aggregated percentile values as `_quantile` time series"
+      ],
+      "correct": 1,
+      "explanation": "Summary is the metric type that exposes quantiles computed CLIENT-SIDE: each scrape returns time series like `http_request_latency{quantile=\"0.99\"}` already containing the percentile value. Histograms work the opposite way — they expose cumulative bucket counts under `_bucket{le=\"...\"}` and percentiles must be derived at query time via `histogram_quantile()`. Counters only express monotonic totals and cannot represent percentiles directly. Gauges can move up or down but the Prometheus client libraries do not expose a built-in quantile workflow on gauges; the `quantile` label is reserved for summaries.",
+      "tags": [
+        "instrumentation",
+        "metric-types",
+        "summary",
+        "histogram",
+        "prometheus-pca"
+      ],
+      "difficulty": "medium",
+      "_normalized": true
+    },
+    {
+      "id": "prometheus-pca-007",
+      "question": "A team needs Alertmanager to send `severity=critical` alerts to PagerDuty and `severity=warning` alerts to Slack, while folding multiple firing alerts sharing the same `service` label into a single notification per channel. Which Alertmanager features should be combined to satisfy these requirements?",
+      "options": [
+        "A single global `receiver` with `repeat_interval: 0` so each instance is delivered individually, plus `inhibit_rules` to deduplicate notifications",
+        "Two independent Prometheus servers — one scrapes only critical signals and pushes to PagerDuty, the other scrapes warnings and pushes to Slack",
+        "A `route` tree that branches on `severity` with a different `receiver` per branch, and `group_by: [service]` on the parent route so alerts sharing a service are collapsed into one notification",
+        "A single `route` with `continue: false` and webhook receivers that themselves filter on `severity` inside the destination service rather than in Alertmanager"
+      ],
+      "correct": 2,
+      "explanation": "Routing on `severity` is exactly what Alertmanager's nested `route` tree is for: each branch maps to its own receiver, so critical → PagerDuty and warning → Slack. Grouping is handled by `group_by` on the route, which collapses alerts sharing the listed labels into a single notification per group. A single receiver with `repeat_interval: 0` and `inhibit_rules` mixes two different concepts — inhibit silences alerts when another is firing, not for routing. Splitting into two Prometheus servers solves nothing — routing is an Alertmanager concern. Pushing filtering logic into downstream services bypasses Alertmanager's deduplication, grouping, and silencing entirely.",
+      "tags": [
+        "alertmanager",
+        "routing",
+        "grouping",
+        "prometheus-pca"
+      ],
+      "difficulty": "medium",
+      "_normalized": true
+    },
+    {
+      "id": "prometheus-pca-008",
+      "question": "What is the documented purpose of a Prometheus recording rule?",
+      "options": [
+        "It runs alongside an alerting rule and decides whether the alert should fire by evaluating a Boolean condition each evaluation interval",
+        "It instructs the scraper to record every raw sample into long-term storage so historical queries can hit a denser dataset",
+        "It replays the WAL into the in-memory head block so newly scraped samples become queryable within the next evaluation interval",
+        "It precomputes the result of a frequently-used or expensive PromQL expression and stores it as a new time series so subsequent queries become cheap"
+      ],
+      "correct": 3,
+      "explanation": "Recording rules pre-evaluate a PromQL expression on a schedule and persist the result as a new time series (conventionally named `level:metric:operations`), trading a small amount of write cost for fast cheap reads in dashboards and alerts. Alerting rules — not recording rules — evaluate Boolean conditions to fire alerts (they live in the same `*.rules.yml` files but are a separate construct). Sample density is controlled by the scrape interval, not by recording rules. WAL replay is a startup recovery mechanism inside the TSDB, not a user-facing rule.",
+      "tags": [
+        "recording-rules",
+        "rules",
+        "prometheus-pca"
+      ],
+      "difficulty": "easy",
+      "_normalized": true
+    },
+    {
+      "id": "prometheus-pca-009",
+      "question": "An operator wants to rewrite the `path` label so values ending in `/v1` (for example `/users/v1`) are collapsed onto the same series as their non-versioned counterpart `/users`. Which PromQL expression performs that rewrite at query time?",
+      "options": [
+        "`label_replace(rate(http_requests_total[5m]), \"path\", \"$1\", \"path\", \"(.*)/v1$\")`",
+        "`label_join(rate(http_requests_total[5m]), \"path\", \"/\", \"path\", \"v1\")`",
+        "`rate(http_requests_total{path!~\".*/v1\"}[5m])` — filters the versioned variant out so only the bare path remains",
+        "`sum by (path) (rate(http_requests_total[5m])) without (path = \"v1\")`"
+      ],
+      "correct": 0,
+      "explanation": "`label_replace(vector, dst_label, replacement, src_label, regex)` rewrites a label value using a capture group from `regex` applied to `src_label`. Here the regex `(.*)/v1$` captures the prefix and `$1` reassigns it back to `path`, dropping the `/v1` suffix and letting subsequent aggregation collapse the two series. `label_join` concatenates several source labels with a separator — it cannot remove a suffix. The filter option simply removes the versioned series instead of folding them. The fourth option mixes `sum by` with a `without` clause that is not valid PromQL syntax — `without` takes labels, not equality expressions.",
+      "tags": [
+        "promql",
+        "label_replace",
+        "labels",
+        "prometheus-pca"
+      ],
+      "difficulty": "hard",
+      "_normalized": true
+    },
+    {
+      "id": "prometheus-pca-010",
+      "question": "Which statement best reflects the design and conventional deployment of `node_exporter`?",
+      "options": [
+        "It is a sidecar container injected by the Prometheus Operator that wraps the Linux kernel's eBPF metrics into Prometheus textual format",
+        "It is a daemon that runs on each host and exposes hardware and OS-level metrics on `/metrics`, with per-collector flags such as `--collector.filesystem` to enable or disable individual collectors",
+        "It is a remote_write target — Prometheus pushes node samples into it for long-term storage and federation across regions",
+        "It is a Grafana plugin that converts CPU and memory dashboards into Prometheus recording rules at render time"
+      ],
+      "correct": 1,
+      "explanation": "`node_exporter` is the canonical Prometheus exporter for *NIX hosts: it runs as a process (typically a systemd service or DaemonSet) on each host and exposes hardware and OS metrics (CPU, memory, disk, network, filesystem, hwmon, etc.) on a `/metrics` HTTP endpoint. Individual collectors are toggled with `--collector.<name>` / `--no-collector.<name>` flags. It is not a sidecar wrapper around eBPF, not a remote_write receiver (those are Prometheus-side storage adapters), and is unrelated to Grafana — exporters expose data, dashboards consume it.",
+      "tags": [
+        "exporters",
+        "node_exporter",
+        "prometheus-pca"
+      ],
+      "difficulty": "easy",
+      "_normalized": true
+    },
+    {
+      "id": "prometheus-pca-011",
+      "question": "A central Prometheus needs to ingest only a curated subset of pre-aggregated series (all metrics whose names match `:cluster:*`) from each of 10 regional Prometheus servers. Which approach matches the documented Prometheus federation pattern?",
+      "options": [
+        "Configure each regional Prometheus with `remote_write` pointing at the central server and rely on relabeling on the central side to drop everything outside `:cluster:*`",
+        "Install Thanos sidecars on every Prometheus and expose a single `Query` API; the central Prometheus then queries Thanos instead of scraping the regions",
+        "Configure a scrape job on the central Prometheus that hits each regional `/federate` endpoint with `match[]` query parameters selecting only the `:cluster:*` series",
+        "Have each regional Prometheus push a daily snapshot of its TSDB to object storage; the central Prometheus mounts the snapshots into its data directory at boot"
+      ],
+      "correct": 2,
+      "explanation": "Hierarchical federation works exactly like a normal scrape, but the target is another Prometheus's `/federate` endpoint and the `params: match[]` selector restricts which series are exported. This is the documented Prometheus-native way to roll aggregated metrics up to a higher tier. `remote_write` is a viable alternative architecture but is NOT what 'federation' refers to — and pushing everything just to filter centrally is wasteful. Thanos is an external project (it provides global query, but isn't the documented federation pattern). Snapshotting and mounting TSDB blocks is not a supported live ingestion path.",
+      "tags": [
+        "federation",
+        "architecture",
+        "prometheus-pca"
+      ],
+      "difficulty": "medium",
+      "_normalized": true
+    },
+    {
+      "id": "prometheus-pca-012",
+      "question": "An operator wants the per-cluster sum of `kube_pod_status_ready{condition=\"true\"}` across all namespaces, preserving the `cluster` label and discarding `namespace`, `pod`, and `condition`. Which PromQL expression is idiomatic?",
+      "options": [
+        "`sum without (cluster) (kube_pod_status_ready)`",
+        "`count(kube_pod_status_ready) by (cluster, namespace)`",
+        "`avg by (pod, cluster) (kube_pod_status_ready) / count(kube_pod_status_ready)`",
+        "`sum by (cluster) (kube_pod_status_ready{condition=\"true\"})`"
+      ],
+      "correct": 3,
+      "explanation": "`sum by (cluster) (...)` keeps the listed labels and aggregates across everything else — exactly the requirement. The label filter `{condition=\"true\"}` is applied at selection time so only ready pods are summed. `sum without (cluster)` does the opposite, discarding `cluster` and keeping every other label. The `count(...) by (cluster, namespace)` option counts series rather than summing values and still retains `namespace`. The `avg by (pod, cluster) ... / count(...)` option preserves `pod`, computes an average, and divides by an unrelated count — wrong on every level.",
+      "tags": [
+        "promql",
+        "aggregation",
+        "sum-by",
+        "prometheus-pca"
+      ],
+      "difficulty": "easy",
+      "_normalized": true
+    }
+  ]
+}
