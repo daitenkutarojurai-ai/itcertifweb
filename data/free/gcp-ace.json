@@ -3,73 +3,79 @@
     "id": "gcp-ace",
     "name": "Google Cloud Associate Cloud Engineer",
     "vendor": "Google Cloud",
-    "version": "1.2.1",
+    "version": "1.3.0",
     "question_count": 56,
     "last_updated": "2026-05-14",
-    "notes": "harden distractors against longest-answer bias; fix corrupted correct indices [scheduled-agent] [gcp-ace batch 1: 12 balanced rewrites — recall=0]",
-    "updated": "2026-05-23"
+    "notes": "harden distractors against longest-answer bias; fix corrupted correct indices [scheduled-agent] [gcp-ace batch 1: 12 balanced rewrites — recall=0]; [scheduled-agent hardening pass 2026-06-25: full-pack rewrite — removed self-defeating inline rebuttals from distractors, normalized option lengths to remove longest/shortest tells, expanded explanations to cover WHY each distractor is wrong; positions preserved A/B/C/D = 14/14/14/14] [post-pass: broke 4 adjacent-run clusters (BBB at q004-006, CCC at q035-037, AAA at q041-043, AAA at q047-049) and trimmed two length-tell outliers on q015/q048]",
+    "updated": "2026-06-25"
   },
   "questions": [
     {
       "id": "gcp-ace-001",
-      "question": "You need to deploy a stateless web application that automatically scales from 0 to millions of requests with no infrastructure management. Which GCP compute service is the best fit?",
+      "question": "You need to deploy a stateless web application that automatically scales from zero to millions of requests with no infrastructure management. Which GCP compute service is the best fit?",
       "options": [
         "App Engine Flexible with vCPU-based autoscaling",
-        "GKE Standard mode with cluster and pod autoscaling",
+        "GKE Standard with cluster and pod autoscaling enabled",
         "Compute Engine managed instance groups with autoscaler",
         "Cloud Run with concurrency-based request scaling"
       ],
       "correct": 3,
-      "explanation": "Cloud Run is a fully managed serverless platform that automatically scales containers from 0 to N based on incoming requests and concurrency. It requires zero infrastructure management and is ideal for stateless workloads. App Engine Flexible runs at minimum one instance and cannot scale to zero. GKE Standard requires cluster sizing and node management. Compute Engine MIGs need autoscaler configuration and base instances.",
+      "explanation": "Cloud Run is a fully managed serverless platform that scales containers from zero to many based on incoming requests and concurrency, with no infrastructure to manage. App Engine Flexible runs on Compute Engine VMs and keeps at least one instance alive — it cannot scale to zero. GKE Standard requires you to size and operate the node pools. Compute Engine MIGs need autoscaler configuration plus base instances; scaling to zero is not the default and you still own the OS.",
       "tags": [
         "compute",
         "serverless",
         "cloud-run",
         "gcp-ace"
       ],
-      "difficulty": "easy"
+      "difficulty": "easy",
+      "_normalized": true,
+      "rewritten": true
     },
     {
       "id": "gcp-ace-002",
       "question": "A developer needs to grant a service account the minimum permissions to read objects from a specific Cloud Storage bucket. Which IAM role should be granted at the bucket level?",
       "options": [
         "roles/storage.objectCreator",
+        "roles/storage.objectViewer",
         "roles/storage.objectAdmin",
-        "roles/storage.bucketReader",
-        "roles/storage.objectViewer"
+        "roles/storage.legacyBucketReader"
       ],
-      "correct": 3,
-      "explanation": "roles/storage.objectViewer grants storage.objects.get and storage.objects.list on objects within the bucket without bucket-level administrative permissions, satisfying least privilege. roles/storage.objectAdmin permits write and delete on objects. roles/storage.bucketReader grants metadata read on the bucket itself, not the object data. roles/storage.objectCreator allows uploads only and not reads.",
+      "correct": 1,
+      "explanation": "roles/storage.objectViewer grants storage.objects.get and storage.objects.list on the bucket's objects, satisfying read-only least privilege. roles/storage.objectCreator allows uploads only and does not grant read. roles/storage.objectAdmin adds write and delete on objects, far more than needed. roles/storage.legacyBucketReader grants metadata read on the bucket itself but does not grant access to read the object data.",
       "tags": [
         "iam",
         "storage",
         "least-privilege",
         "gcp-ace"
       ],
-      "difficulty": "easy"
+      "difficulty": "easy",
+      "_normalized": true,
+      "rewritten": true
     },
     {
       "id": "gcp-ace-003",
-      "question": "You are creating a VM instance that needs to access BigQuery and Cloud Storage without storing credentials on disk. What is the recommended approach?",
+      "question": "You are creating a Compute Engine VM that must call BigQuery and Cloud Storage APIs without any credential file stored on disk. What is the recommended approach?",
       "options": [
-        "Copy a service account JSON key onto the VM disk — this option does not attach a service account to the VM instance for scoped API access",
-        "Set credentials in startup-script env variables",
-        "Attach a service account to the VM instance",
-        "Use the project's default compute SA with Editor role"
+        "Copy a JSON service-account key onto the VM disk and load it from the application",
+        "Set the service-account credentials in startup-script environment variables",
+        "Attach a dedicated service account to the VM and grant it the required roles",
+        "Use the default Compute Engine service account with the project Editor role"
       ],
       "correct": 2,
-      "explanation": "Attaching a service account to a VM instance allows workloads to authenticate to Google Cloud APIs using that service account's identity via the metadata server — no key files needed. Storing key files on disk is a security risk. The default compute service account with Editor is overly permissive. Environment variables in startup scripts are not a secure long-term credential store.",
+      "explanation": "Attach a dedicated service account to the VM. Workloads on the VM authenticate to Google Cloud APIs by retrieving short-lived access tokens from the instance metadata server — no key file is required. Storing a JSON key on the disk creates a long-lived credential at risk of theft or accidental commit. Putting the key in startup-script env vars is equivalent to disk storage and is logged. The default compute service account with project Editor is over-privileged and violates least privilege.",
       "tags": [
         "iam",
         "service-accounts",
         "compute",
         "gcp-ace"
       ],
-      "difficulty": "easy"
+      "difficulty": "easy",
+      "_normalized": true,
+      "rewritten": true
     },
     {
       "id": "gcp-ace-004",
-      "question": "Which Cloud Storage storage class should you use for data that is accessed at most once a year and requires 99.9% availability?",
+      "question": "Which Cloud Storage class is the most cost-effective for data that is accessed roughly once a year while still offering 99.9% (multi-region 99.95%) typical availability?",
       "options": [
         "Archive",
         "Coldline",
@@ -77,138 +83,150 @@
         "Nearline"
       ],
       "correct": 1,
-      "explanation": "Coldline is designed for data accessed at most once per 90 days (roughly quarterly or less) and is cost-effective for once-a-year reads while still meeting 99.9% availability. Archive is for data accessed less than once per year with a 365-day minimum storage duration and lower availability targets. Nearline targets monthly access. Standard targets frequently accessed data and is more expensive at rest.",
+      "explanation": "Coldline targets data accessed at most once every 90 days and has a 90-day minimum storage duration, making it the cheapest fit for once-a-year reads while still hitting the standard availability target. Archive is cheaper at rest but has a 365-day minimum storage duration and higher retrieval costs, so a single early read can cost more than Coldline. Nearline targets monthly access (30-day minimum). Standard targets frequent access and is the most expensive option at rest.",
       "tags": [
         "storage",
         "storage-classes",
         "gcp-ace"
       ],
-      "difficulty": "easy"
+      "difficulty": "easy",
+      "_normalized": true,
+      "rewritten": true
     },
     {
       "id": "gcp-ace-005",
-      "question": "You need to allow traffic from the internet to reach VMs on port 443 in your VPC. No current firewall rule exists. What must you do?",
+      "question": "You need to allow internet traffic on TCP port 443 to a fleet of VMs in your VPC. No firewall rule for port 443 exists yet. What must you do?",
       "options": [
-        "Configure a VPC peering link to allow port 443 from internet",
-        "Create an ingress firewall rule allowing TCP:443 from 0.0.0.0/0",
-        "Assign each VM an external IP and enable IP forwarding rules",
-        "Deploy a Cloud NAT gateway as the inbound HTTPS reverse proxy"
+        "Establish a VPC peering link to route inbound 443 traffic from the public internet",
+        "Assign each VM an external IP address and enable IP forwarding on the instances",
+        "Create an ingress firewall rule allowing TCP:443 from 0.0.0.0/0 to the target VMs",
+        "Deploy a Cloud NAT gateway and use it as an inbound HTTPS reverse proxy"
       ],
-      "correct": 1,
-      "explanation": "GCP VPCs use an implicit deny-all ingress rule by default. You must create an explicit ingress firewall rule allowing TCP port 443 from source 0.0.0.0/0 (internet). External IPs alone do not open firewall ports. Cloud NAT is for outbound connectivity only and does not accept unsolicited inbound traffic. VPC peering connects private networks and cannot peer with the public internet.",
+      "correct": 2,
+      "explanation": "GCP VPCs apply an implicit deny-all on ingress, so you must create an explicit ingress firewall rule allowing TCP:443 from source 0.0.0.0/0 (typically scoped to target tags or service accounts). Assigning external IPs only gives instances internet addressability — it does not open any port through the firewall. Cloud NAT only provides source-NAT for outbound flows; it does not accept unsolicited inbound traffic. VPC peering connects two private VPCs and cannot peer with the public internet.",
       "tags": [
         "networking",
         "firewall",
         "vpc",
         "gcp-ace"
       ],
-      "difficulty": "easy"
+      "difficulty": "easy",
+      "_normalized": true,
+      "rewritten": true
     },
     {
       "id": "gcp-ace-006",
-      "question": "Your GKE cluster needs to run a log-collector pod on every node, including nodes added later by the autoscaler. What is the correct Kubernetes resource to deploy?",
+      "question": "Your GKE cluster must run a log-collector pod on every node, including nodes added later by the autoscaler. Which Kubernetes workload type fits this requirement?",
       "options": [
-        "Deployment with replicas pinned to node count",
-        "DaemonSet scheduling one pod per matching node",
-        "StatefulSet with per-node anti-affinity rules",
-        "CronJob with hostNetwork on each cluster node"
+        "Deployment with the replica count pinned to the current node count",
+        "DaemonSet that schedules one pod on every matching node",
+        "StatefulSet with per-node anti-affinity rules and persistent volumes",
+        "CronJob that runs hourly with hostNetwork enabled on each cluster node"
       ],
       "correct": 1,
-      "explanation": "A DaemonSet ensures that exactly one pod replica runs on every node (or a subset defined by node selectors) and automatically schedules a pod on new nodes added later. This is the standard pattern for log collectors, monitoring agents, and CNI plugins. Deployments with a fixed replica count and StatefulSets with anti-affinity do not guarantee one-pod-per-node as nodes scale. CronJobs are for scheduled batch tasks.",
+      "explanation": "A DaemonSet places exactly one pod on every node (or every node matching its selector) and automatically schedules a pod on newly added nodes. This is the standard pattern for log shippers, monitoring agents and CNI plugins. A Deployment with a fixed replica count drifts as the node count changes. StatefulSet anti-affinity can spread pods but is not guaranteed to track every node. CronJobs run on a schedule, not continuously on every node.",
       "tags": [
         "gke",
         "kubernetes",
         "daemonset",
         "gcp-ace"
       ],
-      "difficulty": "easy"
+      "difficulty": "easy",
+      "_normalized": true,
+      "rewritten": true
     },
     {
       "id": "gcp-ace-007",
-      "question": "A platform engineer needs to list Compute Engine VMs that exist in a specific GCP project AND a specific zone — for example `prod-network` and `us-central1-a`. They use a single gcloud command with the project + zone filters. Which command does this?",
+      "question": "A platform engineer needs to list every Compute Engine VM in project `prod-network` that lives in zone `us-central1-a` using a single gcloud command. Which command does this?",
       "options": [
-        "`gcloud beta compute regions describe us-central1 --project=prod-network` — describes a region; does not list its VMs",
-        "`gcloud compute vms list prod-network us-central1-a` — invalid syntax; the subcommand `vms` does not exist",
-        "`gcloud projects describe prod-network --include-instances` — describes the project metadata; does not enumerate instances",
-        "`gcloud compute instances list --project=prod-network --filter=\"zone:us-central1-a\"`"
+        "gcloud beta compute regions describe us-central1 --project=prod-network",
+        "gcloud compute vms list prod-network us-central1-a",
+        "gcloud projects describe prod-network --include-instances",
+        "gcloud compute instances list --project=prod-network --filter=\"zone:us-central1-a\""
       ],
       "correct": 3,
-      "explanation": "gcloud compute instances list --zone=ZONE lists all VM instances in that zone. The describe subcommand returns details for a single named instance and is not used for listing. Compute Engine instances are zonal, so the --region flag is invalid for the list subcommand. The vms subgroup does not exist; the correct subgroup is instances.",
+      "explanation": "`gcloud compute instances list` enumerates VM instances and accepts `--project` plus a `--filter` (or `--zones=`) to scope the results to a single zone. The subgroup is `instances`, not `vms` — `gcloud compute vms` is not a real command. `gcloud compute regions describe` returns metadata about a region object, not a list of VMs. `gcloud projects describe` returns project metadata only and has no `--include-instances` flag.",
       "tags": [
         "gcloud",
         "compute-instances",
         "gcp-ace"
       ],
       "difficulty": "easy",
+      "_normalized": true,
       "rewritten": true
     },
     {
       "id": "gcp-ace-008",
-      "question": "You need a fully managed relational database compatible with MySQL 8.0 on GCP. Which service should you use?",
+      "question": "You need a fully managed relational database service on GCP that is wire-compatible with MySQL 8.0. Which product should you choose?",
       "options": [
-        "Firestore — serverless document store",
-        "Cloud SQL — managed RDBMS service",
-        "Cloud Bigtable — wide-column data store",
-        "Cloud Spanner — globally scaled RDBMS"
+        "Firestore in Native mode",
+        "Cloud SQL for MySQL",
+        "Cloud Bigtable",
+        "Cloud Spanner"
       ],
       "correct": 1,
-      "explanation": "Cloud SQL is Google's fully managed relational database service supporting MySQL (5.6/5.7/8.0), PostgreSQL, and SQL Server. Cloud Bigtable is a NoSQL wide-column store unsuited to MySQL workloads. Cloud Spanner is a globally distributed relational database but uses its own SQL dialect, not MySQL. Firestore is a NoSQL document database with no relational schema.",
+      "explanation": "Cloud SQL is Google's fully managed relational database service and offers MySQL (5.6/5.7/8.0), PostgreSQL and SQL Server engines — applications can connect with standard MySQL drivers. Cloud Spanner is a globally distributed relational database but uses its own SQL dialect and is not wire-compatible with MySQL. Cloud Bigtable is a wide-column NoSQL store. Firestore is a document-oriented NoSQL database with no relational schema.",
       "tags": [
         "databases",
         "cloud-sql",
         "gcp-ace"
       ],
-      "difficulty": "easy"
+      "difficulty": "easy",
+      "_normalized": true,
+      "rewritten": true
     },
     {
       "id": "gcp-ace-009",
-      "question": "A team wants to monitor the CPU utilization of their Compute Engine VMs and be alerted when it exceeds 80% for more than 5 minutes. What should they use?",
+      "question": "A team wants to be alerted whenever the CPU utilization of their Compute Engine VMs exceeds 80% for more than 5 minutes. Which GCP feature provides this?",
       "options": [
-        "Cloud Audit Logs with notification channels",
-        "Error Reporting with email subscriptions",
-        "Cloud Trace with custom span alerting",
-        "Cloud Monitoring with an alerting policy"
+        "Cloud Audit Logs with notification channels attached to log entries",
+        "Error Reporting with email subscriptions for high-severity issues",
+        "Cloud Trace alerting on latency spans for long-running requests",
+        "Cloud Monitoring with an alerting policy on the CPU utilization metric"
       ],
       "correct": 3,
-      "explanation": "Cloud Monitoring (formerly Stackdriver) collects metrics from GCP resources and lets you define alerting policies with metric conditions, duration thresholds, and notification channels — exactly the pattern requested. Cloud Audit Logs track API activity, not utilisation metrics. Cloud Trace analyzes request latency. Error Reporting aggregates application errors.",
+      "explanation": "Cloud Monitoring (formerly Stackdriver) collects metrics from GCP resources and lets you define alerting policies with metric conditions, duration thresholds and notification channels — exactly the requirement here. Cloud Audit Logs record API activity, not utilization metrics; alerts on them would not fire on CPU usage. Cloud Trace analyses request latency spans. Error Reporting aggregates application exceptions, not host metrics.",
       "tags": [
         "monitoring",
         "alerting",
         "cloud-monitoring",
         "gcp-ace"
       ],
-      "difficulty": "easy"
+      "difficulty": "easy",
+      "_normalized": true,
+      "rewritten": true
     },
     {
       "id": "gcp-ace-010",
-      "question": "A subnet with no public IPs hosts a fleet of VMs that must reach the public internet for OS updates and SaaS APIs, but must NOT be reachable inbound. The engineer wants a managed regional resource that sources outbound flows on shared NAT addresses without requiring any per-VM public IP. Which GCP resource fits?",
+      "question": "A subnet hosts VMs with no public IPs that must reach the public internet for OS updates and SaaS APIs while remaining unreachable from inbound flows. You want a managed regional resource that source-NATs the outbound flows behind shared addresses. Which GCP resource fits?",
       "options": [
-        "Cloud Armor — L7 web application firewall for HTTP(S) load balancers; not relevant to private-VM outbound connectivity",
-        "Cloud Load Balancer — distributes inbound traffic across backends; does not provide outbound source NAT for private VMs",
-        "Cloud Router — exchanges BGP routes between VPC and on-prem networks; not a source-NAT service on its own",
-        "Cloud NAT"
+        "Cloud Armor",
+        "An external HTTP(S) Load Balancer in front of the subnet",
+        "Cloud Router with custom advertised routes",
+        "Cloud NAT attached to the VPC and region"
       ],
       "correct": 3,
-      "explanation": "Cloud NAT (Network Address Translation) allows VM instances without external IP addresses to make outbound connections to the internet while hiding their internal IPs behind NAT IPs. It does not accept unsolicited inbound connections. VPC Network Peering is a separate service for connecting VPCs. Cloud VPN and Cloud Interconnect handle on-premises encryption and connectivity.",
+      "explanation": "Cloud NAT performs source NAT for instances without external IP addresses, allowing outbound connections while accepting no unsolicited inbound traffic. Cloud Armor is an L7 WAF in front of HTTP(S) load balancers and does not provide outbound NAT. An external load balancer handles inbound traffic. Cloud Router exchanges BGP routes between a VPC and on-premises networks; it is required as the control plane for Cloud NAT but is not itself the NAT data plane.",
       "tags": [
         "networking",
         "cloud-nat",
         "gcp-ace"
       ],
       "difficulty": "medium",
+      "_normalized": true,
       "rewritten": true
     },
     {
       "id": "gcp-ace-011",
-      "question": "You need to deploy a containerized application that requires persistent disk storage and must maintain a stable network identity. Which Kubernetes resource is most appropriate?",
+      "question": "You need to deploy a containerized application that requires persistent disk storage per replica and must maintain a stable network identity. Which Kubernetes workload type is most appropriate?",
       "options": [
-        "Deployment with a PersistentVolumeClaim",
-        "StatefulSet with volumeClaimTemplates",
-        "DaemonSet with hostPath volume mounts",
-        "ReplicaSet with an external LoadBalancer"
+        "Deployment with a single PersistentVolumeClaim shared by all replicas",
+        "StatefulSet with volumeClaimTemplates and a headless Service",
+        "DaemonSet with a hostPath volume mount on each node",
+        "ReplicaSet placed behind an external LoadBalancer Service"
       ],
       "correct": 1,
-      "explanation": "StatefulSets provide stable network identities (predictable pod names like myapp-0, myapp-1), ordered deployment and scaling, and per-pod persistent storage via volumeClaimTemplates. This is the correct pattern for databases and other stateful applications. Deployments support PVCs but pods get random hashes and share volumes if any.",
+      "explanation": "StatefulSets provide stable, predictable pod names (myapp-0, myapp-1), ordered rollout and scale-down, and a per-pod PVC via volumeClaimTemplates. Combined with a headless Service, each pod gets a stable DNS name — the canonical pattern for stateful workloads like databases. Deployments give pods random hashes and share or recycle a single PVC. DaemonSets are for per-node agents, not application replicas with stable identity. A bare ReplicaSet has no identity or storage guarantees beyond what its pod template provides.",
       "tags": [
         "gke",
         "kubernetes",
@@ -216,245 +234,268 @@
         "storage",
         "gcp-ace"
       ],
-      "difficulty": "medium"
+      "difficulty": "medium",
+      "_normalized": true,
+      "rewritten": true
     },
     {
       "id": "gcp-ace-012",
-      "question": "Which load balancer type should you choose to route HTTP/HTTPS traffic globally to backends in multiple regions with built-in DDoS protection?",
+      "question": "Which load balancer should you choose to route HTTP/HTTPS traffic globally to backends in multiple regions with built-in DDoS protection?",
       "options": [
-        "Internal TCP/UDP Load Balancer (regional)",
-        "Regional External TCP/UDP Load Balancer",
-        "Global External HTTP(S) Load Balancer",
-        "Internal HTTP(S) Load Balancer (regional)"
+        "Internal TCP/UDP Load Balancer (regional, L4)",
+        "Regional External TCP/UDP Load Balancer (L4)",
+        "Global External HTTP(S) Load Balancer (L7)",
+        "Internal HTTP(S) Load Balancer (regional, L7)"
       ],
       "correct": 2,
-      "explanation": "The Global External HTTP(S) Load Balancer is a Layer 7 proxy that uses Google's global network to route requests to the nearest healthy backend across regions. It integrates with Cloud Armor for WAF and DDoS protection and supports URL/host-based routing. Internal load balancers serve only private clients. Regional external balancers do not provide cross-region routing.",
+      "explanation": "The Global External HTTP(S) Load Balancer is a Layer 7 proxy on Google's global front-end that steers each request to the closest healthy backend across regions and integrates with Cloud Armor for WAF and DDoS protection. Internal load balancers only serve clients inside the VPC. Regional external balancers terminate in a single region and cannot route across regions natively.",
       "tags": [
         "networking",
         "load-balancing",
         "gcp-ace"
       ],
-      "difficulty": "medium"
+      "difficulty": "medium",
+      "_normalized": true,
+      "rewritten": true
     },
     {
       "id": "gcp-ace-013",
-      "question": "A project has multiple environments (dev, staging, prod). What is the recommended GCP resource hierarchy approach to isolate billing and access control per environment?",
+      "question": "A team operates multiple environments (dev, staging, prod) for the same application. What is the recommended GCP resource-hierarchy approach to isolate billing, quotas and access control per environment?",
       "options": [
-        "Use separate VPCs within the same shared project",
-        "Use separate GCP projects for each environment",
-        "Use separate service accounts in one shared project",
-        "Use labels and folders to tag resources by env"
+        "Place each environment in its own VPC inside a single shared project",
+        "Use a separate GCP project per environment under a common folder",
+        "Use a separate service account per environment in one shared project",
+        "Apply labels and folders to tag resources with their environment"
       ],
       "correct": 1,
-      "explanation": "GCP's resource hierarchy uses projects as the primary unit of isolation. Separate projects provide independent billing, IAM policies, quotas, and audit trails per environment. VPC separation alone does not isolate billing or IAM. Service accounts within one project still inherit project-level IAM bindings. Labels are descriptive metadata, not an isolation boundary.",
+      "explanation": "Projects are GCP's primary isolation boundary: each project has its own IAM policy, billing account assignment, quotas and audit trail. A separate project per environment is the recommended pattern, often grouped under an `environments/` folder for shared IAM and Org Policy. VPC separation does not isolate IAM or billing. Distinct service accounts in one project still inherit that project's IAM bindings. Labels are metadata used for filtering and billing breakdowns, not an isolation boundary.",
       "tags": [
         "resource-management",
         "iam",
         "projects",
         "gcp-ace"
       ],
-      "difficulty": "medium"
+      "difficulty": "medium",
+      "_normalized": true,
+      "rewritten": true
     },
     {
       "id": "gcp-ace-014",
       "question": "You need to store structured, schemaless JSON documents with real-time sync for a mobile application. Which GCP database is the best fit?",
       "options": [
-        "Cloud Spanner — global relational DB",
-        "Firestore — serverless document store",
-        "Cloud SQL (PostgreSQL) — managed RDBMS",
-        "Cloud Bigtable — wide-column data store"
+        "Cloud Spanner",
+        "Firestore in Native mode",
+        "Cloud SQL for PostgreSQL",
+        "Cloud Bigtable"
       ],
       "correct": 1,
-      "explanation": "Firestore (formerly Cloud Firestore/Datastore) is Google's serverless NoSQL document database with native real-time listeners, offline sync for mobile/web SDKs, and automatic horizontal scaling — purpose-built for mobile and web applications. Cloud Bigtable is for time-series and analytics at massive scale. Cloud SQL and Cloud Spanner are relational databases without document semantics or real-time sync.",
+      "explanation": "Firestore in Native mode is Google's serverless document database with native real-time listeners, offline persistence on mobile/web SDKs and automatic horizontal scaling — purpose-built for mobile and web apps. Cloud Bigtable is a wide-column store for analytics and high-throughput time-series workloads, with no document model or real-time listeners. Cloud SQL and Cloud Spanner are relational databases requiring a fixed schema and do not provide live mobile sync.",
       "tags": [
         "databases",
         "firestore",
         "nosql",
         "gcp-ace"
       ],
-      "difficulty": "medium"
+      "difficulty": "medium",
+      "_normalized": true,
+      "rewritten": true
     },
     {
       "id": "gcp-ace-015",
-      "question": "A team enables Object Versioning on a Cloud Storage bucket holding important documents. The next day, a user overwrites `report.pdf` with an empty file. Then they DELETE it. What happens to the previous versions of the object after these two operations?",
+      "question": "A team enables Object Versioning on a Cloud Storage bucket. A user then overwrites `report.pdf` with an empty file and afterwards deletes the live object. What happens to the older states of `report.pdf`?",
       "options": [
-        "Versioning encrypts every prior version with a unique customer-managed key; it does not preserve the bytes themselves for retrieval",
-        "Old versions are immediately purged on any overwrite; only the latest live version is stored, similar to a versionless bucket",
-        "Only deletions are retained as noncurrent versions; overwrites are not preserved when the user has writer permissions on the object",
-        "Both noncurrent (overwritten) and deleted versions of objects are RETAINED as separate noncurrent versions and remain retrievable until lifecycle policies"
+        "Each prior version is encrypted with a unique customer-managed key but the bytes are not retained for retrieval",
+        "Every prior state is purged on overwrite; only the latest live object is kept, just like a versionless bucket",
+        "Only deletions are retained as noncurrent versions; overwrites are not preserved if the writer has object permissions",
+        "Both the overwritten and the deleted prior states are kept as noncurrent versions, retrievable until a lifecycle rule deletes them"
       ],
       "correct": 3,
-      "explanation": "Cloud Storage Object Versioning maintains every version of an object. When an object is overwritten or deleted, the prior version becomes a noncurrent version retained with its original generation number, and you can restore, list, or permanently delete it. Versioning does not change the bucket's location/replication settings and does not make objects immutable — that requires retention policies or object holds.",
+      "explanation": "Object Versioning keeps the previous state of an object as a noncurrent version on both overwrite and delete. Each noncurrent version carries its original generation number and can be listed, restored or permanently deleted, typically aged out by an Object Lifecycle Management rule. Versioning does not change encryption, replication or mutability — making objects immutable requires a retention policy or object hold, not versioning.",
       "tags": [
         "cloud-storage",
         "versioning",
         "gcp-ace"
       ],
       "difficulty": "medium",
+      "_normalized": true,
       "rewritten": true
     },
     {
       "id": "gcp-ace-016",
-      "question": "You need to schedule a Bash script to run every day at 2 AM on GCP with no persistent VM. What is the most cost-effective approach?",
+      "question": "You need to run a Bash script every day at 02:00 UTC on GCP with no persistent VM. Which is the most cost-effective approach?",
       "options": [
         "Keep a Compute Engine VM running 24/7 with a crontab entry for the job",
-        "Use Cloud Scheduler to trigger a Cloud Function or Cloud Run job",
-        "Run a GKE CronJob on a small autoscaling node pool for the schedule",
-        "Deploy an App Engine Standard service with the cron.yaml scheduler"
+        "Use Cloud Scheduler to trigger a Cloud Function or Cloud Run job at 02:00",
+        "Run a GKE CronJob on a small dedicated node pool just for the schedule",
+        "Deploy an App Engine Standard service with a `cron.yaml` schedule"
       ],
       "correct": 1,
-      "explanation": "Cloud Scheduler invoking a Cloud Function or Cloud Run job is the serverless, pay-per-execution pattern for scheduled tasks — you pay only for execution time, not idle hours. A 24/7 Compute Engine VM is wasteful for a once-daily job. GKE clusters carry minimum control-plane and node-pool costs. App Engine cron.yaml works but locks you into App Engine Standard with less language flexibility.",
+      "explanation": "Cloud Scheduler firing a Cloud Function or Cloud Run job is the serverless, pay-per-execution pattern for scheduled work — you pay only for execution time, not idle hours. A 24/7 Compute Engine VM is wasteful for a once-daily job. A dedicated GKE node pool carries minimum control-plane and node costs even when idle. App Engine `cron.yaml` works but locks you into App Engine Standard runtimes and instance keep-alive billing.",
       "tags": [
         "serverless",
         "cloud-scheduler",
         "cloud-functions",
         "gcp-ace"
       ],
-      "difficulty": "medium"
+      "difficulty": "medium",
+      "_normalized": true,
+      "rewritten": true
     },
     {
       "id": "gcp-ace-017",
-      "question": "A GKE cluster's nodes are running out of memory because pending pods cannot be scheduled. You want the cluster to automatically add more nodes when this happens. What should you enable?",
+      "question": "A GKE cluster has pods stuck in `Pending` because no existing node has enough memory to schedule them. You want the cluster to automatically add nodes to existing node pools when this happens. Which feature should you enable?",
       "options": [
-        "GKE Horizontal Pod Autoscaler",
-        "GKE Node Auto-Provisioning",
-        "GKE Vertical Pod Autoscaler",
-        "GKE Cluster Autoscaler"
+        "Horizontal Pod Autoscaler",
+        "Node Auto-Provisioning",
+        "Vertical Pod Autoscaler",
+        "Cluster Autoscaler"
       ],
       "correct": 3,
-      "explanation": "Cluster Autoscaler watches for pods that cannot be scheduled due to insufficient resources and adds nodes to existing node pools (and removes underused nodes). HPA changes pod replica counts, not node counts. VPA adjusts CPU/memory requests on individual pods. Node Auto-Provisioning creates entirely new node pools when no existing pool fits — useful, but Cluster Autoscaler is the primary node-scaling mechanism for an existing pool.",
+      "explanation": "Cluster Autoscaler watches for unschedulable pods and adds nodes to existing node pools to fit them (and removes underused nodes). HPA changes pod replica counts, not the node count. VPA adjusts CPU/memory requests on individual pods but cannot add capacity. Node Auto-Provisioning creates entirely new node pools when no existing pool's shape fits — useful, but the question asks specifically about adding nodes to existing pools, which is Cluster Autoscaler's job.",
       "tags": [
         "gke",
         "autoscaling",
         "gcp-ace"
       ],
-      "difficulty": "medium"
+      "difficulty": "medium",
+      "_normalized": true,
+      "rewritten": true
     },
     {
       "id": "gcp-ace-018",
-      "question": "A GKE operator needs to create a new Kubernetes namespace named `production` in the cluster their kubectl context currently points to. They run a single kubectl command. Which command creates the namespace?",
+      "question": "A GKE operator needs to create a new Kubernetes namespace called `production` in the cluster that their `kubectl` context currently points to. Which single command does this?",
       "options": [
-        "`gcloud container clusters create production` — creates a brand-new GKE cluster, not a Namespace inside an existing cluster",
-        "`kubectl create namespace production` — creates a new Namespace object named `production` in the active cluster context",
-        "`kubectl apply --namespace=production` — requires a manifest input; does not on its own create the namespace",
-        "`kubectl get namespaces production` — read-only command; lists info if the namespace exists, but does not create one"
+        "gcloud container clusters create production",
+        "kubectl create namespace production",
+        "kubectl apply --namespace=production",
+        "kubectl get namespaces production"
       ],
       "correct": 1,
-      "explanation": "kubectl create namespace production (or its short form kubectl create ns production) is the correct Kubernetes CLI command. The --type=v1 flag is invalid for create namespace. gcloud does not include subcommands for managing in-cluster Kubernetes API objects like namespaces — those are operated via kubectl against the cluster's API server.",
+      "explanation": "`kubectl create namespace production` (short form `kubectl create ns production`) creates a new Namespace object in the active cluster. `gcloud container clusters create` creates a new GKE cluster, not a Namespace inside an existing cluster. `kubectl apply --namespace=production` requires a manifest input and only sets the namespace flag on the apply — it does not create the namespace if it does not already exist. `kubectl get` is read-only and lists or shows resources, never creates them.",
       "tags": [
         "gke",
         "namespaces",
         "gcp-ace"
       ],
       "difficulty": "easy",
+      "_normalized": true,
       "rewritten": true
     },
     {
       "id": "gcp-ace-019",
-      "question": "You need to connect your on-premises network to a GCP VPC with dedicated bandwidth of 10 Gbps and low latency. SLAs are critical. Which connectivity option should you choose?",
+      "question": "You need to connect your on-premises network to a GCP VPC with dedicated 10 Gbps bandwidth, low latency and a service-level agreement. Which connectivity option fits?",
       "options": [
-        "Cloud VPN over the public internet",
-        "Cloud NAT with private routing",
-        "Partner Interconnect via a carrier",
-        "Dedicated Interconnect with a colo"
+        "Cloud VPN over the public internet using IPsec tunnels",
+        "Cloud NAT with a private routing table to on-premises",
+        "Partner Interconnect through a supported service provider",
+        "Dedicated Interconnect via cross-connect in a Google colocation facility"
       ],
       "correct": 3,
-      "explanation": "Dedicated Interconnect provides a direct physical fiber connection between your on-premises router (in a Google colocation facility) and Google's network, offering 10 Gbps or 100 Gbps links with a 99.9% (or 99.99% with redundant configuration) SLA. Cloud VPN traverses the public internet with no bandwidth SLA. Partner Interconnect goes through a service-provider link. Cloud NAT is an outbound-only service.",
+      "explanation": "Dedicated Interconnect provides a direct physical fibre cross-connect between your on-premises router (in a Google colocation facility) and Google's edge network. It supports 10 Gbps or 100 Gbps circuits with a 99.9% SLA (99.99% with the recommended redundant topology). Cloud VPN traverses the public internet and offers no bandwidth SLA. Partner Interconnect uses a service-provider link with bandwidth options below or above 10 Gbps but is a managed-partner topology, not a direct cross-connect. Cloud NAT is an outbound-only service.",
       "tags": [
         "networking",
         "interconnect",
         "hybrid",
         "gcp-ace"
       ],
-      "difficulty": "medium"
+      "difficulty": "medium",
+      "_normalized": true,
+      "rewritten": true
     },
     {
       "id": "gcp-ace-020",
-      "question": "An admin needs to grant a role to EVERY member of their Google Workspace organisation in one IAM binding (employees, contractors, future hires alike). They reference a special principal identifier on the binding that resolves to the entire Workspace domain. Which principal identifier is used?",
+      "question": "An admin wants to grant an IAM role to every member of their Google Workspace organisation in a single binding — employees, contractors and future hires alike — without having to maintain a group. Which principal identifier should they reference on the binding?",
       "options": [
-        "`allUsers` — anonymous public access, even broader than allAuthenticatedUsers; never appropriate for company-only scope",
-        "`allAuthenticatedUsers` — every authenticated Google account on the internet, far broader than the company's Workspace tenant",
-        "`domain:example.com`",
-        "`group:everyone@example.com` — requires creating and maintaining a literal group; not the single-principal mechanism the question describes"
+        "allUsers",
+        "allAuthenticatedUsers",
+        "domain:example.com",
+        "group:everyone@example.com"
       ],
       "correct": 2,
-      "explanation": "The domain:DOMAIN_NAME principal grants the role to every Google account in a Google Workspace or Cloud Identity domain. allUsers grants access to anyone on the internet, including unauthenticated callers. allAuthenticatedUsers covers any Google-authenticated user globally, not just your domain. group: requires an explicit Google Group to exist and be populated.",
+      "explanation": "The `domain:DOMAIN_NAME` principal grants the role to every Google account in the named Google Workspace or Cloud Identity domain, with no group to manage. `allUsers` grants access to anyone on the internet including unauthenticated callers — far too broad. `allAuthenticatedUsers` covers any Google-authenticated user globally, not just your company. `group:` requires that an actual Google Group exist and be populated with the right members; it is not the domain-wide identifier.",
       "tags": [
         "iam",
         "principal-identifiers",
         "gcp-ace"
       ],
       "difficulty": "medium",
+      "_normalized": true,
       "rewritten": true
     },
     {
       "id": "gcp-ace-021",
       "question": "You deployed a Cloud Run service and need to split traffic so that 90% goes to revision v2 and 10% goes to revision v1 for canary testing. How do you configure this?",
       "options": [
-        "Use Cloud CDN to route a percentage of traffic per revision",
-        "Use a global HTTP(S) Load Balancer with weighted backends",
-        "Deploy two separate Cloud Run services behind a load balancer",
-        "Configure traffic splitting in Cloud Run service settings"
+        "Configure Cloud CDN to send a percentage of traffic to each Cloud Run revision",
+        "Place a global HTTP(S) Load Balancer in front and assign weighted backends per revision",
+        "Deploy v1 and v2 as two separate Cloud Run services behind a load balancer",
+        "Use built-in traffic splitting on the Cloud Run service with weights per revision"
       ],
       "correct": 3,
-      "explanation": "Cloud Run natively supports traffic splitting between revisions. You assign percentage weights to one or more revisions of the same service (e.g., 90% to v2, 10% to v1) directly in the Cloud Run service configuration via Console or gcloud run services update-traffic. This is a built-in canary feature and requires no external load balancer or CDN.",
+      "explanation": "Cloud Run has native, per-service traffic splitting between revisions. Set weights with `gcloud run services update-traffic --to-revisions=v2=90,v1=10` (or use the Console). This is the canonical canary mechanism and requires no external load balancer or CDN. Cloud CDN caches HTTP responses and does not weight traffic. Splitting via a load balancer or two separate services is more complex and unnecessary when revisions of the same service already support weighting.",
       "tags": [
         "cloud-run",
         "deployment",
         "canary",
         "gcp-ace"
       ],
-      "difficulty": "medium"
+      "difficulty": "medium",
+      "_normalized": true,
+      "rewritten": true
     },
     {
       "id": "gcp-ace-022",
-      "question": "Your application running on Compute Engine is writing logs to local files. Where should you direct logs so they are automatically ingested into Cloud Logging?",
+      "question": "Your application runs on a Compute Engine VM and writes its logs to local files under /var/log/myapp. You want those entries to flow into Cloud Logging. What is the recommended approach?",
       "options": [
-        "Write logs to /var/log/syslog — they are ingested automatically",
-        "Install and configure the Cloud Ops Agent on the VM instance",
-        "Compute Engine streams system logs without any agent installation",
-        "Write logs to a Cloud Storage bucket and import them on a schedule"
+        "Write logs to /var/log/syslog so Compute Engine ingests them automatically",
+        "Install and configure the Cloud Ops Agent on the VM and point it at the log files",
+        "Rely on Compute Engine to stream system and application logs without any agent",
+        "Write logs to a Cloud Storage bucket and import them into Cloud Logging on a schedule"
       ],
       "correct": 1,
-      "explanation": "Compute Engine VMs do not automatically forward application or system logs to Cloud Logging. You must install the Cloud Ops Agent (which replaces the legacy Logging and Monitoring agents), configure it to tail the relevant log files, and it will stream entries into Cloud Logging and metrics into Cloud Monitoring. GCP-managed runtimes like GKE, Cloud Run, and App Engine auto-emit logs without an agent.",
+      "explanation": "Compute Engine VMs do not forward application or system logs to Cloud Logging by default. You install the Cloud Ops Agent (which supersedes the legacy Logging and Monitoring agents), configure receivers that tail the relevant log files, and the agent streams entries into Cloud Logging and metrics into Cloud Monitoring. GCP-managed runtimes such as GKE, Cloud Run and App Engine emit logs without an agent; raw Compute Engine does not.",
       "tags": [
         "monitoring",
         "logging",
         "compute",
         "gcp-ace"
       ],
-      "difficulty": "medium"
+      "difficulty": "medium",
+      "_normalized": true,
+      "rewritten": true
     },
     {
       "id": "gcp-ace-023",
-      "question": "A Cloud SQL instance is experiencing high read latency under heavy load. You want to offload read queries without changing the application architecture significantly. What should you add?",
+      "question": "A Cloud SQL primary is hot on read traffic. You want to offload read-only queries without rewriting the application's data layer. What should you add?",
       "options": [
-        "Upgrade the Cloud SQL tier to a larger machine",
-        "Migrate the workload to Cloud Spanner for scale-out",
-        "Add Memorystore for Redis as a read-through cache",
-        "Add a read replica to the Cloud SQL instance"
+        "Upgrade the primary instance to a larger machine type",
+        "Migrate the workload to Cloud Spanner for horizontal read scale-out",
+        "Add Memorystore for Redis in front as a read-through cache",
+        "Add a Cloud SQL read replica and point read traffic at its connection string"
       ],
       "correct": 3,
-      "explanation": "Cloud SQL read replicas are asynchronously replicated copies of the primary instance that serve read-only queries; the application only needs to point read traffic at the replica's connection string, no rearchitecture required. Scaling up the primary helps but is more expensive and still a single instance. Memorystore requires application-level cache logic. Spanner migration is a major schema and SQL-dialect change.",
+      "explanation": "Cloud SQL read replicas are asynchronously replicated copies of the primary that serve read-only queries. The application just connects to the replica's connection string for reads — no schema or SQL-dialect changes. Upgrading the primary helps but still uses a single instance and is more expensive. Memorystore requires application-level cache code and cache-invalidation handling. Migrating to Spanner is a major schema and SQL-dialect change, not a quick offload.",
       "tags": [
         "databases",
         "cloud-sql",
         "performance",
         "gcp-ace"
       ],
-      "difficulty": "medium"
+      "difficulty": "medium",
+      "_normalized": true,
+      "rewritten": true
     },
     {
       "id": "gcp-ace-025",
-      "question": "Your GKE workload requires access to a Cloud SQL database. What is the recommended, secure way to provide database authentication?",
+      "question": "Your GKE workload needs to authenticate to a Cloud SQL database. What is the recommended, secure way to provide that authentication?",
       "options": [
-        "Hardcode the database password in the Deployment YAML manifest",
-        "Store credentials in a Kubernetes Secret mounted as an env variable",
-        "Use the Cloud SQL Auth Proxy with Workload Identity bindings",
-        "Grant the cluster's default service account the Editor IAM role"
+        "Hard-code the database password in the Deployment YAML manifest",
+        "Store the database password in a Kubernetes Secret mounted as an environment variable",
+        "Use the Cloud SQL Auth Proxy as a sidecar with Workload Identity bound to a GCP service account",
+        "Grant the cluster's default node service account the project-wide Editor role"
       ],
       "correct": 2,
-      "explanation": "The recommended pattern is the Cloud SQL Auth Proxy (deployed as a sidecar container) combined with Workload Identity, which maps a Kubernetes Service Account to a GCP Service Account. The proxy handles encrypted connections and IAM-based authentication so no static database password is stored in the cluster. Plain Kubernetes Secrets are only base64-encoded and not encrypted at rest by default; granting Editor at the cluster level is over-privileged.",
+      "explanation": "The recommended pattern is the Cloud SQL Auth Proxy (deployed as a sidecar) combined with Workload Identity, which maps a Kubernetes ServiceAccount to a GCP service account that holds `roles/cloudsql.client`. The proxy provides an encrypted IAM-authenticated channel — no static database password is stored in the cluster. Plain Kubernetes Secrets are only base64-encoded and visible to anyone with `get` on Secrets in that namespace. Granting Editor at the node pool level is dramatically over-privileged.",
       "tags": [
         "gke",
         "cloud-sql",
@@ -462,30 +503,34 @@
         "workload-identity",
         "gcp-ace"
       ],
-      "difficulty": "hard"
+      "difficulty": "hard",
+      "_normalized": true,
+      "rewritten": true
     },
     {
       "id": "gcp-ace-026",
-      "question": "Which Compute Engine pricing model provides up to ~30% discount automatically for standard instances that run for a significant portion of the billing month, with no upfront commitment and no risk of preemption?",
+      "question": "Which Compute Engine pricing model automatically reduces the cost of standard VMs that run for a significant portion of the billing month, requires no upfront commitment and never reclaims the instance?",
       "options": [
-        "Committed Use Discounts — 1 or 3-year term",
-        "Preemptible VMs — older interruptible model",
-        "Sustained Use Discounts — automatic monthly",
-        "Spot VMs — newer interruptible workloads"
+        "Committed Use Discounts (1- or 3-year commitment)",
+        "Preemptible VMs (legacy interruptible instances)",
+        "Sustained Use Discounts (automatic monthly)",
+        "Spot VMs (current interruptible instances)"
       ],
       "correct": 2,
-      "explanation": "Sustained Use Discounts (SUDs) are applied automatically to standard Compute Engine instances that run for more than 25% of a month, increasing incrementally with usage. There is no commitment and instances are not interruptible. CUDs require 1- or 3-year commitments. Preemptible and Spot VMs are deeply discounted but can be reclaimed by Google at any time.",
+      "explanation": "Sustained Use Discounts apply automatically to standard Compute Engine instances that run for more than 25% of a billing month, growing as usage increases. There is no commitment to make and no risk of preemption. CUDs require a 1- or 3-year commitment in exchange for a deeper discount. Preemptible and Spot VMs are deeply discounted but Google can reclaim them at any time, so they fail the 'never reclaimed' part of the question.",
       "tags": [
         "billing",
         "pricing",
         "compute",
         "gcp-ace"
       ],
-      "difficulty": "medium"
+      "difficulty": "medium",
+      "_normalized": true,
+      "rewritten": true
     },
     {
       "id": "gcp-ace-027",
-      "question": "You need to deploy an application to App Engine. The application receives bursts of traffic and must scale to zero when idle to minimize cost. Which App Engine configuration should you choose?",
+      "question": "You need to deploy an application on App Engine that receives bursty traffic and must scale to zero instances when idle to minimize cost. Which App Engine configuration meets this?",
       "options": [
         "App Engine Flexible with manual scaling",
         "App Engine Standard with automatic scaling",
@@ -493,287 +538,314 @@
         "App Engine Standard with manual scaling"
       ],
       "correct": 1,
-      "explanation": "App Engine Standard with automatic scaling can scale to zero instances when there is no traffic, so you pay nothing during idle periods. App Engine Flexible runs on Compute Engine VMs and requires at least one instance at all times — it cannot scale to zero. Manual scaling keeps a fixed number of instances running regardless of load.",
+      "explanation": "App Engine Standard with automatic scaling can scale to zero instances when there is no traffic, so you pay nothing during idle periods. App Engine Flexible runs on Compute Engine VMs and keeps at least one instance alive at all times — it cannot scale to zero. Manual scaling pins a fixed number of instances regardless of load, defeating the cost goal.",
       "tags": [
         "app-engine",
         "scaling",
         "gcp-ace"
       ],
-      "difficulty": "medium"
+      "difficulty": "medium",
+      "_normalized": true,
+      "rewritten": true
     },
     {
       "id": "gcp-ace-028",
-      "question": "A central platform team wants to enforce constraints on which APIs, regions, and service-account behaviours can be used by every project under an Organisation — for example, `compute.vmExternalIpAccess=DENY` org-wide. They want a service that lets them set these prescriptive guardrails at the Org, Folder, or Project node, inherited downward. Which service is it?",
+      "question": "A central platform team wants to enforce constraints on which APIs, regions and service-account behaviours can be used by every project under an Organisation — for example denying `compute.vmExternalIpAccess` org-wide — and have those constraints inherit from the Org or a Folder down to each Project. Which service is this?",
       "options": [
         "Organization Policy Service",
-        "Cloud Asset Inventory — read-only inventory and change history; does not enforce guardrail policies on resource configuration",
-        "Security Command Center — centralised security findings and posture dashboards; consumes policy enforcement results rather than producing them",
-        "Cloud Audit Logs — records who did what and when; an audit primitive, not a preventive control"
+        "Cloud Asset Inventory",
+        "Security Command Center",
+        "Cloud Audit Logs"
       ],
       "correct": 0,
-      "explanation": "Organization Policy Service lets you define constraints on how GCP resources can be configured — for example preventing public IPs on VMs, restricting allowed locations, or disabling service-account key creation. Policies attach at the organization, folder, or project node and inherit downward; they apply on top of IAM rather than replacing it. IAM defines who can do what; Org Policy defines what configurations are even allowed.",
+      "explanation": "Organization Policy Service lets you define and enforce constraints on how GCP resources can be configured — for example forbidding external IPs on VMs, restricting allowed locations, or disabling service-account key creation. Policies attach at the organization, folder or project node and inherit downward; they sit on top of IAM rather than replacing it. Cloud Asset Inventory is a read-only inventory and change history; it can find violations but cannot prevent them. Security Command Center is a posture dashboard that consumes findings, not a policy enforcer. Cloud Audit Logs record actions after the fact and are not preventive.",
       "tags": [
         "governance",
         "org-policy",
         "gcp-ace"
       ],
       "difficulty": "hard",
+      "_normalized": true,
       "rewritten": true
     },
     {
       "id": "gcp-ace-029",
-      "question": "A VM instance has been accidentally deleted. You had taken a snapshot of its boot disk 2 hours before. How do you restore the VM?",
+      "question": "A Compute Engine VM has been accidentally deleted. You took a snapshot of its boot disk two hours before the deletion. What is the correct way to bring back a running VM from that snapshot?",
       "options": [
-        "Restore directly from the snapshot — it re-creates the original VM",
-        "Use Cloud Backup and DR to restore the VM state from the snapshot",
-        "Create a new disk from the snapshot, then create a VM using that disk",
-        "Snapshots are diagnostic artifacts and unsuitable for VM recovery"
+        "Restore directly from the snapshot — it re-creates the original VM and all its metadata",
+        "Use Cloud Backup and DR to restore the original VM from the snapshot in place",
+        "Create a new persistent disk from the snapshot, then create a new VM using that disk as its boot disk",
+        "Treat the snapshot as a diagnostic artifact only — it cannot be booted into a VM"
       ],
       "correct": 2,
-      "explanation": "To restore from a Compute Engine snapshot you (1) create a new persistent disk from the snapshot and (2) create a new VM instance using that disk as the boot disk (gcloud compute instances create … --source-snapshot is also available). Snapshots are disk images and do not capture VM-level metadata such as network tags, labels, or attached service accounts — those must be reapplied. Cloud Backup and DR is a separate product for VM-level backup, not raw snapshots.",
+      "explanation": "A Compute Engine snapshot is a disk image, not a VM image. To recover, you create a new persistent disk from the snapshot (`gcloud compute disks create … --source-snapshot=…`) and then create a new VM that uses it as the boot disk (or use `gcloud compute instances create … --source-snapshot=…`). Snapshots do not preserve VM-level metadata like network tags, labels or attached service accounts — those must be reapplied. Cloud Backup and DR is a separate product for VM-level backup and is not how raw snapshots are consumed.",
       "tags": [
         "compute",
         "snapshots",
         "disaster-recovery",
         "gcp-ace"
       ],
-      "difficulty": "medium"
+      "difficulty": "medium",
+      "_normalized": true,
+      "rewritten": true
     },
     {
       "id": "gcp-ace-030",
-      "question": "You want to analyze structured log data stored in Cloud Logging using complex SQL queries with joins and aggregations. What is the standard approach?",
+      "question": "You want to run complex SQL queries with joins and aggregations against structured log data currently in Cloud Logging. What is the standard pattern?",
       "options": [
-        "Export logs to BigQuery using a log sink, then query them with SQL",
-        "Use Cloud Monitoring's Metrics Explorer to write SQL queries on logs",
+        "Export logs to BigQuery via a log sink and query them there with standard SQL",
+        "Use Cloud Monitoring's Metrics Explorer to write SQL over log entries",
         "Use Cloud Trace to query structured log payloads with a SQL dialect",
-        "Query the logs directly in Cloud Logging using a BigQuery SQL syntax"
+        "Query the logs directly in Cloud Logging using BigQuery SQL syntax in the UI"
       ],
       "correct": 0,
-      "explanation": "Log sinks route Cloud Logging entries to destinations such as BigQuery, Cloud Storage, or Pub/Sub. Sending them to BigQuery (the standard analytics destination) lets you run full ANSI SQL with joins, window functions, and aggregations across log data at scale. Cloud Logging's Log Analytics offers SQL-style queries for ad-hoc inspection but BigQuery remains the destination for heavy analytics. Cloud Monitoring and Cloud Trace are not SQL query engines.",
+      "explanation": "Log sinks route Cloud Logging entries to destinations such as BigQuery, Cloud Storage and Pub/Sub. Routing to BigQuery lets you run full standard SQL — joins, window functions and aggregations — across log data at scale. Cloud Logging's Log Analytics offers SQL-style queries for ad-hoc inspection on log buckets, but BigQuery remains the destination for heavy analytics joining logs against other tables. Cloud Monitoring's Metrics Explorer queries time-series metrics with MQL/PromQL, not SQL. Cloud Trace analyses request spans, not logs.",
       "tags": [
         "logging",
         "bigquery",
         "monitoring",
         "gcp-ace"
       ],
-      "difficulty": "medium"
+      "difficulty": "medium",
+      "_normalized": true,
+      "rewritten": true
     },
     {
       "id": "gcp-ace-032",
-      "question": "You need to give an external auditor read-only access to all Cloud Logging entries in your project, including Data Access audit logs. Which predefined IAM role is the minimum that satisfies this?",
+      "question": "You need to give an external auditor read-only access to every Cloud Logging entry in a project, including Data Access audit logs. What is the minimum predefined IAM role that satisfies this?",
       "options": [
         "roles/logging.privateLogViewer",
-        "roles/logging.admin (full logging)",
-        "roles/logging.viewer (standard)",
-        "roles/viewer (project-wide read)"
+        "roles/logging.admin",
+        "roles/logging.viewer",
+        "roles/viewer"
       ],
       "correct": 0,
-      "explanation": "roles/logging.privateLogViewer grants read access to all logs including Data Access audit logs, which are treated as private/sensitive. roles/logging.viewer only exposes non-private logs and would hide Data Access entries. roles/viewer is a broad project-level role that exceeds least-privilege. roles/logging.admin grants full control including configuration and deletion, far more than read-only.",
+      "explanation": "roles/logging.privateLogViewer grants read access to all log entries including Data Access audit logs, which are treated as private. roles/logging.viewer only exposes Admin Activity and System Event audit logs and would hide Data Access entries. roles/viewer is a broad project-level read role that exceeds least privilege. roles/logging.admin grants full control over Cloud Logging — sinks, configuration and deletion — which is far more than read-only.",
       "tags": [
         "iam",
         "logging",
         "audit",
         "gcp-ace"
       ],
-      "difficulty": "hard"
+      "difficulty": "hard",
+      "_normalized": true,
+      "rewritten": true
     },
     {
       "id": "gcp-ace-033",
-      "question": "Your Cloud Storage bucket needs a policy that automatically deletes objects older than 30 days. What should you configure?",
+      "question": "A Cloud Storage bucket should automatically delete every object older than 30 days. What is the simplest, native way to enforce that?",
       "options": [
-        "A Cloud Scheduler job that calls the Storage API daily",
-        "Retention policies on the bucket and object hold",
-        "A Cloud Function triggered by object creation events",
-        "Object Lifecycle Management rules on the bucket"
+        "Run a Cloud Scheduler job that calls the Storage API daily to find and delete old objects",
+        "Configure a bucket retention policy plus an object hold to enforce the maximum age",
+        "Wire a Cloud Function on object creation that deletes the object after 30 days",
+        "Add an Object Lifecycle Management rule with `age=30 days` and the Delete action"
       ],
       "correct": 3,
-      "explanation": "Object Lifecycle Management lets you define rules that automatically transition or delete objects based on age, version count, storage class, or other conditions. Setting an Age condition of 30 days with a Delete action is the built-in, zero-code solution. Retention policies do the opposite — they prevent deletion. A Scheduler+Function approach adds operational and cost overhead for behaviour that the platform already provides.",
+      "explanation": "Object Lifecycle Management evaluates rules against each object daily and performs the configured action — here a `Delete` action with an `age` condition of 30 days. It is built-in, requires no code and incurs no extra compute. Bucket retention policies do the opposite: they prevent deletion before the retention period elapses. A Scheduler-plus-Function pipeline reimplements functionality the platform already provides, adding cost and operational risk.",
       "tags": [
         "storage",
         "lifecycle",
         "gcp-ace"
       ],
-      "difficulty": "easy"
+      "difficulty": "easy",
+      "_normalized": true,
+      "rewritten": true
     },
     {
       "id": "gcp-ace-034",
-      "question": "A team toggles 'uniform bucket-level access' on a Cloud Storage bucket. Afterwards, attempts to set per-object ACLs are rejected and the bucket is governed exclusively by IAM bindings at the bucket level. What does enabling this setting do?",
+      "question": "A team enables Uniform bucket-level access on a Cloud Storage bucket. Afterwards, attempts to set per-object ACLs are rejected. What does enabling this setting actually do?",
       "options": [
-        "Disables legacy per-object ACLs on the bucket and enforces IAM-only access control at the bucket level",
-        "Encrypts every object in the bucket with a customer-managed key and forbids object reads from outside the customer's VPC service perimeter",
-        "Replicates the bucket across regions transparently, with consistency at the bucket level rather than the per-object level",
-        "Converts the bucket to Nearline storage class so that reads are billed per access while writes remain free of charge for the first 30 days"
+        "Disables legacy per-object ACLs on the bucket and enforces that access is governed only by IAM at the bucket level",
+        "Encrypts every object with a customer-managed key and rejects reads from outside the customer's VPC Service Controls perimeter",
+        "Replicates the bucket across regions transparently with bucket-level consistency rather than per-object consistency",
+        "Converts the bucket to the Nearline storage class so that reads are billed per access while writes remain free for 30 days"
       ],
       "correct": 0,
-      "explanation": "Uniform bucket-level access (UBA) disables legacy per-object ACLs and enforces that access is governed entirely by Cloud IAM policies on the bucket. This simplifies permission management to one system instead of two and is required by some compliance frameworks. UBA does not affect bucket location/replication, versioning, or default encryption — those are independent settings.",
+      "explanation": "Uniform bucket-level access (UBA) turns off legacy per-object ACLs and enforces that access decisions are made solely by Cloud IAM policy at the bucket level. This collapses two permission systems into one and is required by several compliance frameworks. UBA does not change the bucket's location, replication, storage class or default encryption — those are independent settings.",
       "tags": [
         "cloud-storage",
         "uniform-access",
         "gcp-ace"
       ],
       "difficulty": "medium",
+      "_normalized": true,
       "rewritten": true
     },
     {
       "id": "gcp-ace-035",
-      "question": "You need to set up an alert that notifies the billing admin when project spending reaches 80% of the monthly budget. What GCP feature handles this?",
+      "question": "You need to alert the billing admin when project spending reaches 80% of the monthly budget. Which GCP feature handles this?",
       "options": [
-        "Cloud Monitoring with a custom metric alert",
-        "Cloud Pub/Sub billing event subscription",
-        "Cloud Billing budgets with threshold alerts",
-        "Looker Studio billing dashboard alert"
+        "Cloud Monitoring with a custom alert on a billing metric",
+        "A Pub/Sub subscription on a built-in billing-events topic",
+        "Cloud Billing budgets with threshold-based notification rules",
+        "A Looker Studio billing dashboard with email alerts"
       ],
       "correct": 2,
-      "explanation": "Cloud Billing budgets let you define a spending threshold against a billing account, project, or set of services and configure email and Pub/Sub notifications at specific percentages (for example 50%, 80%, 100%, or any custom value). Cloud Monitoring is for resource performance metrics, not billing thresholds. Pub/Sub is the delivery channel a budget alert can publish to, but the budget itself is the source.",
+      "explanation": "Cloud Billing budgets let you define a spending threshold against a billing account, project or set of services and configure email plus Pub/Sub notifications at custom percentages (for example 50%, 80%, 100%). Cloud Monitoring is for resource performance metrics, not billing thresholds. Pub/Sub is a delivery channel a budget alert can publish to but is not itself the threshold engine. Looker Studio renders dashboards and lacks built-in alerting on budget thresholds.",
       "tags": [
         "billing",
         "cost-management",
         "gcp-ace"
       ],
-      "difficulty": "easy"
+      "difficulty": "easy",
+      "_normalized": true,
+      "rewritten": true
     },
     {
       "id": "gcp-ace-036",
-      "question": "A microservices application running on GKE needs service-to-service mTLS encryption and traffic policies (canary, retries, circuit breaking) without modifying application code. What should you deploy?",
+      "question": "A microservices application on GKE needs service-to-service mTLS encryption and traffic policies — canary, retries, circuit breaking — applied transparently without modifying application code. What should you deploy?",
       "options": [
-        "Cloud Endpoints API gateway service",
-        "Cloud Armor security policies on pods",
-        "Anthos Service Mesh (built on Istio)",
-        "Identity-Aware Proxy (IAP) with GKE"
+        "Anthos Service Mesh (managed Istio) with sidecar injection",
+        "Cloud Endpoints as an API gateway in front of each service",
+        "Cloud Armor security policies attached to each Pod",
+        "Identity-Aware Proxy in front of the GKE workloads"
       ],
-      "correct": 2,
-      "explanation": "Anthos Service Mesh (built on open-source Istio) injects an Envoy sidecar proxy into each pod and transparently adds mTLS, traffic management (canary, weighted routing, retries, circuit breakers), and observability to service-to-service communication — no application code changes required. Cloud Endpoints manages north-south API traffic. IAP authenticates end-users to apps. Cloud Armor protects external HTTP load balancers, not east-west pod traffic.",
+      "correct": 0,
+      "explanation": "Anthos Service Mesh (managed Istio) injects an Envoy sidecar into each pod and transparently adds mTLS, traffic management (weighted routing, retries, circuit breakers) and rich observability to east-west service-to-service traffic — with no application code changes. Cloud Endpoints manages north-south API contracts at the edge. IAP authenticates end users to apps, it does not manage pod-to-pod policy. Cloud Armor protects external HTTP load balancers from web attacks; it does not sit between pods.",
       "tags": [
         "gke",
         "service-mesh",
         "networking",
         "gcp-ace"
       ],
-      "difficulty": "hard"
+      "difficulty": "hard",
+      "_normalized": true,
+      "rewritten": true
     },
     {
       "id": "gcp-ace-037",
-      "question": "You need to give a VM in Project A access to a Cloud Storage bucket in Project B. What is the correct approach?",
+      "question": "You need to give a VM in Project A access to a Cloud Storage bucket in Project B. What is the correct, least-privileged approach?",
       "options": [
-        "Cross-project access is blocked by default — request a quota change",
-        "Share Project A owner credentials with the Project B service account",
-        "Grant the VM's service account the required IAM role on the bucket in B",
+        "Cross-project access is blocked by default; open a quota or support ticket to permit it",
+        "Share Project A owner credentials with a service account in Project B",
+        "Grant the VM's service account the required role on the bucket in Project B",
         "Establish VPC Network Peering between Project A and Project B networks"
       ],
       "correct": 2,
-      "explanation": "IAM bindings can grant any principal — including a service account from another project — a role on any resource. Grant the service account attached to the Project A VM the required role (for example roles/storage.objectViewer) on the specific bucket in Project B. Cross-project IAM is the standard, supported pattern; no quota change or VPC peering is needed. Sharing owner credentials is a serious security anti-pattern.",
+      "explanation": "IAM bindings can name any principal — including a service account from another project — on any resource. Grant the VM's service account the role it needs (for example `roles/storage.objectViewer`) on the specific bucket in Project B. Cross-project IAM is the standard, supported pattern; no quota change or peering is required. Sharing owner credentials is a serious anti-pattern that violates account ownership. VPC peering connects networks but does not authorise IAM access to a bucket.",
       "tags": [
         "iam",
         "cross-project",
         "storage",
         "gcp-ace"
       ],
-      "difficulty": "medium"
+      "difficulty": "medium",
+      "_normalized": true,
+      "rewritten": true
     },
     {
       "id": "gcp-ace-039",
-      "question": "A new GCP project needs to use the Pub/Sub API. What must you do before making API calls?",
+      "question": "A brand-new GCP project needs to use the Pub/Sub API. What must you do before any API call will succeed?",
       "options": [
-        "Enable the Pub/Sub API in the project via Cloud Console or gcloud",
-        "Open a support ticket to have Google Cloud enable the Pub/Sub API",
-        "Pub/Sub becomes available once the project is created and billed",
-        "Create a Pub/Sub service account first and the API auto-activates"
+        "Enable the Pub/Sub API in the project via Cloud Console or `gcloud services enable pubsub.googleapis.com`",
+        "Open a support ticket to ask Google to enable the Pub/Sub API for the project",
+        "Wait for Pub/Sub to become available automatically once the project's billing account is linked",
+        "Create a Pub/Sub-specific service account first; that automatically activates the API"
       ],
       "correct": 0,
-      "explanation": "Most GCP APIs are disabled by default in new projects. You must explicitly enable each one (Cloud Console > APIs & Services > Enable APIs, or gcloud services enable pubsub.googleapis.com) before any API calls — including from service accounts — will succeed. Service-account creation does not auto-enable APIs, and there is no support ticket required.",
+      "explanation": "Most GCP APIs are disabled by default in a new project. You must explicitly enable each one — Console > APIs & Services > Enable APIs, or `gcloud services enable pubsub.googleapis.com` — before any caller, including service accounts, can use it. Creating a service account does not auto-enable APIs, billing alone does not activate them, and no support ticket is required: enablement is self-service.",
       "tags": [
         "apis",
         "project-setup",
         "gcp-ace"
       ],
-      "difficulty": "easy"
+      "difficulty": "easy",
+      "_normalized": true,
+      "rewritten": true
     },
     {
       "id": "gcp-ace-040",
       "question": "You need to deploy infrastructure across multiple GCP projects using a repeatable, version-controlled, declarative configuration that also works across other clouds. Which tool is most appropriate?",
       "options": [
         "Cloud Deployment Manager YAML templates",
-        "gcloud bash scripts in Source Repository",
-        "Cloud Build pipelines with bash deploy steps",
-        "Terraform with the official GCP provider"
+        "gcloud Bash scripts stored in Cloud Source Repositories",
+        "Cloud Build pipelines with Bash `gcloud` deploy steps",
+        "Terraform with the official Google Cloud provider"
       ],
       "correct": 3,
-      "explanation": "Terraform (HashiCorp) is the industry-standard declarative IaC tool for GCP and multi-cloud, with state management, plan/apply workflows, modules, and a mature GCP provider. Cloud Deployment Manager is GCP-only and on the path to deprecation. gcloud scripts are imperative, not declarative. Cloud Build is a CI/CD service that can run Terraform but is not itself an IaC tool.",
+      "explanation": "Terraform is the industry-standard declarative IaC tool with first-class GCP and multi-cloud providers, state management, plan/apply workflows and a rich module ecosystem. Cloud Deployment Manager is GCP-only and Google has marked it for end of support. gcloud shell scripts are imperative, not declarative, and do not track state. Cloud Build is a CI/CD runner that can execute Terraform but is not itself an IaC tool.",
       "tags": [
         "devops",
         "terraform",
         "iac",
         "gcp-ace"
       ],
-      "difficulty": "medium"
+      "difficulty": "medium",
+      "_normalized": true,
+      "rewritten": true
     },
     {
       "id": "gcp-ace-041",
-      "question": "Which GCP service is a fully managed, scalable publish-subscribe messaging system used as the GCP-native option for asynchronous event ingestion and streaming?",
+      "question": "Which GCP service is the fully managed, globally scalable publish-subscribe messaging system used as the default for asynchronous event ingestion and streaming pipelines?",
       "options": [
-        "Cloud Pub/Sub — managed pub/sub messaging",
-        "Cloud Tasks — explicit task queue service",
-        "Datastream — managed CDC replication service",
-        "Pub/Sub Lite — zonal lower-cost messaging"
+        "Cloud Pub/Sub",
+        "Cloud Tasks",
+        "Datastream",
+        "Pub/Sub Lite"
       ],
       "correct": 0,
-      "explanation": "Cloud Pub/Sub is Google's fully managed global pub/sub messaging system used for event ingestion and streaming pipelines. Pub/Sub Lite is a related, lower-cost zonal product where you provision capacity yourself; it shares some semantics but is not the GCP-native default. Cloud Tasks is for HTTP task execution with explicit per-task control. Datastream provides change-data-capture from databases, not general-purpose messaging.",
+      "explanation": "Cloud Pub/Sub is Google's fully managed global pub/sub system for event ingestion and streaming pipelines, with at-least-once delivery and no capacity provisioning. Pub/Sub Lite is a lower-cost zonal product where you provision throughput capacity yourself; it shares some semantics but is not the global default. Cloud Tasks is for HTTP task execution with explicit per-task control and scheduling, not topic-based pub/sub. Datastream is a managed change-data-capture service that streams database changes — not general-purpose messaging.",
       "tags": [
         "messaging",
         "pubsub",
         "gcp-ace"
       ],
-      "difficulty": "medium"
+      "difficulty": "medium",
+      "_normalized": true,
+      "rewritten": true
     },
     {
       "id": "gcp-ace-042",
-      "question": "A GCP customer is structuring an Organisation that contains many projects across departments. They want an intermediate node above projects where IAM and Org Policy can be applied to a group of projects collectively (e.g., 'Engineering'), and that node can also contain sub-nodes mirroring sub-departments. Which feature provides this?",
+      "question": "A GCP customer with many projects across departments wants an intermediate node above Projects where IAM and Organization Policy can be applied to a group of projects collectively (e.g. 'Engineering'), with sub-nodes mirroring sub-departments. Which feature provides this?",
       "options": [
-        "A folder",
-        "A label — a free-form key/value tag attached to resources for filtering and billing; does not provide an IAM scope",
-        "A service perimeter — a VPC Service Controls boundary around APIs; not a hierarchy node above projects",
-        "A budget — a billing alert primitive; does not create a hierarchy or apply IAM bindings to a group of projects"
+        "Label",
+        "VPC Service Controls perimeter",
+        "Budget",
+        "Folder"
       ],
-      "correct": 0,
-      "explanation": "Folders sit between Organization and Project in the hierarchy (Organization > Folders > Projects > Resources). They group projects so that IAM bindings and Organization Policies attached at the folder level inherit down to all child projects, simplifying governance for large estates. Billing is set per project (one folder can hold projects on different billing accounts). Folders do not create network isolation, and APIs are enabled per-project.",
+      "correct": 3,
+      "explanation": "Folders sit between the Organization and Project nodes in the hierarchy (Organization > Folders > Projects > Resources). IAM bindings and Organization Policies attached at a folder inherit to every child project, simplifying governance for large estates, and folders can nest to mirror sub-departments. Labels are free-form key/value tags on resources for filtering and billing breakdowns — they do not create a hierarchy or scope IAM. A VPC Service Controls perimeter is a data-exfiltration boundary around APIs, not a hierarchy node. A Budget is a billing alert primitive.",
       "tags": [
         "hierarchy",
         "folders",
         "gcp-ace"
       ],
       "difficulty": "medium",
+      "_normalized": true,
       "rewritten": true
     },
     {
       "id": "gcp-ace-043",
-      "question": "You need to encrypt a Cloud SQL database with an encryption key that your team creates, controls, and can rotate. Which encryption option should you use?",
+      "question": "You must encrypt a Cloud SQL database with an encryption key that your team creates, controls and can rotate. Which encryption option fits?",
       "options": [
-        "Customer-managed encryption keys (CMEK via KMS)",
-        "Google-managed encryption keys (default GMEK)",
-        "Customer-supplied encryption keys (CSEK on disks)",
-        "Transparent Data Encryption via the database engine"
+        "Customer-managed encryption keys (CMEK) backed by Cloud KMS",
+        "Google-managed encryption keys (default at-rest encryption)",
+        "Customer-supplied encryption keys (CSEK) provided per request",
+        "Transparent Data Encryption configured inside the database engine"
       ],
       "correct": 0,
-      "explanation": "Customer-Managed Encryption Keys (CMEK) in Cloud KMS let you create, rotate, disable, and audit the key that protects Cloud SQL data while Google manages the encryption infrastructure. The default GMEK option does not give you key control. CSEK applies to Compute Engine persistent disks only, not Cloud SQL. Cloud SQL does not expose engine-level TDE configuration directly to customers.",
+      "explanation": "Customer-Managed Encryption Keys (CMEK) in Cloud KMS let you create, rotate, disable and audit the key that protects the Cloud SQL instance while Google still manages the underlying encryption operations. Google-managed encryption is the default but gives you no control over the key material. CSEK applies only to Compute Engine persistent disks and Cloud Storage, not Cloud SQL. Cloud SQL does not expose engine-level TDE configuration to customers — the platform handles encryption-at-rest below the engine layer.",
       "tags": [
         "security",
         "encryption",
         "cloud-kms",
         "gcp-ace"
       ],
-      "difficulty": "hard"
+      "difficulty": "hard",
+      "_normalized": true,
+      "rewritten": true
     },
     {
       "id": "gcp-ace-044",
-      "question": "You want to containerize a Node.js application and deploy it to Cloud Run via an automated CI/CD pipeline. Which combination of GCP services would you use?",
+      "question": "You want to containerize a Node.js application and deploy it to Cloud Run from an automated CI/CD pipeline. Which combination of GCP services is the standard pattern?",
       "options": [
-        "Compute Engine VM with Docker installed and Cloud Scheduler triggering rolling updates",
-        "App Engine Standard with Cloud Source Repositories triggering an auto-deploy on push",
-        "Cloud Build builds the Docker image, pushes to Artifact Registry, deploys to Cloud Run",
-        "GKE Autopilot with GitOps via Flux and Artifact Registry as the container source"
+        "Compute Engine with Docker and Cloud Scheduler triggering rolling updates",
+        "App Engine Standard with Cloud Source Repositories triggering auto-deploy on push",
+        "Cloud Build builds the image, pushes to Artifact Registry, then deploys to Cloud Run",
+        "GKE Autopilot with a GitOps controller pulling images from Artifact Registry"
       ],
       "correct": 2,
-      "explanation": "The standard GCP CI/CD pattern for Cloud Run is: Cloud Build (build the Docker image, run tests) → Artifact Registry (store the image) → Cloud Run (gcloud run deploy). Cloud Build triggers connect to GitHub, Bitbucket, GitLab, or Cloud Source Repositories for automated runs on commit. The other options describe deployment pipelines for App Engine, Compute Engine, or GKE — not Cloud Run.",
+      "explanation": "The standard CI/CD pattern for Cloud Run is Cloud Build (build the container image, run tests) → Artifact Registry (store the image with vulnerability scanning) → Cloud Run (`gcloud run deploy`). Cloud Build triggers connect to GitHub, Bitbucket, GitLab or Cloud Source Repositories so commits drive builds automatically. The other options describe pipelines for Compute Engine, App Engine or GKE — they don't target Cloud Run.",
       "tags": [
         "devops",
         "cloud-build",
@@ -781,125 +853,137 @@
         "cicd",
         "gcp-ace"
       ],
-      "difficulty": "medium"
+      "difficulty": "medium",
+      "_normalized": true,
+      "rewritten": true
     },
     {
       "id": "gcp-ace-045",
-      "question": "A Kubernetes Deployment has 3 replicas. You apply a new container image. By default, how does Kubernetes perform the rolling update?",
+      "question": "A Kubernetes Deployment has 3 replicas. You apply a new container image. By default, how does Kubernetes perform the rollout?",
       "options": [
         "Terminates all three old pods first, then creates three new pods together",
-        "Creates the three new pods first, then terminates the three old pods together",
-        "Replaces pods incrementally — one new comes up as one old terminates",
-        "Requires a manual approval step before each pod replacement during rollout"
+        "Creates all three new pods first, then terminates the three old pods together",
+        "Replaces pods incrementally — new pods come up as old pods terminate (RollingUpdate)",
+        "Requires a manual approval step before each individual pod replacement during rollout"
       ],
       "correct": 2,
-      "explanation": "Kubernetes RollingUpdate (the default Deployment strategy) replaces pods incrementally with default maxUnavailable=25% and maxSurge=25%. Some old pods stay up while new pods come online, maintaining availability throughout. Terminating all old pods first is the Recreate strategy. There is no built-in manual approval step in the rolling update strategy.",
+      "explanation": "Deployments default to the RollingUpdate strategy with `maxUnavailable=25%` and `maxSurge=25%`. New pods come up while old pods are torn down so service capacity is preserved throughout the rollout. Terminating every old pod before creating new ones is the `Recreate` strategy (which causes downtime) and is not the default. There is no built-in manual approval gate in the RollingUpdate strategy itself.",
       "tags": [
         "kubernetes",
         "gke",
         "rolling-update",
         "gcp-ace"
       ],
-      "difficulty": "medium"
+      "difficulty": "medium",
+      "_normalized": true,
+      "rewritten": true
     },
     {
       "id": "gcp-ace-046",
       "question": "You need to migrate a 5 TB PostgreSQL database from on-premises to Cloud SQL with continuous replication and minimal cutover downtime. Which GCP service is purpose-built for this?",
       "options": [
-        "Cloud Dataflow (Apache Beam jobs)",
+        "Cloud Dataflow",
         "Database Migration Service (DMS)",
-        "Cloud Data Fusion (ETL pipeline)",
-        "Transfer Appliance (physical ship)"
+        "Cloud Data Fusion",
+        "Transfer Appliance"
       ],
       "correct": 1,
-      "explanation": "Database Migration Service (DMS) provides managed, low-downtime migrations from MySQL, PostgreSQL, SQL Server, and Oracle to Cloud SQL and AlloyDB. It performs an initial dump and then continuous logical replication so you can cut over with minutes of downtime. Dataflow is for general data-pipeline processing. Data Fusion is visual ETL/ELT. Transfer Appliance is for offline bulk file transfer, not live database replication.",
+      "explanation": "Database Migration Service (DMS) provides managed, low-downtime migrations from MySQL, PostgreSQL, SQL Server and Oracle to Cloud SQL and AlloyDB. It performs an initial dump and then continuous logical replication, so cutover takes minutes. Cloud Dataflow runs general-purpose Apache Beam pipelines and is not a managed DB-to-DB replicator. Cloud Data Fusion is visual ETL/ELT for analytics, not OLTP migration. Transfer Appliance is for offline bulk file transfer, not live database replication.",
       "tags": [
         "databases",
         "migration",
         "cloud-sql",
         "gcp-ace"
       ],
-      "difficulty": "hard"
+      "difficulty": "hard",
+      "_normalized": true,
+      "rewritten": true
     },
     {
       "id": "gcp-ace-047",
-      "question": "A platform team wants a fully managed cache service for app-tier session data and frequent lookups. They want to choose between a Redis-compatible engine and a Memcached-compatible engine without operating the underlying nodes themselves. Which GCP product provides this?",
+      "question": "A platform team wants a fully managed in-memory cache for application session data and frequent lookups. They want a choice between a Redis-compatible engine and a Memcached-compatible engine without operating any nodes. Which GCP product provides this?",
       "options": [
-        "Cloud Memorystore — managed in-memory cache for Redis or Memcached; offload patching, failover, and provisioning to GCP",
-        "Cloud SQL — managed relational database engines (MySQL, Postgres, SQL Server); not an in-memory cache",
-        "Cloud Spanner — globally distributed relational database with strong consistency; not a Redis/Memcached service",
-        "Cloud Bigtable — wide-column NoSQL store for analytical and time-series workloads; not an in-memory cache compatible with Redis"
+        "Cloud Memorystore",
+        "Cloud SQL",
+        "Cloud Spanner",
+        "Cloud Bigtable"
       ],
       "correct": 0,
-      "explanation": "Memorystore is Google Cloud's fully managed in-memory data store service supporting Redis and Memcached engines, used for application caching, session storage, and low-latency leaderboards. Cloud CDN caches HTTP content at the edge for a load balancer, not application data. Cloud Bigtable and Cloud Datastore (Firestore in Datastore mode) are persistent NoSQL databases.",
+      "explanation": "Cloud Memorystore is Google's fully managed in-memory data store, offering Redis and Memcached engines for application caching, session storage and low-latency leaderboards — patching, failover and provisioning are handled by GCP. Cloud SQL is a managed relational database, not an in-memory cache. Cloud Spanner is a globally distributed relational database with strong consistency. Cloud Bigtable is a persistent wide-column NoSQL store for analytics and time-series workloads.",
       "tags": [
         "cache",
         "memorystore",
         "gcp-ace"
       ],
       "difficulty": "easy",
+      "_normalized": true,
       "rewritten": true
     },
     {
       "id": "gcp-ace-048",
-      "question": "After deploying a new version of your app to App Engine, you want to verify it before routing any production traffic to it. What App Engine feature allows this?",
+      "question": "After deploying a new version of your App Engine service, you want to verify it before routing any production traffic to it. Which App Engine feature supports this?",
       "options": [
-        "Use App Engine versions and traffic splitting to send 0% then ramp up",
-        "Deploy the new build to a separate App Engine app inside a test project",
-        "Use a staging service in the same App Engine app fronted by an LB rule",
-        "Use Cloud Armor to selectively block production traffic from the new version"
+        "Deploy the new build to a separate App Engine app inside a sibling test project",
+        "Deploy the new version with `--no-promote` so it gets 0% traffic, test it via its version URL, then migrate traffic",
+        "Run the new build as a staging service in the same App Engine app fronted by a custom load-balancer rule",
+        "Use Cloud Armor rules to selectively block production traffic from reaching the new version until you sign off"
       ],
-      "correct": 0,
-      "explanation": "App Engine supports multiple versions of a service running concurrently. You deploy the new version with --no-promote (0% traffic), test it directly via its version-specific URL (e.g., VERSION-dot-SERVICE-dot-PROJECT.appspot.com), then gradually migrate or split traffic to it. This is the canonical App Engine canary / blue-green workflow.",
+      "correct": 1,
+      "explanation": "App Engine runs multiple versions of a service side by side. Deploying with `--no-promote` keeps the new version at 0% traffic; you reach it through its version-specific URL (e.g. `VERSION-dot-SERVICE-dot-PROJECT.appspot.com`) to verify, then gradually migrate or split traffic. This is the canonical App Engine canary / blue-green workflow built into the platform. The other approaches reimplement the same outcome with more moving parts.",
       "tags": [
         "app-engine",
         "deployment",
         "canary",
         "gcp-ace"
       ],
-      "difficulty": "medium"
+      "difficulty": "medium",
+      "_normalized": true,
+      "rewritten": true
     },
     {
       "id": "gcp-ace-049",
-      "question": "A pipeline publishes events to Cloud Pub/Sub. Engineers want to know the upper bound on the size of any single message they can publish without splitting. What is the maximum size of a single message in Cloud Pub/Sub?",
+      "question": "A pipeline publishes events to Cloud Pub/Sub. Engineers need the upper bound on the size of a single message they can publish without splitting it. What is that limit?",
       "options": [
         "10 MB per message",
-        "256 KB per message — the limit for AWS SNS, not Cloud Pub/Sub",
-        "1 MB per message — the limit for many managed Kafka offerings, not Cloud Pub/Sub",
-        "No limit — Pub/Sub accepts any payload size up to the project-wide bandwidth quota"
+        "256 KB per message",
+        "1 MB per message",
+        "No fixed limit; the broker accepts any payload within the project's bandwidth quota"
       ],
       "correct": 0,
-      "explanation": "Cloud Pub/Sub supports messages up to 10 MB in size. For larger payloads, the recommended pattern is to upload the data to Cloud Storage and publish only a reference (object URI) in the Pub/Sub message, keeping the broker efficient and the message metadata small for event-driven consumers.",
+      "explanation": "Cloud Pub/Sub accepts messages up to 10 MB. For larger payloads the recommended pattern is to upload the data to Cloud Storage and publish only a reference (e.g. a GCS object URI) in the Pub/Sub message — keeping broker traffic small and subscribers cheap. The 256 KB and 1 MB figures are limits for other messaging systems (e.g. SNS and many Kafka deployments), not Pub/Sub. There is always a per-message limit; the broker is not unbounded.",
       "tags": [
         "pubsub",
         "limits",
         "gcp-ace"
       ],
       "difficulty": "hard",
+      "_normalized": true,
       "rewritten": true
     },
     {
       "id": "gcp-ace-050",
-      "question": "You need to block all VMs in your organization from being created with external IP addresses. What is the most efficient approach?",
+      "question": "You need to prevent any VM in your organisation from being created with an external IP address. What is the most efficient, preventive approach?",
       "options": [
-        "Write a Cloud Function that strips external IPs on instance-create events",
+        "Write a Cloud Function that strips external IPs in response to instance-create audit events",
         "Apply a VPC firewall rule that blocks all egress at the organization level",
-        "Apply an Organization Policy: constraints/compute.vmExternalIpAccess (deny all)",
-        "Configure a Shared VPC without subnets that permit external IP assignment"
+        "Apply an Organization Policy with the `constraints/compute.vmExternalIpAccess` constraint set to Deny All",
+        "Configure a Shared VPC with subnets that do not permit external IP assignment"
       ],
       "correct": 2,
-      "explanation": "The Organization Policy constraint constraints/compute.vmExternalIpAccess (a list constraint) can be set to Deny All, blocking VM creation with any external IP. Applying this at the Organization node cascades to every folder and project, providing the governance-level control with no custom code. A Cloud Function is reactive, not preventative; firewall rules govern traffic, not interface assignment.",
+      "explanation": "The `constraints/compute.vmExternalIpAccess` list constraint, set to Deny All at the organization node, blocks VM creation with any external IP and inherits to every folder and project. This is preventive and requires no code. A Cloud Function reacting to audit events is reactive and leaves a window in which the VM exists with an external IP. Firewall rules govern traffic flow once an interface exists; they do not stop interface assignment. There is no built-in 'subnet flag that forbids external IP'.",
       "tags": [
         "organization-policy",
         "security",
         "compute",
         "gcp-ace"
       ],
-      "difficulty": "hard"
+      "difficulty": "hard",
+      "_normalized": true,
+      "rewritten": true
     },
     {
       "id": "gcp-ace-051",
-      "question": "Which gcloud command connects you to a Compute Engine VM, handling SSH key management automatically when OS Login is enabled?",
+      "question": "Which gcloud command connects you to a Compute Engine VM and handles SSH key management automatically, including via OS Login when it is enabled?",
       "options": [
         "gcloud compute ssh INSTANCE_NAME",
         "gcloud compute rdp INSTANCE_NAME --port=22",
@@ -907,75 +991,82 @@
         "gcloud compute connect INSTANCE_NAME --ssh"
       ],
       "correct": 0,
-      "explanation": "gcloud compute ssh INSTANCE_NAME handles SSH key management automatically: when OS Login is enabled it provisions your POSIX account and posts your public key via OS Login; otherwise it uploads your key into the instance metadata. It can also tunnel through IAP with --tunnel-through-iap. gcloud compute rdp is for Windows RDP. Manual ssh -i still works but you must manage key distribution yourself. There is no gcloud compute connect subcommand.",
+      "explanation": "`gcloud compute ssh INSTANCE_NAME` manages keys for you: with OS Login enabled it provisions your POSIX account and uploads your public key via OS Login, otherwise it pushes a short-lived key into instance metadata. It can also tunnel through Identity-Aware Proxy with `--tunnel-through-iap`. `gcloud compute rdp` is the Windows RDP variant. A raw `ssh -i …` works but you must distribute keys yourself. `gcloud compute connect` is not a real subcommand.",
       "tags": [
         "compute",
         "ssh",
         "gcloud",
         "gcp-ace"
       ],
-      "difficulty": "easy"
+      "difficulty": "easy",
+      "_normalized": true,
+      "rewritten": true
     },
     {
       "id": "gcp-ace-052",
-      "question": "A production GKE cluster must remain highly available if a single GCP zone fails. What cluster configuration achieves this?",
+      "question": "A production GKE cluster must remain available if any single GCP zone fails. Which cluster configuration achieves this with the least operational complexity?",
       "options": [
-        "Single-zone cluster with high-memory nodes and PDBs",
-        "Regional cluster with nodes spread across multiple zones",
-        "Single-zone cluster with Pod Disruption Budgets enforced",
-        "Multi-cluster setup with one cluster per zone per project"
+        "A single-zone cluster with high-memory nodes and PodDisruptionBudgets",
+        "A regional cluster with node pools spread across multiple zones in the region",
+        "A single-zone cluster with PodDisruptionBudgets enforced on every workload",
+        "Three separate single-zone clusters (one per zone) connected by Multi-Cluster Ingress"
       ],
       "correct": 1,
-      "explanation": "A Regional GKE cluster runs replicated control plane components and node pools across three zones in a region. If one zone fails the cluster keeps serving from the surviving zones with no manual intervention. Single-zone clusters have a single point of failure regardless of PDBs. A multi-cluster setup also works but is significantly more complex and is not the simplest answer the question asks for.",
+      "explanation": "A Regional GKE cluster runs replicated control-plane components across three zones in a region and lets you spread node pools across those zones. If one zone fails, the cluster keeps serving from the surviving zones with no manual intervention. Single-zone clusters have the zone as a single point of failure regardless of PDBs. A multi-cluster setup also survives zone failure but is significantly more complex and is not what the question asks for.",
       "tags": [
         "gke",
         "high-availability",
         "regional",
         "gcp-ace"
       ],
-      "difficulty": "medium"
+      "difficulty": "medium",
+      "_normalized": true,
+      "rewritten": true
     },
     {
       "id": "gcp-ace-054",
-      "question": "A GKE team deploys multiple HTTP services and wants a single L7 entry point that routes by host/path to the right Service. They also want native TLS termination and integration with Google Cloud Load Balancing. Which Kubernetes object on GKE provides this routing layer?",
+      "question": "A GKE team runs several HTTP backends and wants a single L7 entry point that routes by host and path to the right Service, with native TLS termination integrated with Google Cloud Load Balancing. Which Kubernetes object provides this on GKE?",
       "options": [
         "Ingress",
-        "Service of type ClusterIP — exposes a Service only inside the cluster network; provides no L7 routing or TLS termination",
-        "Service of type LoadBalancer — provisions an L4 cloud load balancer per Service; does not route by host or path",
-        "NetworkPolicy — declarative pod-to-pod traffic policy; unrelated to L7 ingress routing"
+        "A Service of type ClusterIP",
+        "A Service of type LoadBalancer",
+        "NetworkPolicy"
       ],
       "correct": 0,
-      "explanation": "An Ingress resource defines HTTP/HTTPS routing rules — host-based and path-based — and exposes multiple backend Services through a single external endpoint. On GKE, an Ingress is realised by a Google Cloud HTTP(S) Load Balancer. NetworkPolicy is a separate object for east-west traffic control. NodePort and ClusterIP are Service types and do not provide L7 routing or virtual hosting.",
+      "explanation": "An Ingress resource defines HTTP/HTTPS routing rules — host-based and path-based — and exposes multiple backend Services through a single external endpoint. On GKE an Ingress is realised by a Google Cloud HTTP(S) Load Balancer with native TLS termination. A ClusterIP Service is reachable only inside the cluster. A LoadBalancer Service provisions an L4 cloud load balancer per Service and cannot route by host or path. NetworkPolicy is for east-west pod-to-pod policy and has nothing to do with L7 ingress routing.",
       "tags": [
         "gke",
         "ingress",
         "gcp-ace"
       ],
       "difficulty": "medium",
+      "_normalized": true,
       "rewritten": true
     },
     {
       "id": "gcp-ace-055",
-      "question": "Your team uses Terraform to manage GCP resources. Where should you store the Terraform state file to enable team collaboration and prevent concurrent modification?",
+      "question": "Your team uses Terraform to manage GCP resources. Where should you store the Terraform state to enable team collaboration and prevent concurrent modification?",
       "options": [
         "On each developer's local machine in the working directory",
         "In a Git repository checked in alongside the Terraform code",
-        "In a Cloud Storage bucket with versioning and Spanner-based locking",
+        "In a Cloud Storage bucket with versioning and a Spanner-based external lock store",
         "In a Cloud Storage bucket configured as the GCS remote backend"
       ],
       "correct": 3,
-      "explanation": "The GCS (Google Cloud Storage) remote backend stores Terraform state in a bucket and provides shared access plus automatic state locking using Cloud Storage's atomic object operations — no separate lock store is required. Local state cannot be shared. Committing state to Git is unsafe because state files often contain secrets and Git is not concurrency-controlled. The Spanner-based locking option is fictitious; GCS handles locking natively.",
+      "explanation": "The GCS remote backend stores Terraform state in a Cloud Storage bucket and provides automatic state locking using Cloud Storage's atomic object operations — no separate lock store is required. Local state cannot be shared between teammates. Committing state to Git is unsafe because state files routinely contain secrets and Git has no concurrency control. The 'Spanner-based external lock' option describes a legacy DynamoDB-style pattern from AWS and is not how the GCS backend works.",
       "tags": [
         "terraform",
         "devops",
         "state-management",
         "gcp-ace"
       ],
-      "difficulty": "medium"
+      "difficulty": "medium",
+      "_normalized": true,
+      "rewritten": true
     },
     {
       "id": "gcp-ace-056",
-      "question": "Which GCP service provides Content Delivery Network caching at Google's global edge locations for HTTP(S) load balanced backends?",
+      "question": "Which GCP service caches HTTP(S) content at Google's global edge locations for backends behind the external HTTP(S) Load Balancer?",
       "options": [
         "Cloud Armor",
         "Cloud Endpoints",
@@ -983,74 +1074,81 @@
         "Traffic Director"
       ],
       "correct": 2,
-      "explanation": "Cloud CDN integrates with the Global External HTTP(S) Load Balancer to cache content at Google's edge points of presence worldwide, reducing latency and origin load. Cloud Armor provides WAF and DDoS protection on the same load balancer but does not cache. Cloud Endpoints manages API contracts. Traffic Director is a managed service-mesh control plane.",
+      "explanation": "Cloud CDN integrates with the Global External HTTP(S) Load Balancer to cache content at Google's edge points of presence, reducing latency for end users and origin load. Cloud Armor protects the same load balancer with WAF and DDoS controls but does not cache. Cloud Endpoints manages API contracts and gateway behaviour, not edge caching. Traffic Director is a managed service-mesh control plane for east-west service traffic.",
       "tags": [
         "networking",
         "cdn",
         "gcp-ace"
       ],
-      "difficulty": "easy"
+      "difficulty": "easy",
+      "_normalized": true,
+      "rewritten": true
     },
     {
       "id": "gcp-ace-057",
-      "question": "A Cloud Function is failing with a 'permission denied' error when writing to Cloud Firestore. What is the first thing you should check?",
+      "question": "A Cloud Function is returning 'permission denied' when writing to Cloud Firestore. What is the first thing you should check?",
       "options": [
-        "Whether the Cloud Functions API is enabled in the project",
-        "The memory and CPU allocation set on the Cloud Function",
+        "Whether the Cloud Functions API is enabled in the project at all",
+        "The memory and CPU allocation configured on the Cloud Function",
         "Whether the Firestore region matches the Cloud Function region",
-        "The IAM role granted to the Cloud Function's service account"
+        "The IAM roles granted to the Cloud Function's runtime service account"
       ],
       "correct": 3,
-      "explanation": "Cloud Functions execute under a service account identity. By default that is the App Engine default service account (with Editor role); best practice is to assign a dedicated runtime service account with least-privilege roles. A 'permission denied' on Firestore writes points to the runtime SA missing roles/datastore.user (or roles/datastore.owner). API enablement, region affinity, and memory size do not produce IAM permission errors.",
+      "explanation": "Cloud Functions run under a service account identity. By default that is the App Engine default service account (which has Editor) but best practice is a dedicated runtime SA with least privilege. A 'permission denied' on Firestore writes points to the runtime SA missing `roles/datastore.user` (or another role that grants the write). Whether the API is enabled would cause a different error (`SERVICE_DISABLED`), region mismatch causes latency but not permission errors, and memory/CPU caps do not produce IAM errors.",
       "tags": [
         "cloud-functions",
         "iam",
         "firestore",
         "gcp-ace"
       ],
-      "difficulty": "medium"
+      "difficulty": "medium",
+      "_normalized": true,
+      "rewritten": true
     },
     {
       "id": "gcp-ace-058",
-      "question": "A platform engineer is comparing Cloud Armor with Identity-Aware Proxy. One is a perimeter L7 WAF that protects HTTP(S) load balancers from web exploits and large-scale DDoS via policy rules. The other gates access to apps and VMs based on user identity, group membership, and device context. What is the key difference?",
+      "question": "An engineer is comparing Cloud Armor and Identity-Aware Proxy. Which statement correctly captures the difference between them?",
       "options": [
-        "Cloud Armor is a perimeter L7 WAF + DDoS protection on HTTP(S) load balancers (policy rules, OWASP Top-10, geo-blocks)",
-        "Both are identical products marketed under different names for billing reasons across regions; they share the same engine internally",
-        "Cloud Armor is for internal east-west micro-segmentation between workloads; IAP is the perimeter WAF protecting the load balancer from web exploits",
-        "Cloud Armor enforces user identity per request; IAP filters based purely on IP allow-lists with no user awareness or device context"
+        "Cloud Armor is a perimeter L7 WAF and DDoS protection layer for HTTP(S) load balancers; IAP enforces user-identity, group and device-context-based access to apps and VMs.",
+        "Cloud Armor and Identity-Aware Proxy are the same product marketed under different names for billing reasons in different regions.",
+        "Cloud Armor is for internal east-west micro-segmentation between workloads; IAP is the perimeter WAF protecting load balancers from web exploits.",
+        "Cloud Armor enforces user identity per request; IAP filters purely on IP allow-lists with no user awareness or device context."
       ],
       "correct": 0,
-      "explanation": "Cloud Armor is a WAF and DDoS-protection service operating at L3-L7, blocking malicious traffic (SQL injection, XSS, IP allow/deny lists) before it reaches backends. Identity-Aware Proxy enforces user-identity-based access control — only authenticated, authorised principals can reach the protected app. They are complementary, not alternatives, and both attach in front of HTTP(S) Load Balancer backends.",
+      "explanation": "Cloud Armor is a perimeter WAF and DDoS-protection service for HTTP(S) and TCP/SSL load balancers, with WAF rules (OWASP Top-10), IP allow/deny lists and geo controls. Identity-Aware Proxy gates access based on user identity, group membership and device posture, replacing the need for a VPN for many internal apps. They are complementary, not alternatives, and often attach in front of the same external load balancer.",
       "tags": [
         "security",
         "armor-vs-iap",
         "gcp-ace"
       ],
       "difficulty": "hard",
+      "_normalized": true,
       "rewritten": true
     },
     {
       "id": "gcp-ace-059",
-      "question": "You are creating a custom VPC network for a new project and choose 'Custom' subnet mode. What does this mean?",
+      "question": "You are creating a custom VPC network for a new project and choose 'Custom' subnet mode. What does this setting mean?",
       "options": [
-        "GCP automatically creates one /20 subnet in each region for the VPC",
-        "Subnets are created manually with explicit IP ranges (no auto subnets)",
-        "The VPC uses IPv6 addressing by default on each subnet created in it",
-        "Custom mode allows overlapping IP ranges with other VPCs in the project"
+        "GCP automatically creates one /20 subnet in each region inside the VPC",
+        "No subnets are created automatically; you define each subnet's region and CIDR range manually",
+        "The VPC enables IPv6 addressing by default on every subnet you create in it",
+        "Custom mode allows overlapping IP ranges with other VPCs in the same project"
       ],
       "correct": 1,
-      "explanation": "In Custom subnet mode no subnets are pre-created. You define each subnet's region and CIDR range manually, giving full control over IP planning. In Auto mode, GCP creates one /20 subnet per region with predefined ranges. Custom mode is recommended for production to avoid range overlaps that would block future VPC peering or hybrid connectivity.",
+      "explanation": "In Custom subnet mode the VPC ships with no subnets; you define each subnet's region and CIDR range manually, giving full control over IP planning. In Auto mode GCP creates one /20 subnet per region with predefined ranges. Custom is recommended for production to avoid IP overlaps that would block future VPC peering or hybrid connectivity. Subnet mode does not toggle IPv6 and does not change how IP overlap is detected with other VPCs.",
       "tags": [
         "networking",
         "vpc",
         "subnets",
         "gcp-ace"
       ],
-      "difficulty": "medium"
+      "difficulty": "medium",
+      "_normalized": true,
+      "rewritten": true
     },
     {
       "id": "gcp-ace-060",
-      "question": "Which command correctly sets the default project and Compute Engine region for all subsequent gcloud commands in your active configuration?",
+      "question": "Which command correctly sets the default project and the default Compute Engine region for all subsequent gcloud commands in the active configuration?",
       "options": [
         "gcloud set project=PROJECT_ID --compute-region=REGION --persist-config",
         "gcloud init --project=PROJECT_ID --compute-region=REGION --skip-prompts",
@@ -1058,14 +1156,16 @@
         "gcloud configure --default-project=PROJECT_ID --default-region=REGION --persist"
       ],
       "correct": 2,
-      "explanation": "gcloud config set project PROJECT_ID writes the active project to your configuration, and gcloud config set compute/region REGION writes the default Compute Engine region. The two commands can be run in sequence (or chained with ;) and persist in the active named configuration. gcloud init is interactive and does not accept --skip-prompts; gcloud configure is not a real subcommand; gcloud set is missing the config keyword.",
+      "explanation": "`gcloud config set project PROJECT_ID` writes the active project into the configuration and `gcloud config set compute/region REGION` writes the default Compute Engine region. The two commands can be chained with `;` and persist in the active named configuration. `gcloud init` is interactive and does not accept `--skip-prompts`. `gcloud configure` is not a real subcommand. `gcloud set` is missing the required `config` keyword.",
       "tags": [
         "gcloud",
         "cli",
         "configuration",
         "gcp-ace"
       ],
-      "difficulty": "easy"
+      "difficulty": "easy",
+      "_normalized": true,
+      "rewritten": true
     }
   ]
 }
