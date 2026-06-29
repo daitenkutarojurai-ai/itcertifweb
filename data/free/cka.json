@@ -3,69 +3,56 @@
     "id": "cka",
     "name": "Certified Kubernetes Administrator (CKA)",
     "vendor": "CNCF",
-    "version": "1.0.4",
+    "version": "1.0.5",
     "question_count": 61,
-    "last_updated": "2026-05-23",
-    "notes": " [bulk-tag pass: added `cka` tag to 61 questions] [recall sweep: 3 balanced rewrites] [cka batch 1 (2026-05-16): 15 rewrites — cka-003/004/007/021/026/033/035/039/041/043/045/049/050/052/057. Distractors made equally specific so the correct command no longer dwarfs them.]"
+    "last_updated": "2026-06-29",
+    "notes": " [bulk-tag pass: added `cka` tag to 61 questions] [recall sweep: 3 balanced rewrites] [cka batch 1 (2026-05-16): 15 rewrites — cka-003/004/007/021/026/033/035/039/041/043/045/049/050/052/057. Distractors made equally specific so the correct command no longer dwarfs them.] [scheduled-agent hardening pass 2026-06-29: full-pack rewrite — stripped 14 self-defeating semicolon clauses on distractors that announced their own wrongness, repaired truncated options and explanations whose tails leaked old distractor text, rebalanced answer positions to A/B/C/D = 15/16/15/15 with no adjacent run > 2, normalised option lengths so the correct answer is no longer systematically the shortest (was 18/61), reworked every explanation to spell out WHY the correct answer is right AND why each distractor is wrong]"
   },
   "questions": [
     {
       "id": "cka-001",
       "question": "You are initializing a new Kubernetes control plane with kubeadm. You want the API server to advertise the IP address 10.0.1.100 to worker nodes. Which kubeadm init flag should you use?",
       "options": [
+        "--apiserver-advertise-address=10.0.1.100",
         "--control-plane-endpoint=10.0.1.100",
         "--node-ip=10.0.1.100",
-        "--apiserver-advertise-address=10.0.1",
-        "--apiserver-bind-address=10.0.1.100; this flag does not advertise the API server address to nodes"
+        "--apiserver-bind-address=10.0.1.100"
       ],
-      "correct": 2,
-      "explanation": "--apiserver-advertise-address tells kubeadm which IP address the API server should advertise to members of the cluster. --apiserver-bind-address controls which interface it binds to. --control-plane-endpoint is used for HA setups with a load balancer DNS/VIP. --node-ip is a kubelet flag, not a kubeadm init flag.",
-      "tags": [
-        "kubeadm",
-        "cluster-setup",
-        "api-server",
-        "cka"
-      ],
+      "correct": 0,
+      "explanation": "--apiserver-advertise-address tells kubeadm which IP address the API server should publish to members of the cluster — that is the value worker nodes will use to talk to it. --control-plane-endpoint is the stable DNS/VIP used in HA setups behind a load balancer, not the per-node advertised IP. --node-ip is a kubelet flag (consumed by /var/lib/kubelet/kubeadm-flags.env), not a kubeadm init flag. --apiserver-bind-address is also not a kubeadm init flag — kubeadm uses --apiserver-advertise-address to populate the manifest's bind/advertise behaviour.",
+      "tags": ["kubeadm", "cluster-setup", "api-server", "cka"],
       "difficulty": "easy",
-      "_normalized": true
+      "_normalized": true,
+      "rewritten": true
     },
     {
       "id": "cka-002",
-      "question": "A worker node needs to join an existing cluster but the bootstrap token has expired. Which kubeadm command generates a new join token?",
+      "question": "A worker node needs to join an existing cluster but the bootstrap token has expired. Which kubeadm command creates a new join token registered with the cluster?",
       "options": [
         "kubeadm init --regenerate-token",
-        "kubeadm token create",
+        "kubeadm token create --print-join-command",
         "kubeadm join --create-token",
         "kubeadm token generate"
       ],
       "correct": 1,
-      "explanation": "'kubeadm token create --print-join-command' creates a new bootstrap token and prints the complete 'kubeadm join' command including the token and CA cert hash. 'kubeadm token generate' only outputs a random token string — it does not register it with the cluster. The other options do not exist.",
-      "tags": [
-        "kubeadm",
-        "cluster-setup",
-        "tokens",
-        "cka"
-      ],
+      "explanation": "`kubeadm token create --print-join-command` creates a new bootstrap token, registers it with the cluster, and prints the full `kubeadm join` line including the API server endpoint, token, and CA-cert hash. `kubeadm token generate` only prints a random token string — it does not register it. `kubeadm init --regenerate-token` is not a real subcommand (init bootstraps a new cluster). `kubeadm join --create-token` is also invented — join consumes a token, it does not mint one.",
+      "tags": ["kubeadm", "cluster-setup", "tokens", "cka"],
       "difficulty": "easy",
-      "_normalized": true
+      "_normalized": true,
+      "rewritten": true
     },
     {
       "id": "cka-003",
-      "question": "You need to take a snapshot backup of etcd running as a static pod. The data directory is /var/lib/etcd and certificates live in /etc/kubernetes/pki/etcd/. Which command correctly creates a snapshot the API server can use for a future restore?",
+      "question": "You need to take a snapshot backup of etcd running as a static pod. The data directory is /var/lib/etcd and certificates live in /etc/kubernetes/pki/etcd/. Which command correctly creates a snapshot the cluster can later restore from?",
       "options": [
-        "ETCDCTL_API=3 etcdctl snapshot save /backup/etcd.db --endpoints=https://127.0.0.1:2379 --cacert=.../ca.crt",
-        "etcdctl backup --data-dir /var/lib/etcd --backup-dir /backup/etcd.db --endpoints https://127.0.0.1:2379 --tls",
-        "etcdctl snapshot save /backup/etcd.db --data-dir /var/lib/etcd --skip-tls-verify --endpoints 127.0.0.1:2379",
-        "kubectl -n kube-system exec etcd-master -- etcdctl snapshot save /backup/etcd.db --tls"
+        "etcdctl backup --data-dir /var/lib/etcd --backup-dir /backup/etcd.db --endpoints=https://127.0.0.1:2379 --tls --auto-compaction",
+        "etcdctl snapshot save /backup/etcd.db --data-dir /var/lib/etcd --skip-tls-verify --endpoints=127.0.0.1:2379 --watch-progress",
+        "ETCDCTL_API=3 etcdctl snapshot save /backup/etcd.db --endpoints=https://127.0.0.1:2379 --cacert=.../etcd/ca.crt --cert=.../server.crt --key=.../server.key",
+        "kubectl -n kube-system exec etcd-master -- etcdctl snapshot save /backup/etcd.db --tls --insecure-skip-tls-verify"
       ],
-      "correct": 0,
-      "explanation": "`etcdctl snapshot save` is the v3 API command, and it must authenticate to the live cluster — that means passing --endpoints, --cacert, --cert, and --key. `etcdctl backup` is the deprecated v2 syntax. `--data-dir` is not a flag for `snapshot save`. Running through `kubectl exec` without mounting the certs still fails because the binary inside the pod can't read host certs without --cacert/--cert/--key.",
-      "tags": [
-        "etcd",
-        "backup",
-        "tls",
-        "cka"
-      ],
+      "correct": 2,
+      "explanation": "`etcdctl snapshot save` is the v3 API command and must talk to the live cluster over TLS, so it needs --endpoints, --cacert, --cert and --key. `etcdctl backup` is the deprecated v2 syntax that operated on the offline data directory. Passing --data-dir to `snapshot save` is invalid — that flag belongs to the etcd server, not the snapshot client. Running it through `kubectl exec` without mounting the host PKI still fails because the etcd container can't read the host certs without --cacert/--cert/--key.",
+      "tags": ["etcd", "backup", "tls", "cka"],
       "difficulty": "medium",
       "rewritten": true
     },
@@ -73,38 +60,29 @@
       "id": "cka-004",
       "question": "After restoring an etcd snapshot to a new data directory /var/lib/etcd-restore, what must change so the etcd static pod starts using the restored data?",
       "options": [
-        "Run `kubeadm etcd restore /var/lib/etcd-restore` to register the new directory",
-        "Edit /etc/kubernetes/manifests/etcd.yaml",
-        "Delete the etcd pod and let the kubelet automatically pick the restored directory",
-        "Run `systemctl restart etcd` on the control-plane node after symlinking the path"
+        "Run `kubeadm etcd restore /var/lib/etcd-restore` so kubeadm registers the new directory and recreates the etcd static-pod manifest",
+        "Edit /etc/kubernetes/manifests/etcd.yaml so both the --data-dir flag and the backing hostPath volume point at /var/lib/etcd-restore",
+        "Delete the etcd pod with `kubectl delete pod etcd-master -n kube-system` so the kubelet rebuilds it with the restored directory",
+        "Run `systemctl restart etcd` on the control-plane node after creating a symlink from /var/lib/etcd to the restored directory"
       ],
       "correct": 1,
-      "explanation": "etcd runs as a static pod under /etc/kubernetes/manifests/. Both the --data-dir flag passed to the etcd container AND the hostPath volume that backs that directory must point at /var/lib/etcd-restore. The kubelet detects the manifest change on disk and restarts the pod. `kubeadm etcd restore` does not exist; pod deletion alone is not enough because the kubelet recreates the pod from the unchanged manifest; etcd is not a systemd service when run as a static pod.",
-      "tags": [
-        "etcd",
-        "restore",
-        "static-pods",
-        "cka"
-      ],
+      "explanation": "etcd runs as a static pod managed by the kubelet. Both the --data-dir flag passed to the etcd container AND the hostPath volume that backs that directory must be updated in /etc/kubernetes/manifests/etcd.yaml; the kubelet sees the manifest change and recreates the pod against the restored data. `kubeadm etcd restore` does not exist. Deleting the pod alone is useless because the kubelet recreates it from the unchanged manifest, still pointing at the old directory. There is no etcd systemd service on a kubeadm-managed control plane — etcd runs only as a static pod.",
+      "tags": ["etcd", "restore", "static-pods", "cka"],
       "difficulty": "medium",
       "rewritten": true
     },
     {
       "id": "cka-005",
-      "question": "A cluster admin is upgrading a kubeadm-managed cluster from Kubernetes v1.29 to v1.30. To respect skew rules and minimise disruption, the components must be upgraded in a strict order: control plane components first on one node, then the rest of the control plane nodes, then worker nodes. Which is the correct overall order?",
+      "question": "A cluster admin is upgrading a kubeadm-managed cluster from Kubernetes v1.29 to v1.30. To respect the version-skew policy and minimise disruption, which overall order is correct?",
       "options": [
-        "First control plane node (apiserver, controller-manager, scheduler, then kubelet+kubectl) → other control plane nodes → drain/upgrade",
-        "All workers first (kubelet+kubeproxy) → then all control plane nodes simultaneously, in any order — violates the documented order",
-        "Etcd only — assume the rest of the cluster will follow once etcd is on the new version, with no further upgrades needed",
-        "Reinstall every node from scratch on the new version; kubeadm does not support in-place upgrades"
+        "Upgrade all workers (kubelet + kube-proxy) first, then upgrade every control plane node in parallel using kubeadm upgrade apply",
+        "Upgrade etcd only and let the rest of the cluster follow once etcd is on the new minor version — kubeadm propagates the rest automatically",
+        "First control plane: kubeadm + `kubeadm upgrade apply` → kubelet/kubectl; then the other control plane nodes; then drain and upgrade each worker",
+        "Reinstall every node from scratch on the new version because kubeadm explicitly does not support in-place skew upgrades"
       ],
-      "correct": 0,
-      "explanation": "The correct upgrade order is: (1) upgrade kubeadm on the control plane node, (2) run 'kubeadm upgrade apply v1.30.x' which upgrades cluster components, (3) upgrade kubelet and kubectl on the control plane, (4) then repeat kubelet/kubectl upgrades on each worker node. Workers must never be upgraded before the control plane, as older control planes cannot manage newer kubelets. run 'kubeadm upgrade apply', then upgrade kubelet and kubectl on control plane, then upgrade workers",
-      "tags": [
-        "kubeadm",
-        "upgrade-order",
-        "cka"
-      ],
+      "correct": 2,
+      "explanation": "The supported order is: (1) on the first control plane, upgrade the kubeadm binary; (2) run `kubeadm upgrade apply v1.30.x` to update the static-pod manifests; (3) upgrade kubelet and kubectl on that node; (4) repeat the same kubelet/kubectl/kubeadm sequence on the other control plane nodes; (5) drain and upgrade each worker. Workers must never run ahead of the control plane — an older control plane cannot manage a newer kubelet. Upgrading etcd alone leaves apiserver/scheduler/controller-manager behind. kubeadm explicitly supports in-place upgrades, so reinstall from scratch is unnecessary.",
+      "tags": ["kubeadm", "upgrade-order", "cka"],
       "difficulty": "medium",
       "_normalized": true,
       "rewritten": true
@@ -113,66 +91,52 @@
       "id": "cka-006",
       "question": "You need to grant a ServiceAccount named 'deploy-bot' in the 'ci' namespace read-only access to Deployments across all namespaces. What combination of resources should you create?",
       "options": [
-        "A ClusterRole with get/list/watch on deployments, and a RoleBinding in the 'ci' namespace",
-        "A Role and RoleBinding in the 'ci' namespace",
         "A Role with get/list/watch on deployments in every namespace, and a ClusterRoleBinding",
-        "A ClusterRole with get/list/watch on deployments,."
+        "A Role and RoleBinding in the 'ci' namespace",
+        "A ClusterRole with get/list/watch on deployments, and a RoleBinding in the 'ci' namespace",
+        "A ClusterRole with get/list/watch on deployments, and a ClusterRoleBinding referencing the ServiceAccount"
       ],
       "correct": 3,
-      "explanation": "To grant cluster-wide access, you need a ClusterRole (defines permissions at cluster scope) and a ClusterRoleBinding (binds the subject across all namespaces). A RoleBinding—even referencing a ClusterRole—only grants access within the binding's namespace. Roles themselves are namespace-scoped and cannot grant cluster-wide access. and a ClusterRoleBinding referencing the ServiceAccount",
-      "tags": [
-        "rbac",
-        "clusterrole",
-        "serviceaccount",
-        "cka"
-      ],
+      "explanation": "Cluster-wide access requires both halves to be cluster-scoped: a ClusterRole carrying the permissions, and a ClusterRoleBinding that binds the ServiceAccount across all namespaces. A RoleBinding that references a ClusterRole only grants those permissions inside the binding's own namespace. A Role cannot be cluster-scoped at all — even paired with a ClusterRoleBinding it has no effect, because ClusterRoleBindings only accept ClusterRole references. A namespaced Role/RoleBinding pair would limit access to the 'ci' namespace.",
+      "tags": ["rbac", "clusterrole", "serviceaccount", "cka"],
       "difficulty": "medium",
       "_normalized": true,
-      "_lenbal": true
+      "rewritten": true
     },
     {
       "id": "cka-007",
       "question": "A developer reports that `kubectl get pods` returns `Error from server (Forbidden)`. Their kubeconfig context points to the right cluster and `kubectl config view` looks clean. What is the most likely root cause?",
       "options": [
         "The kubelet on the developer's laptop is not running",
-        "The user or ServiceAccount has no Role/ClusterRole binding for `get pods`",
+        "The user or ServiceAccount has no Role/ClusterRole binding granting `get` on `pods`",
         "The developer needs to run `kubectl auth login` to refresh their tokens",
-        "The kube-apiserver TLS certificate has expired on the control plane; TLS expiry does not affect which pods appear forbidden"
+        "The kube-apiserver TLS certificate has expired on the control plane"
       ],
       "correct": 1,
-      "explanation": "A 403 Forbidden means the request reached the API server but the RBAC authoriser denied it — the calling subject has no Role or ClusterRole binding granting the `get` verb on `pods`. An expired API server cert would surface as a TLS handshake error, not Forbidden. There is no `kubectl auth login` subcommand. The kubelet is irrelevant on a client machine.",
-      "tags": [
-        "rbac",
-        "troubleshooting",
-        "authorization",
-        "cka"
-      ],
+      "explanation": "A 403 Forbidden response means the request was authenticated and reached the API server, but the RBAC authoriser denied it — the caller has no Role or ClusterRole binding that allows `get` on `pods`. An expired API server certificate would surface earlier as a TLS handshake error, not Forbidden. `kubectl auth login` is not a real subcommand (the kubectl plugin model uses credential plugins or `kubectl oidc-login`). The kubelet runs on cluster nodes, not on client laptops, so its state is irrelevant.",
+      "tags": ["rbac", "troubleshooting", "authorization", "cka"],
       "difficulty": "easy",
       "rewritten": true
     },
     {
       "id": "cka-008",
-      "question": "You need to verify what actions a ServiceAccount 'reporter' in namespace 'monitoring' can perform. Which kubectl command checks if it can list pods in that namespace?",
+      "question": "You need to verify what actions the ServiceAccount 'reporter' in namespace 'monitoring' can perform. Which kubectl command checks whether it can list pods in that namespace?",
       "options": [
-        "kubectl auth can-i list pods --as=system:serviceaccount:monitoring:reporte",
+        "kubectl auth can-i list pods --as=system:serviceaccount:monitoring:reporter -n monitoring",
         "kubectl describe serviceaccount reporter -n monitoring",
         "kubectl auth check --user=reporter --verb=list --resource=pods -n monitoring",
         "kubectl get rolebindings -n monitoring | grep reporter"
       ],
       "correct": 0,
-      "explanation": "'kubectl auth can-i' with --as impersonates the given subject and returns yes/no. The ServiceAccount must be specified in the format system:serviceaccount:<namespace>:<name>. 'kubectl get rolebindings' would require manual parsing and wouldn't show effective permissions from ClusterRoleBindings. 'kubectl describe serviceaccount' only shows metadata.",
-      "tags": [
-        "rbac",
-        "kubectl",
-        "serviceaccount",
-        "cka"
-      ],
+      "explanation": "`kubectl auth can-i` with --as impersonates the named subject and asks the API server's authoriser for a yes/no answer, so it tests the effective permission across Roles AND ClusterRoles. A ServiceAccount is impersonated using the canonical form `system:serviceaccount:<ns>:<name>`. `kubectl describe serviceaccount` shows metadata and mounted tokens but no permission information. `kubectl get rolebindings | grep` only inspects one namespace's RoleBindings and misses ClusterRoleBindings entirely. `kubectl auth check` is not a real subcommand.",
+      "tags": ["rbac", "kubectl", "serviceaccount", "cka"],
       "difficulty": "medium",
-      "_normalized": true
+      "_normalized": true,
+      "rewritten": true
     },
     {
       "id": "cka-009",
-      "question": "The kube-apiserver certificate is about to expire. You are using kubeadm. Which command renews all control plane certificates?",
+      "question": "The kube-apiserver certificate on a kubeadm cluster is about to expire. Which command renews all kubeadm-managed control plane certificates?",
       "options": [
         "openssl x509 -signkey /etc/kubernetes/pki/ca.key -in /etc/kubernetes/pki/apiserver.crt -out /etc/kubernetes/pki/apiserver.crt",
         "kubeadm init phase certs all --cert-renew",
@@ -180,19 +144,15 @@
         "kubectl certificate approve all"
       ],
       "correct": 2,
-      "explanation": "'kubeadm certs renew all' renews all kubeadm-managed certificates and is the official supported method. After renewal, static pod manifests must be refreshed (usually by restarting kubelet or moving/restoring the manifest files) so the components pick up the new certs. The openssl command would not properly update all cert fields. 'kubectl certificate approve' is for approving CSRs, not renewal.",
-      "tags": [
-        "certificates",
-        "tls",
-        "kubeadm",
-        "cka"
-      ],
+      "explanation": "`kubeadm certs renew all` is the supported method: it regenerates every kubeadm-managed certificate under /etc/kubernetes/pki using the cluster CA. You then restart the static-pod components (usually by touching their manifests) so they pick up the new certs. `kubeadm init phase certs all` only generates fresh certs on a brand-new install; it has no --cert-renew flag. The raw openssl command would not write all the required SANs, CN, or extensions that kube components expect. `kubectl certificate approve` approves pending CertificateSigningRequests — it does not renew apiserver certs.",
+      "tags": ["certificates", "tls", "kubeadm", "cka"],
       "difficulty": "medium",
-      "_normalized": true
+      "_normalized": true,
+      "rewritten": true
     },
     {
       "id": "cka-010",
-      "question": "You have multiple clusters defined in your kubeconfig. You need to temporarily switch to a cluster named 'prod-cluster' for the next few commands. Which command sets the active context without permanently modifying the config?",
+      "question": "You have multiple clusters defined in your kubeconfig. You need to run a few commands against a cluster named 'prod-cluster' without permanently changing the active context. Which approach is best?",
       "options": [
         "kubectl --context=prod-cluster get pods",
         "kubectl config use-context prod-cluster",
@@ -200,19 +160,15 @@
         "export KUBECONFIG=/etc/kubernetes/prod.config"
       ],
       "correct": 0,
-      "explanation": "Using --context=prod-cluster as a per-command flag is the best approach for temporary context switching without modifying any configuration. 'kubectl config use-context' permanently changes the active context in the kubeconfig file. Exporting KUBECONFIG changes the environment for the entire shell session, not just one command. 'kubectl config set-context --current' modifies the current context's fields.",
-      "tags": [
-        "kubeconfig",
-        "kubectl",
-        "context",
-        "cka"
-      ],
+      "explanation": "The per-command --context flag picks the context for that single invocation without touching the kubeconfig file or environment — exactly the 'temporary' behaviour the question asks for. `kubectl config use-context` permanently rewrites `current-context:` in the kubeconfig file. Exporting KUBECONFIG changes the active config for the whole shell session, affecting later unrelated commands. `kubectl config set-context --current --cluster=…` overwrites the cluster reference of the existing context — a permanent mutation, not a one-off override.",
+      "tags": ["kubeconfig", "kubectl", "context", "cka"],
       "difficulty": "easy",
-      "_normalized": true
+      "_normalized": true,
+      "rewritten": true
     },
     {
       "id": "cka-011",
-      "question": "When bootstrapping a cluster with kubeadm, which flag allows you to specify a custom pod network CIDR for the CNI plugin?",
+      "question": "When bootstrapping a cluster with kubeadm, which flag specifies the pod network CIDR that the CNI plugin should use?",
       "options": [
         "--network-plugin-cidr",
         "--pod-network-cidr",
@@ -220,136 +176,107 @@
         "--cluster-cidr"
       ],
       "correct": 1,
-      "explanation": "--pod-network-cidr defines the IP range for pod networking. This value is passed to the CNI plugin (e.g., Calico, Flannel). --service-cidr defines the range for Service ClusterIPs. --cluster-cidr is an internal kube-controller-manager flag, not a kubeadm init flag. --network-plugin-cidr does not exist.",
-      "tags": [
-        "kubeadm",
-        "networking",
-        "cni",
-        "cka"
-      ],
+      "explanation": "--pod-network-cidr passes the pod IP range into the cluster configuration so the CNI plugin (Calico, Flannel, Cilium, …) can carve subnets from it. --service-cidr is a separate flag that configures the range for Service ClusterIPs. --cluster-cidr is an internal kube-controller-manager flag (set indirectly via kubeadm), not a kubeadm init flag. --network-plugin-cidr does not exist.",
+      "tags": ["kubeadm", "networking", "cni", "cka"],
       "difficulty": "easy",
-      "_normalized": true
+      "_normalized": true,
+      "rewritten": true
     },
     {
       "id": "cka-012",
-      "question": "You need to prevent new pods from being scheduled on a node 'worker-3' while allowing existing pods to continue running, so you can perform maintenance. Which command achieves this?",
+      "question": "You need to prevent new pods from being scheduled on node 'worker-3' while leaving its existing pods running, so you can perform a quick maintenance check. Which command does exactly that?",
       "options": [
-        "kubectl drain worker-3",
+        "kubectl drain worker-3 --ignore-daemonsets",
         "kubectl taint nodes worker-3 maintenance=true:NoExecute",
         "kubectl label nodes worker-3 schedulable=false",
         "kubectl cordon worker-3"
       ],
       "correct": 3,
-      "explanation": "'kubectl cordon' marks the node as Unschedulable, preventing new pods from being assigned to it, while leaving existing pods running. 'kubectl drain' both cordons the node AND evicts existing pods (too disruptive if you want to keep running pods). A NoExecute taint would evict pods that lack the toleration. Labels do not affect scheduling by themselves.",
-      "tags": [
-        "node-management",
-        "kubectl",
-        "scheduling",
-        "cka"
-      ],
+      "explanation": "`kubectl cordon` flips the node's `spec.unschedulable` field to true, which is exactly the 'no new pods, existing pods stay' state the question asks for. `kubectl drain` first cordons the node AND then evicts running pods — too disruptive when you want them to stay. A NoExecute taint would actively evict any pod without a matching toleration. A plain label has no scheduling effect on its own (you'd also need a nodeSelector or affinity referencing it on every pod).",
+      "tags": ["node-management", "kubectl", "scheduling", "cka"],
       "difficulty": "easy",
-      "_normalized": true
+      "_normalized": true,
+      "rewritten": true
     },
     {
       "id": "cka-013",
-      "question": "A static pod manifest placed in /etc/kubernetes/manifests/ is not starting. The pod does not appear in 'kubectl get pods -A'. What should you check first?",
+      "question": "A static pod manifest placed in /etc/kubernetes/manifests/ is not starting. The pod does not appear in `kubectl get pods -A`. What should you check first?",
       "options": [
-        "Confirm the pod is listed in 'kubectl get pods --field-selector=status.phase=Pending'",
+        "Confirm the pod is listed in `kubectl get pods --field-selector=status.phase=Pending`",
         "Verify the pod has a valid ServiceAccount token mounted",
-        "Check the kube-scheduler logs for scheduling errors; the manifest placed in /etc/kubernetes/manifests is not consulted by the scheduler",
-        "Check the kubelet logs on the node where the manifest was placed."
+        "Check the kube-scheduler logs for scheduling errors",
+        "Check the kubelet logs on the node where the manifest was placed (`journalctl -u kubelet`)"
       ],
       "correct": 3,
-      "explanation": "Static pods are managed entirely by the kubelet, not by the API server scheduler. If a static pod isn't starting, the kubelet logs (journalctl -u kubelet) will show parsing errors, file permission issues, or image pull problems. The kube-scheduler is not involved in static pod lifecycle. Static pods may briefly not appear in kubectl if the kubelet hasn't registered the mirror pod yet. using 'journalctl -u kubelet'",
-      "tags": [
-        "static-pods",
-        "kubelet",
-        "troubleshooting",
-        "cka"
-      ],
+      "explanation": "Static pods are owned end-to-end by the kubelet on the node where their manifest lives — the API server only ever sees the mirror pod once kubelet creates it. If the mirror pod never appears, the kubelet is the only component that knows why (YAML parse error, image pull failure, file permission). `journalctl -u kubelet` is where those errors land. The scheduler is uninvolved (static pods are pre-bound to the local node). Filtering Pending pods won't find one that was never registered, and a missing token wouldn't keep the pod manifest from being created in the first place.",
+      "tags": ["static-pods", "kubelet", "troubleshooting", "cka"],
       "difficulty": "medium",
-      "_normalized": true
+      "_normalized": true,
+      "rewritten": true
     },
     {
       "id": "cka-014",
-      "question": "You want to add a second control plane node to an existing cluster for high availability. After running 'kubeadm init phase upload-certs --upload-certs' on the primary control plane, what join command format should you use on the new control plane node?",
+      "question": "You want to add a second control plane node for high availability. After running `kubeadm init phase upload-certs --upload-certs` on the primary control plane, what command format should you use on the new control plane node?",
       "options": [
-        "kubeadm join --control-plane --copy-certs-from=<primary-node-ip>",
-        "kubeadm join <endpoint>:<port> --token <token> --discovery-token-ca-cert-hash",
-        "kubeadm init --join --control-plane-endpoint=<endpoint>",
-        "kubeadm join <endpoint>:<port> --token <token> --discovery-token-ca-cert-hash sha256:<hash>"
+        "kubeadm join <endpoint>:<port> --token <token> --discovery-token-ca-cert-hash sha256:<hash> --control-plane --certificate-key <key>",
+        "kubeadm join --control-plane --copy-certs-from=<primary-node-ip> --token <token> --discovery-token-ca-cert-hash sha256:<hash>",
+        "kubeadm init --join --control-plane-endpoint=<endpoint> --certificate-key <key> --token <token>",
+        "kubeadm join <endpoint>:<port> --token <token> --discovery-token-ca-cert-hash sha256:<hash> --node-name <new-cp>"
       ],
-      "correct": 1,
-      "explanation": "Joining a control plane node requires --control-plane (to promote the node) and --certificate-key (to decrypt the uploaded certificates from the cluster). Without --certificate-key, kubeadm won't copy the PKI certificates to the new control plane node. The plain join command (option A) is for worker nodes only.",
-      "tags": [
-        "kubeadm",
-        "high-availability",
-        "control-plane",
-        "cka"
-      ],
+      "correct": 0,
+      "explanation": "Joining as a control plane needs both --control-plane (so kubeadm promotes the node and starts control-plane static pods) and --certificate-key (so kubeadm can decrypt the PKI material uploaded earlier with `upload-certs`). The plain join command — same flags minus --control-plane and --certificate-key — joins a worker only. There is no --copy-certs-from option in kubeadm; the cert material moves via the uploaded encrypted Secret. `kubeadm init --join` is not a real form (init bootstraps a new cluster, join attaches a node to an existing one).",
+      "tags": ["kubeadm", "high-availability", "control-plane", "cka"],
       "difficulty": "hard",
-      "_normalized": true
+      "_normalized": true,
+      "rewritten": true
     },
     {
       "id": "cka-015",
-      "question": "You need to view the current kubeadm cluster configuration stored in the cluster. In which ConfigMap and namespace is this stored?",
+      "question": "You need to view the current kubeadm cluster configuration stored inside the cluster. In which ConfigMap and namespace is this kept?",
       "options": [
         "ConfigMap 'kubeadm-config' in namespace 'kube-system'",
-        "ConfigMap 'kube-config' in namespace 'kube-public' - kubeadm does not write cluster config to this ConfigMap location",
+        "ConfigMap 'kube-config' in namespace 'kube-public'",
         "ConfigMap 'cluster-info' in namespace 'default'",
         "ConfigMap 'cluster-config' in namespace 'kube-node-lease'"
       ],
       "correct": 0,
-      "explanation": "kubeadm stores the cluster configuration in a ConfigMap named 'kubeadm-config' in the 'kube-system' namespace. You can inspect it with 'kubectl get configmap kubeadm-config -n kube-system -o yaml'. The 'cluster-info' ConfigMap in 'kube-public' contains the discovery endpoint but not the full kubeadm configuration.",
-      "tags": [
-        "kubeadm",
-        "configmap",
-        "cluster-configuration",
-        "cka"
-      ],
+      "explanation": "kubeadm persists the ClusterConfiguration (and component-specific configs) in the ConfigMap `kubeadm-config` in the `kube-system` namespace; inspect it with `kubectl get cm kubeadm-config -n kube-system -o yaml`. The `cluster-info` ConfigMap in `kube-public` only holds the discovery endpoint and CA bundle used during node bootstrap, not the full kubeadm configuration. `kube-config` and `cluster-config` are not standard ConfigMaps in any kubeadm-managed cluster.",
+      "tags": ["kubeadm", "configmap", "cluster-configuration", "cka"],
       "difficulty": "medium",
-      "_normalized": true
+      "_normalized": true,
+      "rewritten": true
     },
     {
       "id": "cka-016",
-      "question": "A Deployment named 'web-app' has 5 replicas but only 3 pods are running. 'kubectl describe deployment web-app' shows the ReplicaSet has 5 desired but 3 available. What is the most likely next diagnostic step?",
+      "question": "A Deployment named 'web-app' has 5 replicas but only 3 pods are running. `kubectl describe deployment web-app` shows the ReplicaSet has 5 desired but 3 available. What is the most appropriate next diagnostic step?",
       "options": [
-        "Scale the deployment down to 3 replicas to match the current state",
+        "Scale the Deployment down to 3 replicas to match the current state",
         "Delete and recreate the Deployment with the same spec",
-        "Check 'kubectl get pods' for the deployment's pods and look for",
-        "Run 'kubectl rollout restart deployment/web-app' immediately; restarting pods directly does not explain why fewer pods are running"
+        "Run `kubectl get pods -l app=web-app`, then `kubectl describe pod <pod-name>` on any non-running pod",
+        "Run `kubectl rollout restart deployment/web-app` immediately"
       ],
       "correct": 2,
-      "explanation": "When a Deployment's desired replica count exceeds available, the pods themselves hold the diagnostic information. 'kubectl get pods' filtered to the deployment's selector reveals pod states (Pending, CrashLoopBackOff, etc.), and 'kubectl describe pod' shows events with specific error messages like image pull failures, resource constraints, or node affinity issues. then 'kubectl describe pod <pod-name>' for events",
-      "tags": [
-        "deployments",
-        "troubleshooting",
-        "kubectl",
-        "cka"
-      ],
+      "explanation": "When desired > available, the individual pods carry the diagnostic information. Listing pods by the Deployment selector reveals which two are stuck (Pending, ImagePullBackOff, CrashLoopBackOff), and `kubectl describe pod` surfaces the Events explaining why — image pull failure, insufficient resources, missing PVC, failing readiness, etc. Scaling down hides the symptom without explaining it. Deleting and recreating throws away the same diagnostic state. A rollout restart kicks pods that may already be unable to schedule, which doesn't address the root cause.",
+      "tags": ["deployments", "troubleshooting", "kubectl", "cka"],
       "difficulty": "easy",
       "_normalized": true,
-      "_lenbal": true
+      "rewritten": true
     },
     {
       "id": "cka-017",
-      "question": "You need a DaemonSet to run on every node including control plane nodes, which have the taint 'node-role.kubernetes.io/control-plane:NoSchedule'. What must you add to the DaemonSet pod spec?",
+      "question": "You need a DaemonSet to run on every node including control plane nodes, which carry the taint `node-role.kubernetes.io/control-plane:NoSchedule`. What must you add to the DaemonSet pod spec?",
       "options": [
-        "Set hostNetwork: true in the pod spec; hostNetwork does not help with the node-role taint effect noschedule",
-        "Add a toleration for 'node-role.kubernetes.io/control-plane' with effect 'NoSchedule'",
-        "Set nodeSelector to include control-plane nodes explicitly",
-        "Add the annotation 'scheduler.alpha.kubernetes.io/tolerations' to the DaemonSet metadata"
+        "Set `hostNetwork: true` in the pod spec",
+        "Add a toleration for `node-role.kubernetes.io/control-plane` with effect `NoSchedule`",
+        "Set `nodeSelector` to include control-plane nodes explicitly",
+        "Add the annotation `scheduler.alpha.kubernetes.io/tolerations` to the DaemonSet metadata"
       ],
       "correct": 1,
-      "explanation": "Taints prevent pods from being scheduled unless the pod spec includes a matching toleration. To run on tainted control plane nodes, the DaemonSet's pod template must include a toleration with key 'node-role.kubernetes.io/control-plane' and effect 'NoSchedule'. nodeSelector selects by label, not taint, and wouldn't overcome the taint restriction.",
-      "tags": [
-        "daemonset",
-        "taints",
-        "tolerations",
-        "cka"
-      ],
+      "explanation": "A NoSchedule taint blocks scheduling unless the pod carries a matching toleration; adding `tolerations: [{key: node-role.kubernetes.io/control-plane, effect: NoSchedule, operator: Exists}]` lets the DaemonSet pod land on the tainted control plane nodes. `hostNetwork` controls the pod's network namespace and has no bearing on taints. `nodeSelector` matches against labels, not taints, so it never overrides a NoSchedule taint. The `scheduler.alpha.kubernetes.io/tolerations` annotation was removed years ago — tolerations now live only in the pod spec.",
+      "tags": ["daemonset", "taints", "tolerations", "cka"],
       "difficulty": "medium",
-      "_normalized": true
+      "_normalized": true,
+      "rewritten": true
     },
     {
       "id": "cka-018",
@@ -361,79 +288,62 @@
         "spec.completions: 6 and spec.parallelism: 2"
       ],
       "correct": 3,
-      "explanation": "'completions' sets how many successful pod completions are required for the Job to be considered finished. 'parallelism' caps the number of pods that can run simultaneously. Together, completions: 6 and parallelism: 2 will run 2 pods at a time until 6 succeed. 'replicas' and 'maxSurge' are Deployment fields. 'concurrencyPolicy' is a CronJob field.",
-      "tags": [
-        "jobs",
-        "workloads",
-        "parallelism",
-        "cka"
-      ],
+      "explanation": "`completions` is the number of successful pod completions the Job needs before it is marked Complete; `parallelism` is the maximum number of pods running at once. Together, completions: 6 and parallelism: 2 runs two pods concurrently until six have succeeded. `backoffLimit` is the retry cap on failures; `concurrencyPolicy` and `successfulJobsHistoryLimit` are CronJob fields, not Job fields. `activeDeadlineSeconds` is an overall wall-clock limit for the Job, not a per-burst cap. `replicas` and `maxSurge` belong to Deployments.",
+      "tags": ["jobs", "workloads", "parallelism", "cka"],
       "difficulty": "medium",
-      "_normalized": true
+      "_normalized": true,
+      "rewritten": true
     },
     {
       "id": "cka-019",
-      "question": "A pod is stuck in 'Pending' state. 'kubectl describe pod my-pod' shows: 'Warning FailedScheduling: 0/4 nodes are available: 4 Insufficient memory.' The pod requests 8Gi memory. What is the most appropriate fix?",
+      "question": "A pod is stuck in `Pending`. `kubectl describe pod my-pod` shows: `Warning FailedScheduling: 0/4 nodes are available: 4 Insufficient memory.` The pod requests 8Gi memory. What is the most appropriate fix?",
       "options": [
         "Increase the pod's memory limit while keeping the request the same",
-        "Add a toleration to the pod spec to bypass resource checks",
-        "Either add a node with sufficient memory to the cluster.",
+        "Add a toleration to the pod spec so the scheduler bypasses the resource check",
+        "Either add a node with enough allocatable memory, or reduce the pod's memory request if the workload allows it",
         "Set spec.priorityClassName to system-cluster-critical to force scheduling"
       ],
       "correct": 2,
-      "explanation": "The scheduler checks that a node has enough allocatable memory to satisfy the pod's request. If no node has 8Gi free, the pod stays Pending indefinitely. The correct fixes are: add a larger node, or reduce the memory request if the application genuinely needs less. Tolerations bypass taints, not resource constraints. PriorityClass can preempt lower-priority pods but won't create memory that doesn't exist. Increasing only the limit doesn't change the request. or reduce the pod's memory request if the workload allows it",
-      "tags": [
-        "scheduling",
-        "resource-limits",
-        "troubleshooting",
-        "cka"
-      ],
+      "explanation": "The scheduler compares each pod's `requests` against each node's allocatable resources; if no node can satisfy the 8Gi request, the pod stays Pending forever. Adding capacity or trimming the request are the only real fixes. Increasing only the limit does nothing — the scheduler ignores limits at placement time. Tolerations override taints, not resource shortfalls. A high PriorityClass can preempt lower-priority pods on overcommitted nodes, but it cannot manufacture memory that doesn't exist on any node.",
+      "tags": ["scheduling", "resource-limits", "troubleshooting", "cka"],
       "difficulty": "easy",
-      "_normalized": true
+      "_normalized": true,
+      "rewritten": true
     },
     {
       "id": "cka-020",
-      "question": "You want a pod to prefer scheduling on nodes labeled 'disktype=ssd' but still schedule on other nodes if no SSD nodes are available. Which scheduling construct should you use?",
+      "question": "You want a pod to prefer scheduling on nodes labeled `disktype=ssd` but still schedule on other nodes if no SSD nodes are available. Which scheduling construct should you use?",
       "options": [
         "nodeSelector: disktype: ssd",
-        "A preferred NodeAffinity (preferredDuringSchedulingIgnoredDuringExecu",
-        "A taint 'disktype=ssd:NoSchedule' on SSD nodes with a matching toleration on the pod",
-        "A required NodeAffinity with matchExpressions on disktype=ssd"
+        "nodeAffinity with preferredDuringSchedulingIgnoredDuringExecution matching disktype=ssd",
+        "A taint `disktype=ssd:NoSchedule` on SSD nodes with a matching toleration on the pod",
+        "nodeAffinity with requiredDuringSchedulingIgnoredDuringExecution matching disktype=ssd"
       ],
       "correct": 1,
-      "explanation": "preferredDuringSchedulingIgnoredDuringExecution is a 'soft' affinity rule. The scheduler tries to place the pod on a matching node but falls back to other nodes if needed. nodeSelector and requiredDuringSchedulingIgnoredDuringExecution are hard constraints — the pod won't schedule if no matching node exists. Taints repel pods, not attract them.",
-      "tags": [
-        "node-affinity",
-        "scheduling",
-        "pod-spec",
-        "cka"
-      ],
+      "explanation": "`preferredDuringSchedulingIgnoredDuringExecution` is the soft form of nodeAffinity: the scheduler scores nodes and prefers matches, but falls back to any node when no SSD node is available. `nodeSelector` and `requiredDuringSchedulingIgnoredDuringExecution` are hard constraints — they leave the pod Pending if no node matches. Taints repel pods rather than attract them, so they cannot express a preference; the pod would only land on SSD nodes if those were the only ones it tolerated, which inverts the intent.",
+      "tags": ["node-affinity", "scheduling", "pod-spec", "cka"],
       "difficulty": "medium",
-      "_normalized": true
+      "_normalized": true,
+      "rewritten": true
     },
     {
       "id": "cka-021",
-      "question": "A StatefulSet `db` has 3 replicas. You notice that `db-2` is stuck in Pending while `db-0` and `db-1` are Running. Which default StatefulSet behaviour produces this sequencing?",
+      "question": "A StatefulSet `db` has 3 replicas. `db-2` is stuck in Pending while `db-0` and `db-1` are Running. Which default StatefulSet behaviour produces this sequencing?",
       "options": [
         "The StatefulSet waits for a rolling update to complete before adding new pods",
-        "All PVCs must be bound by the storage class before any pod is scheduled",
+        "All PVCs must be bound by the StorageClass before any pod is scheduled",
         "Pods must run on distinct nodes; node-2 has insufficient allocatable capacity",
         "Default OrderedReady policy: each pod must be Ready before the next is created"
       ],
       "correct": 3,
-      "explanation": "StatefulSets default to `podManagementPolicy: OrderedReady`, so pods come up sequentially (0, 1, 2…) and each must reach Running+Ready before the next is created. Since db-0 and db-1 are Running, the StatefulSet IS creating db-2 — it's Pending for its own reason (PVC binding, scheduling, etc.), not because db-1 is blocking it.",
-      "tags": [
-        "statefulset",
-        "pod-management",
-        "workloads",
-        "cka"
-      ],
+      "explanation": "StatefulSets default to `podManagementPolicy: OrderedReady`, so the controller only creates db-N after db-(N-1) is Running and Ready. Because db-0 and db-1 are already Running and Ready, the controller HAS created db-2 — its Pending state is its own scheduling/PVC issue, not blocking by the policy. There is no rule that all PVCs must bind upfront. Distinct-node spreading is not the default (you'd need a topologySpreadConstraint or anti-affinity). Rolling updates only apply to existing pods, not initial creation.",
+      "tags": ["statefulset", "pod-management", "workloads", "cka"],
       "difficulty": "medium",
       "rewritten": true
     },
     {
       "id": "cka-022",
-      "question": "A CronJob is configured with 'schedule: \"*/5 * * * *\"' but jobs are piling up because each run takes longer than 5 minutes. Which field prevents concurrent job executions?",
+      "question": "A CronJob is configured with `schedule: \"*/5 * * * *\"` but jobs are piling up because each run takes longer than 5 minutes. Which field prevents concurrent executions?",
       "options": [
         "spec.concurrencyPolicy: Forbid",
         "spec.jobTemplate.spec.backoffLimit: 0",
@@ -441,158 +351,122 @@
         "spec.startingDeadlineSeconds: 300"
       ],
       "correct": 0,
-      "explanation": "'concurrencyPolicy: Forbid' prevents a new job from being created if the previous one hasn't finished yet. The default is 'Allow' which runs overlapping jobs. 'Replace' would cancel the running job and start a new one. 'backoffLimit' controls retry behavior on failures. 'successfulJobsHistoryLimit' controls how many completed jobs to keep. 'startingDeadlineSeconds' is a deadline for starting a missed job.",
-      "tags": [
-        "cronjob",
-        "concurrency",
-        "workloads",
-        "cka"
-      ],
+      "explanation": "`concurrencyPolicy: Forbid` tells the CronJob controller to skip the next scheduled run if the previous Job is still active — the simplest fix when runs overrun the schedule. The default `Allow` lets them overlap; `Replace` would kill the running Job and start a new one (data loss risk). `backoffLimit` caps per-Job retry attempts. `successfulJobsHistoryLimit` only controls how many completed Jobs are retained for audit. `startingDeadlineSeconds` is a deadline for starting a missed run, not a serialisation control.",
+      "tags": ["cronjob", "concurrency", "workloads", "cka"],
       "difficulty": "medium",
-      "_normalized": true
+      "_normalized": true,
+      "rewritten": true
     },
     {
       "id": "cka-023",
-      "question": "You want to prevent a specific pod from being co-located on the same node as any pod labeled 'app=database'. Which pod spec field achieves this?",
+      "question": "You want to prevent a specific pod from being co-located on the same node as any pod labeled `app=database`. Which pod spec field achieves this?",
       "options": [
-        "podAntiAffinity with a requiredDuringSchedulingIgnoredDuringExec",
+        "podAntiAffinity with requiredDuringSchedulingIgnoredDuringExecution matching app=database",
         "A taint on database pods with effect NoSchedule",
-        "nodeAffinity with a requiredDuringScheduling rule matching app=database",
-        "topologySpreadConstraints with maxSkew: 0"
+        "nodeAffinity with requiredDuringSchedulingIgnoredDuringExecution matching app=database",
+        "topologySpreadConstraints with maxSkew: 0 keyed on app=database"
       ],
       "correct": 0,
-      "explanation": "podAntiAffinity with requiredDuringSchedulingIgnoredDuringExecution instructs the scheduler to never place this pod on a node where a pod matching the label selector is already running. nodeAffinity targets node labels, not pod labels. Taints on one pod don't affect another pod's scheduling. topologySpreadConstraints balance spread but don't enforce strict anti-colocation with label-matched pods.",
-      "tags": [
-        "pod-affinity",
-        "scheduling",
-        "pod-spec",
-        "cka"
-      ],
+      "explanation": "podAntiAffinity (the `required…` variant) tells the scheduler 'never place me on a node where a pod matching this label selector already runs' — exactly the anti-colocation rule the question asks for. nodeAffinity matches node labels, not pod labels. Taints live on nodes, not pods; you can't taint a peer pod. topologySpreadConstraints balance pods across topology domains but do not enforce an absolute 'no co-location with these labels' guarantee — and maxSkew: 0 is not a valid spread value.",
+      "tags": ["pod-affinity", "scheduling", "pod-spec", "cka"],
       "difficulty": "hard",
-      "_normalized": true
+      "_normalized": true,
+      "rewritten": true
     },
     {
       "id": "cka-024",
-      "question": "A pod spec defines: resources: requests: cpu: '100m' limits: cpu: '200m'. The pod is running on a node under heavy CPU pressure. What happens to the pod's CPU usage?",
+      "question": "A pod spec defines `resources.requests.cpu: 100m` and `resources.limits.cpu: 200m`. The pod is running on a node under heavy CPU pressure. What happens to its CPU usage?",
       "options": [
-        "The pod is evicted from the node to free up CPU for higher-priority workloads; eviction is not triggered by CPU usage throttling alone",
+        "The pod is evicted from the node to free CPU for higher-priority workloads",
         "The pod's CPU usage is throttled at 200m — it cannot use more, but it is not killed",
-        "The pod is OOMKilled because it exceeded its memory allocation",
-        "The container runtime kills the container and reports a CrashLoopBackOff"
+        "The pod is OOMKilled because the kernel reclassifies CPU pressure as memory pressure",
+        "The container runtime kills the container and reports CrashLoopBackOff"
       ],
       "correct": 1,
-      "explanation": "CPU is a compressible resource. When a container exceeds its CPU limit, the Linux kernel throttles it (using CFS bandwidth control) — it slows down but is not killed. This is different from memory: if a container exceeds its memory limit, it is OOMKilled. CPU throttling can cause latency issues but the pod continues to run.",
-      "tags": [
-        "resource-limits",
-        "cpu",
-        "workloads",
-        "cka"
-      ],
+      "explanation": "CPU is a compressible resource on Linux: when a container exceeds its CPU limit the kernel's CFS bandwidth controller throttles it, so the process simply runs more slowly — it is never killed for CPU. Memory is incompressible, so exceeding the memory limit triggers OOMKill (a different signal entirely). Kubelet evictions fire on node-level pressure signals (memory, disk, PID), not on a pod exceeding its own CPU limit. The runtime does not produce CrashLoopBackOff from CPU throttling alone.",
+      "tags": ["resource-limits", "cpu", "workloads", "cka"],
       "difficulty": "medium",
-      "_normalized": true
+      "_normalized": true,
+      "rewritten": true
     },
     {
       "id": "cka-025",
-      "question": "You need a ClusterIP Service for an application but want to define your own cluster IP address (e.g., 10.96.100.50). Which Service spec field allows this?",
+      "question": "You need a ClusterIP Service for an application and want to assign a specific cluster IP (e.g. 10.96.100.50) inside the service CIDR. Which Service spec field allows this?",
       "options": [
         "spec.clusterIP: '10.96.100.50'",
-        "spec.internalIP: '10.96.100.50' - spec.internalIP is not a valid field for setting a custom clusterip",
+        "spec.internalIP: '10.96.100.50'",
         "spec.loadBalancerIP: '10.96.100.50'",
         "spec.externalIPs: ['10.96.100.50']"
       ],
       "correct": 0,
-      "explanation": "spec.clusterIP allows you to set a specific IP address for a ClusterIP Service, provided the address is within the configured service CIDR and is not already in use. spec.externalIPs exposes the service on additional IPs outside the cluster. spec.loadBalancerIP is for cloud LoadBalancer Services. spec.internalIP is not a valid Service field.",
-      "tags": [
-        "services",
-        "clusterip",
-        "networking",
-        "cka"
-      ],
+      "explanation": "`spec.clusterIP` accepts an explicit address provided it is inside the configured service CIDR and not already taken — otherwise the API server rejects the create. `spec.loadBalancerIP` only applies to Service type LoadBalancer (and is deprecated on most clouds in favour of provider-specific annotations). `spec.externalIPs` is a list of host IPs that route traffic into the cluster externally, not the cluster-internal VIP. `spec.internalIP` is not a real Service field.",
+      "tags": ["services", "clusterip", "networking", "cka"],
       "difficulty": "medium",
-      "_normalized": true
+      "_normalized": true,
+      "rewritten": true
     },
     {
       "id": "cka-026",
       "question": "A NodePort Service is created for a web application. A developer cannot reach the app at <NodeIP>:30080 from outside the cluster. The pod is Running and `kubectl get endpoints` lists the Service endpoint. What should you check next?",
       "options": [
-        "The Service's clusterIP allocation in the cluster CIDR",
-        "The pod's readinessProbe configuration and timing",
-        "Whether kube-proxy is in IPVS rather than iptables mode",
-        "Whether the node firewall or cloud SG allows inbound on the"
+        "The Service's clusterIP allocation inside the cluster CIDR — a colliding ClusterIP would prevent external reachability on the NodePort",
+        "The pod's readinessProbe configuration and timing, since a flapping readiness check intermittently drops the NodePort backend",
+        "Whether kube-proxy is in IPVS rather than iptables mode, since IPVS rejects NodePort traffic from off-cluster sources by default",
+        "Whether the host firewall or cloud security group permits inbound traffic to the node on TCP 30080 in the NodePort range"
       ],
       "correct": 3,
-      "explanation": "Pod Running + endpoint listed means kube-proxy has installed the iptables/IPVS rule and traffic that reaches the node will be forwarded. The next-most-common blocker is the host firewall or cloud security group dropping inbound traffic on the NodePort (default range 30000-32767) — that must be explicitly allowed.",
-      "tags": [
-        "services",
-        "nodeport",
-        "networking",
-        "troubleshooting",
-        "cka"
-      ],
+      "explanation": "Pod Running + endpoint listed means kube-proxy has already programmed the iptables/IPVS rule, so anything reaching the node on 30080 would be forwarded. The remaining hop is the network in front of the node. The most common blocker is the host firewall (iptables, ufw, firewalld) or the cloud security group failing to allow the NodePort range (30000-32767). The clusterIP is irrelevant to external traffic. A failing readinessProbe would have removed the pod from endpoints. IPVS vs iptables mode changes packet handling but never blocks all traffic on its own.",
+      "tags": ["services", "nodeport", "networking", "troubleshooting", "cka"],
       "difficulty": "medium",
       "rewritten": true
     },
     {
       "id": "cka-027",
-      "question": "You create an Ingress resource but HTTP requests to the defined host are returning 404. The Ingress controller pod is running. What is the most likely cause?",
+      "question": "You create an Ingress resource but HTTP requests to the defined host return 404. The Ingress controller pod is running. What is the most likely cause?",
       "options": [
-        "The kube-proxy must be restarted to pick up the new Ingress rules",
-        "The Ingress resource does not specify an ingressClassName matching the deployed",
-        "Ingress resources require TLS to be configured before they become active",
-        "The Ingress resource needs a LoadBalancer Service instead of ClusterIP"
+        "kube-proxy must be restarted to pick up the new Ingress rules and re-program its iptables chain for the host header match",
+        "The Ingress resource is missing `ingressClassName` matching the deployed controller, or its backend Service name/port is wrong",
+        "Ingress resources require TLS to be configured with a valid Secret before any of their host/path rules become active",
+        "The Ingress resource needs a backend Service of type LoadBalancer instead of ClusterIP for the controller to forward to it"
       ],
       "correct": 1,
-      "explanation": "Common Ingress 404 causes are: (1) missing or wrong ingressClassName so the controller ignores the resource, (2) the backend service name or port number in the Ingress spec doesn't match the actual Service, or (3) the path rules don't match incoming requests. kube-proxy does not process Ingress rules — that's the Ingress controller's job. TLS is optional. or the backend Service name/port is incorrect",
-      "tags": [
-        "ingress",
-        "networking",
-        "troubleshooting",
-        "cka"
-      ],
+      "explanation": "An Ingress only takes effect on a controller that claims it. Without `ingressClassName: <controller>` (or a default IngressClass annotation), most controllers ignore the resource and you get a 404 from the default backend. The other common 404 source is the backend serviceName/port not matching a real Service. kube-proxy never reads Ingress objects — it only programs Service VIPs. TLS is optional. The Ingress controller itself is fronted by a LoadBalancer/NodePort Service, but the per-route Ingress points at any ClusterIP Service.",
+      "tags": ["ingress", "networking", "troubleshooting", "cka"],
       "difficulty": "medium",
       "_normalized": true,
-      "_lenbal": true
+      "rewritten": true
     },
     {
       "id": "cka-028",
-      "question": "A NetworkPolicy is applied to pods labeled 'app=api'. After applying the policy, the API pods can no longer reach the database pods labeled 'app=db' on port 5432. The policy spec has an empty 'egress: []' array. Why?",
+      "question": "A NetworkPolicy is applied to pods labeled `app=api`. After applying it, the API pods can no longer reach the database pods labeled `app=db` on port 5432. The policy spec includes `policyTypes: [Ingress, Egress]` and an empty `egress: []`. Why?",
       "options": [
-        "NetworkPolicies only apply to ingress traffic by default; ingress-only policies leave egress empty and unrestricted by default",
-        "An empty 'egress",
+        "NetworkPolicies only apply to ingress traffic, so egress should still work",
+        "Empty `egress: []` combined with `policyTypes: Egress` is interpreted as 'deny all egress' for the selected pods",
         "The policy must be in the same namespace as the database pods to allow traffic",
         "NetworkPolicies do not apply to TCP traffic on port 5432 without explicit protocol specification"
       ],
       "correct": 1,
-      "explanation": "In Kubernetes NetworkPolicy, if 'policyTypes' includes 'Egress' and the 'egress' array is empty, all egress traffic from the selected pods is denied. An empty array means 'no rules match', which results in a default deny. To allow egress to the database, you must add an egress rule specifying the db pod selector and port 5432.",
-      "tags": [
-        "networkpolicy",
-        "egress",
-        "networking",
-        "cka"
-      ],
+      "explanation": "Once `policyTypes` includes Egress, the egress section becomes a closed allow-list: an empty list means 'no rule matches, deny all egress' for the selected pods. You must add an egress rule that lets traffic to the db pods on port 5432 (typically using a podSelector). The first option is wrong — egress is included whenever `policyTypes` says so. NetworkPolicies are namespace-scoped, but cross-namespace egress is expressed by `namespaceSelector`, not by colocating the policy. Protocol defaults to TCP, so the last option is also wrong.",
+      "tags": ["networkpolicy", "egress", "networking", "cka"],
       "difficulty": "hard",
-      "_normalized": true
+      "_normalized": true,
+      "rewritten": true
     },
     {
       "id": "cka-029",
-      "question": "Pods in namespace 'frontend' cannot resolve the DNS name 'backend-svc.backend.svc.cluster.local'. Pods in other namespaces resolve it fine. What should you check first?",
+      "question": "Pods in namespace `frontend` cannot resolve the DNS name `backend-svc.backend.svc.cluster.local`. Pods in other namespaces resolve it fine. What should you check first?",
       "options": [
         "Whether the CoreDNS ConfigMap has a broken stub zone configuration",
-        "Whether the 'backend' Service has a clusterIP assigned",
-        "Whether a NetworkPolicy in the 'frontend' namespace is blocking egress to",
-        "Whether the 'frontend' namespace has a ResourceQuota limiting pod creation"
+        "Whether the `backend` Service has a clusterIP assigned",
+        "Whether a NetworkPolicy in the `frontend` namespace is blocking egress to UDP/TCP 53 toward kube-system",
+        "Whether the `frontend` namespace has a ResourceQuota limiting pod creation"
       ],
       "correct": 2,
-      "explanation": "If only pods in a specific namespace cannot perform DNS resolution, a NetworkPolicy blocking egress to UDP/TCP port 53 (DNS) is the most likely culprit. CoreDNS issues would affect all namespaces. The Service having a clusterIP is necessary for DNS, but since other namespaces resolve it fine, the Service is functional. ResourceQuota limits workloads, not DNS.",
-      "tags": [
-        "dns",
-        "networkpolicy",
-        "coredns",
-        "troubleshooting",
-        "cka"
-      ],
+      "explanation": "Selective failure scoped to one namespace strongly implicates a namespace-local NetworkPolicy. CoreDNS sits in kube-system; if the frontend pods carry a policy with `policyTypes: Egress` that doesn't include rules permitting UDP/TCP 53 to kube-system, every DNS query is dropped. CoreDNS misconfiguration would break every namespace, not one. If the backend Service had no clusterIP, other namespaces wouldn't resolve it either. ResourceQuotas cap workload counts and don't influence DNS.",
+      "tags": ["dns", "networkpolicy", "coredns", "troubleshooting", "cka"],
       "difficulty": "hard",
-      "_normalized": true
+      "_normalized": true,
+      "rewritten": true
     },
     {
       "id": "cka-030",
@@ -600,59 +474,47 @@
       "options": [
         "ExternalName",
         "NodePort",
-        "ClusterIP with an ExternalName",
+        "ClusterIP with externalIPs set to the load balancer IP",
         "LoadBalancer"
       ],
       "correct": 3,
-      "explanation": "Service type LoadBalancer provisions an external cloud load balancer (on supported providers like AWS, GCP, Azure) and assigns it an external IP. NodePort exposes the service on each node's IP at a static port but requires you to manage your own external load balancer. ExternalName creates a CNAME alias to an external DNS name. ClusterIP is internal-only.",
-      "tags": [
-        "services",
-        "loadbalancer",
-        "networking",
-        "cka"
-      ],
+      "explanation": "Service type LoadBalancer asks the cloud-controller-manager to provision a real external load balancer (AWS NLB/ALB, GCP TCP/HTTP(S) LB, Azure Standard LB) and assign it an externally reachable IP or hostname. NodePort only opens a port on every node — fronting it with a load balancer is left to the operator. ExternalName is a DNS CNAME alias to an out-of-cluster name; it doesn't expose anything. ClusterIP + externalIPs is for advertising an existing external IP onto the cluster, not for asking a cloud provider to provision one.",
+      "tags": ["services", "loadbalancer", "networking", "cka"],
       "difficulty": "easy",
-      "_normalized": true
+      "_normalized": true,
+      "rewritten": true
     },
     {
       "id": "cka-031",
-      "question": "CoreDNS is running but pods cannot resolve external hostnames like 'google.com'. Internal service names resolve fine. What is the most likely cause?",
+      "question": "CoreDNS is running but pods cannot resolve external hostnames like `google.com`. Internal Service names resolve fine. What is the most likely cause?",
       "options": [
-        "The CoreDNS Corefile is missing the 'kubernetes' plugin",
-        "The ndots setting in the pod's /etc/resolv.conf is set too high",
-        "CoreDNS cannot forward queries to upstream DNS servers.",
-        "External DNS resolution requires a NodePort service for CoreDNS"
+        "The CoreDNS Corefile is missing the `kubernetes` plugin, which is responsible for both in-cluster and external name resolution",
+        "The pod's /etc/resolv.conf has an `ndots` value that is too high, causing the resolver to silently drop external lookups",
+        "CoreDNS cannot forward queries to its upstream resolvers — broken `forward` plugin, wrong upstream IPs, or NetworkPolicy blocking egress",
+        "External DNS resolution requires CoreDNS to be exposed via a NodePort Service so it can answer queries that traverse the node firewall"
       ],
       "correct": 2,
-      "explanation": "CoreDNS handles internal Kubernetes DNS via the 'kubernetes' plugin and forwards external queries to upstream resolvers via the 'forward' plugin. If internal names resolve but external ones don't, the forward plugin is likely misconfigured or the upstream DNS servers (typically 8.8.8.8 or the node's DNS) are unreachable from the CoreDNS pods — often a NetworkPolicy issue or wrong upstream address. check the 'forward' directive in the Corefile and ensure the upstream resolvers are reachable from the CoreDNS pods",
-      "tags": [
-        "coredns",
-        "dns",
-        "troubleshooting",
-        "cka"
-      ],
+      "explanation": "CoreDNS uses the `kubernetes` plugin for in-cluster names and the `forward` plugin (default `forward . /etc/resolv.conf`) for everything else. If internal names work but `google.com` does not, the failure is in the forward path: either the upstream IPs in the Corefile are wrong/unreachable from the CoreDNS pods, or a NetworkPolicy is blocking egress to those upstreams on UDP/TCP 53. A missing `kubernetes` plugin would break internal resolution. High ndots can slow lookups but doesn't cause hard failures. CoreDNS is reached via the kube-dns ClusterIP, not a NodePort.",
+      "tags": ["coredns", "dns", "troubleshooting", "cka"],
       "difficulty": "hard",
-      "_normalized": true
+      "_normalized": true,
+      "rewritten": true
     },
     {
       "id": "cka-032",
-      "question": "You need a Service that maps requests for 'legacy.internal' to an external hostname 'legacy.example.com' without proxying traffic. Which Service type achieves this?",
+      "question": "You need a Service that maps `legacy.internal` inside the cluster to an external hostname `legacy.example.com` without proxying traffic. Which Service type achieves this?",
       "options": [
         "ExternalName with spec.externalName: legacy.example.com",
-        "ClusterIP with an endpoints object pointing to the external IP",
+        "ClusterIP with an Endpoints object pointing to the external IP",
         "LoadBalancer with an annotation pointing to legacy.example.com",
         "Headless Service with a manual DNS CNAME record"
       ],
       "correct": 0,
-      "explanation": "An ExternalName Service creates a CNAME DNS entry in CoreDNS. When pods query the service name, they receive a CNAME pointing to spec.externalName. No proxying or IP allocation occurs. This is useful for abstracting external services. A manual Endpoints object would require knowing the external IP, not DNS name. Headless services return pod IPs, not CNAMEs.",
-      "tags": [
-        "services",
-        "externalname",
-        "dns",
-        "cka"
-      ],
+      "explanation": "ExternalName tells CoreDNS to answer queries for the Service name with a CNAME to `spec.externalName`. No clusterIP is allocated, no kube-proxy rule is installed, and the calling pod resolves the alias and connects directly. A ClusterIP + Endpoints object would require the external service to be reachable by IP and would proxy through kube-proxy. LoadBalancer provisions an inbound load balancer, not a DNS alias. Headless Services return pod IPs from a selector, not external CNAMEs.",
+      "tags": ["services", "externalname", "dns", "cka"],
       "difficulty": "medium",
-      "_normalized": true
+      "_normalized": true,
+      "rewritten": true
     },
     {
       "id": "cka-033",
@@ -664,35 +526,26 @@
         "kubelet on the worker nodes has not registered with the control plane"
       ],
       "correct": 1,
-      "explanation": "Working intra-node but broken inter-node traffic is the textbook signature of a CNI routing or overlay problem: BGP peering failures (Calico), VXLAN tunnel issues (Flannel), missing routes in `ip route show` on each node. kube-proxy handles Service traffic, not pod-to-pod. The apiserver flag is unrelated, and kubelet would manifest as nodes NotReady, not partial connectivity.",
-      "tags": [
-        "cni",
-        "networking",
-        "troubleshooting",
-        "cka"
-      ],
+      "explanation": "Intra-node traffic that works while inter-node traffic fails is the textbook signature of a CNI routing/overlay problem: a missing BGP peer (Calico), an unhealthy VXLAN tunnel (Flannel), or absent routes in `ip route show` on each node. kube-proxy handles Service VIPs, not pod-to-pod IP traffic. The apiserver `--allow-privileged` flag governs PodSecurity, not connectivity. If kubelet hadn't registered the nodes would show NotReady — partial connectivity would not be the symptom.",
+      "tags": ["cni", "networking", "troubleshooting", "cka"],
       "difficulty": "hard",
       "rewritten": true
     },
     {
       "id": "cka-034",
-      "question": "A PersistentVolumeClaim is stuck in 'Pending' state. 'kubectl describe pvc my-pvc' shows: 'no persistent volumes available for this claim and no storage class is set'. What is missing?",
+      "question": "A PersistentVolumeClaim is stuck in `Pending`. `kubectl describe pvc my-pvc` shows: `no persistent volumes available for this claim and no storage class is set`. What is missing?",
       "options": [
-        "A ReadWriteMany access mode must be set for the claim to be bound",
-        "The PVC needs a nodeAffinity selector to find a node with local storage",
-        "The PVC needs an annotation 'volume.beta.kubernetes.io/storage-provisioner'",
-        "The PVC must specify either a storageClassName matching an existing StorageClass."
+        "A ReadWriteMany access mode must be set on the claim, since the binder rejects any claim that requests ReadWriteOnce when no class is configured",
+        "The PVC needs a nodeAffinity selector pointing at a node with local storage, because the scheduler must place the claim before any PV can be matched",
+        "The PVC needs the annotation `volume.beta.kubernetes.io/storage-provisioner`, which the external-provisioner controller watches to provision a volume",
+        "The PVC must either reference a storageClassName whose provisioner can dynamically create a PV, or match a pre-existing PV by access mode and capacity"
       ],
       "correct": 3,
-      "explanation": "A PVC binds either to a dynamically provisioned volume (requires a storageClassName referencing a StorageClass with a provisioner) or to a static PV that matches the claim's access mode, capacity, and any label selectors. With no storageClassName and no matching PV, the PVC cannot be bound. Setting storageClassName: '' explicitly opts out of dynamic provisioning. or a pre-existing PV that satisfies the claim's access mode and capacity",
-      "tags": [
-        "pvc",
-        "storage",
-        "persistentvolume",
-        "cka"
-      ],
+      "explanation": "A PVC binds either dynamically (storageClassName references a StorageClass whose provisioner creates the PV) or statically (the cluster already has a PV whose access mode, capacity and selectors match). With no storageClassName and no matching PV the claim stays Pending forever. The `volume.beta.kubernetes.io/storage-provisioner` annotation is added by the controller after binding starts — it isn't the missing input. Access mode and nodeAffinity matter, but neither alone explains the 'no PV / no class' message.",
+      "tags": ["pvc", "storage", "persistentvolume", "cka"],
       "difficulty": "medium",
-      "_normalized": true
+      "_normalized": true,
+      "rewritten": true
     },
     {
       "id": "cka-035",
@@ -700,18 +553,12 @@
       "options": [
         "No — ReadWriteOnce only allows binding when PV and PVC capacities are equal",
         "Yes, but the PV is shrunk to 5Gi to match the PVC's requested size",
-        "No — the PVC's requested capacity must exactly match the PV's capacity; capacity must be sufficient but the access mode mismatch always prevents binding",
-        "Yes — the PV satisfies the access mode and exceeds the requested capacity"
+        "No — capacity must match exactly, otherwise the binding controller rejects it",
+        "Yes — the PV satisfies the access mode and its capacity is greater than or equal to the request"
       ],
       "correct": 3,
-      "explanation": "Kubernetes binds a PVC to a PV when the access modes are compatible and the PV's capacity is greater than or equal to the request. The volume is not resized — the PVC receives full access to the 10Gi PV even though it only asked for 5Gi. That's why over-provisioning is possible with static PVs.",
-      "tags": [
-        "pv",
-        "pvc",
-        "storage",
-        "access-modes",
-        "cka"
-      ],
+      "explanation": "The PV controller binds a PVC to any unbound PV whose access mode is compatible AND whose capacity is greater than or equal to the request. The volume is not resized; the PVC just receives the whole 10Gi PV even though it asked for 5Gi — which is exactly why over-provisioning is a known footgun with static PVs. Equality is not required, and PVs are never automatically shrunk.",
+      "tags": ["pv", "pvc", "storage", "access-modes", "cka"],
       "difficulty": "medium",
       "rewritten": true
     },
@@ -725,221 +572,167 @@
         "configMap"
       ],
       "correct": 0,
-      "explanation": "emptyDir is an ephemeral volume created when a pod is assigned to a node and deleted when the pod is removed. It is shared between all containers in the pod, making it ideal for inter-container communication or scratch space. hostPath persists on the node after pod deletion. PVCs persist independently. configMap mounts read-only configuration data.",
-      "tags": [
-        "volumes",
-        "emptydir",
-        "storage",
-        "cka"
-      ],
+      "explanation": "`emptyDir` is created when the pod is bound to a node, lives only for the pod's lifetime, and is automatically mounted into every container in the pod — ideal for shared scratch space or inter-container pipes. `hostPath` lives on the node filesystem and survives the pod, breaking the 'deleted with pod' requirement and adding portability/security concerns. `persistentVolumeClaim` is by design persistent and outlives the pod. `configMap` is a read-only projection of configuration data, not general shared scratch storage.",
+      "tags": ["volumes", "emptydir", "storage", "cka"],
       "difficulty": "easy",
-      "_normalized": true
+      "_normalized": true,
+      "rewritten": true
     },
     {
       "id": "cka-037",
       "question": "A StorageClass `gold` is defined with `reclaimPolicy: Retain`. A workload's PersistentVolumeClaim bound to a PV from this class is deleted by the user. What happens to the underlying PersistentVolume and storage data?",
       "options": [
-        "The PV is released but NOT deleted",
-        "The PV and the backing storage are immediately deleted, matching the behaviour of `reclaimPolicy: Delete`",
+        "The PV becomes Released and the data is preserved, but it cannot be rebound until an admin clears the stale claimRef",
+        "The PV and the backing storage are immediately deleted, matching `reclaimPolicy: Delete`",
         "The PV is automatically rebound to the next matching PVC, preserving access to the data without operator intervention",
-        "The PV is converted to a Snapshot resource and stored in the cluster's snapshot controller for later restore"
+        "The PV is converted into a VolumeSnapshot and stored in the cluster's snapshot controller for later restore"
       ],
       "correct": 0,
-      "explanation": "With reclaimPolicy: Retain, when a PVC is deleted the PV transitions to 'Released' status. The actual storage data is preserved. However, the PV cannot be rebound automatically because it still contains a claimRef from the old PVC. An administrator must manually delete the PV (and optionally clean the data) before it can be reused. With 'Delete', the PV and underlying storage are removed automatically. but the PV cannot be rebound to a new PVC until it is manually cleaned up",
-      "tags": [
-        "storage",
-        "reclaim-retain",
-        "cka"
-      ],
+      "explanation": "With `reclaimPolicy: Retain`, deleting the PVC moves the PV into the `Released` phase and leaves the underlying storage intact. The PV still references the now-deleted PVC via `spec.claimRef`, which prevents the binder from re-using it; an admin must manually clear the claimRef (or recreate the PV) before it can rebind. `Delete` would have removed both the PV and the storage. Automatic rebinding happens only with `Recycle` (deprecated) or fresh PVs. VolumeSnapshot conversion is not part of the reclaim flow.",
+      "tags": ["storage", "reclaim-retain", "cka"],
       "difficulty": "medium",
       "_normalized": true,
       "rewritten": true
     },
     {
       "id": "cka-038",
-      "question": "You need to mount a secret as a volume in a pod so the application can read the secret values as files. Which volume type and mount configuration achieves this?",
+      "question": "You need to mount a Secret as a volume in a pod so the application can read secret values as files. Which approach achieves this?",
       "options": [
-        "Use a configMap volume referencing the Secret name",
+        "Use a `configMap` volume referencing the Secret name",
         "Secrets can only be injected as environment variables, not as files",
-        "Use a 'secret' volume type referencing the Secret name.",
-        "Use an emptyDir volume and copy secret data into it with an init container"
+        "Use a `secret` volume type referencing the Secret and mount it at the desired path in the container",
+        "Use an emptyDir volume and copy the secret data into it with an init container"
       ],
       "correct": 2,
-      "explanation": "Kubernetes supports a 'secret' volume type that mounts secret keys as files in the specified directory. Each key in the Secret becomes a file whose contents are the secret value. This is useful for certificates, private keys, or any file-based credential. Secrets can also be injected as environment variables, but the question asks specifically for file mounting. and mount it at the desired path in the container",
-      "tags": [
-        "secrets",
-        "volumes",
-        "storage",
-        "cka"
-      ],
+      "explanation": "A `secret` volume projects each key from the Secret as a file under the mount path; the container reads the file just like any other file. Useful for TLS certs, kubeconfigs and private keys. Secrets can also be exposed as env vars via `envFrom` or `valueFrom.secretKeyRef`, but the question asks specifically for file access. A `configMap` volume cannot reference Secret data. The init-container detour is unnecessary and copies the secret material out of the API's protected path.",
+      "tags": ["secrets", "volumes", "storage", "cka"],
       "difficulty": "easy",
-      "_normalized": true
+      "_normalized": true,
+      "rewritten": true
     },
     {
       "id": "cka-039",
       "question": "A pod's container is in CrashLoopBackOff. `kubectl logs` shows `Permission denied: /data/config.yaml`. The volume is a hostPath mount. Which fix addresses the cause?",
       "options": [
-        "Change the volume type from hostPath to emptyDir to bypass permissions",
-        "Add `securityContext.runAsRoot: true` to the container spec instead",
-        "Add `securityContext.fsGroup` / `runAsUser` matching the file's ownership",
-        "Set the hostPath volume `type: DirectoryOrCreate` instead of `Directory`"
+        "Change the volume type from hostPath to emptyDir, which gives every container in the pod a writable scratch directory not tied to host ownership",
+        "Add `securityContext.runAsRoot: true` to the container spec so the kernel ignores ownership checks against the host bind mount",
+        "Set `securityContext.fsGroup` and/or `runAsUser` so the container's effective UID/GID matches the file's ownership on the host filesystem",
+        "Set the hostPath volume `type: DirectoryOrCreate` instead of `Directory` so the kubelet auto-creates the path with permissive defaults"
       ],
       "correct": 2,
-      "explanation": "Permission denied on a mounted file is an OS-level mismatch between the container's user and the file owner. `fsGroup` chowns the mount, and `runAsUser` aligns the process UID with the file's owner. Switching to emptyDir loses the file entirely. Running as root is a security regression and still doesn't guarantee a UID match. `DirectoryOrCreate` only controls whether the directory is auto-created.",
-      "tags": [
-        "hostpath",
-        "securitycontext",
-        "troubleshooting",
-        "cka"
-      ],
+      "explanation": "A 'permission denied' on a mounted file is a Linux UID/GID mismatch between the container process and the file owner on the host. `fsGroup` chowns volume mount points to the requested GID; `runAsUser` makes the process UID match the file's owner. Switching to emptyDir simply removes the file. `runAsRoot: true` isn't a real field — and even running as root weakens security without guaranteeing the host has matching ownership. `DirectoryOrCreate` only auto-creates the host directory, it doesn't alter permissions.",
+      "tags": ["hostpath", "securitycontext", "troubleshooting", "cka"],
       "difficulty": "medium",
       "rewritten": true
     },
     {
       "id": "cka-040",
-      "question": "A pod is in 'OOMKilled' status. 'kubectl describe pod crashed-pod' shows 'Last State: Terminated, Reason: OOMKilled'. What does this indicate and what is the correct remediation?",
+      "question": "A pod is in `OOMKilled` status. `kubectl describe pod crashed-pod` shows `Last State: Terminated, Reason: OOMKilled`. What does this indicate and what is the correct remediation?",
       "options": [
-        "The pod's liveness probe failed; adjust the probe timeouts",
-        "The container exceeded its memory limit;.",
-        "The pod exceeded its CPU limit; increase the CPU limit in the pod spec",
-        "The node ran out of disk space; clear /var/lib/docker on the node"
+        "The pod's liveness probe failed three times; raise `initialDelaySeconds` and `failureThreshold` on the probe so it stops killing healthy containers",
+        "The container exceeded its memory limit; either raise the memory limit so the workload has headroom, or profile and reduce the application's memory usage",
+        "The pod exceeded its CPU limit; increase `resources.limits.cpu` in the pod spec so the kernel stops killing the throttled process",
+        "The node ran out of disk space and triggered DiskPressure eviction; clear `/var/lib/docker` (or containerd's snapshot dir) on the node"
       ],
       "correct": 1,
-      "explanation": "OOMKilled means the Linux kernel's Out-Of-Memory killer terminated the container because it exceeded the memory limit set in the pod spec. The kernel sends SIGKILL (exit code 137) to the process. The fix is to either increase the memory limit to allow the application more headroom, or profile and reduce the application's memory usage. CPU exhaustion results in throttling, not killing. increase the memory limit or reduce the application's memory usage",
-      "tags": [
-        "oomkilled",
-        "memory",
-        "troubleshooting",
-        "resource-limits",
-        "cka"
-      ],
+      "explanation": "OOMKilled with exit code 137 means the Linux OOM killer terminated the container because its working set exceeded the container memory limit (the cgroup memory.max). The only fixes are to raise the memory limit so the app has the headroom it needs, or to profile and reduce the app's memory footprint. CPU pressure causes throttling, not OOMKill. Liveness-probe failures show `Reason: Error` and `Exit Code: 0` from SIGTERM, not OOMKilled. Disk pressure surfaces as `Evicted`, not `OOMKilled`.",
+      "tags": ["oomkilled", "memory", "troubleshooting", "resource-limits", "cka"],
       "difficulty": "easy",
       "_normalized": true,
-      "_lenbal": true
+      "rewritten": true
     },
     {
       "id": "cka-041",
       "question": "A node shows status `NotReady`. You SSH in and run `systemctl status kubelet`; it reports `Active: failed`. What is the next diagnostic step?",
       "options": [
-        "Restart the container runtime (containerd/docker) on the node; restarting the container runtime before reading kubelet logs skips the root cause",
+        "Restart the container runtime (containerd/docker) on the node",
         "Run `kubectl describe node <name>` from the control plane host",
         "Delete the node object and let the cluster re-register the node",
         "Run `journalctl -u kubelet -n 100` to inspect the kubelet's logs"
       ],
       "correct": 3,
-      "explanation": "You're already on the node and kubelet has failed — `journalctl -u kubelet -n 100` shows why it crashed (cert issues, bad config, runtime unreachable). `kubectl describe node` reads the API server's last-known status, which won't update once kubelet is down. Restarting the runtime or deleting the node are speculative actions before reading the actual error.",
-      "tags": [
-        "kubelet",
-        "node-notready",
-        "troubleshooting",
-        "cka"
-      ],
+      "explanation": "You're already on the node and kubelet has failed — `journalctl -u kubelet -n 100` shows precisely why (expired certs, malformed config, CRI socket unreachable, OOM). `kubectl describe node` only reports the API server's last-known state, which won't update while kubelet is down. Restarting the container runtime is a guess that may mask the real cause. Deleting the node object is destructive and doesn't help debug the underlying systemd failure.",
+      "tags": ["kubelet", "node-notready", "troubleshooting", "cka"],
       "difficulty": "easy",
       "rewritten": true
     },
     {
       "id": "cka-042",
-      "question": "After a kubelet restart, a previously Running pod is now in 'Unknown' state for 5 minutes. What most likely caused this state?",
+      "question": "After a kubelet restart, a previously Running pod is now in `Unknown` state for 5 minutes. What most likely caused this state?",
       "options": [
-        "The pod was manually set to Unknown by an administrator; Unknown state cannot be set manually; only the kubelet heartbeat mechanism produces it",
-        "The node's kubelet stopped reporting to the API server;.",
-        "The pod's containers have all exited with code 0",
-        "The pod's liveness probe has failed 3 times"
+        "An administrator manually set `status.phase: Unknown` through `kubectl edit pod` to mask a transient runtime error",
+        "The node's kubelet has stopped sending node-lease heartbeats, so the node controller flipped the pods on that node to Unknown",
+        "The pod's containers have all exited with code 0 and the kubelet has not yet reaped them into the Succeeded phase",
+        "The pod's liveness probe has failed three times in a row and the pod is between the failure and the container restart"
       ],
       "correct": 1,
-      "explanation": "The 'Unknown' pod phase indicates the control plane cannot determine the pod's state because the node's kubelet has stopped sending heartbeats. After the NodeMonitorGracePeriod (default 40s), the node is marked NotReady. After further timeout (pod-eviction-timeout, default 5 minutes), pods are marked Unknown. Liveness probe failures cause pod restarts, not Unknown state. Administrators cannot manually set pod phase. the node controller marks pods Unknown after the NodeMonitorGracePeriod expires",
-      "tags": [
-        "pod-phases",
-        "kubelet",
-        "node-notready",
-        "troubleshooting",
-        "cka"
-      ],
+      "explanation": "The pod phase `Unknown` is set by the node controller when it has lost contact with the kubelet that owns the pod — typically because kubelet hasn't renewed its node lease within `--node-monitor-grace-period` (default 40s). After the eviction timeout (~5 min) pods on the unreachable node are marked Unknown and then evicted. Pod phase is computed, not user-set, so admins cannot type `Unknown` into the spec. Containers exiting cleanly produce `Succeeded`, not `Unknown`. Liveness-probe failures cause container restarts, not a phase change.",
+      "tags": ["pod-phases", "kubelet", "node-notready", "troubleshooting", "cka"],
       "difficulty": "medium",
       "_normalized": true,
-      "_lenbal": true
+      "rewritten": true
     },
     {
       "id": "cka-043",
       "question": "A pod is in ImagePullBackOff trying to pull `registry.company.com/app:v1.2`. The image exists in the registry and human credentials work via `docker login`. What should you check first?",
       "options": [
-        "An imagePullSecret with credentials for that registry is wired to the pod",
-        "Whether the pod has a valid (non-default) ServiceAccount mounted",
-        "Whether the image tag `v1.2` follows strict semantic versioning rules; image tag format does not affect registry credentials or authentication",
-        "Whether the pod's nodeSelector targets a node with internet egress"
+        "Whether the pod has a valid (non-default) ServiceAccount mounted with API-token access enabled",
+        "Whether the image tag `v1.2` follows strict semantic-versioning rules required by the registry",
+        "Whether an imagePullSecret with credentials for the registry is wired to the pod (directly or via its ServiceAccount)",
+        "Whether the pod's nodeSelector targets a node with internet egress and registry connectivity"
       ],
-      "correct": 0,
-      "explanation": "ImagePullBackOff against a private registry is almost always missing or wrong imagePullSecrets. Create a Secret of type `kubernetes.io/dockerconfigjson` and either reference it under `spec.imagePullSecrets` in the pod or attach it to the ServiceAccount. The exponential backoff in the status (vs ErrImagePull) tells you repeated pulls have failed.",
-      "tags": [
-        "imagepullbackoff",
-        "secrets",
-        "troubleshooting",
-        "cka"
-      ],
+      "correct": 2,
+      "explanation": "Repeated pull failures against a private registry that accepts your human creds almost always come down to missing or wrong imagePullSecrets. Create a Secret of type `kubernetes.io/dockerconfigjson` and either reference it in `spec.imagePullSecrets` on the pod or attach it to the ServiceAccount the pod uses. The exponential `BackOff` distinguishes it from a one-shot `ErrImagePull`. The image tag format does not affect authentication. ServiceAccount mounting controls API-token availability, not registry credentials. Internet egress matters but would surface as DNS/connection errors, not authentication-style pull failures.",
+      "tags": ["imagepullbackoff", "secrets", "troubleshooting", "cka"],
       "difficulty": "medium",
       "rewritten": true
     },
     {
       "id": "cka-044",
-      "question": "You run 'kubectl get events -n production --sort-by=.lastTimestamp' and see repeated 'FailedMount: Unable to attach or mount volumes'. The pod uses a PVC backed by an NFS PV. What is the most likely cause?",
+      "question": "You run `kubectl get events -n production --sort-by=.lastTimestamp` and see repeated `FailedMount: Unable to attach or mount volumes`. The pod uses a PVC backed by an NFS PV. What is the most likely cause?",
       "options": [
         "The StorageClass has a bindingMode of WaitForFirstConsumer",
-        "The NFS server is unreachable from the nodes,.",
+        "The NFS server is unreachable from the nodes, or the export path / mount options in the PV spec are wrong",
         "The PVC's access mode is ReadWriteOnce but multiple pods are trying to mount it",
         "The pod's init container is preventing the main container from starting"
       ],
       "correct": 1,
-      "explanation": "FailedMount errors for NFS volumes typically indicate the kubelet cannot connect to the NFS server (network issue, firewall, NFS server down) or the export path/mount options in the PV spec are wrong. Access mode issues would appear at PVC binding time, not mount time. WaitForFirstConsumer delays binding but doesn't cause mount failures after binding. or the NFS export path/options are misconfigured",
-      "tags": [
-        "volumes",
-        "nfs",
-        "troubleshooting",
-        "events",
-        "cka"
-      ],
+      "explanation": "`FailedMount` for an NFS PV is almost always a node-side networking or configuration problem: blocked NFS ports (TCP/UDP 111 and 2049), wrong server address, missing `nfs-utils` on the node, or a malformed `mountOptions`/`path` in the PV spec. Access-mode conflicts (RWO with two pods) appear at binding time with a different message. `WaitForFirstConsumer` delays binding, but once a pod consumes the PVC the bind succeeds. An init container that hangs blocks startup but doesn't generate FailedMount events.",
+      "tags": ["volumes", "nfs", "troubleshooting", "events", "cka"],
       "difficulty": "hard",
       "_normalized": true,
-      "_lenbal": true
+      "rewritten": true
     },
     {
       "id": "cka-045",
       "question": "A Deployment rolling update is stuck. `kubectl rollout status deployment/api` hangs with `1 old replicas are pending termination`. Which command best helps you find which pod is blocking the rollout?",
       "options": [
-        "`kubectl delete replicaset <old-rs-name>` and let the deployment recover; deleting the replicaset bypasses termination hooks and loses diagnostic data",
+        "`kubectl delete replicaset <old-rs-name>` and let the Deployment recover",
         "`kubectl get replicasets -l app=api` to compare desired and ready counts",
         "`kubectl rollout pause deployment/api` to freeze the in-flight rollout",
-        "`kubectl describe pod <old-pod>` to inspect termination events and hooks"
+        "`kubectl describe pod <old-pod>` to inspect termination events, preStop hooks and graceful-shutdown timing"
       ],
       "correct": 3,
-      "explanation": "A stuck rollout pending termination usually means a pod is ignoring SIGTERM, a preStop hook is hanging, or `terminationGracePeriodSeconds` is set high. Describing the old pod surfaces the relevant events (`Stopping container`, hook execution). Listing replicasets shows replica counts but not why a pod won't go away. Deleting the old RS or pausing the rollout sidesteps diagnosis.",
-      "tags": [
-        "deployments",
-        "rollout",
-        "troubleshooting",
-        "cka"
-      ],
+      "explanation": "Pods that won't terminate usually have one of three issues, all visible from `describe pod`: a long preStop hook, a process ignoring SIGTERM, or a high `terminationGracePeriodSeconds`. Listing replicasets shows counts but not the why. Deleting the old ReplicaSet bypasses the diagnostic and risks orphaning pods. Pausing the rollout freezes it without explaining why the old pod is hanging.",
+      "tags": ["deployments", "rollout", "troubleshooting", "cka"],
       "difficulty": "hard",
       "rewritten": true
     },
     {
       "id": "cka-046",
-      "question": "You need to run a temporary debug container in a running pod 'web-pod' to troubleshoot a networking issue without restarting the pod. Which command should you use?",
+      "question": "You need to run a temporary debug container in a running pod `web-pod` to troubleshoot a networking issue without restarting the pod. Which command should you use?",
       "options": [
         "kubectl debug -it web-pod --image=busybox --target=web-container",
         "kubectl exec -it web-pod -- /bin/sh",
-        "kubectl run debug --image=busybox --overrides='{\"spec\":{\"nodeName\":\"<node>\"}}'  --rm -it",
-        "kubectl attach web-pod -c debug; kubectl attach connects to a running container process and does not inject a new container"
+        "kubectl run debug --image=busybox --rm -it -- /bin/sh",
+        "kubectl attach web-pod -c debug"
       ],
       "correct": 0,
-      "explanation": "'kubectl debug -it <pod> --image=<image>' injects an ephemeral container into a running pod without restarting it. This is ideal when the main container lacks debugging tools. The --target flag shares the process namespace with the target container. 'kubectl exec' requires the tools to already be in the container image. An ephemeral container shares the pod's network namespace, making it perfect for network debugging.",
-      "tags": [
-        "kubectl-debug",
-        "ephemeral-containers",
-        "troubleshooting",
-        "cka"
-      ],
+      "explanation": "`kubectl debug` adds an ephemeral container to the running pod without restarting it, and `--target=<container>` shares the target container's process namespace so you can see its sockets and PIDs. `kubectl exec` only works if the existing container image already ships the debug tools you need. `kubectl run` starts a brand new pod — useful, but it doesn't share namespaces with `web-pod`. `kubectl attach` connects stdio to an already-running container process; it does not inject anything new.",
+      "tags": ["kubectl-debug", "ephemeral-containers", "troubleshooting", "cka"],
       "difficulty": "medium",
-      "_normalized": true
+      "_normalized": true,
+      "rewritten": true
     },
     {
       "id": "cka-047",
@@ -951,53 +744,40 @@
         "/etc/systemd/system/kube-scheduler.service"
       ],
       "correct": 0,
-      "explanation": "In a kubeadm-provisioned cluster, all control plane components (kube-apiserver, kube-controller-manager, kube-scheduler, etcd) run as static pods. Their manifests are in /etc/kubernetes/manifests/ on the control plane node. The kubelet watches this directory and manages the pods. A misconfiguration in the YAML (e.g., wrong image tag, invalid flag) would prevent the scheduler from starting.",
-      "tags": [
-        "static-pods",
-        "kube-scheduler",
-        "troubleshooting",
-        "cka"
-      ],
+      "explanation": "In a kubeadm-provisioned cluster the kubelet watches /etc/kubernetes/manifests/ for static-pod manifests for kube-apiserver, kube-controller-manager, kube-scheduler and etcd. A bad flag, wrong image tag or YAML typo there would prevent kube-scheduler from starting. /var/lib/kubelet/config holds the kubelet's own ComponentConfig. There is no /opt/kubernetes/scheduler path in a kubeadm install. kube-scheduler runs as a static pod, not a systemd unit.",
+      "tags": ["static-pods", "kube-scheduler", "troubleshooting", "cka"],
       "difficulty": "easy",
-      "_normalized": true
+      "_normalized": true,
+      "rewritten": true
     },
     {
       "id": "cka-048",
-      "question": "A pod has the following in its spec: 'livenessProbe: httpGet: path: /healthz port: 8080 initialDelaySeconds: 5 failureThreshold: 3'. The pod enters CrashLoopBackOff shortly after start. Logs show the app starts fine. What is the most likely issue?",
+      "question": "A pod has `livenessProbe: httpGet: path: /healthz port: 8080 initialDelaySeconds: 5 failureThreshold: 3`. The pod enters CrashLoopBackOff shortly after start. Logs show the app starts fine. What is the most likely issue?",
       "options": [
-        "The failureThreshold of 3 is too low and must be at least 5 for any probe",
-        "The liveness probe port 8080 is blocked by a NetworkPolicy; NetworkPolicy rules do not prevent the /healthz probe from being called on the pod itself",
-        "The container is exceeding its memory limit during startup",
-        "The /healthz endpoint is returning HTTP 500 before the app fully"
+        "The failureThreshold of 3 is too low and the official guidance is to always set it to at least 5 for any HTTP probe",
+        "The liveness probe port 8080 is blocked by a NetworkPolicy applied in the same namespace as the workload",
+        "The container is exceeding its memory limit during startup, causing the kernel's OOM killer to terminate it before the probe runs",
+        "The /healthz endpoint is returning non-2xx before the app is fully ready, so the probe fails three times and the container is restarted"
       ],
       "correct": 3,
-      "explanation": "If the application logs show it starts fine but the pod keeps restarting, a failing liveness probe is the most likely culprit. If /healthz returns a non-2xx status (e.g., 500) during initialization — even after 5 seconds — the probe will fail and after 3 failures Kubernetes restarts the container. The fix is to increase initialDelaySeconds or use a startupProbe to give the app time to be ready. and the probe is restarting the container",
-      "tags": [
-        "liveness-probe",
-        "crashloopbackoff",
-        "troubleshooting",
-        "cka"
-      ],
+      "explanation": "If the app's own logs are clean but the pod keeps being killed, the most likely cause is the liveness probe firing before the app is serving 200 on /healthz. After three failed probes the kubelet restarts the container, producing CrashLoopBackOff. Fixes are to raise `initialDelaySeconds`, use a `startupProbe` to gate liveness until init completes, or have /healthz return 503 only after readiness. NetworkPolicies do not affect probes (kubelet calls /healthz directly from the host network namespace). OOMKill would appear as `Reason: OOMKilled` and exit code 137. There is no minimum-3 rule on failureThreshold.",
+      "tags": ["liveness-probe", "crashloopbackoff", "troubleshooting", "cka"],
       "difficulty": "medium",
       "_normalized": true,
-      "_lenbal": true
+      "rewritten": true
     },
     {
       "id": "cka-049",
-      "question": "An admin investigates why kube-controller-manager keeps restarting on each control-plane node. It runs as a static pod. They want stderr / panic output from the last failed start. Which command surfaces that output?",
+      "question": "An admin investigates why kube-controller-manager keeps restarting on a control-plane node. It runs as a static pod. They want the stderr / panic output from the last failed start. Which command surfaces that output?",
       "options": [
-        "`kubectl -n kube-system logs <controller-manager-pod> --previous`",
-        "`kubectl get events -A | grep controller-manager` to enumerate events; get events only shows brief messages, not kube-system panic stack traces from failed starts",
-        "`kubectl describe node <control-plane>` to read node-condition details",
-        "`crictl rmp -f <pod>` to force-remove the pod and reset its state"
+        "kubectl -n kube-system logs <controller-manager-pod> --previous",
+        "kubectl get events -A | grep controller-manager",
+        "kubectl describe node <control-plane>",
+        "crictl rmp -f <pod>"
       ],
       "correct": 0,
-      "explanation": "`kubectl logs --previous` (or `-p`) returns logs from the previously terminated container instance — exactly what you need for CrashLoopBackOff. The current container may have no useful logs yet. Events summarise transitions but don't contain panic stack traces. `kubectl describe node` reports node-level conditions. `crictl rmp -f` destroys the evidence you're trying to read.",
-      "tags": [
-        "troubleshooting",
-        "controller-manager",
-        "cka"
-      ],
+      "explanation": "`kubectl logs --previous` (or `-p`) returns logs from the previous terminated container instance — exactly what's needed when the current container is in CrashLoopBackOff and may have no useful output yet. `kubectl get events` gives short event messages without panic stack traces. `kubectl describe node` reports node conditions, not container logs. `crictl rmp -f` force-removes the pod sandbox, destroying the very logs you're trying to read.",
+      "tags": ["troubleshooting", "controller-manager", "cka"],
       "difficulty": "medium",
       "rewritten": true
     },
@@ -1008,127 +788,96 @@
         "CPU usage is too high; rebalance pod replicas off the affected node",
         "Kubelet's eviction threshold is too low; raise `--eviction-hard` settings",
         "Node memory is exhausted; add swap or increase the node's memory size",
-        "Filesystem is near capacity; prune images, rotate logs, free disk space"
+        "Filesystem is near capacity; prune unused images, rotate logs, free disk space"
       ],
       "correct": 3,
-      "explanation": "DiskPressure fires when the kubelet sees `imagefs.available < 15%` (default). Common culprits are accumulated container images, log files, or application data on /var/lib/. Fix with `crictl rmi --prune`, log rotation, or expanding the disk. Memory and CPU are separate eviction signals (MemoryPressure / PIDPressure). Lowering the threshold masks the problem; the disk is genuinely full.",
-      "tags": [
-        "disk-pressure",
-        "node-conditions",
-        "troubleshooting",
-        "eviction",
-        "cka"
-      ],
+      "explanation": "`DiskPressure` fires when imagefs.available drops below the kubelet eviction threshold (15% by default). The fix is to actually free disk: `crictl rmi --prune`, log rotation, growing the volume, or moving heavy state off the node. Lowering the threshold just delays eviction without solving the root cause. CPU and memory have separate node conditions (HighCPULoad isn't reported; MemoryPressure / PIDPressure exist). Adding swap doesn't address disk usage at all.",
+      "tags": ["disk-pressure", "node-conditions", "troubleshooting", "eviction", "cka"],
       "difficulty": "medium",
       "rewritten": true
     },
     {
       "id": "cka-051",
-      "question": "You observe that a pod is being evicted every few hours. 'kubectl describe pod' shows 'Reason: Evicted' and the message references memory pressure. The pod has no resource requests set. What is the recommended fix?",
+      "question": "You observe that a pod is being evicted every few hours. `kubectl describe pod` shows `Reason: Evicted` and the message references memory pressure. The pod has no resource requests set. What is the recommended fix?",
       "options": [
-        "Set explicit memory requests and limits on the pod.",
-        "Move the pod to the kube-system namespace so it gets higher priority; kube-system namespace does not grant immunity from BestEffort requests-based eviction",
-        "Set the pod's restart policy to Never to prevent eviction",
-        "Set imagePullPolicy to Never to reduce memory overhead during image pulls"
+        "Move the pod to the kube-system namespace so the kubelet treats it as system-critical and skips eviction during memory pressure",
+        "Set the pod's restartPolicy to Never so the kubelet has no eviction target to keep recycling",
+        "Set explicit memory requests (and limits) so it leaves BestEffort QoS, and add a PodDisruptionBudget for extra protection",
+        "Set imagePullPolicy to Never to reduce the working-set spike during image pulls that trigger the eviction"
       ],
-      "correct": 0,
-      "explanation": "Pods without resource requests are treated as BestEffort QoS class, which is the first to be evicted under memory pressure. Setting memory requests elevates the pod to Burstable QoS (or Guaranteed if requests equal limits), making it harder to evict. PodDisruptionBudgets protect against voluntary disruptions. Running in kube-system does not grant eviction immunity based on namespace alone. and use a PodDisruptionBudget to protect it from eviction",
-      "tags": [
-        "eviction",
-        "resource-limits",
-        "qos",
-        "troubleshooting",
-        "cka"
-      ],
+      "correct": 2,
+      "explanation": "Without resource requests a pod lands in the BestEffort QoS class, which is first in line when the kubelet evicts for MemoryPressure. Setting memory requests promotes it to Burstable (or Guaranteed if requests==limits), so higher-QoS workloads are preserved during pressure. Eviction immunity isn't granted by the kube-system namespace alone — system pods get protection through `system-node-critical`/`system-cluster-critical` PriorityClasses, not the namespace. `restartPolicy` controls what happens after a container exits, not whether the kubelet evicts the pod. `imagePullPolicy: Never` only changes when images are fetched and doesn't address memory pressure.",
+      "tags": ["eviction", "resource-limits", "qos", "troubleshooting", "cka"],
       "difficulty": "hard",
-      "_normalized": true
+      "_normalized": true,
+      "rewritten": true
     },
     {
       "id": "cka-052",
       "question": "After applying a new NetworkPolicy, pods in namespace `app` can no longer reach the kube-dns Service (10.96.0.10:53). What must be added so DNS works again?",
       "options": [
-        "An egress rule on the policy allowing UDP/TCP 53 to the kube-system namespace",
-        "A podSelector that matches the kube-dns pods inside the same policy object; a podSelector alone inside the same policy namespace does not restore DNS egress",
-        "A namespaceSelector allowing all ingress from kube-system on the policy",
-        "An ingress rule allowing the kube-dns Service to reach the app pods on 53"
+        "A podSelector that matches the kube-dns pods inside the same policy object, with no further namespace targeting",
+        "An egress rule on the policy allowing UDP and TCP port 53 to the kube-system namespace (or directly to the kube-dns pods)",
+        "A namespaceSelector allowing all ingress from kube-system to the app pods, so kube-dns can reply through that channel",
+        "An ingress rule allowing the kube-dns Service to reach the app pods on port 53 in both UDP and TCP directions"
       ],
-      "correct": 0,
-      "explanation": "Once a NetworkPolicy with `policyTypes: Egress` selects a pod, ALL outbound traffic is blocked unless explicitly allowed. DNS queries go to port 53 on CoreDNS in kube-system, so the fix is an egress rule allowing UDP and TCP 53 to that namespace (or to the CoreDNS pods specifically). Ingress rules don't affect outbound DNS lookups.",
-      "tags": [
-        "networkpolicy",
-        "dns",
-        "egress",
-        "troubleshooting",
-        "cka"
-      ],
+      "correct": 1,
+      "explanation": "Once a NetworkPolicy with `policyTypes: Egress` selects a pod, every outbound destination is denied unless an egress rule permits it. DNS resolution requires the app pods to reach CoreDNS in kube-system on UDP/TCP 53, so the rule needs `to: [namespaceSelector kube-system]` (or a podSelector for kube-dns) plus `ports: [{port: 53, protocol: UDP/TCP}]`. A podSelector alone, without a namespaceSelector, only matches pods in the policy's own namespace. Ingress rules govern inbound traffic and never restore outbound resolution.",
+      "tags": ["networkpolicy", "dns", "egress", "troubleshooting", "cka"],
       "difficulty": "hard",
       "rewritten": true
     },
     {
       "id": "cka-053",
-      "question": "A pod running with a projected ServiceAccount token cannot call the Kubernetes API and receives '401 Unauthorized'. The token is valid and mounted at the default path. What should you check?",
+      "question": "A pod running with a projected ServiceAccount token cannot call the Kubernetes API and receives `401 Unauthorized`. The token file exists at the default mount path. What should you check?",
       "options": [
-        "Whether the pod is running in the kube-system namespace",
-        "Whether the ServiceAccount has a ClusterRoleBinding granting it API access",
-        "Whether the ServiceAccount has automountServiceAccountToken: false set",
-        "Whether the API server's --anonymous-auth flag is set to false"
+        "Whether the pod is running in the kube-system namespace rather than its own application namespace, since cluster-system clients are treated as trusted authenticators",
+        "Whether the token's `audiences` claim and expiry match the kube-apiserver's `--api-audiences` / `--service-account-issuer` values (bound tokens reject if those disagree)",
+        "Whether the ServiceAccount has `automountServiceAccountToken: false` set, which would silently strip cluster API access from every pod that uses it",
+        "Whether the API server's `--anonymous-auth` flag is set to false, which would block the implicit anonymous fallback the pod is relying on"
       ],
       "correct": 1,
-      "explanation": "401 Unauthorized means the token was rejected or the identity is unknown. 401 from a ServiceAccount token is rare if the token is valid — more likely the issue is the token is for a deleted ServiceAccount, the API server's service account issuer is misconfigured, or the token has expired. However, if 403 (Forbidden) is the actual error, it means authenticated but not authorized — a missing RoleBinding. Since the question says 401, this could also indicate a token audience mismatch in newer Kubernetes versions using bound tokens.",
-      "tags": [
-        "serviceaccount",
-        "rbac",
-        "authentication",
-        "troubleshooting",
-        "cka"
-      ],
+      "explanation": "A 401 means the token reached the API server but failed authentication. With modern projected (bound) ServiceAccount tokens, the most common cause is an audience or expiration mismatch — the token was issued for a different `--api-audiences` value, or the kube-apiserver's `--service-account-issuer` does not match the OIDC issuer URL inside the JWT. A 403 (Forbidden) would mean missing RBAC. `automountServiceAccountToken: false` would have produced no token to mount at all. The namespace doesn't change authentication semantics, and toggling anonymous-auth doesn't fix an actively-rejected token.",
+      "tags": ["serviceaccount", "rbac", "authentication", "troubleshooting", "cka"],
       "difficulty": "hard",
-      "_normalized": true
+      "_normalized": true,
+      "rewritten": true
     },
     {
       "id": "cka-054",
-      "question": "A node is running many pods and you want to identify which pod is consuming the most memory at this moment. Which kubectl command gives you per-pod memory usage on a specific node?",
+      "question": "A node is running many pods and you want to identify which pod is consuming the most memory right now. Which kubectl command gives per-pod live memory usage filtered to a specific node?",
       "options": [
-        "kubectl top pods --all-namespaces --field-selector=spec.nodeName=worker-2",
-        "kubectl get pods --field-selector=spec.nodeName=worker-2 -o custom-columns",
-        "kubectl top pods --all-namespaces --sort-by=memory | grep <node-name>",
+        "kubectl top pods --all-namespaces --field-selector=spec.nodeName=worker-2 --sort-by=memory",
+        "kubectl get pods --field-selector=spec.nodeName=worker-2 -o custom-columns=NAME:.metadata.name,MEM:.spec.containers[*].resources.requests.memory",
+        "kubectl top pods --all-namespaces --sort-by=memory | grep worker-2",
         "kubectl describe node worker-2 | grep memory"
       ],
       "correct": 0,
-      "explanation": "'kubectl top pods' uses the metrics-server to show live CPU/memory usage. Combining --all-namespaces with --field-selector=spec.nodeName=<node> filters to pods on that node, and --sort-by=memory shows the highest consumers at the top. 'kubectl describe node' shows allocatable/allocated resources from requests, not actual live consumption. kubectl top requires metrics-server to be installed.",
-      "tags": [
-        "kubectl",
-        "monitoring",
-        "troubleshooting",
-        "metrics",
-        "cka"
-      ],
+      "explanation": "`kubectl top pods` reads live numbers from the metrics-server. Combining `--all-namespaces`, `--field-selector=spec.nodeName=<node>` and `--sort-by=memory` produces exactly the per-pod, sorted, node-scoped view you want. Piping `top pods` through `grep <node>` doesn't work because the `top` output has no node column. `kubectl get pods … requests.memory` only shows declared requests, not actual usage. `kubectl describe node` shows allocatable vs requested totals, again not live consumption.",
+      "tags": ["kubectl", "monitoring", "troubleshooting", "metrics", "cka"],
       "difficulty": "medium",
-      "_normalized": true
+      "_normalized": true,
+      "rewritten": true
     },
     {
       "id": "cka-055",
-      "question": "A pod has been 'Terminating' for 20 minutes and will not fully delete. 'kubectl delete pod stuck-pod' was already run. What is the most likely cause and safe remediation?",
+      "question": "A pod has been `Terminating` for 20 minutes and will not fully delete. `kubectl delete pod stuck-pod` was already run. What is the most likely cause and the safe remediation?",
       "options": [
-        "The pod has a finalizer set in its metadata that must be removed before",
-        "The kubelet on the pod's node needs to be restarted to flush the pod",
-        "The pod's node is offline; delete the node object to force pod removal",
-        "The pod requires --grace-period=0 to be deleted immediately"
+        "The kubelet on the pod's node needs to be restarted with `systemctl restart kubelet` to flush the in-flight delete request",
+        "The pod carries a finalizer in `metadata.finalizers`; clear it (`kubectl patch pod stuck-pod -p '{\"metadata\":{\"finalizers\":null}}'`) so the API server can finish the delete",
+        "The pod's node is offline; delete the node object with `kubectl delete node` to force-evict the still-mounted pod",
+        "The pod simply needs `kubectl delete pod stuck-pod --grace-period=0 --force` because the default 30-second grace timeout has not yet elapsed"
       ],
-      "correct": 0,
-      "explanation": "Pods stuck in Terminating are almost always held by a finalizer in metadata.finalizers. Finalizers are keys added by controllers (e.g., storage operators, admission webhooks) that must be removed before the API server will fully delete the object. The safe fix is to edit the pod and remove the finalizer entry: 'kubectl patch pod stuck-pod -p '{\"metadata\":{\"finalizers\":null}}''. Force-deleting with --grace-period=0 --force is a last resort and can leave orphaned resources.",
-      "tags": [
-        "finalizers",
-        "pod-deletion",
-        "troubleshooting",
-        "cka"
-      ],
+      "correct": 1,
+      "explanation": "Stuck-in-Terminating is almost always a finalizer holding the object back. The API server waits until every entry in `metadata.finalizers` is cleared by its controller before completing the delete; if the owning controller is gone or buggy, the entry sits there forever. The safe fix is a targeted patch that clears the finalizer list. Restarting kubelet doesn't help because the API object hasn't been removed yet. `--grace-period=0 --force` is a last-resort that can leave orphaned resources and is not preferred when a finalizer can simply be cleared.",
+      "tags": ["finalizers", "pod-deletion", "troubleshooting", "cka"],
       "difficulty": "hard",
-      "_normalized": true
+      "_normalized": true,
+      "rewritten": true
     },
     {
       "id": "cka-056",
-      "question": "You need to check the container runtime version and status on a node where Docker is not installed (containerd is used). Which command should you use on the node?",
+      "question": "You need to check the container runtime version and status on a node where Docker is not installed (containerd is used). Which command should you run on the node?",
       "options": [
         "kubectl describe node <node-name> | grep Container",
         "ctr namespaces list",
@@ -1136,98 +885,74 @@
         "docker info"
       ],
       "correct": 2,
-      "explanation": "'crictl' is the CRI-compatible CLI tool for interacting with container runtimes that implement the Container Runtime Interface (CRI), such as containerd. 'crictl info' shows runtime information. 'crictl ps', 'crictl logs', and 'crictl pods' are equivalents to docker commands for CRI runtimes. 'ctr' is a low-level containerd CLI not primarily designed for Kubernetes use.",
-      "tags": [
-        "containerd",
-        "crictl",
-        "container-runtime",
-        "troubleshooting",
-        "cka"
-      ],
+      "explanation": "`crictl` is the kubelet-facing CLI for the Container Runtime Interface — `crictl info` reports the runtime name, version and config, and `crictl ps/logs/pods` give Docker-style commands across any CRI runtime. `docker info` won't run because Docker isn't installed. `ctr` is containerd's native low-level CLI and is not aware of Kubernetes pod sandboxes; it's also notoriously fragile to drive. `kubectl describe node` shows the runtime version as reported to the API, but it's a stale snapshot and tells you nothing about the runtime's live status.",
+      "tags": ["containerd", "crictl", "container-runtime", "troubleshooting", "cka"],
       "difficulty": "medium",
-      "_normalized": true
+      "_normalized": true,
+      "rewritten": true
     },
     {
       "id": "cka-057",
-      "question": "A Deployment's readinessProbe fails during application startup, so Service traffic is never routed to the new pods. Pods are Running but never Ready. Which Deployment / pod-spec field handles slow startup without weakening steady-state readiness?",
+      "question": "A Deployment's readinessProbe fails during application startup, so Service traffic is never routed to the new pods. Pods are Running but never Ready. Which field handles slow startup without weakening steady-state readiness?",
       "options": [
         "Set `livenessProbe.initialDelaySeconds` to wait before liveness checks",
         "Set `spec.minReadySeconds` on the Deployment to delay availability",
-        "Use a `startupProbe` to gate readiness/liveness until init completes",
-        "Set `spec.progressDeadlineSeconds` to extend the rollout timeout; progressDeadlineSeconds extends the rollout window but does not affect readiness probe timing"
+        "Use a `startupProbe` to gate readiness/liveness checks until init completes",
+        "Set `spec.progressDeadlineSeconds` to extend the rollout timeout"
       ],
       "correct": 2,
-      "explanation": "A `startupProbe` (1.16+) is designed exactly for slow-starting apps: it disables readiness and liveness probes until it itself succeeds, so a bad readiness check never fires during init. `readinessProbe.initialDelaySeconds` works for short, predictable delays but you have to pick a constant. `minReadySeconds` only delays when a pod counts as available — not the probe itself. `progressDeadlineSeconds` is a rollout timeout.",
-      "tags": [
-        "readiness-probe",
-        "startup-probe",
-        "deployments",
-        "cka"
-      ],
+      "explanation": "A `startupProbe` (GA in 1.20) disables both readiness and liveness probes until it itself succeeds — exactly the right tool for a slow-starting app whose steady-state readiness checks are otherwise correct. `livenessProbe.initialDelaySeconds` only delays liveness, and forcing a long constant delay weakens steady-state failure detection. `minReadySeconds` controls when a pod counts as available after becoming Ready, it doesn't affect the readiness probe itself. `progressDeadlineSeconds` is a Deployment rollout timeout — it has no effect on probe timing.",
+      "tags": ["readiness-probe", "startup-probe", "deployments", "cka"],
       "difficulty": "medium",
       "rewritten": true
     },
     {
       "id": "cka-058",
-      "question": "You run 'kubectl get nodes' and see node 'worker-3' in NotReady state. Running 'kubectl describe node worker-3' shows 'KubeletNotReady: container runtime network not ready: NetworkReady=false reason:NetworkPluginNotReady message:Network plugin returns error'. What is the most likely fix?",
+      "question": "You run `kubectl get nodes` and see node `worker-3` in NotReady. `kubectl describe node worker-3` shows `KubeletNotReady: container runtime network not ready: NetworkReady=false reason:NetworkPluginNotReady message:Network plugin returns error`. What is the most likely fix?",
       "options": [
-        "Reboot worker-3 to reset all network state; rebooting resets all state but does not reinstall a missing CNI plugin binary or config",
-        "Reinstall or repair the CNI plugin on the node.",
-        "Restart the kube-proxy daemonset pod on worker-3",
-        "Delete the node object and re-join it to the cluster"
+        "Reboot worker-3 so the kernel reloads iptables and the CNI bridge interfaces are recreated from scratch on startup",
+        "Reinstall or repair the CNI plugin on the node — the CNI binary in /opt/cni/bin/ or the config in /etc/cni/net.d/ is missing or corrupted",
+        "Restart the kube-proxy DaemonSet pod on worker-3 so it re-syncs the iptables rules that the CNI plugin depends on",
+        "Delete the node object and re-join it to the cluster with `kubeadm join` so a fresh certificate bundle is issued to it"
       ],
       "correct": 1,
-      "explanation": "The 'NetworkPluginNotReady' error from the kubelet means the CNI plugin is not functioning. This typically occurs when the CNI plugin DaemonSet pod has not yet run on this node (and thus not installed the CNI binary), the CNI binary is missing from /opt/cni/bin/, or the CNI config in /etc/cni/net.d/ is absent or invalid. Ensure the CNI DaemonSet pod is running on the node and check those paths. the CNI binary or configuration in /etc/cni/net.d/ is missing or corrupted",
-      "tags": [
-        "cni",
-        "node-notready",
-        "troubleshooting",
-        "networking",
-        "cka"
-      ],
+      "explanation": "`NetworkPluginNotReady` is a kubelet-level error meaning the kubelet asked the CNI plugin for an IPAM allocation and got nothing. The usual cause is that the CNI DaemonSet hasn't run on this node yet, the binary in /opt/cni/bin/ is missing, or the JSON config in /etc/cni/net.d/ is absent/invalid. Verify the CNI DaemonSet has a pod on worker-3 and that the two paths are populated. Rebooting clears no state that matters here. kube-proxy programs Service rules, it doesn't install CNI. Re-joining is destructive and unnecessary when a binary/config restore solves it.",
+      "tags": ["cni", "node-notready", "troubleshooting", "networking", "cka"],
       "difficulty": "hard",
-      "_normalized": true
+      "_normalized": true,
+      "rewritten": true
     },
     {
       "id": "cka-059",
-      "question": "A pod's application writes logs to /var/log/app.log inside the container. 'kubectl logs' shows nothing. What is the most likely reason?",
+      "question": "A pod's application writes logs to /var/log/app.log inside the container. `kubectl logs` shows nothing. What is the most likely reason?",
       "options": [
-        "kubectl logs only captures stdout and stderr.",
-        "Logs are only available after the pod has been running for at least 60 seconds",
-        "kubectl logs only shows logs from pods that have crashed at least once",
-        "The pod's ServiceAccount does not have permission to stream logs"
+        "`kubectl logs` only displays output after the pod has been running for at least 60 seconds since the kubelet's first log roll",
+        "`kubectl logs` only shows logs from pods that have crashed at least once and emitted a previous-container record",
+        "`kubectl logs` only captures container stdout and stderr — logs written to a file inside the container are not visible through it",
+        "The pod's ServiceAccount does not have RBAC permission to stream logs from its own container endpoint"
       ],
-      "correct": 0,
-      "explanation": "The Kubernetes logging architecture captures container stdout and stderr only. If an application writes logs to a file on the container filesystem, 'kubectl logs' will show nothing. The fix is either to configure the application to log to stdout/stderr, or to use a sidecar container that tails the log file and writes to its own stdout. Alternatively, kubectl exec into the container and read the file directly. logs written to a file inside the container are not visible via kubectl logs",
-      "tags": [
-        "logging",
-        "kubectl",
-        "troubleshooting",
-        "cka"
-      ],
+      "correct": 2,
+      "explanation": "The Kubernetes logging architecture is built on container stdout/stderr: the container runtime captures those streams and the kubelet exposes them via `kubectl logs`. A file under /var/log/app.log lives only on the container filesystem and is invisible to that pipeline. Fix it either by redirecting the app to stdout/stderr, by symlinking the file to /dev/stdout, or by running a sidecar that tails the file and prints to its own stdout. There is no 60-second delay, no crash requirement, and no per-pod ServiceAccount RBAC on its own logs (logs RBAC is checked against the caller, not the pod).",
+      "tags": ["logging", "kubectl", "troubleshooting", "cka"],
       "difficulty": "easy",
-      "_normalized": true
+      "_normalized": true,
+      "rewritten": true
     },
     {
       "id": "cka-060",
-      "question": "You need to quickly test whether a newly created ClusterRole 'deployment-viewer' provides the correct permissions. A user 'alice' should be able to 'get' and 'list' Deployments cluster-wide. Which sequence of commands validates this?",
+      "question": "You need to quickly test whether a newly created ClusterRole `deployment-viewer` provides the correct permissions. A user `alice` should be able to `get` and `list` Deployments cluster-wide. Which sequence of commands validates this?",
       "options": [
-        "kubectl get clusterrole deployment-viewer -o yaml && kubectl get clusterrolebinding | grep alice; inspecting the clusterrole YAML shows rules but not whether alice can actually list deployments",
+        "kubectl get clusterrole deployment-viewer -o yaml && kubectl get clusterrolebinding | grep alice",
         "kubectl describe clusterrolebinding alice-binding",
         "kubectl auth reconcile --as=alice -f role.yaml",
         "kubectl auth can-i get deployments --as=alice && kubectl auth can-i list deployments --as=alice"
       ],
       "correct": 3,
-      "explanation": "'kubectl auth can-i' with --as impersonates the user and tests a specific permission. Running it for both 'get' and 'list' on deployments validates the effective permissions without needing to inspect YAML manually. This tests the complete RBAC chain (ClusterRole + ClusterRoleBinding). 'kubectl get clusterrole -o yaml' only shows what the role defines, not whether alice has it bound. 'kubectl auth reconcile' applies RBAC manifests, not tests permissions.",
-      "tags": [
-        "rbac",
-        "kubectl",
-        "authorization",
-        "troubleshooting",
-        "cka"
-      ],
+      "explanation": "`kubectl auth can-i` with `--as` asks the API server's authoriser to evaluate the entire RBAC chain (ClusterRole + ClusterRoleBinding) for the impersonated user. Running it for both verbs verifies the actual effective permission, which is the only thing that matters. Reading the ClusterRole YAML and grepping ClusterRoleBindings tells you what was authored but not whether the binding actually applies. Describing the binding shows references but doesn't simulate the access decision. `kubectl auth reconcile` applies RBAC manifests; it is not a permission-check command.",
+      "tags": ["rbac", "kubectl", "authorization", "troubleshooting", "cka"],
       "difficulty": "medium",
-      "_normalized": true
+      "_normalized": true,
+      "rewritten": true
     },
     {
       "id": "cka-multi-1",
@@ -1238,19 +963,12 @@
         "kubectl get events --sort-by=.lastTimestamp",
         "kubectl exec -it <pod> -- /bin/sh"
       ],
-      "correct": [
-        1,
-        2
-      ],
-      "explanation": "`describe pod` shows the Events table with FailedScheduling messages (insufficient CPU, taint mismatch, no matching node selector, etc.). `get events` gives the cluster-wide ordered timeline. `logs` requires a running container — the pod is Pending, so there's no container yet. `exec` requires a Running pod for the same reason.",
-      "tags": [
-        "troubleshooting",
-        "scheduling",
-        "cka"
-      ],
+      "correct": [1, 2],
+      "explanation": "`describe pod` prints the Events table that includes `FailedScheduling` messages (insufficient CPU/memory, unsatisfied node selector, taint mismatch, no nodes available). `get events --sort-by=.lastTimestamp` gives the cluster-wide ordered timeline so you can spot cluster-level signals like quota or scheduler errors. `logs` and `exec` both require a running container — Pending pods have none yet, so both commands return errors instead of useful diagnostics.",
+      "tags": ["troubleshooting", "scheduling", "cka"],
       "difficulty": "medium",
       "_normalized": true,
-      "_lenbal": true
+      "rewritten": true
     }
   ]
 }
