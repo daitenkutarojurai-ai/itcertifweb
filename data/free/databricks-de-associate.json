@@ -1,0 +1,250 @@
+{
+  "meta": {
+    "id": "databricks-de-associate",
+    "name": "Databricks Certified Data Engineer Associate",
+    "vendor": "Databricks",
+    "version": "1.0.0",
+    "question_count": 12,
+    "last_updated": "2026-06-29",
+    "notes": "Initial Databricks DE Associate pack — covers Lakehouse Platform fundamentals (Delta Lake ACID, transaction log, time travel, VACUUM, cloning), ELT with Spark SQL (MERGE INTO, CTAS, CONVERT TO DELTA), Incremental processing (Auto Loader / cloudFiles, Delta Live Tables STREAMING LIVE TABLE), Production pipelines (Jobs vs all-purpose clusters, Workflows DAG dependencies, SQL warehouses), and Data Governance (Unity Catalog three-level namespace, USE CATALOG/USE SCHEMA traversal grants). Answer positions balanced 3/3/3/3 across A/B/C/D."
+  },
+  "questions": [
+    {
+      "id": "databricks-de-assoc-001",
+      "question": "A team migrating from raw Parquet files in S3 to Databricks Delta Lake wants to eliminate the partial-write and lost-update issues they used to see when multiple jobs wrote to the same dataset. Which Delta Lake characteristic addresses this?",
+      "options": [
+        "A transaction log (`_delta_log/`) tracks each commit, providing ACID guarantees on top of object storage via optimistic concurrency control.",
+        "Delta tables disallow concurrent writers and require a single dedicated cluster per table.",
+        "Delta tables compress files with Snappy, which serialises writes by definition.",
+        "Delta tables require all writers to first acquire a row-level lock from the workspace metastore."
+      ],
+      "correct": 0,
+      "explanation": "Delta Lake's `_delta_log/` directory — JSON action files plus periodic checkpoints — provides atomic, isolated, durable commits on cloud object storage through optimistic concurrency control. Concurrent writers each propose a commit and the log resolves conflicts, so there is no single-writer constraint. Snappy is compression, not concurrency. Row-level locks are not part of the Delta architecture; concurrency is handled per-file at commit time.",
+      "tags": [
+        "delta-lake",
+        "acid",
+        "transaction-log",
+        "databricks-de-associate"
+      ],
+      "difficulty": "easy",
+      "_normalized": true
+    },
+    {
+      "id": "databricks-de-assoc-002",
+      "question": "An engineer is choosing the cluster type for a nightly transformation pipeline that runs from a scheduled Databricks Workflow. Cost efficiency is the priority. Which option is most appropriate?",
+      "options": [
+        "An all-purpose cluster shared with analysts so the pipeline reuses warm executors.",
+        "A job cluster (Jobs Compute) that the workflow creates at the start of the run and terminates on completion.",
+        "A single-node cluster left running 24/7 in shared mode.",
+        "A Databricks SQL warehouse with auto-stop disabled."
+      ],
+      "correct": 1,
+      "explanation": "Job clusters (Jobs Compute) are created when the workflow starts and shut down as soon as the run finishes, so the team pays only for the actual run time and benefits from a lower DBU rate. All-purpose clusters are designed for interactive notebooks and carry a higher DBU rate. A 24/7 single-node cluster bills continuously even when idle. SQL warehouses are sized for BI / SQL workloads, not arbitrary Python or Scala job runs.",
+      "tags": [
+        "clusters",
+        "jobs-compute",
+        "cost",
+        "databricks-de-associate"
+      ],
+      "difficulty": "easy",
+      "_normalized": true
+    },
+    {
+      "id": "databricks-de-assoc-003",
+      "question": "An ingestion pipeline must continuously load many small JSON files dropped into an S3 prefix. The team needs schema evolution, exactly-once semantics, and low operational overhead as the file count grows into the millions. Which approach is recommended?",
+      "options": [
+        "A `COPY INTO` statement executed once per day from a scheduled job.",
+        "A plain Structured Streaming job that points at the raw S3 prefix and lists the directory each microbatch.",
+        "Auto Loader (`cloudFiles` source) inside a Structured Streaming query, with schema inference and evolution enabled.",
+        "A nightly notebook that calls `dbutils.fs.ls` and unions the results into a Parquet write."
+      ],
+      "correct": 2,
+      "explanation": "Auto Loader's `cloudFiles` source incrementally discovers new files via a RocksDB-backed checkpoint (optionally enriched with cloud-provider file-notification events), scales to billions of files, and supports `cloudFiles.schemaEvolutionMode`. It is Databricks' recommended pattern for continuous file ingestion. `COPY INTO` is idempotent but is geared toward batch loads of a known file set. Vanilla Structured Streaming over a path re-lists the directory each batch and breaks down at high file counts. Nightly `dbutils.fs.ls` loops are neither exactly-once nor scalable.",
+      "tags": [
+        "auto-loader",
+        "cloud-files",
+        "ingestion",
+        "databricks-de-associate"
+      ],
+      "difficulty": "intermediate",
+      "_normalized": true
+    },
+    {
+      "id": "databricks-de-assoc-004",
+      "question": "Inside a Delta Live Tables pipeline written in SQL, a developer must declare a table that incrementally consumes new rows appended to its upstream source on every pipeline update. Which DLT SQL form expresses this?",
+      "options": [
+        "`CREATE LIVE TABLE sales AS SELECT * FROM source`",
+        "`CREATE MATERIALIZED VIEW sales AS SELECT * FROM source`",
+        "`CREATE TABLE sales WITH (INCREMENTAL = TRUE) AS SELECT * FROM source`",
+        "`CREATE STREAMING LIVE TABLE sales AS SELECT * FROM STREAM(source)`"
+      ],
+      "correct": 3,
+      "explanation": "A `STREAMING LIVE TABLE` in DLT processes input incrementally — each pipeline update sees only the rows appended to the source since the previous run, and Databricks manages the checkpoint for you. A plain `LIVE TABLE` (now `MATERIALIZED VIEW`) is fully recomputed on each refresh. `INCREMENTAL = TRUE` is not a DLT keyword.",
+      "tags": [
+        "delta-live-tables",
+        "streaming-live-table",
+        "databricks-de-associate"
+      ],
+      "difficulty": "intermediate",
+      "_normalized": true
+    },
+    {
+      "id": "databricks-de-assoc-005",
+      "question": "A nightly job accidentally overwrote the `sales` Delta table at 03:00 UTC with bad data. The team needs to read the contents of the table as they were just before the overwrite, without modifying the live table. Which query does that?",
+      "options": [
+        "`SELECT * FROM sales BEFORE TIMESTAMP '2026-01-15T03:00:00'`",
+        "`SELECT * FROM sales TIMESTAMP AS OF '2026-01-15T02:59:00'`",
+        "`SELECT * FROM sales SNAPSHOT '02:59:00'`",
+        "`SELECT * FROM sales ROLLBACK TO TIMESTAMP '2026-01-15T02:59:00'`"
+      ],
+      "correct": 1,
+      "explanation": "Delta Time Travel exposes `TIMESTAMP AS OF <ts>` and `VERSION AS OF <n>` for read-only point-in-time queries against any historical snapshot the retention window still covers. `BEFORE TIMESTAMP`, `SNAPSHOT`, and `ROLLBACK TO` are not Delta syntax — `RESTORE TABLE … TO TIMESTAMP …` would actually mutate the table back to that version, which the prompt explicitly rules out.",
+      "tags": [
+        "time-travel",
+        "delta-lake",
+        "databricks-de-associate"
+      ],
+      "difficulty": "easy",
+      "_normalized": true
+    },
+    {
+      "id": "databricks-de-assoc-006",
+      "question": "A team is creating tables in a Unity-Catalog-enabled workspace. How many object levels make up a fully qualified table name in Unity Catalog?",
+      "options": [
+        "Three: `catalog.schema.table` (with `schema` sometimes still called `database`).",
+        "Two: `database.table`, the same layout as the legacy Hive metastore.",
+        "Four: `metastore.catalog.schema.table`, where the metastore name is part of every identifier.",
+        "One: just `table`; both catalog and schema are inferred from the current cluster context."
+      ],
+      "correct": 0,
+      "explanation": "Unity Catalog introduced a three-level namespace — `catalog.schema.table`. The metastore is the top-level container but is not referenced inside a table identifier; you set it once per workspace. Legacy Hive metastores used a two-level `database.table` layout. Catalog and schema can be defaulted with `USE CATALOG` / `USE SCHEMA`, but the canonical identifier is still three parts.",
+      "tags": [
+        "unity-catalog",
+        "namespace",
+        "databricks-de-associate"
+      ],
+      "difficulty": "easy",
+      "_normalized": true
+    },
+    {
+      "id": "databricks-de-assoc-007",
+      "question": "Business analysts query Delta tables from Power BI dashboards backed by Databricks SQL. The team wants compute that auto-scales between 2 and 8 clusters based on query concurrency, ships a JDBC/ODBC endpoint for the BI tool, and runs Photon by default. Which compute should they provision?",
+      "options": [
+        "An all-purpose cluster pool sized 2–8 with Photon enabled.",
+        "A Jobs Compute (job cluster) scheduled once per dashboard refresh.",
+        "A single-node cluster pinned to Photon mode.",
+        "A Pro SQL warehouse configured with auto-stop and a 2–8 cluster scaling range."
+      ],
+      "correct": 3,
+      "explanation": "Databricks SQL warehouses (Classic / Pro / Serverless) are the compute type designed for SQL analytics and BI dashboards. They expose a min/max cluster setting that auto-scales for query concurrency, ship a managed JDBC/ODBC endpoint, and enable Photon by default. All-purpose clusters auto-scale executors within a single cluster, not across multiple clusters. A job cluster is sized per run, not per dashboard query load.",
+      "tags": [
+        "sql-warehouse",
+        "bi",
+        "auto-scaling",
+        "databricks-de-associate"
+      ],
+      "difficulty": "intermediate",
+      "_normalized": true
+    },
+    {
+      "id": "databricks-de-assoc-008",
+      "question": "An engineer wants a full, independent point-in-time copy of a Delta table at a new location — data files plus history — so future deletes on the source cannot affect the copy. Which command fits best?",
+      "options": [
+        "`CREATE TABLE clone AS SELECT * FROM source` (CTAS)",
+        "`CREATE TABLE clone SHALLOW CLONE source`",
+        "`CREATE TABLE clone DEEP CLONE source`",
+        "`CONVERT TO DELTA source`"
+      ],
+      "correct": 2,
+      "explanation": "`DEEP CLONE` copies both the data files and the transaction log to the target location, so the clone owns its own files and is unaffected by deletes or VACUUMs on the source. `SHALLOW CLONE` only copies metadata pointers — a delete on the source can break the clone. A CTAS query materialises the current snapshot but loses history (versions and time-travel queries). `CONVERT TO DELTA` upgrades existing Parquet to Delta in place; it does not produce a copy.",
+      "tags": [
+        "deep-clone",
+        "shallow-clone",
+        "delta-lake",
+        "databricks-de-associate"
+      ],
+      "difficulty": "intermediate",
+      "_normalized": true
+    },
+    {
+      "id": "databricks-de-assoc-009",
+      "question": "After a large DELETE, an engineer runs `VACUUM sales RETAIN 0 HOURS` to immediately reclaim disk space. What is the principal risk of this command?",
+      "options": [
+        "Concurrent readers — including time-travel queries — referencing files older than the retention threshold will fail, because those files are physically removed.",
+        "VACUUM acquires a table-level lock for hours, blocking all writes and reads until it finishes.",
+        "VACUUM irreversibly truncates the transaction log, so the table can no longer be queried.",
+        "VACUUM only runs against managed tables; on an external table it silently no-ops."
+      ],
+      "correct": 0,
+      "explanation": "VACUUM physically deletes files that are no longer referenced by the current table version and that are older than the retention window. With `RETAIN 0 HOURS`, files become eligible for removal the instant they are unreferenced, which can break in-flight reads and any time-travel query that points at an older snapshot. Databricks deliberately gates retention below the default seven days behind `spark.databricks.delta.retentionDurationCheck.enabled=false` for this reason. VACUUM does not lock the table, does not truncate the transaction log, and works on both managed and external Delta tables.",
+      "tags": [
+        "vacuum",
+        "retention",
+        "delta-lake",
+        "databricks-de-associate"
+      ],
+      "difficulty": "intermediate",
+      "_normalized": true
+    },
+    {
+      "id": "databricks-de-assoc-010",
+      "question": "A daily upsert job must merge a CDC source into the `customers` Delta table: insert new rows, update changed rows, and delete tombstoned rows — all in a single atomic statement. Which construct is designed for this?",
+      "options": [
+        "`INSERT OVERWRITE customers SELECT … WHEN NOT EXISTS`",
+        "`UPDATE customers FROM cdc UNION DELETE FROM customers …`",
+        "`MERGE INTO customers USING cdc ON … WHEN MATCHED THEN UPDATE … WHEN NOT MATCHED THEN INSERT … WHEN MATCHED AND cdc.op='D' THEN DELETE`",
+        "`REPLACE WHERE customer_id IN (SELECT … FROM cdc)`"
+      ],
+      "correct": 2,
+      "explanation": "`MERGE INTO` is Delta's atomic upsert/delete primitive. It pairs a single source against a target and lets you specify any combination of `WHEN MATCHED THEN UPDATE`, `WHEN MATCHED THEN DELETE`, and `WHEN NOT MATCHED THEN INSERT` clauses, all committed in one transaction. `REPLACE WHERE` rewrites a partition wholesale; `INSERT OVERWRITE` replaces rows in bulk; there is no `UPDATE … FROM … UNION DELETE` form in Spark SQL.",
+      "tags": [
+        "merge-into",
+        "cdc",
+        "upsert",
+        "databricks-de-associate"
+      ],
+      "difficulty": "intermediate",
+      "_normalized": true
+    },
+    {
+      "id": "databricks-de-assoc-011",
+      "question": "A multi-step Databricks Workflow needs Task B to run only after Task A succeeds, and Task C to run only after Task B succeeds. What is the right way to model this?",
+      "options": [
+        "Replace Task B and Task C with `dbutils.notebook.run` calls invoked from inside Task A.",
+        "In the Workflow's task graph, add Task A as a dependency of Task B, and Task B as a dependency of Task C.",
+        "Schedule three separate jobs five minutes apart on cron so they fire in order.",
+        "Combine all three notebooks into one, gating each step with a `try/except` block."
+      ],
+      "correct": 1,
+      "explanation": "Databricks Workflows expose a task DAG: each task has a `Depends on` list, and Databricks runs a task only when all of its parents have succeeded. This is the documented way to model ordering and is what shows up correctly in the run history, retries, and lineage. `dbutils.notebook.run` chains work imperatively but bypasses the workflow UI. Time-based cron coordination is fragile because a slow upstream run silently breaks the ordering.",
+      "tags": [
+        "workflows",
+        "jobs",
+        "orchestration",
+        "databricks-de-associate"
+      ],
+      "difficulty": "easy",
+      "_normalized": true
+    },
+    {
+      "id": "databricks-de-assoc-012",
+      "question": "A data engineer must let the `bi_team` group read every current and future table in the `gold` schema of the `analytics` Unity catalog — and nothing else. Which set of grants is the least-privilege option that satisfies the requirement?",
+      "options": [
+        "`GRANT SELECT ON CATALOG analytics TO `bi_team``",
+        "`GRANT ALL PRIVILEGES ON SCHEMA analytics.gold TO `bi_team``",
+        "`GRANT USAGE ON DATABASE gold TO `bi_team``",
+        "`GRANT USE CATALOG ON CATALOG analytics TO `bi_team``, `GRANT USE SCHEMA ON SCHEMA analytics.gold TO `bi_team``, and `GRANT SELECT ON SCHEMA analytics.gold TO `bi_team``"
+      ],
+      "correct": 3,
+      "explanation": "Unity Catalog requires traversal privileges in addition to data privileges. `USE CATALOG` on the catalog and `USE SCHEMA` on the schema let the group reach the namespace; `SELECT ON SCHEMA` is inherited by every current and future table inside that schema, satisfying the future-proof requirement. `GRANT SELECT ON CATALOG analytics` would also work but exceeds the requested scope — it covers every schema under `analytics`, not just `gold`. `ALL PRIVILEGES` includes write rights. `USAGE` and `DATABASE` are legacy Hive metastore syntax that Unity Catalog does not use.",
+      "tags": [
+        "unity-catalog",
+        "grants",
+        "permissions",
+        "databricks-de-associate"
+      ],
+      "difficulty": "advanced",
+      "_normalized": true
+    }
+  ]
+}
