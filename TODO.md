@@ -1520,6 +1520,54 @@ competition-driven, community-driven** layer. Highest-priority builds:
 
 ---
 
+## 📦 Content expansion R21 (2026-06-30)
+
+Scheduled-agent run targeting the RealityCheck cluster — the longest-quiet
+content cluster since R20 (last touched 2026-06-06 with R14's
+`reconversion-it-40-ans`, while PromptDungeon / DevStack / Comparator /
+ToolRadar / FailBase have all picked up entries since). One new high-search
+French myth the dataset was missing on a topic the CertQuests audience asks
+about every week:
+
+- **+1 RealityCheck myth** (cluster 11 → 12):
+  - `remote-100-it-mort` — verdict **depends**. Tested claim: "Le télétravail
+    100% dans l'IT est mort en 2026 — toutes les entreprises imposent un
+    retour au bureau". 6 evidence facts cover: les mandats RTO réels chez
+    Amazon (5 jours/semaine sept. 2024), Dell, Meta vs les remote-first
+    survivants (GitLab, Automattic, Doist, Buffer) ; les baromètres Welcome
+    to the Jungle + APEC sur la répartition hybride/remote/présentiel du
+    marché tech FR (~55-65% hybride, ~25-35% remote, 10-15% bureau strict) ;
+    le cadre juridique français (modification du contrat vs charte
+    télétravail, jurisprudence Cour de cassation, ANI 2020) ; les
+    préférences devs (Stack Overflow Survey 2024 — 80% remote/hybride) ; le
+    marché freelance toujours ~80-90% remote (Malt) ; la persistance des
+    remote-first companies en 2026. Sections whoCan/whoCant articulent le
+    ciblage concret (scale-ups remote-first, freelance, ancienneté senior
+    pour négocier) et les limites (juniors mal positionnés en full-remote,
+    GAFAM rigides, ESN françaises resserrées). ClaimReview JSON-LD rating=3
+    (verdict depends). Cross-links vers `/careers/`, `/career-quiz/`,
+    `/salaire/`.
+  - **Sources institutionnelles + officielles uniquement** : annonce
+    corporate Amazon RTO (about.amazon.com), Stack Overflow Developer
+    Survey 2024 (>65k répondants, section Work + Remote), Welcome to the
+    Jungle baromètre tech, APEC, Service-Public.fr pour le cadre juridique
+    télétravail, GitLab handbook public 'all-remote', Malt marketplace.
+    Pas de hot-takes LinkedIn ni de podcasts non-sourcés.
+- `scripts/gen-reality-check-pages.js` `CACHE_BUST` already at v=135 (aligned
+  with the current global `?v=` key) — no generator bump needed. The 11
+  existing myth pages regenerated idempotently except for `<meta description>`
+  / `og:description` text re-synchronised to their source-of-truth `tldr`
+  (the recurring sibling-drift documented in R14-R20 — benign, just brings
+  HTML back in line with the JSON).
+- `npm run gen-reality-check` regenerated 12 myth pages + the
+  `/reality-check/` index. sitemap.xml +1 entry (priority 0.8, monthly
+  changefreq, lastmod 2026-06-30); reality-check index lastmod bumped
+  2026-05-15 → 2026-06-30.
+- 265/265 tests still pass. No CSS/JS cache version bump (new HTML/data
+  only).
+
+---
+
 ## 📦 Content expansion R20 (2026-06-23)
 
 Scheduled-agent run targeting the PromptDungeon cluster — the longest-quiet
