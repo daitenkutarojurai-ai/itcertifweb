@@ -1,244 +1,454 @@
 {
-  "meta": {
-    "id": "rhce",
-    "name": "Red Hat Certified Engineer (RHCE EX294)",
-    "vendor": "Red Hat",
-    "version": "1.0.0",
-    "question_count": 12,
-    "last_updated": "2026-06-09",
-    "notes": " [initial seed: 12 EX294 Ansible-on-RHEL9 scenario questions]"
+ "meta": {
+  "id": "rhce",
+  "name": "Red Hat Certified Engineer (RHCE EX294)",
+  "vendor": "Red Hat",
+  "version": "1.1.0",
+  "question_count": 22,
+  "last_updated": "2026-07-03",
+  "notes": " [initial seed: 12 EX294 Ansible-on-RHEL9 scenario questions] | v1.1 (2026-07-03): +10 scenario questions — group_names conditionals, notify/handlers, Ansible Vault, extra-vars precedence, firewalld idempotence, Jinja2 templating over groups, block/rescue/always, check mode caveats, role defaults precedence, loop syntax. Rebalanced correct positions (was 42% top slot)."
+ },
+ "questions": [
+  {
+   "id": "rhce-001",
+   "question": "An engineer creates the file `/etc/ansible/hosts` on the control node, but `ansible-inventory --list` for the project still returns an empty inventory when run from `~/ex294/`. The project's `ansible.cfg` in that directory contains a `[defaults]` block with `inventory = ./inventory`. Why does Ansible ignore `/etc/ansible/hosts`?",
+   "options": [
+    "Ansible only reads `/etc/ansible/hosts` when invoked as root; the engineer must use `sudo ansible-inventory`",
+    "The project-level `ansible.cfg` overrides the system default — Ansible reads `./inventory`, not `/etc/ansible/hosts`",
+    "`/etc/ansible/hosts` must be in YAML for Ansible 2.9+; the INI format has been removed",
+    "Inventories under `/etc/` are only honored when `ANSIBLE_CONFIG` is unset, which is never the case after package install"
+   ],
+   "correct": 1,
+   "explanation": "Ansible's configuration precedence is: ANSIBLE_CONFIG env var → ./ansible.cfg in CWD → ~/.ansible.cfg → /etc/ansible/ansible.cfg. The first match wins for the whole file (no merging). Because the project's `ansible.cfg` sets `inventory = ./inventory`, the system default `/etc/ansible/hosts` is never consulted. INI is still supported (option A's claim about removal is false), and root vs user has no bearing on which config is read.",
+   "tags": [
+    "ansible-config",
+    "inventory",
+    "rhce"
+   ],
+   "difficulty": "easy",
+   "_normalized": true
   },
-  "questions": [
-    {
-      "id": "rhce-001",
-      "question": "An engineer creates the file `/etc/ansible/hosts` on the control node, but `ansible-inventory --list` for the project still returns an empty inventory when run from `~/ex294/`. The project's `ansible.cfg` in that directory contains a `[defaults]` block with `inventory = ./inventory`. Why does Ansible ignore `/etc/ansible/hosts`?",
-      "options": [
-        "Ansible only reads `/etc/ansible/hosts` when invoked as root; the engineer must use `sudo ansible-inventory`",
-        "The project-level `ansible.cfg` overrides the system default — Ansible reads `./inventory`, not `/etc/ansible/hosts`",
-        "`/etc/ansible/hosts` must be in YAML for Ansible 2.9+; the INI format has been removed",
-        "Inventories under `/etc/` are only honored when `ANSIBLE_CONFIG` is unset, which is never the case after package install"
-      ],
-      "correct": 1,
-      "explanation": "Ansible's configuration precedence is: ANSIBLE_CONFIG env var → ./ansible.cfg in CWD → ~/.ansible.cfg → /etc/ansible/ansible.cfg. The first match wins for the whole file (no merging). Because the project's `ansible.cfg` sets `inventory = ./inventory`, the system default `/etc/ansible/hosts` is never consulted. INI is still supported (option A's claim about removal is false), and root vs user has no bearing on which config is read.",
-      "tags": [
-        "ansible-config",
-        "inventory",
-        "rhce"
-      ],
-      "difficulty": "easy",
-      "_normalized": true
-    },
-    {
-      "id": "rhce-002",
-      "question": "A playbook must run on hosts in the `webservers` group, connecting as user `devops` and escalating to root via sudo without a password prompt. Which combination of play-level keywords is correct?",
-      "options": [
-        "`hosts: webservers`, `remote_user: devops`, `become: true`, `become_method: sudo`",
-        "`hosts: webservers`, `user: root`, `become: false` — sudo is implicit when targeting root",
-        "`hosts: webservers`, `connection: sudo`, `become_user: devops`",
-        "`hosts: webservers`, `remote_user: devops`, `privilege: escalate` — `privilege` is the modern replacement for `become`"
-      ],
-      "correct": 0,
-      "explanation": "`remote_user` controls who SSHs into the target; `become: true` switches identity after the connection; `become_method: sudo` (the default in most configs) chooses the escalation tool; the default `become_user` is `root`. Passwordless sudo for `devops` must be configured on the target (a sudoers drop-in). `connection:` selects a connection plugin like `ssh`/`local`/`winrm`, not an escalation method, and `privilege` is not a real keyword.",
-      "tags": [
-        "playbooks",
-        "become",
-        "rhce"
-      ],
-      "difficulty": "easy",
-      "_normalized": true
-    },
-    {
-      "id": "rhce-003",
-      "question": "A task installs the `httpd` package and is followed by a handler that restarts `httpd`. The engineer wants the handler to run only when the package was actually installed or upgraded — not on every play run. Which task definition achieves this idiomatically?",
-      "options": [
-        "Use `ansible.builtin.dnf` with `state: latest` and `register: pkg_result`, then call the handler from a `when: pkg_result.rc == 0` block",
-        "Add `changed_when: true` to force the handler to fire each run, then let the handler decide whether to restart",
-        "Use `ansible.builtin.dnf` with `state: present` plus `notify: Restart httpd` — handlers fire only when the task reports `changed`",
-        "Place the handler in `pre_tasks` so it always runs before `httpd` is touched"
-      ],
-      "correct": 2,
-      "explanation": "Handlers in Ansible are notified by tasks and run once at the end of the play, but only if the notifying task reported `changed: true`. The `dnf` module returns `changed` when it installs/upgrades a package and `ok` (unchanged) when the package is already at the requested state. So `state: present` + `notify:` gives \"restart only when the install actually changed something\" for free — no `when:` plumbing needed. Forcing `changed_when: true` defeats idempotence, and pre_tasks run before normal tasks regardless of changes.",
-      "tags": [
-        "handlers",
-        "idempotence",
-        "rhce"
-      ],
-      "difficulty": "easy",
-      "_normalized": true
-    },
-    {
-      "id": "rhce-004",
-      "question": "An engineer needs to encrypt the file `group_vars/db/vault.yml` so it can be committed to git, while leaving the other group_vars files in plaintext. Which command produces a single-file vault?",
-      "options": [
-        "`ansible-vault encrypt group_vars/db/vault.yml`",
-        "`ansible-playbook --encrypt group_vars/db/vault.yml`",
-        "`gpg --symmetric group_vars/db/vault.yml` — Ansible Vault delegates to GPG under the hood",
-        "`ansible-vault create group_vars/db/vault.yml` — `create` re-encrypts existing files in place"
-      ],
-      "correct": 0,
-      "explanation": "`ansible-vault encrypt <file>` encrypts an existing plaintext file in place using AES-256 with a password (or vault-id). `ansible-vault create` is for making a brand-new encrypted file — running it against an existing file would overwrite it. `decrypt`, `edit`, `view`, and `rekey` cover the rest of the lifecycle. Ansible Vault is a self-contained format and does not call GPG.",
-      "tags": [
-        "ansible-vault",
-        "secrets",
-        "rhce"
-      ],
-      "difficulty": "easy",
-      "_normalized": true
-    },
-    {
-      "id": "rhce-005",
-      "question": "A play needs to create the same user account on every host in a group, but the user's primary group differs per host. The engineer sets `group_vars/webservers.yml` with `primary_group: web` and `host_vars/db01.yml` with `primary_group: dba`. On `db01`, which value of `primary_group` does Ansible use?",
-      "options": [
-        "`web`, because group_vars are applied after host_vars",
-        "Ansible raises a duplicate-variable error and refuses to run",
-        "Whichever file was modified most recently on disk",
-        "`dba`, because host_vars override group_vars at the same precedence tier"
-      ],
-      "correct": 3,
-      "explanation": "Ansible's documented variable precedence (low → high) places `group_vars/all` below `group_vars/<group>` below `host_vars/<host>`. `db01.yml` is host-scoped, so its `primary_group: dba` wins on that host; on other webservers (which have no host_vars) the group value `web` applies. The order is deterministic — Ansible never errors on \"duplicate\" variables across precedence tiers, and file mtime is irrelevant.",
-      "tags": [
-        "variables",
-        "precedence",
-        "rhce"
-      ],
-      "difficulty": "medium",
-      "_normalized": true
-    },
-    {
-      "id": "rhce-006",
-      "question": "A task must create the directories `/srv/app/{cache,logs,uploads}` with mode `0755` on every host. Which task is the most idiomatic Ansible way to do this?",
-      "options": [
-        "Three separate `ansible.builtin.file` tasks, one per directory — loops are discouraged for filesystem operations",
-        "A single `ansible.builtin.command` task running `mkdir -p /srv/app/{cache,logs,uploads} && chmod 0755 ...`",
-        "A single `ansible.builtin.file` task with `state: directory`, `mode: '0755'`, and `loop: [cache, logs, uploads]` using `path: \"/srv/app/{{ item }}\"`",
-        "An `ansible.builtin.shell` task with brace expansion — only `shell` (not `command`) expands `{a,b,c}`"
-      ],
-      "correct": 2,
-      "explanation": "The `file` module with `state: directory` is the idempotent, declarative choice; iterating with `loop:` keeps the play DRY and lets Ansible report changed/ok per item. Falling back to `command`/`shell` for filesystem state defeats idempotence checks and the module's permission/owner handling. Three duplicated tasks technically work but waste lines and obscure intent — there's no \"loops discouraged\" rule.",
-      "tags": [
-        "modules",
-        "file",
-        "loops",
-        "rhce"
-      ],
-      "difficulty": "easy",
-      "_normalized": true
-    },
-    {
-      "id": "rhce-007",
-      "question": "An engineer writes a Jinja2 template `httpd.conf.j2` that should render the server's primary IPv4 address. Which expression is correct?",
-      "options": [
-        "`{{ ansible_default_ipv4.address }}` — pulled from gathered facts",
-        "`{{ ansible_facts.ip }}` — top-level shortcut added in Ansible 2.10",
-        "`{% ip = lookup('hostname', '-I') %}` — `lookup` runs on the target and returns the first interface",
-        "`{{ inventory_hostname }}` — Ansible resolves the inventory name to an IP at template time"
-      ],
-      "correct": 0,
-      "explanation": "When fact gathering is enabled (the default), Ansible exposes networking facts under `ansible_facts['default_ipv4']` (and the legacy `ansible_default_ipv4` alias). The `.address` key holds the IPv4 address of the interface used to reach the default gateway — exactly what a server config usually wants. `ansible_facts.ip` doesn't exist, `lookup` plugins run on the *controller* (not the target), and `inventory_hostname` is the inventory string verbatim, never resolved to an IP.",
-      "tags": [
-        "facts",
-        "jinja2",
-        "templates",
-        "rhce"
-      ],
-      "difficulty": "medium",
-      "_normalized": true
-    },
-    {
-      "id": "rhce-008",
-      "question": "A role called `webapp` lives in `~/ex294/roles/webapp/`. The engineer wants to call it from `site.yml` so its `tasks/main.yml`, `handlers/main.yml`, and `defaults/main.yml` all load in the standard order. Which play body is correct?",
-      "options": [
-        "Add a top-level `tasks:` block with `- import_tasks: roles/webapp/tasks/main.yml` — roles are just a directory convention",
-        "Use the play-level `roles:` keyword (alongside `hosts:`) with `- webapp` as the only entry",
-        "Add `- role: webapp` inside `pre_tasks:` — `role:` is only valid in `pre_tasks`",
-        "List `roles/webapp` under `vars_files:` — Ansible auto-discovers tasks and handlers from `vars_files` entries"
-      ],
-      "correct": 1,
-      "explanation": "The canonical way to apply a role is the play-level `roles:` keyword, which Ansible resolves under `roles_path` (project-local `./roles/`, then `~/.ansible/roles`, then `/usr/share/ansible/roles`, etc.). Ansible automatically wires `tasks/`, `handlers/`, `defaults/`, `vars/`, `meta/`, and `templates/` from the role's standard skeleton. `import_role:`/`include_role:` are valid alternatives inside `tasks:`, but pointing `import_tasks:` at a single tasks file skips all the other directories. `vars_files:` only loads variable files.",
-      "tags": [
-        "roles",
-        "playbooks",
-        "rhce"
-      ],
-      "difficulty": "medium",
-      "_normalized": true
-    },
-    {
-      "id": "rhce-009",
-      "question": "A task uses the `ansible.posix.firewalld` module to open TCP port 8080. The engineer wants the rule to apply immediately *and* survive a reboot. Which parameter combination is required?",
-      "options": [
-        "`state: enabled`, `port: 8080/tcp`, `immediate: true`, `permanent: true`",
-        "`state: enabled`, `port: 8080/tcp` — `firewalld` is permanent by default",
-        "`state: present`, `port: 8080/tcp`, `runtime: true` — `runtime` is the modern replacement for `immediate`",
-        "`state: enabled`, `port: 8080/tcp`, `permanent: true` — the runtime config reloads automatically on the next task"
-      ],
-      "correct": 0,
-      "explanation": "`firewalld` distinguishes between the *runtime* configuration (active until the daemon restarts) and the *permanent* configuration (written to `/etc/firewalld/`, applied on reload). The Ansible module mirrors this with `immediate: true` (apply now) and `permanent: true` (write to disk). You need both to satisfy \"apply now and survive a reboot.\" `state:` for ports is `enabled`/`disabled`, not `present`/`absent`, and there is no `runtime:` parameter.",
-      "tags": [
-        "firewalld",
-        "networking",
-        "rhce"
-      ],
-      "difficulty": "medium",
-      "_normalized": true
-    },
-    {
-      "id": "rhce-010",
-      "question": "An engineer needs to attempt a risky migration step, run a cleanup task whether it succeeds or fails, and substitute a fallback configuration only if the migration raised an error. Which Ansible construct expresses this cleanly?",
-      "options": [
-        "Three sequential tasks with `ignore_errors: true` on the first and `when:` guards on the others, inspecting the registered result",
-        "A single task with `failed_when: false` and a `notify:` to a handler that decides what to do",
-        "A `block:` / `rescue:` / `always:` structure — main steps in `block`, fallback in `rescue`, cleanup in `always`",
-        "`pre_tasks:` for the migration, `post_tasks:` for cleanup, and `rescue_tasks:` for the fallback"
-      ],
-      "correct": 2,
-      "explanation": "Ansible's `block:` / `rescue:` / `always:` mirrors try/except/finally: tasks under `block:` run normally, `rescue:` runs only if a `block:` task failed, and `always:` runs after either path — making it the idiomatic way to express \"try X, fall back to Y on error, clean up either way.\" Hand-rolling the same logic with `ignore_errors` + `register` + `when:` works but is verbose and easy to get wrong. `failed_when: false` only suppresses failure on one task and doesn't branch. `rescue_tasks:` is not a real keyword.",
-      "tags": [
-        "error-handling",
-        "block-rescue",
-        "rhce"
-      ],
-      "difficulty": "medium",
-      "_normalized": true
-    },
-    {
-      "id": "rhce-011",
-      "question": "An engineer wants the `webapp` role's variables in `defaults/main.yml` to be overridable from `group_vars/webservers.yml`, but its variables in `vars/main.yml` to take precedence over everything except command-line `-e`. Which statement matches Ansible's documented precedence?",
-      "options": [
-        "`defaults/main.yml` sits near the bottom of the precedence chain (overridable by inventory and group_vars), while `vars/main.yml` sits near the top (only `-e` and a few task-level keywords beat it)",
-        "`defaults/main.yml` and `vars/main.yml` are equivalent — they're merged at role load time",
-        "`defaults/main.yml` always wins because Ansible loads it last",
-        "Both are overridden by host facts, regardless of role-internal scope"
-      ],
-      "correct": 0,
-      "explanation": "Role `defaults/main.yml` is at the very bottom of variable precedence — it exists precisely so callers (inventory, group_vars, host_vars, play vars) can override role defaults without editing the role. Role `vars/main.yml` is near the top — only `-e` (extra vars), task `vars:`, `include_vars`, `set_fact`, and a few task-level keywords beat it. This split is the recommended pattern: defaults are configurable knobs, `vars/` are role-internal constants. Host facts have their own (mid-range) tier and do not override either uniformly.",
-      "tags": [
-        "roles",
-        "variables",
-        "precedence",
-        "rhce"
-      ],
-      "difficulty": "hard",
-      "_normalized": true
-    },
-    {
-      "id": "rhce-012",
-      "question": "An engineer runs `ansible-playbook site.yml --syntax-check` and gets `ok`, then runs `--check` and gets `ok` again, but the actual run fails because a templated path doesn't exist on disk. Why didn't `--check` catch it?",
-      "options": [
-        "`--check` only validates YAML, just like `--syntax-check`; the two are aliases",
-        "Check mode skips fact gathering, so templated paths that depend on facts are never evaluated",
-        "Check mode reports what *would* change without making changes — modules that don't support check mode are skipped, and operations like `file: state: directory` against a parent path that doesn't exist won't be created during the dry run, so dependent checks may falsely pass",
-        "`--check` requires `--diff` to actually exercise templates; without it, templates are not rendered"
-      ],
-      "correct": 2,
-      "explanation": "`--syntax-check` is a parse-only pass (YAML + Ansible keywords). `--check` is dry-run/check mode: Ansible reports the changes each module *would* make, without applying them. Crucially, modules that don't implement check mode are skipped, and any task whose success depends on side effects of a *previous* task (e.g., a directory created earlier in the play) will not see those side effects in check mode — so a later task that templates a file into that not-yet-created directory may pass the dry run but fail for real. Fact gathering still runs in check mode (B is wrong), and templates render normally without `--diff` (D is wrong).",
-      "tags": [
-        "check-mode",
-        "playbooks",
-        "rhce"
-      ],
-      "difficulty": "hard",
-      "_normalized": true
-    }
-  ]
+  {
+   "id": "rhce-002",
+   "question": "A playbook must run on hosts in the `webservers` group, connecting as user `devops` and escalating to root via sudo without a password prompt. Which combination of play-level keywords is correct?",
+   "options": [
+    "`hosts: webservers`, `remote_user: devops`, `become: true`, `become_method: sudo`",
+    "`hosts: webservers`, `user: root`, `become: false` — sudo is implicit when targeting root",
+    "`hosts: webservers`, `connection: sudo`, `become_user: devops`",
+    "`hosts: webservers`, `remote_user: devops`, `privilege: escalate` — `privilege` is the modern replacement for `become`"
+   ],
+   "correct": 0,
+   "explanation": "`remote_user` controls who SSHs into the target; `become: true` switches identity after the connection; `become_method: sudo` (the default in most configs) chooses the escalation tool; the default `become_user` is `root`. Passwordless sudo for `devops` must be configured on the target (a sudoers drop-in). `connection:` selects a connection plugin like `ssh`/`local`/`winrm`, not an escalation method, and `privilege` is not a real keyword.",
+   "tags": [
+    "playbooks",
+    "become",
+    "rhce"
+   ],
+   "difficulty": "easy",
+   "_normalized": true
+  },
+  {
+   "id": "rhce-003",
+   "question": "A task installs the `httpd` package and is followed by a handler that restarts `httpd`. The engineer wants the handler to run only when the package was actually installed or upgraded — not on every play run. Which task definition achieves this idiomatically?",
+   "options": [
+    "Use `ansible.builtin.dnf` with `state: latest` and `register: pkg_result`, then call the handler from a `when: pkg_result.rc == 0` block",
+    "Add `changed_when: true` to force the handler to fire each run, then let the handler decide whether to restart",
+    "Use `ansible.builtin.dnf` with `state: present` plus `notify: Restart httpd` — handlers fire only when the task reports `changed`",
+    "Place the handler in `pre_tasks` so it always runs before `httpd` is touched"
+   ],
+   "correct": 2,
+   "explanation": "Handlers in Ansible are notified by tasks and run once at the end of the play, but only if the notifying task reported `changed: true`. The `dnf` module returns `changed` when it installs/upgrades a package and `ok` (unchanged) when the package is already at the requested state. So `state: present` + `notify:` gives \"restart only when the install actually changed something\" for free — no `when:` plumbing needed. Forcing `changed_when: true` defeats idempotence, and pre_tasks run before normal tasks regardless of changes.",
+   "tags": [
+    "handlers",
+    "idempotence",
+    "rhce"
+   ],
+   "difficulty": "easy",
+   "_normalized": true
+  },
+  {
+   "id": "rhce-004",
+   "question": "An engineer needs to encrypt the file `group_vars/db/vault.yml` so it can be committed to git, while leaving the other group_vars files in plaintext. Which command produces a single-file vault?",
+   "options": [
+    "`ansible-vault encrypt group_vars/db/vault.yml`",
+    "`ansible-playbook --encrypt group_vars/db/vault.yml`",
+    "`gpg --symmetric group_vars/db/vault.yml` — Ansible Vault delegates to GPG under the hood",
+    "`ansible-vault create group_vars/db/vault.yml` — `create` re-encrypts existing files in place"
+   ],
+   "correct": 0,
+   "explanation": "`ansible-vault encrypt <file>` encrypts an existing plaintext file in place using AES-256 with a password (or vault-id). `ansible-vault create` is for making a brand-new encrypted file — running it against an existing file would overwrite it. `decrypt`, `edit`, `view`, and `rekey` cover the rest of the lifecycle. Ansible Vault is a self-contained format and does not call GPG.",
+   "tags": [
+    "ansible-vault",
+    "secrets",
+    "rhce"
+   ],
+   "difficulty": "easy",
+   "_normalized": true
+  },
+  {
+   "id": "rhce-005",
+   "question": "A play needs to create the same user account on every host in a group, but the user's primary group differs per host. The engineer sets `group_vars/webservers.yml` with `primary_group: web` and `host_vars/db01.yml` with `primary_group: dba`. On `db01`, which value of `primary_group` does Ansible use?",
+   "options": [
+    "`web`, because group_vars are applied after host_vars",
+    "Ansible raises a duplicate-variable error and refuses to run",
+    "Whichever file was modified most recently on disk",
+    "`dba`, because host_vars override group_vars at the same precedence tier"
+   ],
+   "correct": 3,
+   "explanation": "Ansible's documented variable precedence (low → high) places `group_vars/all` below `group_vars/<group>` below `host_vars/<host>`. `db01.yml` is host-scoped, so its `primary_group: dba` wins on that host; on other webservers (which have no host_vars) the group value `web` applies. The order is deterministic — Ansible never errors on \"duplicate\" variables across precedence tiers, and file mtime is irrelevant.",
+   "tags": [
+    "variables",
+    "precedence",
+    "rhce"
+   ],
+   "difficulty": "medium",
+   "_normalized": true
+  },
+  {
+   "id": "rhce-006",
+   "question": "A task must create the directories `/srv/app/{cache,logs,uploads}` with mode `0755` on every host. Which task is the most idiomatic Ansible way to do this?",
+   "options": [
+    "Three separate `ansible.builtin.file` tasks, one per directory — loops are discouraged for filesystem operations",
+    "A single `ansible.builtin.command` task running `mkdir -p /srv/app/{cache,logs,uploads} && chmod 0755 ...`",
+    "A single `ansible.builtin.file` task with `state: directory`, `mode: '0755'`, and `loop: [cache, logs, uploads]` using `path: \"/srv/app/{{ item }}\"`",
+    "An `ansible.builtin.shell` task with brace expansion — only `shell` (not `command`) expands `{a,b,c}`"
+   ],
+   "correct": 2,
+   "explanation": "The `file` module with `state: directory` is the idempotent, declarative choice; iterating with `loop:` keeps the play DRY and lets Ansible report changed/ok per item. Falling back to `command`/`shell` for filesystem state defeats idempotence checks and the module's permission/owner handling. Three duplicated tasks technically work but waste lines and obscure intent — there's no \"loops discouraged\" rule.",
+   "tags": [
+    "modules",
+    "file",
+    "loops",
+    "rhce"
+   ],
+   "difficulty": "easy",
+   "_normalized": true
+  },
+  {
+   "id": "rhce-007",
+   "question": "An engineer writes a Jinja2 template `httpd.conf.j2` that should render the server's primary IPv4 address. Which expression is correct?",
+   "options": [
+    "`{{ ansible_default_ipv4.address }}` — pulled from gathered facts",
+    "`{{ ansible_facts.ip }}` — top-level shortcut added in Ansible 2.10",
+    "`{% ip = lookup('hostname', '-I') %}` — `lookup` runs on the target and returns the first interface",
+    "`{{ inventory_hostname }}` — Ansible resolves the inventory name to an IP at template time"
+   ],
+   "correct": 0,
+   "explanation": "When fact gathering is enabled (the default), Ansible exposes networking facts under `ansible_facts['default_ipv4']` (and the legacy `ansible_default_ipv4` alias). The `.address` key holds the IPv4 address of the interface used to reach the default gateway — exactly what a server config usually wants. `ansible_facts.ip` doesn't exist, `lookup` plugins run on the *controller* (not the target), and `inventory_hostname` is the inventory string verbatim, never resolved to an IP.",
+   "tags": [
+    "facts",
+    "jinja2",
+    "templates",
+    "rhce"
+   ],
+   "difficulty": "medium",
+   "_normalized": true
+  },
+  {
+   "id": "rhce-008",
+   "question": "A role called `webapp` lives in `~/ex294/roles/webapp/`. The engineer wants to call it from `site.yml` so its `tasks/main.yml`, `handlers/main.yml`, and `defaults/main.yml` all load in the standard order. Which play body is correct?",
+   "options": [
+    "Add a top-level `tasks:` block with `- import_tasks: roles/webapp/tasks/main.yml` — roles are just a directory convention",
+    "Use the play-level `roles:` keyword (alongside `hosts:`) with `- webapp` as the only entry",
+    "Add `- role: webapp` inside `pre_tasks:` — `role:` is only valid in `pre_tasks`",
+    "List `roles/webapp` under `vars_files:` — Ansible auto-discovers tasks and handlers from `vars_files` entries"
+   ],
+   "correct": 1,
+   "explanation": "The canonical way to apply a role is the play-level `roles:` keyword, which Ansible resolves under `roles_path` (project-local `./roles/`, then `~/.ansible/roles`, then `/usr/share/ansible/roles`, etc.). Ansible automatically wires `tasks/`, `handlers/`, `defaults/`, `vars/`, `meta/`, and `templates/` from the role's standard skeleton. `import_role:`/`include_role:` are valid alternatives inside `tasks:`, but pointing `import_tasks:` at a single tasks file skips all the other directories. `vars_files:` only loads variable files.",
+   "tags": [
+    "roles",
+    "playbooks",
+    "rhce"
+   ],
+   "difficulty": "medium",
+   "_normalized": true
+  },
+  {
+   "id": "rhce-009",
+   "question": "A task uses the `ansible.posix.firewalld` module to open TCP port 8080. The engineer wants the rule to apply immediately *and* survive a reboot. Which parameter combination is required?",
+   "options": [
+    "`state: enabled`, `port: 8080/tcp`, `immediate: true`, `permanent: true`",
+    "`state: enabled`, `port: 8080/tcp` — `firewalld` is permanent by default",
+    "`state: present`, `port: 8080/tcp`, `runtime: true` — `runtime` is the modern replacement for `immediate`",
+    "`state: enabled`, `port: 8080/tcp`, `permanent: true` — the runtime config reloads automatically on the next task"
+   ],
+   "correct": 0,
+   "explanation": "`firewalld` distinguishes between the *runtime* configuration (active until the daemon restarts) and the *permanent* configuration (written to `/etc/firewalld/`, applied on reload). The Ansible module mirrors this with `immediate: true` (apply now) and `permanent: true` (write to disk). You need both to satisfy \"apply now and survive a reboot.\" `state:` for ports is `enabled`/`disabled`, not `present`/`absent`, and there is no `runtime:` parameter.",
+   "tags": [
+    "firewalld",
+    "networking",
+    "rhce"
+   ],
+   "difficulty": "medium",
+   "_normalized": true
+  },
+  {
+   "id": "rhce-010",
+   "question": "An engineer needs to attempt a risky migration step, run a cleanup task whether it succeeds or fails, and substitute a fallback configuration only if the migration raised an error. Which Ansible construct expresses this cleanly?",
+   "options": [
+    "Three sequential tasks with `ignore_errors: true` on the first and `when:` guards on the others, inspecting the registered result",
+    "A single task with `failed_when: false` and a `notify:` to a handler that decides what to do",
+    "A `block:` / `rescue:` / `always:` structure — main steps in `block`, fallback in `rescue`, cleanup in `always`",
+    "`pre_tasks:` for the migration, `post_tasks:` for cleanup, and `rescue_tasks:` for the fallback"
+   ],
+   "correct": 2,
+   "explanation": "Ansible's `block:` / `rescue:` / `always:` mirrors try/except/finally: tasks under `block:` run normally, `rescue:` runs only if a `block:` task failed, and `always:` runs after either path — making it the idiomatic way to express \"try X, fall back to Y on error, clean up either way.\" Hand-rolling the same logic with `ignore_errors` + `register` + `when:` works but is verbose and easy to get wrong. `failed_when: false` only suppresses failure on one task and doesn't branch. `rescue_tasks:` is not a real keyword.",
+   "tags": [
+    "error-handling",
+    "block-rescue",
+    "rhce"
+   ],
+   "difficulty": "medium",
+   "_normalized": true
+  },
+  {
+   "id": "rhce-011",
+   "question": "An engineer wants the `webapp` role's variables in `defaults/main.yml` to be overridable from `group_vars/webservers.yml`, but its variables in `vars/main.yml` to take precedence over everything except command-line `-e`. Which statement matches Ansible's documented precedence?",
+   "options": [
+    "`defaults/main.yml` sits near the bottom of the precedence chain (overridable by inventory and group_vars), while `vars/main.yml` sits near the top (only `-e` and a few task-level keywords beat it)",
+    "`defaults/main.yml` and `vars/main.yml` are equivalent — they're merged at role load time",
+    "`defaults/main.yml` always wins because Ansible loads it last",
+    "Both are overridden by host facts, regardless of role-internal scope"
+   ],
+   "correct": 0,
+   "explanation": "Role `defaults/main.yml` is at the very bottom of variable precedence — it exists precisely so callers (inventory, group_vars, host_vars, play vars) can override role defaults without editing the role. Role `vars/main.yml` is near the top — only `-e` (extra vars), task `vars:`, `include_vars`, `set_fact`, and a few task-level keywords beat it. This split is the recommended pattern: defaults are configurable knobs, `vars/` are role-internal constants. Host facts have their own (mid-range) tier and do not override either uniformly.",
+   "tags": [
+    "roles",
+    "variables",
+    "precedence",
+    "rhce"
+   ],
+   "difficulty": "hard",
+   "_normalized": true
+  },
+  {
+   "id": "rhce-012",
+   "question": "An engineer runs `ansible-playbook site.yml --syntax-check` and gets `ok`, then runs `--check` and gets `ok` again, but the actual run fails because a templated path doesn't exist on disk. Why didn't `--check` catch it?",
+   "options": [
+    "`--check` only validates YAML, just like `--syntax-check`; the two are aliases",
+    "Check mode skips fact gathering, so templated paths that depend on facts are never evaluated",
+    "Check mode reports what *would* change without making changes — modules that don't support check mode are skipped, and operations like `file: state: directory` against a parent path that doesn't exist won't be created during the dry run, so dependent checks may falsely pass",
+    "`--check` requires `--diff` to actually exercise templates; without it, templates are not rendered"
+   ],
+   "correct": 2,
+   "explanation": "`--syntax-check` is a parse-only pass (YAML + Ansible keywords). `--check` is dry-run/check mode: Ansible reports the changes each module *would* make, without applying them. Crucially, modules that don't implement check mode are skipped, and any task whose success depends on side effects of a *previous* task (e.g., a directory created earlier in the play) will not see those side effects in check mode — so a later task that templates a file into that not-yet-created directory may pass the dry run but fail for real. Fact gathering still runs in check mode (B is wrong), and templates render normally without `--diff` (D is wrong).",
+   "tags": [
+    "check-mode",
+    "playbooks",
+    "rhce"
+   ],
+   "difficulty": "hard",
+   "_normalized": true
+  },
+  {
+   "id": "rhce-013",
+   "question": "A play must run a task only on hosts in the `webservers` group and skip others, without editing the inventory. Which construct fits BEST inside a single playbook targeting all hosts?",
+   "options": [
+    "Put the task in a separate playbook and run it manually on webservers.",
+    "Hard-code the webserver IPs in the task.",
+    "Delete non-webserver hosts from memory with a shell command.",
+    "Use a `when: \"'webservers' in group_names\"` conditional on the task."
+   ],
+   "correct": 3,
+   "explanation": "`group_names` is a magic variable listing the groups the current host belongs to, so `when: \"'webservers' in group_names\"` runs the task only on hosts in that group while the play still targets all. A separate manual playbook defeats automation, deleting hosts at runtime is not how inventory works, and hard-coding IPs breaks idempotence and reuse.",
+   "tags": [
+    "conditionals",
+    "group_names",
+    "playbooks",
+    "rhce"
+   ],
+   "difficulty": "medium",
+   "domain": "Run Playbooks",
+   "_normalized": true
+  },
+  {
+   "id": "rhce-014",
+   "question": "A task installs a package and should only restart the service when the package actually changed. Which Ansible mechanism implements this correctly?",
+   "options": [
+    "Always run a restart task at the end of every play.",
+    "Notify a handler from the package task; the handler runs once at the end only if the task reported changed.",
+    "Use a shell command to grep the package version and restart conditionally.",
+    "Set the restart task to `ignore_errors: true`."
+   ],
+   "correct": 1,
+   "explanation": "Handlers are triggered by `notify` and run (once, at the end of the play) only when the notifying task reports a changed state — exactly 'restart only if the package changed'. Always restarting is not idempotent, a shell/grep approach is fragile and non-idempotent, and `ignore_errors` merely suppresses failures rather than gating on change.",
+   "tags": [
+    "handlers",
+    "notify",
+    "idempotence",
+    "rhce"
+   ],
+   "difficulty": "easy",
+   "domain": "Handlers and Task Control",
+   "_normalized": true
+  },
+  {
+   "id": "rhce-015",
+   "question": "Sensitive variables (passwords) must live in the repo but never in plaintext. Which Ansible feature encrypts them, and how are they used at runtime?",
+   "options": [
+    "Base64-encode the variables in the playbook.",
+    "Put them in the shell environment and echo them into tasks.",
+    "Store them in group_vars/all in plaintext but restrict file permissions.",
+    "Use Ansible Vault to encrypt the file, and supply the vault password (or a vault-id) at run time so tasks decrypt in memory."
+   ],
+   "correct": 3,
+   "explanation": "Ansible Vault encrypts variable files (or single values) at rest in the repo; at run time you provide the vault password or a vault-id (`--ask-vault-pass`/`--vault-id`) and Ansible decrypts the content in memory for the play. Base64 is encoding, not encryption; plaintext group_vars with file permissions is still plaintext; and echoing env vars leaks secrets into process/history.",
+   "tags": [
+    "ansible-vault",
+    "secrets",
+    "security",
+    "rhce"
+   ],
+   "difficulty": "easy",
+   "domain": "Manage Secrets",
+   "_normalized": true
+  },
+  {
+   "id": "rhce-016",
+   "question": "Two variable definitions for the same name exist: one in `group_vars` and one passed with `-e` (extra-vars) on the command line. Which value wins?",
+   "options": [
+    "The group_vars value, because inventory is authoritative.",
+    "The extra-vars (`-e`) value, because command-line extra-vars have the highest precedence.",
+    "Whichever is alphabetically first.",
+    "They are merged into a list automatically."
+   ],
+   "correct": 1,
+   "explanation": "In Ansible variable precedence, extra-vars supplied with `-e` on the command line have the highest priority and override group_vars and nearly everything else. Inventory group_vars sit much lower in the precedence order, precedence is not alphabetical, and scalar variables are overridden (not merged into a list) by higher-precedence sources.",
+   "tags": [
+    "variables",
+    "precedence",
+    "extra-vars",
+    "rhce"
+   ],
+   "difficulty": "medium",
+   "domain": "Manage Variables and Facts",
+   "_normalized": true
+  },
+  {
+   "id": "rhce-017",
+   "question": "A playbook must open the `https` service in firewalld and make the change persist across reboots, idempotently. Which task is correct?",
+   "options": [
+    "Use the `command` module to run `firewall-cmd --add-service=https` each run.",
+    "Use the `shell` module to append an iptables rule.",
+    "Edit /etc/sysconfig manually with the `copy` module.",
+    "Use the `ansible.posix.firewalld` module with service=https, state=enabled, permanent=true, and immediate=true."
+   ],
+   "correct": 3,
+   "explanation": "The `firewalld` module manages rules idempotently; setting service=https, state=enabled, permanent=true (survives reboot) and immediate=true (applies now) is the correct, idempotent way. A raw `firewall-cmd` command is not idempotent and would report changed every run, editing sysconfig by hand is fragile, and appending iptables rules bypasses firewalld and is not idempotent.",
+   "tags": [
+    "firewalld",
+    "modules",
+    "idempotence",
+    "rhce"
+   ],
+   "difficulty": "medium",
+   "domain": "System Configuration",
+   "_normalized": true
+  },
+  {
+   "id": "rhce-018",
+   "question": "A template must render a config file listing every host in the play's group. Which combination generates it?",
+   "options": [
+    "A static `copy` of a pre-written file with the hosts hard-coded.",
+    "A Jinja2 `template` task iterating over `groups['webservers']` (using hostvars/facts) to render entries dynamically.",
+    "A `lineinfile` task run once per host manually.",
+    "A `debug` task printing the hosts to stdout."
+   ],
+   "correct": 1,
+   "explanation": "The `template` module renders a Jinja2 template on the controller and copies the result; looping in Jinja2 over `groups['webservers']` (and referencing hostvars) produces a config listing every group member dynamically. A static copy hard-codes hosts, lineinfile edits single lines rather than generating a full list, and debug only prints — it writes no file.",
+   "tags": [
+    "templates",
+    "jinja2",
+    "facts",
+    "rhce"
+   ],
+   "difficulty": "medium",
+   "domain": "Templating",
+   "_normalized": true
+  },
+  {
+   "id": "rhce-019",
+   "question": "A block of tasks may fail, and the playbook must run cleanup tasks whether or not the block succeeds, plus specific recovery only on failure. Which structure fits?",
+   "options": [
+    "Wrap each task in `ignore_errors: true`.",
+    "Put all tasks in a single shell script with `set -e`.",
+    "Use a `block:` with a `rescue:` section (runs on failure) and an `always:` section (runs regardless).",
+    "Use a handler notified at the end."
+   ],
+   "correct": 2,
+   "explanation": "Ansible's block/rescue/always mirrors try/except/finally: `block` holds the main tasks, `rescue` runs only if a block task fails (recovery), and `always` runs regardless (cleanup). `ignore_errors` hides failures without structured recovery, a shell script abandons Ansible's task model, and handlers run on change notification, not as failure-handling/cleanup control flow.",
+   "tags": [
+    "error-handling",
+    "block-rescue",
+    "task-control",
+    "rhce"
+   ],
+   "difficulty": "medium",
+   "domain": "Handlers and Task Control",
+   "_normalized": true
+  },
+  {
+   "id": "rhce-020",
+   "question": "An engineer wants to preview what a playbook would change without applying it. Which invocation is correct, and what is a key caveat?",
+   "options": [
+    "Run with `--syntax-check`, which shows all changes that would be made.",
+    "Use `-vvvv` verbosity, which prevents any change from being applied.",
+    "Run normally and then manually revert everything.",
+    "Run with `--check` (check mode); it reports would-be changes, but tasks that depend on prior task results may be inaccurate because earlier changes were not actually applied."
+   ],
+   "correct": 3,
+   "explanation": "`--check` (check/dry-run mode) reports what would change without applying it; the caveat is that when later tasks depend on the effects of earlier tasks (which did not really run), check-mode output for those tasks can be inaccurate. `--syntax-check` only validates YAML/syntax, running-then-reverting is not a dry run, and `-vvvv` only increases logging — it still applies changes.",
+   "tags": [
+    "check-mode",
+    "dry-run",
+    "playbooks",
+    "rhce"
+   ],
+   "difficulty": "hard",
+   "domain": "Run Playbooks",
+   "_normalized": true
+  },
+  {
+   "id": "rhce-021",
+   "question": "A reusable role must ship sensible default variable values that a playbook can easily override. Where should those defaults live, and what is their precedence?",
+   "options": [
+    "In `roles/x/defaults/main.yml`, which has the lowest precedence so playbook/inventory vars easily override it.",
+    "In `roles/x/vars/main.yml`, which cannot be overridden by the playbook.",
+    "In the inventory file, which has the highest precedence.",
+    "Hard-coded inside each task, so they cannot change."
+   ],
+   "correct": 0,
+   "explanation": "Role defaults belong in `defaults/main.yml`, which sits at the lowest variable precedence precisely so consumers can override them from the playbook, inventory, or extra-vars. `vars/main.yml` has much higher precedence and is hard to override, inventory is not the place for role defaults, and hard-coding values in tasks removes configurability.",
+   "tags": [
+    "roles",
+    "defaults",
+    "precedence",
+    "rhce"
+   ],
+   "difficulty": "hard",
+   "domain": "Manage Variables and Facts",
+   "_normalized": true
+  },
+  {
+   "id": "rhce-022",
+   "question": "A task must loop over a list of users and create each one. Which is the current, recommended looping syntax in Ansible?",
+   "options": [
+    "`with_items:` is the only supported syntax and must always be used.",
+    "Use `loop:` with the list (e.g., loop: \"{{ users }}\") and reference each element with `item`.",
+    "Copy the task once per user manually.",
+    "Use a Jinja2 `for` loop directly around the YAML task."
+   ],
+   "correct": 1,
+   "explanation": "Modern Ansible recommends `loop:` for iterating a list, referencing the current element as `item` (e.g., in the user module's name). `with_items` still works but `loop` is the current guidance, copying the task per user is not maintainable, and Jinja2 `for` loops cannot wrap a YAML task block to iterate it — looping is a task-level keyword.",
+   "tags": [
+    "loops",
+    "modules",
+    "playbooks",
+    "rhce"
+   ],
+   "difficulty": "easy",
+   "domain": "Run Playbooks",
+   "_normalized": true
+  }
+ ]
 }
