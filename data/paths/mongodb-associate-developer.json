@@ -1,0 +1,570 @@
+{
+  "packId": "mongodb-associate-developer",
+  "title": "MongoDB Associate Developer (DEV-1100)",
+  "brandName": "MongoDB",
+  "brandColor": "#60a5fa",
+  "chapters": [
+    {
+      "id": "ch1",
+      "title": "Crud",
+      "tag": "crud",
+      "nodes": [
+        {
+          "id": "c1-concept",
+          "type": "concept",
+          "title": "Crud: Key Ideas",
+          "content": "Quick primer on Crud. Tap to flip cards covering the most-asked exam ideas in this domain.",
+          "flashcards": [
+            {
+              "front": "A Node.js service needs every document in the `orders` collection whose `total` is at least 100 AND whose `status` is one of `\"shipped\"` or `\"delivered\"`. Which filter document expresses this for `collection.find(...)`?",
+              "back": "MongoDB query operators use `$gte` for greater-or-equal and `$in` for set membership; multiple top-level fields in the same document are implicitly AND-ed, so `{ total: { $gte: 100 }, status: { $in: [...] } }` is the idiomatic form. `$ge`/`$min`/`$any` and a top-level `$or` over a raw array are not valid MongoDB operators. The `$where` form would technically run but defeats indexes by forcing a JavaScript scan and is heavily discouraged for ordinary equality/range predicates."
+            },
+            {
+              "front": "A developer wants to set `status: \"paid\"` and increment `paymentCount` by 1 on the FIRST document in `invoices` matching `{ customerId: 42, status: \"open\" }`, leaving all other fields untouched. Which call does that?",
+              "back": "`updateOne` with an update document built from `$set` and `$inc` modifies exactly the listed fields on one matching document and leaves the rest intact. `replaceOne` would discard every other field on the document (any field not in the replacement is lost). `findOneAndDelete` removes the document — its second argument is options, not an update. The fourth form omits the update operators at the top level, so the driver would reject it (or, on older drivers, attempt a full replacement) instead of incrementing."
+            },
+            {
+              "front": "A collection stores blog posts with an embedded `comments` array. A feature must append a new comment only if the same `commentId` is not already present, in a single atomic update. Which operator combination is correct?",
+              "back": "`$addToSet` adds a value to an array only when an equal value is not already present, giving the required 'insert-if-absent' semantics in one atomic update. `$push` always appends and never deduplicates (even with `$each`). Setting a specific array index with `$set` requires knowing the position and is not a presence check. You cannot apply `$pull` and `$push` to the same field in one update document — MongoDB rejects conflicting operators on the same path, and even if split it would not be an atomic dedup."
+            },
+            {
+              "front": "Which update correctly increments a document's `views` field by 1 and sets `lastViewed` to the current server time in a single operation, creating `views` if it does not exist?",
+              "back": "`$inc` atomically increases a numeric field and creates it (starting from the increment) if absent, and `$currentDate` sets a field to the current date/time — combined in one update document they do both atomically. `$add` is an aggregation-expression operator, not an update operator, and `Date.now()` would be evaluated client-side rather than by the server. `$increment` and `$now` are not valid update operators, and the last option inverts the operator/field nesting, which MongoDB will not accept."
+            }
+          ],
+          "source": "auto-derived"
+        },
+        {
+          "id": "c1-quiz1",
+          "type": "quiz",
+          "title": "Crud — Drill 1",
+          "questionIds": [
+            "mdb-001",
+            "mdb-002",
+            "mdb-016",
+            "mdb-020",
+            "mdb-011"
+          ]
+        },
+        {
+          "id": "c1-game",
+          "type": "minigame",
+          "gameType": "lightning",
+          "mode": "lightning-round",
+          "data": {
+            "secondsPerQuestion": 7,
+            "livesAllowed": 3,
+            "questions": [
+              {
+                "q": "A Node.js service needs every document in the `orders` collection whose `total` is at least 100 AND whose `status` is one of `\"shipped\"` or `\"delivered\"`. Which filter document expresses this for `collection.find(...)`?",
+                "choices": [
+                  "{ total: { $gte: 100 }, status: { $in: [\"shipped\", \"delivered\"] } }",
+                  "{ $and: [ { total: { $min: 100 } }, { status: { $any: [\"shipped\", \"delivered\"] } } ] }",
+                  "{ total: { $ge: 100 }, status: { $or: [\"shipped\", \"delivered\"] } }",
+                  "{ where: \"this.total >= 100 && (this.status == 'shipped' || this.status == 'delivered')\" }"
+                ],
+                "correctIndex": 0,
+                "explanation": "MongoDB query operators use `$gte` for greater-or-equal and `$in` for set membership; multiple top-level fields in the same document are implicitly AND-ed, so `{ total: { $gte: 100 }, status: { $in: [...] } }` is the idiomatic form. `$ge`/`$min`/`$any` and a top-level `$or` over a raw array are not valid MongoDB operators. The `$where` form would technically run but defeats indexes by forcing a JavaScript scan and is heavily discouraged for ordinary equality/range predicates."
+              },
+              {
+                "q": "A developer wants to set `status: \"paid\"` and increment `paymentCount` by 1 on the FIRST document in `invoices` matching `{ customerId: 42, status: \"open\" }`, leaving all other fields untouched. Which call does that?",
+                "choices": [
+                  "db.invoices.replaceOne({ customerId: 42, status: \"open\" }, { status: \"paid\", paymentCount: 1 })",
+                  "db.invoices.findOneAndDelete({ customerId: 42, status: \"open\" }, { status: \"paid\" })",
+                  "db.invoices.updateOne({ customerId: 42, status: \"open\" }, { $set: { status: \"paid\" }, $inc: { paymentCount: 1 } })",
+                  "db.invoices.updateOne({ customerId: 42, status: \"open\" }, { status: \"paid\", paymentCount: { $inc: 1 } })"
+                ],
+                "correctIndex": 2,
+                "explanation": "`updateOne` with an update document built from `$set` and `$inc` modifies exactly the listed fields on one matching document and leaves the rest intact. `replaceOne` would discard every other field on the document (any field not in the replacement is lost). `findOneAndDelete` removes the document — its second argument is options, not an update. The fourth form omits the update operators at the top level, so the driver would reject it (or, on older drivers, attempt a full replacement) instead of incrementing."
+              },
+              {
+                "q": "A collection stores blog posts with an embedded `comments` array. A feature must append a new comment only if the same `commentId` is not already present, in a single atomic update. Which operator combination is correct?",
+                "choices": [
+                  "`$addToSet` with the full comment subdocument, which adds the element only if an identical element is not already in the array.",
+                  "`$push` with `$each`, because $push automatically deduplicates by _id.",
+                  "`$set` on the array index, which is atomic and idempotent by default.",
+                  "`$pull` followed by `$push` in the same update document, which Mongo runs left to right."
+                ],
+                "correctIndex": 0,
+                "explanation": "`$addToSet` adds a value to an array only when an equal value is not already present, giving the required 'insert-if-absent' semantics in one atomic update. `$push` always appends and never deduplicates (even with `$each`). Setting a specific array index with `$set` requires knowing the position and is not a presence check. You cannot apply `$pull` and `$push` to the same field in one update document — MongoDB rejects conflicting operators on the same path, and even if split it would not be an atomic dedup."
+              },
+              {
+                "q": "Which update correctly increments a document's `views` field by 1 and sets `lastViewed` to the current server time in a single operation, creating `views` if it does not exist?",
+                "choices": [
+                  "`{ views: { $inc: 1 }, lastViewed: { $currentDate: true } }`",
+                  "`{ $add: { views: 1 }, $set: { lastViewed: Date.now() } }`",
+                  "`{ $increment: { views: 1 }, $now: { lastViewed: 1 } }`",
+                  "`{ $inc: { views: 1 }, $currentDate: { lastViewed: true } }`"
+                ],
+                "correctIndex": 3,
+                "explanation": "`$inc` atomically increases a numeric field and creates it (starting from the increment) if absent, and `$currentDate` sets a field to the current date/time — combined in one update document they do both atomically. `$add` is an aggregation-expression operator, not an update operator, and `Date.now()` would be evaluated client-side rather than by the server. `$increment` and `$now` are not valid update operators, and the last option inverts the operator/field nesting, which MongoDB will not accept."
+              },
+              {
+                "q": "A profile API endpoint must return each user document with only the `name` and `email` fields present and the default `_id` field explicitly excluded, using a single `find()` projection. Which projection document is correct?",
+                "choices": [
+                  "`.find({}, { $project: { name: 1, email: 1 } })`",
+                  "`.find({}, { name: true, email: true, address: false })`",
+                  "`.find({}, { name: 1, email: 1, phone: 0 })`",
+                  "`.find({}, { name: 1, email: 1, _id: 0 })`"
+                ],
+                "correctIndex": 3,
+                "explanation": "In a find projection you list the fields to include with `1` (or true); `_id` is returned by default and must be explicitly suppressed with `_id: 0`. Only `_id` may be mixed as an exclusion inside an otherwise inclusion projection — mixing other inclusion (`1`) and exclusion (`0`) fields in the same projection is not allowed, which rules out the options that combine `email: 1` with `phone: 0` or true/false on unrelated fields. `$project` is an aggregation stage, not a valid second argument to `find()`."
+              }
+            ]
+          },
+          "title": "Crud — Lightning Round"
+        },
+        {
+          "id": "c1-boss",
+          "type": "subboss",
+          "title": "Boss: Crud",
+          "questionIds": [
+            "mdb-001",
+            "mdb-002",
+            "mdb-016",
+            "mdb-020",
+            "mdb-011"
+          ]
+        },
+        {
+          "id": "c1-chest",
+          "type": "chest",
+          "title": "Treasure Chest",
+          "rewardXp": 30,
+          "cosmeticKey": "chapter-1"
+        }
+      ]
+    },
+    {
+      "id": "ch2",
+      "title": "Indexes",
+      "tag": "indexes",
+      "nodes": [
+        {
+          "id": "c2-concept",
+          "type": "concept",
+          "title": "Indexes: Key Ideas",
+          "content": "Quick primer on Indexes. Tap to flip cards covering the most-asked exam ideas in this domain.",
+          "flashcards": [
+            {
+              "front": "A reporting query filters orders by `region` (equality), then by `createdAt` (range), then sorts by `createdAt` descending. Which single compound index follows MongoDB's ESR rule and best serves the query?",
+              "back": "The ESR rule orders compound-index keys as Equality, then Sort, then Range. `region` is the equality predicate (first), `createdAt` is both the sort and range predicate, and the index direction must match the sort, so `{ region: 1, createdAt: -1 }` lets MongoDB seek by region and walk the index in the requested sort order without an in-memory sort. Putting `createdAt` first or matching it ascending forces a SORT stage. A hashed index on `region` blocks any sort or range scan on the second key and is intended for sharding, not range/sort access patterns."
+            },
+            {
+              "front": "A query is `db.users.find({ email: \"a@b.com\" }, { _id: 0, email: 1, name: 1 })`. What must be true for this to be a COVERED query that returns results entirely from the index?",
+              "back": "A query is covered when every field used in the filter AND the projection is part of the same index, and no other fields are returned. The index must therefore cover both `email` (filter) and `name` (projected), and `_id` must be explicitly excluded because it is returned by default and is not in the index — `{ email: 1, name: 1 }` plus `_id: 0` satisfies both. Indexing only `name`, or only `email`, leaves a projected field outside the index and forces a document fetch. Document count is irrelevant — covered queries are about index/projection alignment, not collection size."
+            },
+            {
+              "front": "Given a query `db.users.find({ status: \"active\", age: { $gt: 30 } }).sort({ age: 1 })`, which single compound index best supports it under the ESR rule?",
+              "back": "The ESR (Equality, Sort, Range) rule orders compound index keys as equality predicates first, then sort fields, then range predicates. Here `status` is an equality match, and `age` serves as both the sort and the range (`$gt`). Placing `status` first (equality) then `age` — `{ status: 1, age: 1 }` — lets the index satisfy the equality, provide the requested ascending sort, and bound the range in one scan with no in-memory sort. Leading with `age` breaks the equality-first ordering, an index on `age` alone cannot use `status` selectively, and the extra trailing `name` key is unnecessary and inverts the sort direction."
+            },
+            {
+              "front": "An index `{ name: 1, email: 1 }` exists. A query does `db.users.find({ email: \"a@x.com\" })`. Will this index be used efficiently, and why?",
+              "back": "A compound index supports queries that use a left-prefix of its keys. `{ name: 1, email: 1 }` can serve queries on `name` or on `name`+`email`, but a query on `email` alone cannot perform a selective index seek because the leading `name` value is unknown (at best the planner might do an inefficient full index scan). MongoDB does not reorder index keys per query, and the query does not error — it simply cannot use the index efficiently, so a dedicated index with `email` as a prefix would be needed."
+            }
+          ],
+          "source": "auto-derived"
+        },
+        {
+          "id": "c2-quiz1",
+          "type": "quiz",
+          "title": "Indexes — Drill 1",
+          "questionIds": [
+            "mdb-005",
+            "mdb-006",
+            "mdb-012",
+            "mdb-019",
+            "mdb-021"
+          ]
+        },
+        {
+          "id": "c2-game",
+          "type": "minigame",
+          "gameType": "lightning",
+          "mode": "lightning-round",
+          "data": {
+            "secondsPerQuestion": 7,
+            "livesAllowed": 3,
+            "questions": [
+              {
+                "q": "A reporting query filters orders by `region` (equality), then by `createdAt` (range), then sorts by `createdAt` descending. Which single compound index follows MongoDB's ESR rule and best serves the query?",
+                "choices": [
+                  "{ createdAt: -1, region: 1 }",
+                  "{ region: 1, createdAt: -1 }",
+                  "{ createdAt: 1, region: 1 }",
+                  "{ region: \"hashed\", createdAt: 1 }"
+                ],
+                "correctIndex": 1,
+                "explanation": "The ESR rule orders compound-index keys as Equality, then Sort, then Range. `region` is the equality predicate (first), `createdAt` is both the sort and range predicate, and the index direction must match the sort, so `{ region: 1, createdAt: -1 }` lets MongoDB seek by region and walk the index in the requested sort order without an in-memory sort. Putting `createdAt` first or matching it ascending forces a SORT stage. A hashed index on `region` blocks any sort or range scan on the second key and is intended for sharding, not range/sort access patterns."
+              },
+              {
+                "q": "A query is `db.users.find({ email: \"a@b.com\" }, { _id: 0, email: 1, name: 1 })`. What must be true for this to be a COVERED query that returns results entirely from the index?",
+                "choices": [
+                  "There is an index on `{ email: 1 }` and `_id` is implicitly returned for covered projections.",
+                  "There is an index on `{ name: 1 }` because `name` is in the projection.",
+                  "There is an index on `{ email: 1, name: 1 }` and the projection excludes every field not in the index (here `_id` is excluded).",
+                  "There is an index on `{ email: 1 }` and the collection has fewer than 1000 documents."
+                ],
+                "correctIndex": 2,
+                "explanation": "A query is covered when every field used in the filter AND the projection is part of the same index, and no other fields are returned. The index must therefore cover both `email` (filter) and `name` (projected), and `_id` must be explicitly excluded because it is returned by default and is not in the index — `{ email: 1, name: 1 }` plus `_id: 0` satisfies both. Indexing only `name`, or only `email`, leaves a projected field outside the index and forces a document fetch. Document count is irrelevant — covered queries are about index/projection alignment, not collection size."
+              },
+              {
+                "q": "Given a query `db.users.find({ status: \"active\", age: { $gt: 30 } }).sort({ age: 1 })`, which single compound index best supports it under the ESR rule?",
+                "choices": [
+                  "`{ age: 1, status: 1 }`",
+                  "`{ age: 1 }` only",
+                  "`{ status: 1, age: 1 }`",
+                  "`{ status: 1, age: -1, name: 1 }`"
+                ],
+                "correctIndex": 2,
+                "explanation": "The ESR (Equality, Sort, Range) rule orders compound index keys as equality predicates first, then sort fields, then range predicates. Here `status` is an equality match, and `age` serves as both the sort and the range (`$gt`). Placing `status` first (equality) then `age` — `{ status: 1, age: 1 }` — lets the index satisfy the equality, provide the requested ascending sort, and bound the range in one scan with no in-memory sort. Leading with `age` breaks the equality-first ordering, an index on `age` alone cannot use `status` selectively, and the extra trailing `name` key is unnecessary and inverts the sort direction."
+              },
+              {
+                "q": "An index `{ name: 1, email: 1 }` exists. A query does `db.users.find({ email: \"a@x.com\" })`. Will this index be used efficiently, and why?",
+                "choices": [
+                  "Yes, because MongoDB can use any field of a compound index independently.",
+                  "Yes, because the index is automatically reordered to match the query.",
+                  "No efficient seek: a compound index only serves a left-prefix, so a query on `email` alone cannot use the leading `name` key.",
+                  "No, and the query will error because `email` is not the first key."
+                ],
+                "correctIndex": 2,
+                "explanation": "A compound index supports queries that use a left-prefix of its keys. `{ name: 1, email: 1 }` can serve queries on `name` or on `name`+`email`, but a query on `email` alone cannot perform a selective index seek because the leading `name` value is unknown (at best the planner might do an inefficient full index scan). MongoDB does not reorder index keys per query, and the query does not error — it simply cannot use the index efficiently, so a dedicated index with `email` as a prefix would be needed."
+              },
+              {
+                "q": "A query `db.events.find({ ts: { $gte: start, $lt: end } }).sort({ ts: -1 }).limit(20)` is used for a dashboard. An index `{ ts: 1 }` exists. Is a separate `{ ts: -1 }` index needed to serve the descending sort efficiently?",
+                "choices": [
+                  "No, a single-field index can be traversed in either direction, so `{ ts: 1 }` supports both the range and the descending sort.",
+                  "Yes, MongoDB cannot traverse an ascending index in reverse, so a descending index is mandatory.",
+                  "Yes, but only because of the `.limit(20)`.",
+                  "No, but only if you drop the range filter."
+                ],
+                "correctIndex": 0,
+                "explanation": "A single-field index is bidirectional — MongoDB can walk `{ ts: 1 }` forward or backward — so it can satisfy both the `ts` range bounds and a descending sort on `ts` without a separate `{ ts: -1 }` index. Direction only matters for compound indexes where the relative order of multiple keys must match the sort. The `.limit(20)` does not change index applicability, and the range filter is exactly what the index bounds; there is no need to drop it."
+              }
+            ]
+          },
+          "title": "Indexes — Lightning Round"
+        },
+        {
+          "id": "c2-boss",
+          "type": "subboss",
+          "title": "Boss: Indexes",
+          "questionIds": [
+            "mdb-005",
+            "mdb-006",
+            "mdb-012",
+            "mdb-019",
+            "mdb-021"
+          ]
+        },
+        {
+          "id": "c2-chest",
+          "type": "chest",
+          "title": "Treasure Chest",
+          "rewardXp": 30,
+          "cosmeticKey": "chapter-2"
+        }
+      ]
+    },
+    {
+      "id": "ch3",
+      "title": "Aggregation",
+      "tag": "aggregation",
+      "nodes": [
+        {
+          "id": "c3-concept",
+          "type": "concept",
+          "title": "Aggregation: Key Ideas",
+          "content": "Quick primer on Aggregation. Tap to flip cards covering the most-asked exam ideas in this domain.",
+          "flashcards": [
+            {
+              "front": "Given `orders` documents like `{ customerId, total, status }`, which aggregation pipeline returns one document per customer with their total spend on `\"shipped\"` orders, sorted descending by spend?",
+              "back": "The correct pattern is filter-first (`$match`) so the group only scans relevant docs and can use an index, then `$group` keyed on `$customerId` accumulating the running `$sum`, then `$sort: { spend: -1 }` for descending order. Reversing `$match` after `$group` would still produce numbers but only filter group documents (which no longer have `status`), and `$orderBy` is not a stage. `$filter`/`$aggregate` are not pipeline stages. `$bucket` partitions by ranges with required `boundaries` and is the wrong shape for per-customer totals."
+            },
+            {
+              "front": "An aggregation over `orders` needs to attach the matching `customers` document for each order, joining `orders.customerId` to `customers._id` and exposing the joined doc(s) as field `customer`. Which stage does this in a single pipeline?",
+              "back": "`$lookup` is MongoDB's left-outer-join stage; `localField`/`foreignField` perform the equality match and the joined documents are placed in an array under `as`. There is no `$join` stage in MongoDB. `$merge` writes pipeline output back into a collection — it is not a join. `$graphLookup` does recursive graph traversal (useful for hierarchies) and is overkill for a single-hop join from `customerId` to `_id`."
+            },
+            {
+              "front": "A `$lookup` joins `orders` to `products` on `productId`. The join is slow. Profiling shows a collection scan on `products` for every input document. What is the correct fix?",
+              "back": "`$lookup` executes a query against the foreign collection for each input document, matching on `foreignField`. Without an index on that field, every lookup is a full collection scan of `products`. Creating an index on the `foreignField` lets each join use an index seek, which is the standard remedy for a slow lookup. `$unwind` only flattens arrays (it does not join), indexing the local field does not help the per-document foreign query, and simply reordering the stage does not change the missing index on the joined collection."
+            },
+            {
+              "front": "A pipeline needs to compute, per product category, the average price and a count of products, then keep only categories with more than 10 products. Which stage order is correct?",
+              "back": "The count per category does not exist until the `$group` stage produces it, so you must group first (computing `{ $avg: \"$price\" }` and `{ $sum: 1 }`) and then `$match` on the derived count field. You cannot `$match` on `count > 10` before the group because that field is not yet computed. `$bucket` groups by value ranges of a numeric expression, not by a categorical field with an arbitrary threshold on a computed count, and `$count` only returns a single total document — it does not produce per-group averages."
+            }
+          ],
+          "source": "auto-derived"
+        },
+        {
+          "id": "c3-quiz1",
+          "type": "quiz",
+          "title": "Aggregation — Drill 1",
+          "questionIds": [
+            "mdb-003",
+            "mdb-004",
+            "mdb-014",
+            "mdb-017"
+          ]
+        },
+        {
+          "id": "c3-game",
+          "type": "minigame",
+          "gameType": "lightning",
+          "mode": "lightning-round",
+          "data": {
+            "secondsPerQuestion": 7,
+            "livesAllowed": 3,
+            "questions": [
+              {
+                "q": "Given `orders` documents like `{ customerId, total, status }`, which aggregation pipeline returns one document per customer with their total spend on `\"shipped\"` orders, sorted descending by spend?",
+                "choices": [
+                  "[ { $group: { _id: \"$customerId\", spend: { $sum: \"$total\" } } }, { $match: { status: \"shipped\" } }, { $orderBy: { spend: -1 } } ]",
+                  "[ { $match: { status: \"shipped\" } }, { $group: { _id: \"$customerId\", spend: { $sum: \"$total\" } } }, { $sort: { spend: -1 } } ]",
+                  "[ { $filter: { status: \"shipped\" } }, { $aggregate: { customerId: \"$_id\", spend: { $total: \"$total\" } } }, { $sort: { spend: -1 } } ]",
+                  "[ { $match: { status: \"shipped\" } }, { $bucket: { groupBy: \"$customerId\", output: { spend: { $sum: \"$total\" } } } } ]"
+                ],
+                "correctIndex": 1,
+                "explanation": "The correct pattern is filter-first (`$match`) so the group only scans relevant docs and can use an index, then `$group` keyed on `$customerId` accumulating the running `$sum`, then `$sort: { spend: -1 }` for descending order. Reversing `$match` after `$group` would still produce numbers but only filter group documents (which no longer have `status`), and `$orderBy` is not a stage. `$filter`/`$aggregate` are not pipeline stages. `$bucket` partitions by ranges with required `boundaries` and is the wrong shape for per-customer totals."
+              },
+              {
+                "q": "An aggregation over `orders` needs to attach the matching `customers` document for each order, joining `orders.customerId` to `customers._id` and exposing the joined doc(s) as field `customer`. Which stage does this in a single pipeline?",
+                "choices": [
+                  "{ $join: { collection: \"customers\", on: { customerId: \"_id\" }, as: \"customer\" } }",
+                  "{ $merge: { into: \"customers\", on: \"customerId\", whenMatched: \"replaceRoot\" } }",
+                  "{ $graphLookup: { from: \"customers\", startWith: \"$customerId\", connectFromField: \"customerId\", connectToField: \"_id\", as: \"customer\" } }",
+                  "{ $lookup: { from: \"customers\", localField: \"customerId\", foreignField: \"_id\", as: \"customer\" } }"
+                ],
+                "correctIndex": 3,
+                "explanation": "`$lookup` is MongoDB's left-outer-join stage; `localField`/`foreignField` perform the equality match and the joined documents are placed in an array under `as`. There is no `$join` stage in MongoDB. `$merge` writes pipeline output back into a collection — it is not a join. `$graphLookup` does recursive graph traversal (useful for hierarchies) and is overkill for a single-hop join from `customerId` to `_id`."
+              },
+              {
+                "q": "A `$lookup` joins `orders` to `products` on `productId`. The join is slow. Profiling shows a collection scan on `products` for every input document. What is the correct fix?",
+                "choices": [
+                  "Move the `$lookup` to the end of the pipeline; stage order does not affect index use.",
+                  "Add an index on the `products` foreign field used by the lookup (the `foreignField`), so each lookup uses an index rather than scanning.",
+                  "Replace `$lookup` with `$unwind`, which performs the join more efficiently.",
+                  "Add an index on the `orders` local field only; the foreign collection does not need one."
+                ],
+                "correctIndex": 1,
+                "explanation": "`$lookup` executes a query against the foreign collection for each input document, matching on `foreignField`. Without an index on that field, every lookup is a full collection scan of `products`. Creating an index on the `foreignField` lets each join use an index seek, which is the standard remedy for a slow lookup. `$unwind` only flattens arrays (it does not join), indexing the local field does not help the per-document foreign query, and simply reordering the stage does not change the missing index on the joined collection."
+              },
+              {
+                "q": "A pipeline needs to compute, per product category, the average price and a count of products, then keep only categories with more than 10 products. Which stage order is correct?",
+                "choices": [
+                  "`$group` by category computing avg and count, then `$match` on the computed count > 10.",
+                  "`$match` on count > 10, then `$group` by category — filtering before the group is always faster.",
+                  "`$bucket` by category, then `$sort` — $bucket computes averages automatically.",
+                  "`$project` the category, then `$count` — $count returns per-group averages."
+                ],
+                "correctIndex": 0,
+                "explanation": "The count per category does not exist until the `$group` stage produces it, so you must group first (computing `{ $avg: \"$price\" }` and `{ $sum: 1 }`) and then `$match` on the derived count field. You cannot `$match` on `count > 10` before the group because that field is not yet computed. `$bucket` groups by value ranges of a numeric expression, not by a categorical field with an arbitrary threshold on a computed count, and `$count` only returns a single total document — it does not produce per-group averages."
+              }
+            ]
+          },
+          "title": "Aggregation — Lightning Round"
+        },
+        {
+          "id": "c3-boss",
+          "type": "subboss",
+          "title": "Boss: Aggregation",
+          "questionIds": [
+            "mdb-003",
+            "mdb-004",
+            "mdb-014",
+            "mdb-017"
+          ]
+        },
+        {
+          "id": "c3-chest",
+          "type": "chest",
+          "title": "Treasure Chest",
+          "rewardXp": 30,
+          "cosmeticKey": "chapter-3"
+        }
+      ]
+    },
+    {
+      "id": "ch4",
+      "title": "Mixed Topics",
+      "tag": "mixed-topics",
+      "nodes": [
+        {
+          "id": "c4-concept",
+          "type": "concept",
+          "title": "Mixed exam topics: Key Ideas",
+          "content": "Some exam objectives don't fit neatly into a single domain — they span protocols, tools, or concepts covered briefly in multiple sections. These cards treat each item as a stand-alone fact, the way an exam question presents it: one concept, one answer.",
+          "flashcards": [
+            {
+              "front": "What is the difference between a hub, a switch, and a router?",
+              "back": "Hub: Layer 1, repeats every frame to all ports — all devices share bandwidth, collisions guaranteed. Switch: Layer 2, forwards frames using a MAC address table to only the destination port — full duplex, no collisions, each port gets full bandwidth. Router: Layer 3, makes forwarding decisions based on IP address, connects different networks. Hub is legacy; switches dominate LAN; routers are at network edges."
+            },
+            {
+              "front": "What is RAID 5 and how many drives can it tolerate losing?",
+              "back": "RAID 5 stripes data and parity across at least 3 drives. Any single drive failure can be recovered by reconstructing missing data from the remaining drives and parity. It cannot tolerate 2 simultaneous drive failures. Effective capacity = (N-1) × drive size. Read performance is excellent; write requires parity recalculation. RAID 6 tolerates 2 failures using double parity."
+            },
+            {
+              "front": "What does a proxy server do, and how does a forward proxy differ from a reverse proxy?",
+              "back": "Forward proxy: sits between clients and the internet on behalf of clients — used for content filtering, caching, and anonymizing outbound requests (the server sees the proxy's IP). Reverse proxy: sits in front of servers on behalf of the server — used for load balancing, SSL termination, caching, and hiding backend topology (the client sees the proxy's IP). Both intermediate HTTP, but they protect opposite sides."
+            },
+            {
+              "front": "What is the purpose of a DMZ in network architecture?",
+              "back": "A demilitarized zone is a network segment between the untrusted internet and the trusted internal network, typically protected by two firewalls (or two interfaces on one firewall). Public-facing services (web, email, DNS) sit in the DMZ: internet can reach them but not the internal network; if the DMZ host is compromised, the inner firewall still blocks access to the internal LAN."
+            }
+          ],
+          "source": "concept-library",
+          "sourceTag": "mixed-topics"
+        },
+        {
+          "id": "c4-quiz1",
+          "type": "quiz",
+          "title": "Mixed Topics — Drill 1",
+          "questionIds": [
+            "mdb-007",
+            "mdb-015",
+            "mdb-022",
+            "mdb-008",
+            "mdb-009"
+          ]
+        },
+        {
+          "id": "c4-game",
+          "type": "minigame",
+          "gameType": "lightning",
+          "mode": "lightning-round",
+          "data": {
+            "secondsPerQuestion": 7,
+            "livesAllowed": 3,
+            "questions": [
+              {
+                "q": "Designing a schema for blog posts where every post has 5–20 short comments, comments are always read together with the post, and comments are rarely edited after creation. Which model best follows MongoDB schema-design guidance?",
+                "choices": [
+                  "Store posts and comments in two collections, joined with `$lookup` on every read.",
+                  "Embed comments as an array inside each post document.",
+                  "Store comments in a separate collection with a back-pointer field `postId` and look them up on each read.",
+                  "Store posts in MongoDB and comments in a separate relational database, joined at the application layer."
+                ],
+                "correctIndex": 1,
+                "explanation": "The MongoDB rule of thumb is \"data that is accessed together should be stored together.\" A bounded, small array of comments that is always read with the post and rarely changes is a textbook embedding case — one document fetch returns everything with no join cost. Splitting into two collections (with or without `$lookup`) forces extra round-trips and re-introduces the join overhead embedding is meant to avoid. Mixing in a separate relational store adds operational complexity and consistency problems for no gain."
+              },
+              {
+                "q": "A team debates embedding order line-items versus referencing them in a separate collection. Orders are read as a whole, rarely exceed a few dozen items, and line-items are never queried independently. Which data model is preferred and why?",
+                "choices": [
+                  "Reference the line-items in a separate collection to keep documents small, because embedding always violates normalization.",
+                  "Store each line-item as a top-level document with a duplicated copy of the whole order for fast reads.",
+                  "Embed the line-items in the order document, because the data is accessed together, is bounded in size, and embedding avoids extra queries.",
+                  "Use a separate database per order to isolate line-items."
+                ],
+                "correctIndex": 2,
+                "explanation": "MongoDB's guidance favors embedding when related data is accessed together, has a bounded size (well under the 16 MB document limit), and is not queried on its own — exactly this case. Embedding line-items returns the whole order in a single read with no join. Referencing would force an extra query or `$lookup` for data that is always needed together, normalization is not a goal in document modeling, duplicating the entire order per line-item wastes space and creates update anomalies, and a database-per-order is a gross misuse of the isolation boundary."
+              },
+              {
+                "q": "A schema stores a user's country as a string, but analytics queries frequently filter by country and the values have many typos ('USA', 'U.S.A', 'us'). Which is the most appropriate MongoDB-side approach to make the filter reliable and fast?",
+                "choices": [
+                  "Add a case-insensitive collation index and rely on it to normalize the typo variants automatically.",
+                  "Normalize the data on write to a controlled set of canonical codes (e.g., ISO country codes) and index that field.",
+                  "Store country as an embedded document per query variant to cover every spelling.",
+                  "Use a `$regex` scan on each query, since regex always uses indexes."
+                ],
+                "correctIndex": 1,
+                "explanation": "Reliable filtering requires consistent stored values, so the right fix is to normalize on write to a canonical set (such as ISO country codes) and index that field — queries then match a single deterministic value with an index seek. A collation controls case/locale comparison but cannot equate genuinely different strings like 'U.S.A' and 'us'. Duplicating documents per spelling is a data-quality disaster, and unanchored `$regex` typically cannot use an index efficiently (it often forces a scan), so it is neither reliable nor fast."
+              },
+              {
+                "q": "An analytics service running against a three-node replica set issues a read with `readConcern: \"majority\"` shortly after a burst of writes, and the team is unsure whether it may observe data that could later disappear. Which statement most accurately describes what the client sees?",
+                "choices": [
+                  "Only data that has been acknowledged by a majority of replica-set members at the moment the snapshot was taken; uncommitted writes are filtered out.",
+                  "Always the latest write on the primary, even if that write has not yet replicated to any secondary.",
+                  "Strictly linearizable reads across the entire cluster, including across shards, with no additional configuration.",
+                  "Only data from the local secondary the client is connected to, regardless of replication state."
+                ],
+                "correctIndex": 0,
+                "explanation": "`majority` read concern returns data that has been replicated to (and acknowledged by) a majority of voting members, so a reader cannot observe a write that could later be rolled back by a primary failover — pending/uncommitted writes are filtered. It is NOT the same as reading the freshest write on the primary (that is `local`/`available`). It is also weaker than `linearizable`, which is a stronger guarantee available only on a single primary and only for reads of one document. And it is not a node-local read of whatever the secondary happens to hold — that would be `local` against a secondary."
+              },
+              {
+                "q": "An application must read its own writes immediately after acknowledgement, even during replica-set failovers, without waiting for cluster-wide majority reads. Which combination of write and read settings gives durable writes plus read-your-writes for a single client session?",
+                "choices": [
+                  "Write concern `w: \"majority\"` combined with using causal consistency in a client session (majority read concern within the session).",
+                  "Write concern `w: 1` and reading from a secondary with `readPreference: secondary`.",
+                  "Write concern `w: 0` (fire-and-forget) and read concern `linearizable`.",
+                  "Write concern `w: 1` with read concern `available`."
+                ],
+                "correctIndex": 0,
+                "explanation": "Durable acknowledgement across failovers requires `w: \"majority\"`, which guarantees the write is on a majority of nodes and survives elections. To then read your own write, run operations inside a causally consistent client session so the read waits for the write's effects to be visible (majority read concern within the session). `w: 1` acknowledges from the primary only and can be rolled back on failover; reading from a secondary can return stale data. `w: 0` does not acknowledge at all, and `available` read concern gives the weakest visibility guarantees — neither provides reliable read-your-writes."
+              },
+              {
+                "q": "A booking app must debit `accounts` and insert into `ledger` atomically — either both succeed or neither is visible. The two operations target different collections in the same replica set. Which approach matches MongoDB's recommended primitive?",
+                "choices": [
+                  "Use a single `bulkWrite` call on the `accounts` collection; bulkWrite is transactional across collections by default.",
+                  "Rely on a unique compound index spanning `accounts` and `ledger` so the second write fails if the first does.",
+                  "Use the deprecated two-phase commit application pattern; MongoDB has no multi-document atomicity primitive.",
+                  "Wrap the two operations in a multi-document transaction started with `session.startTransaction()` and commit/abort the session."
+                ],
+                "correctIndex": 3,
+                "explanation": "MongoDB provides ACID multi-document transactions on replica sets (since 4.0) and sharded clusters (since 4.2). The recommended pattern is to start a session, `startTransaction()`, perform the operations, then `commitTransaction()` (or `abortTransaction()` on failure) — all participating writes become visible together or not at all. `bulkWrite` is atomic per operation, not across collections, and cannot span them. A unique index cannot span two collections at all. The two-phase commit pattern is documented historically but is explicitly superseded by transactions for this use case."
+              },
+              {
+                "q": "A multi-document transaction updates two collections. During commit the driver receives a `TransientTransactionError`. What is the recommended handling?",
+                "choices": [
+                  "Abort permanently and surface the error to the user, because transient errors mean the data is corrupted.",
+                  "Retry the entire transaction, because a TransientTransactionError label indicates the whole transaction can be safely re-attempted.",
+                  "Commit again with `w: 0` to bypass the error.",
+                  "Switch the session to snapshot read concern and continue committing the same operations without restarting."
+                ],
+                "correctIndex": 1,
+                "explanation": "MongoDB labels certain transaction failures (for example, transient conflicts or a primary step-down) as `TransientTransactionError`, which is the driver's signal that the entire transaction — from `startTransaction` through the operations to commit — can be safely retried as a unit. The data is not corrupted. Committing with `w: 0` does not acknowledge and cannot resolve the conflict, and you cannot simply re-issue the commit on a half-run session; the correct pattern is to restart the whole transaction (and separately handle `UnknownTransactionCommitResult` by retrying only the commit)."
+              },
+              {
+                "q": "An application writes a payment record with `{ writeConcern: { w: \"majority\" } }`. What does this guarantee?",
+                "choices": [
+                  "The acknowledged write has been written to the primary's in-memory cache only; the journal is bypassed for speed.",
+                  "Every read after the acknowledgement will see the new value across every secondary, regardless of read concern.",
+                  "The write is persisted to disk on the primary but is not replicated to any secondary until the next election.",
+                  "The acknowledged write has been applied on a majority of voting replica-set members and will survive any single-node failure that does not break majority."
+                ],
+                "correctIndex": 3,
+                "explanation": "`w: \"majority\"` makes MongoDB wait until the write has been replicated to a majority of voting replica-set members before acknowledging the client; once acknowledged, the write is durable across any single-member failure that still leaves majority intact. It says nothing about bypassing the journal — journaling is governed separately. It does not by itself guarantee that all later reads see the write everywhere; that requires a matching read concern (e.g. `\"majority\"` or `\"linearizable\"`) on the reader. And it explicitly does NOT mean primary-only persistence — that is `w: 1`."
+              }
+            ]
+          },
+          "title": "Mixed Topics — Lightning Round"
+        },
+        {
+          "id": "c4-boss",
+          "type": "subboss",
+          "title": "Boss: Mixed Topics",
+          "questionIds": [
+            "mdb-013",
+            "mdb-010",
+            "mdb-018"
+          ]
+        },
+        {
+          "id": "c4-chest",
+          "type": "chest",
+          "title": "Treasure Chest",
+          "rewardXp": 30,
+          "cosmeticKey": "chapter-4"
+        }
+      ]
+    }
+  ],
+  "finalBoss": {
+    "id": "final-boss",
+    "type": "finalboss",
+    "title": "Final Exam: MongoDB Associate Developer (DEV-1100)",
+    "questionCount": 15,
+    "timeMinutes": 23
+  },
+  "meta": {
+    "generatedAt": "2026-07-03T14:50:26.493Z",
+    "totalNodes": 21,
+    "totalQuestions": 22,
+    "nodeTypes": [
+      "concept",
+      "quiz",
+      "minigame",
+      "subboss",
+      "finalboss"
+    ]
+  }
+}
