@@ -50,25 +50,81 @@
         {
           "id": "c1-game",
           "type": "minigame",
-          "gameType": "match-pair",
-          "mode": "match-pair",
+          "gameType": "lightning",
+          "mode": "lightning-round",
           "data": {
-            "pairs": [
+            "secondsPerQuestion": 7,
+            "livesAllowed": 3,
+            "questions": [
               {
-                "left": "You are initializing a new Kubernetes control plane with kubeadm. You want the A",
-                "right": "--apiserver-advertise-address=10.0.1"
+                "q": "You are initializing a new Kubernetes control plane with kubeadm. You want the API server to advertise the IP address 10.0.1.100 to worker nodes. Which kubeadm init flag should you use?",
+                "choices": [
+                  "--apiserver-advertise-address=10.0.1.100",
+                  "--control-plane-endpoint=10.0.1.100",
+                  "--node-ip=10.0.1.100",
+                  "--apiserver-bind-address=10.0.1.100"
+                ],
+                "correctIndex": 0,
+                "explanation": "--apiserver-advertise-address tells kubeadm which IP address the API server should publish to members of the cluster — that is the value worker nodes will use to talk to it. --control-plane-endpoint is the stable DNS/VIP used in HA setups behind a load balancer, not the per-node advertised IP. --node-ip is a kubelet flag (consumed by /var/lib/kubelet/kubeadm-flags.env), not a kubeadm init flag. --apiserver-bind-address is also not a kubeadm init flag — kubeadm uses --apiserver-advertise-address to populate the manifest's bind/advertise behaviour."
               },
               {
-                "left": "A worker node needs to join an existing cluster but the bootstrap token has expi",
-                "right": "kubeadm token create"
+                "q": "A worker node needs to join an existing cluster but the bootstrap token has expired. Which kubeadm command creates a new join token registered with the cluster?",
+                "choices": [
+                  "kubeadm init --regenerate-token",
+                  "kubeadm token create --print-join-command",
+                  "kubeadm join --create-token",
+                  "kubeadm token generate"
+                ],
+                "correctIndex": 1,
+                "explanation": "`kubeadm token create --print-join-command` creates a new bootstrap token, registers it with the cluster, and prints the full `kubeadm join` line including the API server endpoint, token, and CA-cert hash. `kubeadm token generate` only prints a random token string — it does not register it. `kubeadm init --regenerate-token` is not a real subcommand (init bootstraps a new cluster). `kubeadm join --create-token` is also invented — join consumes a token, it does not mint one."
               },
               {
-                "left": "When bootstrapping a cluster with kubeadm, which flag allows you to specify a cu",
-                "right": "--pod-network-cidr"
+                "q": "A cluster admin is upgrading a kubeadm-managed cluster from Kubernetes v1.29 to v1.30. To respect the version-skew policy and minimise disruption, which overall order is correct?",
+                "choices": [
+                  "Upgrade all workers (kubelet + kube-proxy) first, then upgrade every control plane node in parallel using kubeadm upgrade apply",
+                  "Upgrade etcd only and let the rest of the cluster follow once etcd is on the new minor version — kubeadm propagates the rest automatically",
+                  "First control plane: kubeadm + `kubeadm upgrade apply` → kubelet/kubectl; then the other control plane nodes; then drain and upgrade each worker",
+                  "Reinstall every node from scratch on the new version because kubeadm explicitly does not support in-place skew upgrades"
+                ],
+                "correctIndex": 2,
+                "explanation": "The supported order is: (1) on the first control plane, upgrade the kubeadm binary; (2) run `kubeadm upgrade apply v1.30.x` to update the static-pod manifests; (3) upgrade kubelet and kubectl on that node; (4) repeat the same kubelet/kubectl/kubeadm sequence on the other control plane nodes; (5) drain and upgrade each worker. Workers must never run ahead of the control plane — an older control plane cannot manage a newer kubelet. Upgrading etcd alone leaves apiserver/scheduler/controller-manager behind. kubeadm explicitly supports in-place upgrades, so reinstall from scratch is unnecessary."
+              },
+              {
+                "q": "When bootstrapping a cluster with kubeadm, which flag specifies the pod network CIDR that the CNI plugin should use?",
+                "choices": [
+                  "--network-plugin-cidr",
+                  "--pod-network-cidr",
+                  "--service-cidr",
+                  "--cluster-cidr"
+                ],
+                "correctIndex": 1,
+                "explanation": "--pod-network-cidr passes the pod IP range into the cluster configuration so the CNI plugin (Calico, Flannel, Cilium, …) can carve subnets from it. --service-cidr is a separate flag that configures the range for Service ClusterIPs. --cluster-cidr is an internal kube-controller-manager flag (set indirectly via kubeadm), not a kubeadm init flag. --network-plugin-cidr does not exist."
+              },
+              {
+                "q": "You want to add a second control plane node for high availability. After running `kubeadm init phase upload-certs --upload-certs` on the primary control plane, what command format should you use on the new control plane node?",
+                "choices": [
+                  "kubeadm join <endpoint>:<port> --token <token> --discovery-token-ca-cert-hash sha256:<hash> --control-plane --certificate-key <key>",
+                  "kubeadm join --control-plane --copy-certs-from=<primary-node-ip> --token <token> --discovery-token-ca-cert-hash sha256:<hash>",
+                  "kubeadm init --join --control-plane-endpoint=<endpoint> --certificate-key <key> --token <token>",
+                  "kubeadm join <endpoint>:<port> --token <token> --discovery-token-ca-cert-hash sha256:<hash> --node-name <new-cp>"
+                ],
+                "correctIndex": 0,
+                "explanation": "Joining as a control plane needs both --control-plane (so kubeadm promotes the node and starts control-plane static pods) and --certificate-key (so kubeadm can decrypt the PKI material uploaded earlier with `upload-certs`). The plain join command — same flags minus --control-plane and --certificate-key — joins a worker only. There is no --copy-certs-from option in kubeadm; the cert material moves via the uploaded encrypted Secret. `kubeadm init --join` is not a real form (init bootstraps a new cluster, join attaches a node to an existing one)."
+              },
+              {
+                "q": "You need to view the current kubeadm cluster configuration stored inside the cluster. In which ConfigMap and namespace is this kept?",
+                "choices": [
+                  "ConfigMap 'kubeadm-config' in namespace 'kube-system'",
+                  "ConfigMap 'kube-config' in namespace 'kube-public'",
+                  "ConfigMap 'cluster-info' in namespace 'default'",
+                  "ConfigMap 'cluster-config' in namespace 'kube-node-lease'"
+                ],
+                "correctIndex": 0,
+                "explanation": "kubeadm persists the ClusterConfiguration (and component-specific configs) in the ConfigMap `kubeadm-config` in the `kube-system` namespace; inspect it with `kubectl get cm kubeadm-config -n kube-system -o yaml`. The `cluster-info` ConfigMap in `kube-public` only holds the discovery endpoint and CA bundle used during node bootstrap, not the full kubeadm configuration. `kube-config` and `cluster-config` are not standard ConfigMaps in any kubeadm-managed cluster."
               }
             ]
           },
-          "title": "Kubeadm — Match the Pair"
+          "title": "Kubeadm — Lightning Round"
         },
         {
           "id": "ch1-bonus1",
@@ -152,46 +208,46 @@
               {
                 "q": "You need to grant a ServiceAccount named 'deploy-bot' in the 'ci' namespace read-only access to Deployments across all namespaces. What combination of resources should you create?",
                 "choices": [
-                  "A ClusterRole with get/list/watch on deployments, and a RoleBinding in the 'ci' namespace",
-                  "A Role and RoleBinding in the 'ci' namespace",
                   "A Role with get/list/watch on deployments in every namespace, and a ClusterRoleBinding",
-                  "A ClusterRole with get/list/watch on deployments,."
+                  "A Role and RoleBinding in the 'ci' namespace",
+                  "A ClusterRole with get/list/watch on deployments, and a RoleBinding in the 'ci' namespace",
+                  "A ClusterRole with get/list/watch on deployments, and a ClusterRoleBinding referencing the ServiceAccount"
                 ],
                 "correctIndex": 3,
-                "explanation": "To grant cluster-wide access, you need a ClusterRole (defines permissions at cluster scope) and a ClusterRoleBinding (binds the subject across all namespaces). A RoleBinding—even referencing a ClusterRole—only grants access within the binding's namespace. Roles themselves are namespace-scoped and cannot grant cluster-wide access. and a ClusterRoleBinding referencing the ServiceAccount"
+                "explanation": "Cluster-wide access requires both halves to be cluster-scoped: a ClusterRole carrying the permissions, and a ClusterRoleBinding that binds the ServiceAccount across all namespaces. A RoleBinding that references a ClusterRole only grants those permissions inside the binding's own namespace. A Role cannot be cluster-scoped at all — even paired with a ClusterRoleBinding it has no effect, because ClusterRoleBindings only accept ClusterRole references. A namespaced Role/RoleBinding pair would limit access to the 'ci' namespace."
               },
               {
                 "q": "A developer reports that `kubectl get pods` returns `Error from server (Forbidden)`. Their kubeconfig context points to the right cluster and `kubectl config view` looks clean. What is the most likely root cause?",
                 "choices": [
                   "The kubelet on the developer's laptop is not running",
-                  "The user or ServiceAccount has no Role/ClusterRole binding for `get pods`",
+                  "The user or ServiceAccount has no Role/ClusterRole binding granting `get` on `pods`",
                   "The developer needs to run `kubectl auth login` to refresh their tokens",
-                  "The kube-apiserver TLS certificate has expired on the control plane; TLS expiry does not affect which pods appear forbidden"
+                  "The kube-apiserver TLS certificate has expired on the control plane"
                 ],
                 "correctIndex": 1,
-                "explanation": "A 403 Forbidden means the request reached the API server but the RBAC authoriser denied it — the calling subject has no Role or ClusterRole binding granting the `get` verb on `pods`. An expired API server cert would surface as a TLS handshake error, not Forbidden. There is no `kubectl auth login` subcommand. The kubelet is irrelevant on a client machine."
+                "explanation": "A 403 Forbidden response means the request was authenticated and reached the API server, but the RBAC authoriser denied it — the caller has no Role or ClusterRole binding that allows `get` on `pods`. An expired API server certificate would surface earlier as a TLS handshake error, not Forbidden. `kubectl auth login` is not a real subcommand (the kubectl plugin model uses credential plugins or `kubectl oidc-login`). The kubelet runs on cluster nodes, not on client laptops, so its state is irrelevant."
               },
               {
-                "q": "You need to verify what actions a ServiceAccount 'reporter' in namespace 'monitoring' can perform. Which kubectl command checks if it can list pods in that namespace?",
+                "q": "You need to verify what actions the ServiceAccount 'reporter' in namespace 'monitoring' can perform. Which kubectl command checks whether it can list pods in that namespace?",
                 "choices": [
-                  "kubectl auth can-i list pods --as=system:serviceaccount:monitoring:reporte",
+                  "kubectl auth can-i list pods --as=system:serviceaccount:monitoring:reporter -n monitoring",
                   "kubectl describe serviceaccount reporter -n monitoring",
                   "kubectl auth check --user=reporter --verb=list --resource=pods -n monitoring",
                   "kubectl get rolebindings -n monitoring | grep reporter"
                 ],
                 "correctIndex": 0,
-                "explanation": "'kubectl auth can-i' with --as impersonates the given subject and returns yes/no. The ServiceAccount must be specified in the format system:serviceaccount:<namespace>:<name>. 'kubectl get rolebindings' would require manual parsing and wouldn't show effective permissions from ClusterRoleBindings. 'kubectl describe serviceaccount' only shows metadata."
+                "explanation": "`kubectl auth can-i` with --as impersonates the named subject and asks the API server's authoriser for a yes/no answer, so it tests the effective permission across Roles AND ClusterRoles. A ServiceAccount is impersonated using the canonical form `system:serviceaccount:<ns>:<name>`. `kubectl describe serviceaccount` shows metadata and mounted tokens but no permission information. `kubectl get rolebindings | grep` only inspects one namespace's RoleBindings and misses ClusterRoleBindings entirely. `kubectl auth check` is not a real subcommand."
               },
               {
-                "q": "You need to quickly test whether a newly created ClusterRole 'deployment-viewer' provides the correct permissions. A user 'alice' should be able to 'get' and 'list' Deployments cluster-wide. Which sequence of commands validates this?",
+                "q": "You need to quickly test whether a newly created ClusterRole `deployment-viewer` provides the correct permissions. A user `alice` should be able to `get` and `list` Deployments cluster-wide. Which sequence of commands validates this?",
                 "choices": [
-                  "kubectl get clusterrole deployment-viewer -o yaml && kubectl get clusterrolebinding | grep alice; inspecting the clusterrole YAML shows rules but not whether alice can actually list deployments",
+                  "kubectl get clusterrole deployment-viewer -o yaml && kubectl get clusterrolebinding | grep alice",
                   "kubectl describe clusterrolebinding alice-binding",
                   "kubectl auth reconcile --as=alice -f role.yaml",
                   "kubectl auth can-i get deployments --as=alice && kubectl auth can-i list deployments --as=alice"
                 ],
                 "correctIndex": 3,
-                "explanation": "'kubectl auth can-i' with --as impersonates the user and tests a specific permission. Running it for both 'get' and 'list' on deployments validates the effective permissions without needing to inspect YAML manually. This tests the complete RBAC chain (ClusterRole + ClusterRoleBinding). 'kubectl get clusterrole -o yaml' only shows what the role defines, not whether alice has it bound. 'kubectl auth reconcile' applies RBAC manifests, not tests permissions."
+                "explanation": "`kubectl auth can-i` with `--as` asks the API server's authoriser to evaluate the entire RBAC chain (ClusterRole + ClusterRoleBinding) for the impersonated user. Running it for both verbs verifies the actual effective permission, which is the only thing that matters. Reading the ClusterRole YAML and grepping ClusterRoleBindings tells you what was authored but not whether the binding actually applies. Describing the binding shows references but doesn't simulate the access decision. `kubectl auth reconcile` applies RBAC manifests; it is not a permission-check command."
               }
             ]
           },
@@ -296,48 +352,48 @@
             "livesAllowed": 3,
             "questions": [
               {
-                "q": "You need a ClusterIP Service for an application but want to define your own cluster IP address (e.g., 10.96.100.50). Which Service spec field allows this?",
+                "q": "You need a ClusterIP Service for an application and want to assign a specific cluster IP (e.g. 10.96.100.50) inside the service CIDR. Which Service spec field allows this?",
                 "choices": [
                   "spec.clusterIP: '10.96.100.50'",
-                  "spec.internalIP: '10.96.100.50' - spec.internalIP is not a valid field for setting a custom clusterip",
+                  "spec.internalIP: '10.96.100.50'",
                   "spec.loadBalancerIP: '10.96.100.50'",
                   "spec.externalIPs: ['10.96.100.50']"
                 ],
                 "correctIndex": 0,
-                "explanation": "spec.clusterIP allows you to set a specific IP address for a ClusterIP Service, provided the address is within the configured service CIDR and is not already in use. spec.externalIPs exposes the service on additional IPs outside the cluster. spec.loadBalancerIP is for cloud LoadBalancer Services. spec.internalIP is not a valid Service field."
+                "explanation": "`spec.clusterIP` accepts an explicit address provided it is inside the configured service CIDR and not already taken — otherwise the API server rejects the create. `spec.loadBalancerIP` only applies to Service type LoadBalancer (and is deprecated on most clouds in favour of provider-specific annotations). `spec.externalIPs` is a list of host IPs that route traffic into the cluster externally, not the cluster-internal VIP. `spec.internalIP` is not a real Service field."
               },
               {
                 "q": "A NodePort Service is created for a web application. A developer cannot reach the app at <NodeIP>:30080 from outside the cluster. The pod is Running and `kubectl get endpoints` lists the Service endpoint. What should you check next?",
                 "choices": [
-                  "The Service's clusterIP allocation in the cluster CIDR",
-                  "The pod's readinessProbe configuration and timing",
-                  "Whether kube-proxy is in IPVS rather than iptables mode",
-                  "Whether the node firewall or cloud SG allows inbound on the"
+                  "The Service's clusterIP allocation inside the cluster CIDR — a colliding ClusterIP would prevent external reachability on the NodePort",
+                  "The pod's readinessProbe configuration and timing, since a flapping readiness check intermittently drops the NodePort backend",
+                  "Whether kube-proxy is in IPVS rather than iptables mode, since IPVS rejects NodePort traffic from off-cluster sources by default",
+                  "Whether the host firewall or cloud security group permits inbound traffic to the node on TCP 30080 in the NodePort range"
                 ],
                 "correctIndex": 3,
-                "explanation": "Pod Running + endpoint listed means kube-proxy has installed the iptables/IPVS rule and traffic that reaches the node will be forwarded. The next-most-common blocker is the host firewall or cloud security group dropping inbound traffic on the NodePort (default range 30000-32767) — that must be explicitly allowed."
+                "explanation": "Pod Running + endpoint listed means kube-proxy has already programmed the iptables/IPVS rule, so anything reaching the node on 30080 would be forwarded. The remaining hop is the network in front of the node. The most common blocker is the host firewall (iptables, ufw, firewalld) or the cloud security group failing to allow the NodePort range (30000-32767). The clusterIP is irrelevant to external traffic. A failing readinessProbe would have removed the pod from endpoints. IPVS vs iptables mode changes packet handling but never blocks all traffic on its own."
               },
               {
                 "q": "You need to expose a Service externally using a cloud provider's load balancer. Which Service type should you use?",
                 "choices": [
                   "ExternalName",
                   "NodePort",
-                  "ClusterIP with an ExternalName",
+                  "ClusterIP with externalIPs set to the load balancer IP",
                   "LoadBalancer"
                 ],
                 "correctIndex": 3,
-                "explanation": "Service type LoadBalancer provisions an external cloud load balancer (on supported providers like AWS, GCP, Azure) and assigns it an external IP. NodePort exposes the service on each node's IP at a static port but requires you to manage your own external load balancer. ExternalName creates a CNAME alias to an external DNS name. ClusterIP is internal-only."
+                "explanation": "Service type LoadBalancer asks the cloud-controller-manager to provision a real external load balancer (AWS NLB/ALB, GCP TCP/HTTP(S) LB, Azure Standard LB) and assign it an externally reachable IP or hostname. NodePort only opens a port on every node — fronting it with a load balancer is left to the operator. ExternalName is a DNS CNAME alias to an out-of-cluster name; it doesn't expose anything. ClusterIP + externalIPs is for advertising an existing external IP onto the cluster, not for asking a cloud provider to provision one."
               },
               {
-                "q": "You need a Service that maps requests for 'legacy.internal' to an external hostname 'legacy.example.com' without proxying traffic. Which Service type achieves this?",
+                "q": "You need a Service that maps `legacy.internal` inside the cluster to an external hostname `legacy.example.com` without proxying traffic. Which Service type achieves this?",
                 "choices": [
                   "ExternalName with spec.externalName: legacy.example.com",
-                  "ClusterIP with an endpoints object pointing to the external IP",
+                  "ClusterIP with an Endpoints object pointing to the external IP",
                   "LoadBalancer with an annotation pointing to legacy.example.com",
                   "Headless Service with a manual DNS CNAME record"
                 ],
                 "correctIndex": 0,
-                "explanation": "An ExternalName Service creates a CNAME DNS entry in CoreDNS. When pods query the service name, they receive a CNAME pointing to spec.externalName. No proxying or IP allocation occurs. This is useful for abstracting external services. A manual Endpoints object would require knowing the external IP, not DNS name. Headless services return pod IPs, not CNAMEs."
+                "explanation": "ExternalName tells CoreDNS to answer queries for the Service name with a CNAME to `spec.externalName`. No clusterIP is allocated, no kube-proxy rule is installed, and the calling pod resolves the alias and connects directly. A ClusterIP + Endpoints object would require the external service to be reachable by IP and would proxy through kube-proxy. LoadBalancer provisions an inbound load balancer, not a DNS alias. Headless Services return pod IPs from a selector, not external CNAMEs."
               }
             ]
           },
@@ -537,37 +593,37 @@
             "livesAllowed": 3,
             "questions": [
               {
-                "q": "You need to take a snapshot backup of etcd running as a static pod. The data directory is /var/lib/etcd and certificates live in /etc/kubernetes/pki/etcd/. Which command correctly creates a snapshot the API server can use for a future restore?",
+                "q": "You need to take a snapshot backup of etcd running as a static pod. The data directory is /var/lib/etcd and certificates live in /etc/kubernetes/pki/etcd/. Which command correctly creates a snapshot the cluster can later restore from?",
                 "choices": [
-                  "ETCDCTL_API=3 etcdctl snapshot save /backup/etcd.db --endpoints=https://127.0.0.1:2379 --cacert=.../ca.crt",
-                  "etcdctl backup --data-dir /var/lib/etcd --backup-dir /backup/etcd.db --endpoints https://127.0.0.1:2379 --tls",
-                  "etcdctl snapshot save /backup/etcd.db --data-dir /var/lib/etcd --skip-tls-verify --endpoints 127.0.0.1:2379",
-                  "kubectl -n kube-system exec etcd-master -- etcdctl snapshot save /backup/etcd.db --tls"
+                  "etcdctl backup --data-dir /var/lib/etcd --backup-dir /backup/etcd.db --endpoints=https://127.0.0.1:2379 --tls --auto-compaction",
+                  "etcdctl snapshot save /backup/etcd.db --data-dir /var/lib/etcd --skip-tls-verify --endpoints=127.0.0.1:2379 --watch-progress",
+                  "ETCDCTL_API=3 etcdctl snapshot save /backup/etcd.db --endpoints=https://127.0.0.1:2379 --cacert=.../etcd/ca.crt --cert=.../server.crt --key=.../server.key",
+                  "kubectl -n kube-system exec etcd-master -- etcdctl snapshot save /backup/etcd.db --tls --insecure-skip-tls-verify"
                 ],
-                "correctIndex": 0,
-                "explanation": "`etcdctl snapshot save` is the v3 API command, and it must authenticate to the live cluster — that means passing --endpoints, --cacert, --cert, and --key. `etcdctl backup` is the deprecated v2 syntax. `--data-dir` is not a flag for `snapshot save`. Running through `kubectl exec` without mounting the certs still fails because the binary inside the pod can't read host certs without --cacert/--cert/--key."
+                "correctIndex": 2,
+                "explanation": "`etcdctl snapshot save` is the v3 API command and must talk to the live cluster over TLS, so it needs --endpoints, --cacert, --cert and --key. `etcdctl backup` is the deprecated v2 syntax that operated on the offline data directory. Passing --data-dir to `snapshot save` is invalid — that flag belongs to the etcd server, not the snapshot client. Running it through `kubectl exec` without mounting the host PKI still fails because the etcd container can't read the host certs without --cacert/--cert/--key."
               },
               {
                 "q": "After restoring an etcd snapshot to a new data directory /var/lib/etcd-restore, what must change so the etcd static pod starts using the restored data?",
                 "choices": [
-                  "Run `kubeadm etcd restore /var/lib/etcd-restore` to register the new directory",
-                  "Edit /etc/kubernetes/manifests/etcd.yaml",
-                  "Delete the etcd pod and let the kubelet automatically pick the restored directory",
-                  "Run `systemctl restart etcd` on the control-plane node after symlinking the path"
+                  "Run `kubeadm etcd restore /var/lib/etcd-restore` so kubeadm registers the new directory and recreates the etcd static-pod manifest",
+                  "Edit /etc/kubernetes/manifests/etcd.yaml so both the --data-dir flag and the backing hostPath volume point at /var/lib/etcd-restore",
+                  "Delete the etcd pod with `kubectl delete pod etcd-master -n kube-system` so the kubelet rebuilds it with the restored directory",
+                  "Run `systemctl restart etcd` on the control-plane node after creating a symlink from /var/lib/etcd to the restored directory"
                 ],
                 "correctIndex": 1,
-                "explanation": "etcd runs as a static pod under /etc/kubernetes/manifests/. Both the --data-dir flag passed to the etcd container AND the hostPath volume that backs that directory must point at /var/lib/etcd-restore. The kubelet detects the manifest change on disk and restarts the pod. `kubeadm etcd restore` does not exist; pod deletion alone is not enough because the kubelet recreates the pod from the unchanged manifest; etcd is not a systemd service when run as a static pod."
+                "explanation": "etcd runs as a static pod managed by the kubelet. Both the --data-dir flag passed to the etcd container AND the hostPath volume that backs that directory must be updated in /etc/kubernetes/manifests/etcd.yaml; the kubelet sees the manifest change and recreates the pod against the restored data. `kubeadm etcd restore` does not exist. Deleting the pod alone is useless because the kubelet recreates it from the unchanged manifest, still pointing at the old directory. There is no etcd systemd service on a kubeadm-managed control plane — etcd runs only as a static pod."
               },
               {
-                "q": "A static pod manifest placed in /etc/kubernetes/manifests/ is not starting. The pod does not appear in 'kubectl get pods -A'. What should you check first?",
+                "q": "A static pod manifest placed in /etc/kubernetes/manifests/ is not starting. The pod does not appear in `kubectl get pods -A`. What should you check first?",
                 "choices": [
-                  "Confirm the pod is listed in 'kubectl get pods --field-selector=status.phase=Pending'",
+                  "Confirm the pod is listed in `kubectl get pods --field-selector=status.phase=Pending`",
                   "Verify the pod has a valid ServiceAccount token mounted",
-                  "Check the kube-scheduler logs for scheduling errors; the manifest placed in /etc/kubernetes/manifests is not consulted by the scheduler",
-                  "Check the kubelet logs on the node where the manifest was placed."
+                  "Check the kube-scheduler logs for scheduling errors",
+                  "Check the kubelet logs on the node where the manifest was placed (`journalctl -u kubelet`)"
                 ],
                 "correctIndex": 3,
-                "explanation": "Static pods are managed entirely by the kubelet, not by the API server scheduler. If a static pod isn't starting, the kubelet logs (journalctl -u kubelet) will show parsing errors, file permission issues, or image pull problems. The kube-scheduler is not involved in static pod lifecycle. Static pods may briefly not appear in kubectl if the kubelet hasn't registered the mirror pod yet. using 'journalctl -u kubelet'"
+                "explanation": "Static pods are owned end-to-end by the kubelet on the node where their manifest lives — the API server only ever sees the mirror pod once kubelet creates it. If the mirror pod never appears, the kubelet is the only component that knows why (YAML parse error, image pull failure, file permission). `journalctl -u kubelet` is where those errors land. The scheduler is uninvolved (static pods are pre-bound to the local node). Filtering Pending pods won't find one that was never registered, and a missing token wouldn't keep the pod manifest from being created in the first place."
               },
               {
                 "q": "The kube-scheduler pod is not running after a cluster upgrade. It is defined as a static pod. Where would you find its manifest to investigate?",
@@ -578,51 +634,51 @@
                   "/etc/systemd/system/kube-scheduler.service"
                 ],
                 "correctIndex": 0,
-                "explanation": "In a kubeadm-provisioned cluster, all control plane components (kube-apiserver, kube-controller-manager, kube-scheduler, etcd) run as static pods. Their manifests are in /etc/kubernetes/manifests/ on the control plane node. The kubelet watches this directory and manages the pods. A misconfiguration in the YAML (e.g., wrong image tag, invalid flag) would prevent the scheduler from starting."
+                "explanation": "In a kubeadm-provisioned cluster the kubelet watches /etc/kubernetes/manifests/ for static-pod manifests for kube-apiserver, kube-controller-manager, kube-scheduler and etcd. A bad flag, wrong image tag or YAML typo there would prevent kube-scheduler from starting. /var/lib/kubelet/config holds the kubelet's own ComponentConfig. There is no /opt/kubernetes/scheduler path in a kubeadm install. kube-scheduler runs as a static pod, not a systemd unit."
               },
               {
-                "q": "A Deployment named 'web-app' has 5 replicas but only 3 pods are running. 'kubectl describe deployment web-app' shows the ReplicaSet has 5 desired but 3 available. What is the most likely next diagnostic step?",
+                "q": "A Deployment named 'web-app' has 5 replicas but only 3 pods are running. `kubectl describe deployment web-app` shows the ReplicaSet has 5 desired but 3 available. What is the most appropriate next diagnostic step?",
                 "choices": [
-                  "Scale the deployment down to 3 replicas to match the current state",
+                  "Scale the Deployment down to 3 replicas to match the current state",
                   "Delete and recreate the Deployment with the same spec",
-                  "Check 'kubectl get pods' for the deployment's pods and look for",
-                  "Run 'kubectl rollout restart deployment/web-app' immediately; restarting pods directly does not explain why fewer pods are running"
+                  "Run `kubectl get pods -l app=web-app`, then `kubectl describe pod <pod-name>` on any non-running pod",
+                  "Run `kubectl rollout restart deployment/web-app` immediately"
                 ],
                 "correctIndex": 2,
-                "explanation": "When a Deployment's desired replica count exceeds available, the pods themselves hold the diagnostic information. 'kubectl get pods' filtered to the deployment's selector reveals pod states (Pending, CrashLoopBackOff, etc.), and 'kubectl describe pod' shows events with specific error messages like image pull failures, resource constraints, or node affinity issues. then 'kubectl describe pod <pod-name>' for events"
+                "explanation": "When desired > available, the individual pods carry the diagnostic information. Listing pods by the Deployment selector reveals which two are stuck (Pending, ImagePullBackOff, CrashLoopBackOff), and `kubectl describe pod` surfaces the Events explaining why — image pull failure, insufficient resources, missing PVC, failing readiness, etc. Scaling down hides the symptom without explaining it. Deleting and recreating throws away the same diagnostic state. A rollout restart kicks pods that may already be unable to schedule, which doesn't address the root cause."
               },
               {
                 "q": "A Deployment rolling update is stuck. `kubectl rollout status deployment/api` hangs with `1 old replicas are pending termination`. Which command best helps you find which pod is blocking the rollout?",
                 "choices": [
-                  "`kubectl delete replicaset <old-rs-name>` and let the deployment recover; deleting the replicaset bypasses termination hooks and loses diagnostic data",
+                  "`kubectl delete replicaset <old-rs-name>` and let the Deployment recover",
                   "`kubectl get replicasets -l app=api` to compare desired and ready counts",
                   "`kubectl rollout pause deployment/api` to freeze the in-flight rollout",
-                  "`kubectl describe pod <old-pod>` to inspect termination events and hooks"
+                  "`kubectl describe pod <old-pod>` to inspect termination events, preStop hooks and graceful-shutdown timing"
                 ],
                 "correctIndex": 3,
-                "explanation": "A stuck rollout pending termination usually means a pod is ignoring SIGTERM, a preStop hook is hanging, or `terminationGracePeriodSeconds` is set high. Describing the old pod surfaces the relevant events (`Stopping container`, hook execution). Listing replicasets shows replica counts but not why a pod won't go away. Deleting the old RS or pausing the rollout sidesteps diagnosis."
+                "explanation": "Pods that won't terminate usually have one of three issues, all visible from `describe pod`: a long preStop hook, a process ignoring SIGTERM, or a high `terminationGracePeriodSeconds`. Listing replicasets shows counts but not the why. Deleting the old ReplicaSet bypasses the diagnostic and risks orphaning pods. Pausing the rollout freezes it without explaining why the old pod is hanging."
               },
               {
-                "q": "A NetworkPolicy is applied to pods labeled 'app=api'. After applying the policy, the API pods can no longer reach the database pods labeled 'app=db' on port 5432. The policy spec has an empty 'egress: []' array. Why?",
+                "q": "A NetworkPolicy is applied to pods labeled `app=api`. After applying it, the API pods can no longer reach the database pods labeled `app=db` on port 5432. The policy spec includes `policyTypes: [Ingress, Egress]` and an empty `egress: []`. Why?",
                 "choices": [
-                  "NetworkPolicies only apply to ingress traffic by default; ingress-only policies leave egress empty and unrestricted by default",
-                  "An empty 'egress",
+                  "NetworkPolicies only apply to ingress traffic, so egress should still work",
+                  "Empty `egress: []` combined with `policyTypes: Egress` is interpreted as 'deny all egress' for the selected pods",
                   "The policy must be in the same namespace as the database pods to allow traffic",
                   "NetworkPolicies do not apply to TCP traffic on port 5432 without explicit protocol specification"
                 ],
                 "correctIndex": 1,
-                "explanation": "In Kubernetes NetworkPolicy, if 'policyTypes' includes 'Egress' and the 'egress' array is empty, all egress traffic from the selected pods is denied. An empty array means 'no rules match', which results in a default deny. To allow egress to the database, you must add an egress rule specifying the db pod selector and port 5432."
+                "explanation": "Once `policyTypes` includes Egress, the egress section becomes a closed allow-list: an empty list means 'no rule matches, deny all egress' for the selected pods. You must add an egress rule that lets traffic to the db pods on port 5432 (typically using a podSelector). The first option is wrong — egress is included whenever `policyTypes` says so. NetworkPolicies are namespace-scoped, but cross-namespace egress is expressed by `namespaceSelector`, not by colocating the policy. Protocol defaults to TCP, so the last option is also wrong."
               },
               {
                 "q": "After applying a new NetworkPolicy, pods in namespace `app` can no longer reach the kube-dns Service (10.96.0.10:53). What must be added so DNS works again?",
                 "choices": [
-                  "An egress rule on the policy allowing UDP/TCP 53 to the kube-system namespace",
-                  "A podSelector that matches the kube-dns pods inside the same policy object; a podSelector alone inside the same policy namespace does not restore DNS egress",
-                  "A namespaceSelector allowing all ingress from kube-system on the policy",
-                  "An ingress rule allowing the kube-dns Service to reach the app pods on 53"
+                  "A podSelector that matches the kube-dns pods inside the same policy object, with no further namespace targeting",
+                  "An egress rule on the policy allowing UDP and TCP port 53 to the kube-system namespace (or directly to the kube-dns pods)",
+                  "A namespaceSelector allowing all ingress from kube-system to the app pods, so kube-dns can reply through that channel",
+                  "An ingress rule allowing the kube-dns Service to reach the app pods on port 53 in both UDP and TCP directions"
                 ],
-                "correctIndex": 0,
-                "explanation": "Once a NetworkPolicy with `policyTypes: Egress` selects a pod, ALL outbound traffic is blocked unless explicitly allowed. DNS queries go to port 53 on CoreDNS in kube-system, so the fix is an egress rule allowing UDP and TCP 53 to that namespace (or to the CoreDNS pods specifically). Ingress rules don't affect outbound DNS lookups."
+                "correctIndex": 1,
+                "explanation": "Once a NetworkPolicy with `policyTypes: Egress` selects a pod, every outbound destination is denied unless an egress rule permits it. DNS resolution requires the app pods to reach CoreDNS in kube-system on UDP/TCP 53, so the rule needs `to: [namespaceSelector kube-system]` (or a podSelector for kube-dns) plus `ports: [{port: 53, protocol: UDP/TCP}]`. A podSelector alone, without a namespaceSelector, only matches pods in the policy's own namespace. Ingress rules govern inbound traffic and never restore outbound resolution."
               }
             ]
           },
@@ -657,7 +713,7 @@
     "timeMinutes": 27
   },
   "meta": {
-    "generatedAt": "2026-06-21T02:06:01.485Z",
+    "generatedAt": "2026-07-03T05:50:56.363Z",
     "totalNodes": 31,
     "totalQuestions": 61,
     "nodeTypes": [

@@ -65,51 +65,51 @@
                   "allow, deny, audit, broadcast, suppress, escalate, override"
                 ],
                 "correctIndex": 0,
-                "explanation": "Vault policy capabilities: create (write new), read, update (overwrite existing), delete, list (enumerate keys), sudo (root-restricted operations), deny (explicit deny overrides any allow). Policies are written in HCL or JSON and assigned to tokens at authentication time."
+                "explanation": "Vault policy capabilities are a fixed set: create (write new), read, update (overwrite existing), delete, list (enumerate keys), sudo (root-restricted operations), and deny (explicit deny that overrides any allow). The HTTP verbs (get/post/put…) are how the API is called, but policies do not name verbs — they name capabilities. SQL-style verbs (select/insert/grant) are database concepts, unrelated to Vault policies. The fictional allow/audit/broadcast/escalate list is not part of Vault's policy language."
               },
               {
                 "q": "A policy attached to a token reads: `path \"secret/data/app/*\" { capabilities = [\"read\"] }`. The token attempts `vault kv get secret/data/app/db`. Vault allows it. The same token then tries `vault kv put secret/data/app/db @creds.json`. What happens to the write?",
                 "choices": [
-                  "Allowed — the wildcard glob covers all verbs including read and write against any path matching the prefix, until an explicit deny rule fires",
-                  "Allowed but degraded — the write succeeds and is stored under a quarantine flag pending out-of-band approval by a policy reviewer",
-                  "Denied — the policy grants only the read capability on that prefix, and a write requires explicit create or update capability",
-                  "Denied with a token revocation — Vault treats the attempted write as a privilege escalation and invalidates the token immediately"
+                  "Allowed — the wildcard glob covers every verb on any matching path, until an explicit deny rule fires elsewhere",
+                  "Allowed but degraded — the write succeeds and is stored under a quarantine flag pending out-of-band review",
+                  "Denied — the policy grants only the read capability on that prefix; writing requires `create` or `update` capability",
+                  "Denied with a token revocation — Vault treats the attempted write as escalation and invalidates the token immediately"
                 ],
                 "correctIndex": 2,
-                "explanation": "The policy grants only 'read' capability on the path. Writing (vault kv put) requires 'create' or 'update' capability. Listing requires 'list' capability on the parent path. The policy explicitly restricts writes, so vault kv put would be denied. Note: list also requires listing the path secret/metadata/app/ for KV v2."
+                "explanation": "Vault is deny-by-default and capabilities are not implied by each other: a policy that lists only `read` allows only reads. A `kv put` needs `create` (for new keys) or `update` (for existing keys) — neither is granted here, so the write is denied. There is no 'covers every verb' rule in Vault — globs match paths, not capabilities. There is no quarantine flag for writes pending approval. And Vault does not revoke a token just for hitting an ACL denial; it returns a 403 and continues to honour the token within its remaining policy."
               },
               {
-                "q": "A team wants to create a Vault policy that allows listing secrets in secret/team-a/ but prevents reading the secret VALUES. Which capability achieves this?",
+                "q": "A team wants to create a Vault policy that allows listing secrets in `secret/team-a/` but prevents reading the secret VALUES. Which capability achieves this?",
                 "choices": [
-                  "Read capability with a condition blocking value access",
-                  "List capability on the metadata path without",
-                  "Sudo capability with read disabled",
-                  "Create capability on secret/team-a/"
+                  "Read capability on the data path with a documented convention that operators only list keys, not values",
+                  "List capability on the metadata path (`secret/metadata/team-a/*`) without any read on the data path",
+                  "Sudo capability with the read sub-capability explicitly disabled in the policy stanza",
+                  "Create capability on `secret/team-a/` so callers can enumerate keys as a side effect of writing"
                 ],
                 "correctIndex": 1,
-                "explanation": "In KV v2, listing secrets requires 'list' on 'secret/metadata/team-a/*'. Reading secret values requires 'read' on 'secret/data/team-a/*'. By granting list on the metadata path only (without read on data), users can see secret names but cannot read their values. This separation is a KV v2 advantage over v1."
+                "explanation": "In KV v2 the metadata and data live at distinct paths: `secret/metadata/team-a/*` is what `list` enumerates, and `secret/data/team-a/*` is where `read` returns the value. Granting only `list` on the metadata path lets a caller see secret names without being able to read their values — a clean KV v2 separation that KV v1 cannot offer. 'Read with a convention' is not enforcement — Vault would let the caller read every value. There is no sub-capability toggle to disable read inside `sudo`. `create` allows writes, not listing, and using a write to enumerate keys is not how listing works in Vault."
               },
               {
                 "q": "A new client authenticates and receives a token with two policies listed: the application policy and another policy that is automatically attached. The auto-attached policy grants the bare minimum needed for the token to renew itself and look up its own info. Which policy is it?",
                 "choices": [
-                  "The `root` policy, attached as a fallback when no other policy is specified at token creation, granting unrestricted access until tuned",
-                  "The `default` policy, automatically attached to every non-root token unless explicitly excluded, granting self-renew, self-lookup, cubbyhole, and a few other",
-                  "The `admin` policy, automatically attached so the application can renew its token during the first hour of its life before being demoted to a lower-privilege role",
-                  "The `audit` policy, attached so that the token can write its own audit records to the configured audit devices for forensic replay"
+                  "The `root` policy, attached as a fallback when no other policy is named at token creation, granting unrestricted access until tuned later",
+                  "The `default` policy, attached to every non-root token unless explicitly excluded, granting self-renew, self-lookup, cubbyhole, and a handful of helpers",
+                  "The `admin` policy, attached automatically so the application can renew its token during a probation window before being demoted to a lower-privilege role",
+                  "The `audit` policy, attached so the token can write its own audit records to the configured audit devices for forensic replay"
                 ],
                 "correctIndex": 1,
-                "explanation": "The 'default' policy is automatically attached to every token created in Vault. It grants minimal permissions like token renewal (auth/token/renew-self), self-lookup (auth/token/lookup-self), and revocation (auth/token/revoke-self). You can add more permissions to the default policy or explicitly exclude it using token_no_default_policy in auth roles. self-lookup) — attached to ALL tokens automatically"
+                "explanation": "The `default` policy is automatically attached to every non-root token at creation. It grants exactly the self-management permissions a token needs: `auth/token/renew-self`, `auth/token/lookup-self`, `auth/token/revoke-self`, plus its own cubbyhole. It can be excluded with `token_no_default_policy` on an auth role. The `root` policy is never auto-attached — it grants unrestricted access and is reserved for the initial bootstrap token. There is no built-in `admin` policy attached automatically. There is no built-in `audit` policy — audit logging is configured at the device level, not via a per-token policy."
               },
               {
-                "q": "A team stores secrets at secret/data/team-a/db. They want to enforce that only tokens with entity metadata 'team=team-a' can access this path. Which Vault ACL template feature enables this?",
+                "q": "A team stores secrets at `secret/data/team-a/db`. They want to enforce that only tokens with entity metadata `team=team-a` can access this path. Which Vault ACL template feature enables this?",
                 "choices": [
-                  "Vault cannot use entity metadata from a team's token for dynamic policy decisions — only static path prefixes are supported",
-                  "ACL templating with {{identity.entity.metadata.team}",
-                  "AWS IAM condition keys in Vault policies",
-                  "LDAP group binding to the secret path"
+                  "Vault cannot use entity metadata from a token for dynamic policy decisions — only static path prefixes are supported in policies",
+                  "ACL templating with `{{identity.entity.metadata.team}}` in the policy path string, substituted at evaluation time",
+                  "AWS IAM condition keys embedded inside Vault policy stanzas to constrain access by tag",
+                  "LDAP group binding directly to the secret path, so directory membership grants the read capability"
                 ],
                 "correctIndex": 1,
-                "explanation": "Vault ACL templating allows dynamic policy paths using identity metadata. A policy like path 'secret/data/{{identity.entity.metadata.team}}/*' { capabilities = ['read'] } restricts each entity to only their team's secrets path. The placeholder resolves at policy evaluation time based on the authenticated entity's metadata."
+                "explanation": "Vault ACL templating evaluates `{{identity.entity.metadata.<key>}}` (and other identity tokens) at policy-evaluation time. A policy like `path \"secret/data/{{identity.entity.metadata.team}}/*\" { capabilities = [\"read\"] }` resolves the placeholder against the authenticated entity, so each entity sees only its team's path. Vault definitely supports dynamic policy decisions based on identity metadata, so the 'static prefixes only' claim is wrong. AWS IAM condition keys are not understood by Vault policies. LDAP groups attach to entities via aliases but cannot be bound directly to a path inside a policy."
               }
             ]
           },
@@ -189,48 +189,48 @@
             "livesAllowed": 3,
             "questions": [
               {
-                "q": "A high-throughput application creates thousands of Vault tokens per second. Which token type is optimized for this scenario and why?",
+                "q": "A high-throughput application creates thousands of Vault tokens per second. Which token type is optimised for this scenario and why?",
                 "choices": [
-                  "Orphan tokens — they don't need parent token management",
-                  "Batch tokens — they're lightweight, not stored in Vault,.",
-                  "Root tokens — they bypass Vault storage overhead but are restricted to bootstrap operations",
-                  "Service tokens — they're more secure for high-volume workloads"
-                ],
-                "correctIndex": 1,
-                "explanation": "Batch tokens are encoded entirely in the token string and not stored in Vault's storage backend. This makes them extremely lightweight — no storage write per token creation. They cannot be renewed and have no children, but for short-lived, high-volume use cases (Lambda functions, CI/CD jobs) they are far more efficient than service tokens. and faster to create"
-              },
-              {
-                "q": "A Vault token has a TTL of 1 hour but the application needs it to remain valid for 8 hours. The token's max_ttl is 24 hours. What should the application do?",
-                "choices": [
-                  "Create a new token by re-authenticating after each hour",
-                  "Enable token immortality by setting TTL to 0",
-                  "Change the token's TTL using vault token update",
-                  "Call vault token renew before the TTL expires to extend"
+                  "Orphan tokens — they bypass storage because they have no parent token to track in the hierarchy",
+                  "Service tokens — they cache the parent lookup so high-volume workloads avoid repeated reads",
+                  "Root tokens — they bypass storage overhead entirely, suitable for high-frequency bootstrap operations",
+                  "Batch tokens — they are encoded entirely in the token string, not stored in Vault, so creation is cheap"
                 ],
                 "correctIndex": 3,
-                "explanation": "Vault tokens with 'renewable: true' can be renewed before expiry using vault token renew (or the API equivalent). Each renewal extends the TTL by its increment, but the token cannot be renewed past max_ttl. Vault Agent automates this for applications. Setting TTL to 0 does NOT make a token immortal — it uses the system default TTL."
+                "explanation": "Batch tokens are encoded entirely in the token string and never written to Vault's storage backend, so creation is extremely cheap — ideal for short-lived, high-volume use (Lambda, CI jobs). They cannot be renewed and cannot have children, which is acceptable in those scenarios. Orphan tokens are still service tokens written to storage; their orphan-ness only affects parent-revocation chains, not throughput. Service tokens require a storage write per creation — exactly the cost batch tokens avoid. Root tokens are not designed for high-frequency creation and are restricted to bootstrap use, not a throughput tool."
+              },
+              {
+                "q": "A Vault token has a TTL of 1 hour but the application needs it to remain valid for 8 hours. The token's `max_ttl` is 24 hours. What should the application do?",
+                "choices": [
+                  "Re-authenticate every hour to mint a fresh token, accepting the extra auth-method traffic over the application's lifetime",
+                  "Enable token immortality by setting TTL to 0 so renewals are no longer needed for the running application",
+                  "Change the token's TTL using `vault token update` to override the current expiry to the desired horizon",
+                  "Call `vault token renew` before the TTL expires to extend the token, bounded by `max_ttl`"
+                ],
+                "correctIndex": 3,
+                "explanation": "Renewable Vault tokens are extended via `vault token renew` (or the API equivalent) — each renewal pushes the expiry forward by the configured increment, bounded by `max_ttl`. Vault Agent automates this. Re-authenticating every hour works but is unnecessarily expensive; renewal is the intended pattern. Setting TTL to 0 does not produce an immortal token — it just uses the system default TTL. There is no `vault token update` command that mutates an existing token's TTL on the fly; you renew it or re-issue."
               },
               {
                 "q": "A workload requests a token whose lifetime should NOT depend on the lifetime of any other token. When the token that issued the credential expires or is revoked, the new token must survive. To achieve this, the issuing token uses a specific flag at create time. What does that flag set?",
                 "choices": [
-                  "Creates a token with no parent in Vault's token hierarchy — it is not revoked when its issuer is revoked, only by its own TTL, max_ttl, or explicit revocation",
-                  "Marks the token as exempt from any audit log for the duration of its validity, though it is still revoked if its parent token expires, so high-throughput batch jobs do not flood downstream SIEMs",
-                  "Allows the token to bypass policy checks on a configurable subset of paths to support break-glass operations during an incident",
-                  "Causes the token's TTL to be refreshed every time a child token is created beneath it, effectively pinning the parent's lifetime to the child's"
+                  "Creates an orphan token — no parent in the token hierarchy, so it is not revoked when its issuer is revoked; only its own TTL, max_ttl, or explicit revocation ends it",
+                  "Marks the token as exempt from audit logging for its lifetime, so high-throughput batch jobs do not flood downstream SIEMs while still inheriting the parent's lifecycle",
+                  "Allows the token to bypass policy checks on a configurable subset of paths to support break-glass operations during an incident response window",
+                  "Causes the token's TTL to be refreshed every time a child token is created beneath it, effectively pinning the parent's lifetime to its longest-lived child"
                 ],
                 "correctIndex": 0,
-                "explanation": "Normally, revoking a parent token revokes all its child tokens. An orphan token (token_type = orphan) has no parent — it exists independently. This is important for long-running services that authenticate via AppRole: the AppRole login token is ephemeral (parent), but the service shouldn't lose access just because the login token expired. Orphan tokens persist until their own TTL expires or they're explicitly revoked. it survives independently of the creating token's lifecycle"
+                "explanation": "By default, revoking a Vault token revokes its entire child tree. An orphan token (created with the orphan flag, or via `auth/token/create-orphan`) has no parent in the hierarchy, so it survives independent of the issuer — only its own TTL, max_ttl, or explicit revocation can end it. There is no flag that exempts a token from audit logging — audit coverage is global. There is no flag that lets a token bypass policy on a subset of paths; bypass requires the root policy. And there is no parent-refreshes-on-child mechanism — child creation does not extend the parent."
               },
               {
-                "q": "An operator runs vault token lookup and sees 'renewable: false'. What does this mean for the token lifecycle?",
+                "q": "An operator runs `vault token lookup` and sees `renewable: false`. What does this mean for the token lifecycle?",
                 "choices": [
-                  "The token will never expire",
-                  "The token can only be renewed by root users",
-                  "The token can be renewed but the TTL won't increase",
-                  "The token will expire at its TTL and cannot be"
+                  "The token will never expire because non-renewable tokens are treated as static credentials by the lifecycle subsystem",
+                  "The token can only be renewed by a holder of the root policy, not by the token itself or by its peers",
+                  "The token can be renewed but the TTL will not actually increase — the renewal call succeeds without advancing the expiry",
+                  "The token will expire at its TTL and cannot be extended; the application must authenticate again to obtain a new token"
                 ],
                 "correctIndex": 3,
-                "explanation": "A non-renewable token cannot be extended with vault token renew. Once its TTL expires, it becomes invalid. The application must re-authenticate to get a new token. Batch tokens are always non-renewable by design. Some auth method roles can be configured to issue non-renewable tokens for security purposes. a new token must be obtained"
+                "explanation": "`renewable: false` means the token cannot be extended with `vault token renew`. When the TTL elapses the token becomes invalid and the application must re-authenticate. Batch tokens are always non-renewable by design, and auth roles can opt out of renewability for service tokens. Non-renewable does not mean immortal — it means 'no extension possible', so expiry still happens at TTL. Root cannot renew a non-renewable token either; the property gates the operation itself. And renewal does not succeed without advancing — on a non-renewable token, the renew call returns an error."
               },
               {
                 "q": "A token is issued with TTL=1h and max_ttl=24h. The application renews the token roughly every 45 minutes while it is running. Which TWO statements about its lifetime are accurate? (select two)",
@@ -241,7 +241,7 @@
                   "The token enters a grace period after expiry during which it can still authorise reads but is rejected for any write operation against any path"
                 ],
                 "correctIndex": 0,
-                "explanation": "max_ttl is the hard cap on total lifetime from creation, regardless of renewals. As you approach max_ttl, the renewal grant shrinks (Vault returns less than the requested TTL). Renewals are NOT automatic — clients must call /auth/token/renew. Use cases like agent auto-auth handle that on the client side."
+                "explanation": "max_ttl is the hard ceiling on total lifetime from creation, and Vault honours it regardless of renewals. As the token approaches max_ttl the renewal grant shrinks (Vault returns less than the requested TTL). Statements 0 and 2 capture this correctly: renewals push expiry forward by up to TTL but never past max_ttl, and once max_ttl elapses the token is gone. The 'renewals reset max_ttl' claim is wrong — max_ttl is immutable for the life of the token, which is what prevents an immortal token. The 'grace period for reads only' claim is also wrong — Vault does not split expired tokens into read-allowed and write-blocked; once expired the token is rejected on every path."
               }
             ]
           },
@@ -322,46 +322,46 @@
               {
                 "q": "Which Vault secrets engine generates real AWS IAM credentials with a configurable TTL that are automatically revoked on expiry?",
                 "choices": [
-                  "Transit secrets engine",
-                  "AWS secrets engine",
-                  "KV v2 secrets engine",
-                  "Cubbyhole secrets engine"
+                  "Transit secrets engine — encrypts AWS keys at rest while leaving the underlying IAM user untouched",
+                  "KV v2 secrets engine — stores AWS access keys as versioned static secrets with rotation metadata",
+                  "Cubbyhole secrets engine — issues per-token AWS access keys scoped to the cubbyhole's TTL",
+                  "AWS secrets engine — generates dynamic IAM access keys on demand and revokes them at lease expiry"
                 ],
-                "correctIndex": 1,
-                "explanation": "The AWS secrets engine generates dynamic IAM access keys on demand with a TTL. Vault creates the IAM credentials, hands them to the application, and automatically deletes them when the lease expires. Each application gets unique credentials — no shared long-lived keys."
+                "correctIndex": 3,
+                "explanation": "The AWS secrets engine generates dynamic IAM access keys on demand with a TTL: Vault creates the IAM credentials via the AWS API, hands them to the application, and deletes them when the lease expires. Transit is encryption-as-a-service — it does not create IAM users. KV v2 stores arbitrary static values; it has no idea what an IAM user is and cannot revoke one. Cubbyhole is a per-token private KV — it never creates IAM credentials and has no AWS integration."
               },
               {
                 "q": "A team is choosing between two flavours of the static-secrets engine. One stores only the current value of each key. The other adds versioning, soft-delete, and metadata. What is the principal difference?",
                 "choices": [
-                  "The newer flavour persists data on Raft while the older flavour writes to the file backend, the only choice for production deployments",
-                  "The newer flavour adds per-key versioning with configurable max-versions, soft-delete + undelete, and per-key metadata",
-                  "The older flavour returns secrets in JSON only, while the newer flavour adds a Protobuf wire format negotiated at request time for compactness",
-                  "Audit logging uses the same metadata versioning and soft-delete event format in both flavours; the older flavour simply requires an external syslog forwarder for compliance"
+                  "The newer flavour persists data on Raft while the older flavour only writes to the file backend and is unsuitable for production deployments",
+                  "The newer flavour adds per-key versioning with configurable max-versions, soft-delete plus undelete, and per-key metadata",
+                  "The newer flavour returns secrets in Protobuf while the older flavour only returns JSON, with the wire format negotiated at request time",
+                  "Both flavours use the same audit log shape; the older flavour just requires an external syslog forwarder for compliance"
                 ],
                 "correctIndex": 1,
-                "explanation": "KV v2 is versioned: writing a new value keeps the old versions (configurable max). Soft-delete marks a version deleted but allows recovery. Destroy permanently removes a version. KV v1 silently overwrites data with no way to recover previous values. Use KV v2 for production. v1 overwrites data with no recovery"
+                "explanation": "KV v2 is the versioned static-secrets engine: writing a new value preserves old versions (with a configurable max), soft-delete marks a version deleted but recoverable via undelete, and per-key metadata is supported. KV v1 silently overwrites and offers no recovery. KV v1 is not tied to the file backend — either KV version works with any storage backend, so storage is not the distinction. The two engines use the same JSON wire format, so the Protobuf claim is fabricated. Audit logging is configured at the Vault level, identical for both KV versions; the syslog-forwarder framing is invented."
               },
               {
-                "q": "A microservice requests a database credential. Instead of being handed a long-lived password from a config file, it receives a freshly generated username + password whose lifetime is bound to a lease and which Vault will revoke when the lease expires. What is this called, and what is its principal advantage?",
+                "q": "A microservice requests a database credential. Instead of being handed a long-lived password from a config file, it receives a freshly generated username and password whose lifetime is bound to a lease and which Vault will revoke when the lease expires. What is this called, and what is its principal advantage?",
                 "choices": [
-                  "Wrapping — Vault returns a one-time handle that the workload unwraps to obtain a pre-generated long-lived password from the operator",
-                  "Dynamic secret",
-                  "Response signing — Vault attaches a JWT to the secret so callers can verify provenance, but the credential itself is rotated by an external job",
-                  "Static rotation — Vault stores the password unchanged and rotates it on a fixed schedule, notifying clients via a webhook ahead of the change"
+                  "Dynamic secret — generated on demand with a TTL, unique per workload, auto-revoked on lease expiry so no shared long-lived password exists",
+                  "Wrapped secret — Vault returns a one-time handle that the workload unwraps to obtain a pre-generated long-lived password from an operator",
+                  "Response-signed secret — Vault attaches a JWT signature so callers verify provenance, but the credential itself is rotated by an external job",
+                  "Static rotated secret — Vault stores the password unchanged and rotates it on a fixed schedule, notifying clients via a webhook ahead of the change"
                 ],
-                "correctIndex": 1,
-                "explanation": "Dynamic secrets are generated on-demand (real database users, AWS IAM keys) with a TTL. They auto-revoke when the lease expires. Key advantages: short-lived (reduces exposure window), unique per application (breach isolation), no manual rotation needed. The AWS and Database secrets engines are primary examples. each request gets unique credentials, no shared long-lived secrets"
+                "correctIndex": 0,
+                "explanation": "Dynamic secrets are generated on demand (a real database user, an IAM key) with a TTL and auto-revoke on lease expiry — short-lived, unique per workload, and no manual rotation. Response wrapping is a delivery mechanism for an already-existing secret; the underlying credential is still whatever it was, not freshly generated per request. Response-signed secrets are not a Vault concept. Static rotated secrets exist (database static roles), but the credential is shared — the question describes a freshly generated per-request username/password, which is the dynamic-secret pattern."
               },
               {
                 "q": "An infrastructure team wants to grant engineers SSH access to ephemeral VMs without distributing long-lived SSH keys. Instead they want Vault to mint a one-time password per host that the host's PAM module validates against Vault. Which secrets engine fits?",
                 "choices": [
-                  "The PKI engine — Vault signs short-lived X.509 certificates that openssh-server validates against the CA public key via TrustedUserCAKeys, no per-host secret needed",
-                  "The SSH engine in OTP mode — Vault generates a one-time password per session that the target host validates against Vault via the vault-ssh-helper PAM plugin",
+                  "The PKI engine — Vault signs short-lived X.509 certificates that openssh-server validates via TrustedUserCAKeys, no per-host secret needed",
+                  "The SSH engine in OTP mode — Vault generates a single-use password per session that the target validates via the vault-ssh-helper PAM plugin",
                   "The TOTP engine — Vault stores per-host shared TOTP secrets and engineers compute a 6-digit code locally using their authenticator app",
-                  "The KV engine combined with a sidecar — a daemon on each host polls Vault every 60 seconds for the rotating password and updates /etc/shadow"
+                  "The KV engine with a sidecar — a daemon on each host polls Vault every 60 seconds for the rotating password and updates `/etc/shadow`"
                 ],
                 "correctIndex": 1,
-                "explanation": "The SSH secrets engine has two modes: OTP mode generates a single-use password for a specific user/host, and CA mode signs SSH public keys creating short-lived SSH certificates. Both eliminate the need to distribute and manage SSH keys manually. CA mode is preferred for scale as it doesn't require a Vault helper on each target host."
+                "explanation": "The SSH secrets engine in OTP mode generates a single-use password per user/host pair, which the vault-ssh-helper PAM plugin on the target validates back to Vault — no long-lived SSH keys are distributed. The PKI engine issues X.509 (TLS) certificates, not SSH credentials. The TOTP engine generates time-based 6-digit codes (RFC 6238), not SSH session passwords, and assumes a pre-shared secret with the user. The KV-and-sidecar story is a custom workaround that would leak shadow-file rotations — Vault has a purpose-built engine, so a homegrown approach is the wrong answer."
               }
             ]
           },
@@ -441,46 +441,46 @@
               {
                 "q": "On a brand-new Vault server with no data, an operator runs a single command that generates the root key, splits it into shares with a configurable threshold, and prints an initial root token. The command can only succeed once on a given cluster. Which operator command is it?",
                 "choices": [
-                  "`vault operator init`",
+                  "`vault operator init` — runs once on a fresh cluster, generates the Shamir shares and initial root token",
                   "`vault operator unseal` — accepts key shares one at a time until threshold is reached, then transitions the node from sealed to unsealed",
-                  "`vault operator generate-root` — uses a quorum of existing key shares to mint a new root token for break-glass operations on a running cluster",
-                  "`vault operator rekey` — generates fresh unseal key shares from a quorum of existing shares without invalidating the underlying root key"
+                  "`vault operator generate-root` — uses a quorum of existing key shares to mint a new root token for break-glass on a running cluster",
+                  "`vault operator rekey` — generates fresh unseal key shares from a quorum of existing shares without invalidating the root key"
                 ],
                 "correctIndex": 0,
-                "explanation": "vault operator init is run exactly once on a new Vault cluster. It generates the Shamir key shares (unseal keys) and an initial root token. The unseal keys must be securely distributed to key holders immediately. The root token should be used minimally to bootstrap initial configuration, then revoked. generating unseal keys and a root token — run ONCE on a brand new cluster"
+                "explanation": "`vault operator init` is the one-shot bootstrap: it generates the Shamir key shares and prints an initial root token. It can only succeed once on a given cluster. `vault operator unseal` is run repeatedly (after every restart, once per share) to reconstruct the master key on an already-initialised cluster — it does not create the shares. `vault operator generate-root` mints a new root token on a running cluster and requires a quorum of existing shares; it does not initialise anything. `vault operator rekey` rotates the unseal shares but again requires an existing quorum and is unrelated to first-time init."
               },
               {
                 "q": "A Vault HA cluster runs on integrated storage. The operator needs to take a consistent point-in-time backup of the entire data store (encrypted) that can later be restored on a fresh cluster as part of disaster recovery drills. They run a single CLI command that streams the snapshot to a local file. Which command does this?",
                 "choices": [
-                  "`vault operator raft snapshot save backup.snap`",
-                  "`vault audit enable file file_path=backup.snap` — exports an append-only log of every operation, which can be replayed against a new cluster to reconstruct state",
-                  "`vault operator rekey -backup snapshot=backup.snap` — exports the current unseal key shares so that a quorum can be reconstituted by a new operator team",
-                  "`vault operator generate-root -dr backup.snap` — produces a recovery bundle containing the root token + policies that bootstraps a replacement node"
+                  "`vault operator raft snapshot save backup.snap` — streams a binary snapshot of the Raft store to a local file for later restore",
+                  "`vault audit enable file file_path=backup.snap` — exports an append-only log of every operation, which can be replayed against a new cluster",
+                  "`vault operator rekey -backup snapshot=backup.snap` — exports the current unseal key shares so a quorum can be reconstituted later",
+                  "`vault operator generate-root -dr backup.snap` — produces a recovery bundle containing the root token and policies for a replacement node"
                 ],
                 "correctIndex": 0,
-                "explanation": "vault operator raft snapshot save creates a binary snapshot of the entire Raft storage state. This snapshot can be restored with vault operator raft snapshot restore to recover from data loss or cluster failure. It captures all Vault data: secrets, policies, auth config, and audit logs. Regular automated snapshots are a critical backup practice."
+                "explanation": "`vault operator raft snapshot save` streams a binary snapshot of the entire Raft storage (Vault data, policies, auth config, audit settings) to a file. It can be restored on a fresh cluster with `vault operator raft snapshot restore`. Enabling an audit device only writes per-request log lines; it is not a point-in-time backup and replaying audit logs does not reconstruct state. `vault operator rekey` rotates unseal shares — it does not back up data and the `-backup` here is for the new shares, not for storage. `vault operator generate-root` produces a new root token, not a data backup."
               },
               {
                 "q": "An operator wants to force a controlled leader election on a Vault HA cluster — perhaps to drain the active node before an OS upgrade. They run a CLI command on the active node that causes it to relinquish leadership; another standby is then promoted. Which command does this?",
                 "choices": [
-                  "Forces the current active Vault node to relinquish leadership, sealing itself and triggering an election among the standbys to promote a new active node",
-                  "Drains in-flight requests on the active Vault node, causing it to relinquish a leadership lease and queue new requests until the election completes and a standby is manually promoted via a force-promote call",
-                  "Pauses replication to performance-secondary clusters so that the active node can complete maintenance without affecting downstream replicas",
-                  "Disables the read-replica role on the local node and promotes it to perform an out-of-cluster restore from the latest Raft snapshot"
+                  "`vault operator step-down` — forces the active node to relinquish leadership and triggers an election among the standbys",
+                  "`vault operator drain` — drains in-flight requests on the active node and queues new requests until a standby is manually promoted via a force-promote call",
+                  "`vault operator replication pause` — pauses replication to performance-secondary clusters so the active node can complete maintenance without affecting downstream replicas",
+                  "`vault operator raft promote` — disables the read-replica role on the local node and promotes it to perform an out-of-cluster restore from the latest snapshot"
                 ],
                 "correctIndex": 0,
-                "explanation": "vault operator step-down forces the active Vault node to give up its leadership. A standby node then wins the leader election and becomes active. This is used for planned maintenance, rolling upgrades, or testing failover. The stepped-down node becomes a standby and remains in the cluster. triggering a failover to a standby node"
+                "explanation": "`vault operator step-down` causes the active Vault node to give up its leadership; a standby then wins the election and becomes active. The stepped-down node remains in the cluster as a standby — used for planned maintenance, rolling upgrades, and failover testing. There is no `vault operator drain` command, and Vault does not queue requests behind a manual promote. `vault operator replication pause` belongs to Enterprise replication; it does not change leadership inside one cluster. `vault operator raft promote` is not a real subcommand — there is no read-replica concept in Vault Raft, and out-of-cluster restore uses `snapshot restore`."
               },
               {
                 "q": "A new operator on a fresh Vault server wants to enable the database secrets engine at a custom path so the team can mint dynamic Postgres credentials. They have access to the host but have not interacted with the API yet. What MUST happen first?",
                 "choices": [
-                  "The server must be initialised AND unsealed, and the operator must be authenticated with a token whose policy grants the required capabilities on `sys/mounts/<path>`",
-                  "The host must have a working Postgres driver installed locally; the operator cannot enable the engine until the driver handshake succeeds during the mount operation",
+                  "The server must be initialised AND unsealed, and the operator must authenticate with a token whose policy grants the required capabilities on `sys/mounts/<path>`",
+                  "The host must have a working Postgres driver installed locally; the operator cannot enable the engine until the driver handshake succeeds during mount",
                   "An audit device must be enabled, because mount operations are rejected on clusters where no audit device has been configured for any path",
-                  "The license file must declare the database engine in the entitlements bundle, because the engine is gated behind a premium tier even in non-prod"
+                  "The license file must declare the database engine in its entitlements bundle, because the engine is gated behind a premium tier even in non-prod"
                 ],
                 "correctIndex": 0,
-                "explanation": "The first step is vault secrets enable -path=myengine <engine-type> (e.g., vault secrets enable -path=aws aws). This mounts the engine at the specified path. After mounting, you configure the engine (e.g., vault write aws/config/root credentials). Policies can be created before or after, but the engine must be mounted before it can be used."
+                "explanation": "Before mounting any secrets engine the server must be initialised (`vault operator init` once) and unsealed, and the caller must hold a token whose policy includes `update`/`sudo` on `sys/mounts/<path>`. Only after the mount can the engine be configured (connections, roles). Vault itself does not need a local Postgres driver — the database engine connects out to Postgres over the network, and engine plugins ship inside the Vault binary. There is no requirement to enable an audit device before mounting — audit is configured separately, and mounts work without it (although audit is strongly recommended). The database engine is not Enterprise-gated; it ships in Community Edition."
               }
             ]
           },
@@ -615,22 +615,22 @@
           "pairs": [
             {
               "qid": "vault-013",
-              "prompt": "Vault Agent runs as a client-side daemon, handles automatic authentication, and writes secrets to local files for applications to consume.",
+              "prompt": "Vault Agent — client daemon that auto-authenticates, renews leases, and renders templated secrets to files runs as a client-side daemon, handles automatic authentication, and writes secrets to local files for applications to consume.",
               "correct": true
             },
             {
               "qid": "vault-045",
-              "prompt": "LDAP group-based policy assignment allows path-based routing rules to override or deny access based on contextual information like time of day or IP address? (Enterprise).",
+              "prompt": "LDAP group-based policy assignment — maps directory groups to Vault policies at login time allows path-based routing rules to override or deny access based on contextual information like time of day or IP address? (Enterprise).",
               "correct": false
             },
             {
               "qid": "vault-049",
-              "prompt": "The vault CLI environment variable used to set the Vault server address so you don't have to pass -address on every command is VAULT_ADDR.",
+              "prompt": "The vault CLI environment variable used to set the Vault server address so you don't have to pass `-address` on every command is `VAULT_ADDR` — canonical environment variable read by the Vault CLI and SDKs for the server address.",
               "correct": true
             },
             {
               "qid": "vault-024",
-              "prompt": "Cubbyhole secrets engine is automatically mounted, scoped exclusively to the current token, and used internally for response wrapping.",
+              "prompt": "Cubbyhole secrets engine — always mounted at `cubbyhole/`, private to the current token, and the storage layer behind response wrapping is automatically mounted, scoped exclusively to the current token, and used internally for response wrapping.",
               "correct": true
             }
           ],
@@ -640,27 +640,27 @@
             "statements": [
               {
                 "id": "vault-013",
-                "text": "Vault Agent runs as a client-side daemon, handles automatic authentication, and writes secrets to local files for applications to consume.",
+                "text": "Vault Agent — client daemon that auto-authenticates, renews leases, and renders templated secrets to files runs as a client-side daemon, handles automatic authentication, and writes secrets to local files for applications to consume.",
                 "isTrue": true,
-                "explanation": "Vault Agent is a client daemon that handles auto-auth (AppRole, Kubernetes, AWS), automatically renews tokens and leases, and uses template rendering to write secrets to config files. Applications can read secrets from files without needing the Vault SDK, and Vault Agent handles all TTL management."
+                "explanation": "Vault Agent is a client-side daemon: it handles auto-auth (AppRole, Kubernetes, AWS, …), renews tokens and leases, and uses templating to render secrets into config files so the application reads files instead of using a Vault SDK. Sentinel is the Enterprise policy-as-code engine that filters requests, not a client daemon that writes secrets. Vault Server is the central server process — the thing Agent talks to, not the daemon that renders files. Vault Proxy / vault proxy mode forwards API requests with caching, but it does not author template-rendered secret files for applications."
               },
               {
                 "id": "vault-045",
-                "text": "LDAP group-based policy assignment allows path-based routing rules to override or deny access based on contextual information like time of day or IP address? (Enterprise).",
+                "text": "LDAP group-based policy assignment — maps directory groups to Vault policies at login time allows path-based routing rules to override or deny access based on contextual information like time of day or IP address? (Enterprise).",
                 "isTrue": false,
-                "explanation": "Vault Enterprise includes Sentinel-based Endpoint Governing Policies (EGPs) and Role Governing Policies (RGPs). These allow complex policy logic (time-based, IP-based, MFA-required conditions) using HashiCorp Sentinel's policy-as-code framework. This goes beyond static ACL capabilities. EGPs apply to specific paths; RGPs apply to roles."
+                "explanation": "Vault Enterprise's Sentinel integration provides Endpoint Governing Policies (EGPs) on specific paths and Role Governing Policies (RGPs) on roles. These use the Sentinel language to express conditions like time-of-day, source IP, or MFA-required — beyond what static ACL capabilities express. ACL templating substitutes identity metadata into paths but cannot evaluate request-time context like IP or wall-clock time. LDAP group binding just attaches policies to logins; it has no contextual filter. Token metadata sits on the token and can be inspected but does not implement path-based routing rules."
               },
               {
                 "id": "vault-049",
-                "text": "The vault CLI environment variable used to set the Vault server address so you don't have to pass -address on every command is VAULT_ADDR.",
+                "text": "The vault CLI environment variable used to set the Vault server address so you don't have to pass `-address` on every command is `VAULT_ADDR` — canonical environment variable read by the Vault CLI and SDKs for the server address.",
                 "isTrue": true,
-                "explanation": "VAULT_ADDR sets the default Vault server address (e.g., export VAULT_ADDR=https://vault.example.com:8200). Other important Vault environment variables: VAULT_TOKEN (default token), VAULT_NAMESPACE (namespace for Enterprise), VAULT_CACERT (CA certificate path), VAULT_TLS_SKIP_VERIFY (skip TLS verification, NOT for production)."
+                "explanation": "`VAULT_ADDR` is the canonical environment variable for the CLI and SDKs (for example `export VAULT_ADDR=https://vault.example.com:8200`). Other commonly used ones are `VAULT_TOKEN`, `VAULT_NAMESPACE`, `VAULT_CACERT`, and `VAULT_TLS_SKIP_VERIFY` (not for production). `VAULT_ENDPOINT`, `VAULT_URL`, and `VAULT_HOST` are not Vault environment variables — they sound plausible but are fabricated names; setting them has no effect on the CLI."
               },
               {
                 "id": "vault-024",
-                "text": "Cubbyhole secrets engine is automatically mounted, scoped exclusively to the current token, and used internally for response wrapping.",
+                "text": "Cubbyhole secrets engine — always mounted at `cubbyhole/`, private to the current token, and the storage layer behind response wrapping is automatically mounted, scoped exclusively to the current token, and used internally for response wrapping.",
                 "isTrue": true,
-                "explanation": "The Cubbyhole secrets engine is always mounted at cubbyhole/ and is private to each token — no other token can access another token's cubbyhole. Response wrapping stores the wrapped secret in the cubbyhole of a single-use wrapping token. When the wrapping token expires, its cubbyhole (and the wrapped secret) is also destroyed."
+                "explanation": "Cubbyhole is always mounted at `cubbyhole/` and is strictly private to each token — no other token can read another's cubbyhole. Response wrapping stores the wrapped secret inside a single-use wrapping token's cubbyhole; when that token is consumed or expires, its cubbyhole and the wrapped data are destroyed together. Identity is a metadata system, not a token-scoped secret store. KV v1 at `secret/` is a shared mount in OSS by default — not per-token, and not the wrapping store. `sys/` is the system API namespace; it is not a per-token KV mount."
               }
             ]
           },
@@ -695,7 +695,7 @@
     "timeMinutes": 23
   },
   "meta": {
-    "generatedAt": "2026-06-21T02:06:01.573Z",
+    "generatedAt": "2026-07-03T05:50:56.500Z",
     "totalNodes": 31,
     "totalQuestions": 51,
     "nodeTypes": [
