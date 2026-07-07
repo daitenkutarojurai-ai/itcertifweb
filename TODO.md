@@ -1520,6 +1520,59 @@ competition-driven, community-driven** layer. Highest-priority builds:
 
 ---
 
+## 📦 Content expansion R22 (2026-07-07)
+
+Scheduled-agent run targeting the FailBase cluster — the longest-quiet content
+cluster since R21 (last touched 2026-06-09 with R16's `moviepass`, while
+RealityCheck / PromptDungeon / DevStack / Comparator / ToolRadar have all
+picked up entries more recently). One new abundantly-sourced business
+post-mortem highly relevant to the CertQuests IT/tech audience:
+
+- **+1 FailBase post-mortem** (cluster 12 → 13):
+  - `svb-effondrement-48-heures-2023` — Silicon Valley Bank, la banque des
+    startups tech financées par du capital-risque, fermée par la FDIC le
+    10 mars 2023 après un bank-run digital de 42 Md$ en 24 heures (25 % des
+    dépôts en une journée). Deuxième plus grosse faillite bancaire de
+    l'histoire américaine à ~209 Md$ d'actifs, ~16,6 Md$ de coût final pour
+    le Deposit Insurance Fund selon la FDIC. 6 erreurs rangées par impact :
+    (1) mismatch de duration (91 Md$ d'obligations longues à ~1,6 % contre
+    des dépôts à vue, sans hedge), (2) arbitrage comptable HTM (91 Md$
+    reclassés en Held-to-Maturity en 2021 pour cacher les moins-values
+    latentes des fonds propres), (3) concentration extrême sur un seul
+    segment corrélé (94 % de dépôts non-assurés, ~50 % des startups VC
+    américaines), (4) poste de CRO vacant 8 mois pendant la hausse Fed,
+    (5) annonce du 8 mars 2023 (1,8 Md$ de perte + 2,25 Md$ de levée sans
+    anchor) qui a précipité la fuite, (6) bank-run à la vitesse du mobile
+    banking / groupes Slack VC — hypothèse absente des stress tests de
+    liquidité. Timeline 15 événements du 17 octobre 1983 (fondation à San
+    Jose) au 17 janvier 2024 (revue GAO indépendante).
+  - **Sources publiques uniquement** : Federal Reserve "Review of the Federal
+    Reserve's Supervision and Regulation of Silicon Valley Bank" (rapport
+    Barr du 28 avril 2023, PDF officiel), SEC EDGAR (10-K annuel 2022 de
+    SVB Financial Group + 8-K du 8 mars 2023), FDIC press release PR-16-2023,
+    US Treasury joint statement du 12 mars 2023, GAO Preliminary Review de
+    janvier 2024. Le rapport Barr est explicitement auto-critique — le
+    disclaimer signale l'angle Fed et pointe vers le GAO pour un regard
+    indépendant convergent. Pas de rumeurs internes, pas de podcast.
+  - `title` 64 chars, `metaTitle` 53 chars, `metaDescription` 143 chars,
+    Article JSON-LD, canonical, OG tags, cache-busted CSS (?v=135) —
+    contraintes du brief respectées. `lastReviewed` "2026-07" (freshness
+    pill verte).
+- `scripts/gen-failbase-pages.js` `CACHE_BUST` déjà à v=135 (aligné avec le
+  `?v=` global) — pas de bump générateur nécessaire. Les 12 dossiers
+  existants régénérés idempotents ; les 8 diffs sur les siblings ne
+  concernent que les `<meta description>` / `og:description` re-synchronisées
+  avec leur `tldr` source-of-truth (dérive documentaire mineure documentée
+  en R11-R21, benign).
+- `npm run gen-failbase` regenerated 13 pages + the `/failbase/` index (le
+  nouveau dossier + l'index carte + les 8 siblings re-synchronisés).
+  sitemap.xml +1 entry (priority 0.8, monthly changefreq, lastmod 2026-07-07);
+  failbase index lastmod bumped 2026-06-09 → 2026-07-07.
+- 265/265 tests still pass. No CSS/JS cache version bump (new HTML/data
+  only).
+
+---
+
 ## 📦 Content expansion R21 (2026-06-30)
 
 Scheduled-agent run targeting the RealityCheck cluster — the longest-quiet
