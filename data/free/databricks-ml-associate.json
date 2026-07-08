@@ -1,0 +1,253 @@
+{
+  "meta": {
+    "id": "databricks-ml-associate",
+    "name": "Databricks Certified Machine Learning Associate",
+    "vendor": "Databricks",
+    "version": "1.0.0",
+    "question_count": 12,
+    "last_updated": "2026-07-08",
+    "notes": "Initial Databricks ML Associate pack — covers Databricks ML workspace fundamentals (ML Runtime vs Standard Runtime, cluster access modes), MLflow (tracking runs, autologging, Model Registry aliases, `pyfunc` flavor), AutoML (baseline experiment + generated notebooks), Feature Store / Feature Engineering (offline vs online tables, time-series lookup with `FeatureLookup`), Spark ML pipelines (`Pipeline`/`Transformer`/`Estimator`, StringIndexer + OneHotEncoder + VectorAssembler), hyperparameter tuning with Hyperopt + SparkTrials, and Pandas UDFs on Spark. Answer positions balanced 3/3/3/3 across A/B/C/D."
+  },
+  "questions": [
+    {
+      "id": "databricks-ml-assoc-001",
+      "question": "A data scientist is spinning up a Databricks cluster for a scikit-learn training notebook that will also use TensorFlow and MLflow. Which runtime is the recommended starting point?",
+      "options": [
+        "Databricks Runtime for Machine Learning (Databricks Runtime ML), which ships pre-installed with scikit-learn, TensorFlow, PyTorch, XGBoost and MLflow.",
+        "The standard Databricks Runtime, then `pip install` the ML libraries in the first notebook cell each time.",
+        "Databricks Runtime for Genomics, because it includes the widest set of Python packages.",
+        "Databricks Photon Runtime, which is optimised for scikit-learn workloads."
+      ],
+      "correct": 0,
+      "explanation": "Databricks Runtime ML is a variant of the standard runtime that comes with the common ML stack (scikit-learn, TensorFlow, PyTorch, XGBoost, Hyperopt, MLflow, Horovod) already installed and configured, plus optimised drivers — it is the recommended runtime for ML workloads. Installing everything by hand in each notebook is fragile and slow. Databricks Runtime for Genomics is aimed at genomics pipelines, not general ML. Photon is a query engine that accelerates SQL / DataFrame workloads — it is not an ML-specific runtime and does not ship the ML libraries.",
+      "tags": [
+        "databricks-runtime-ml",
+        "clusters",
+        "environment",
+        "databricks-ml-associate"
+      ],
+      "difficulty": "easy",
+      "_normalized": true
+    },
+    {
+      "id": "databricks-ml-assoc-002",
+      "question": "During a scikit-learn training loop wrapped in `mlflow.start_run()`, an engineer wants MLflow to log the model, its parameters, and its metrics without explicit `log_param` / `log_metric` calls. Which single call enables this?",
+      "options": [
+        "`mlflow.set_tracking_uri('databricks')`",
+        "`mlflow.register_model()` before training",
+        "`mlflow.sklearn.autolog()` (or the framework-agnostic `mlflow.autolog()`)",
+        "`mlflow.set_experiment('/Shared/exp')`"
+      ],
+      "correct": 2,
+      "explanation": "MLflow autologging (`mlflow.autolog()` or the framework-specific flavor such as `mlflow.sklearn.autolog()`) hooks into the framework and automatically records parameters, metrics, and the fitted model artifact for each run. `set_tracking_uri` only points MLflow at the tracking server, `set_experiment` selects the experiment folder, and `register_model` promotes an already-logged model into the Model Registry — none of them capture parameters or metrics on their own.",
+      "tags": [
+        "mlflow",
+        "autologging",
+        "tracking",
+        "databricks-ml-associate"
+      ],
+      "difficulty": "easy",
+      "_normalized": true
+    },
+    {
+      "id": "databricks-ml-assoc-003",
+      "question": "A team wants a fast, code-generated baseline on a churn dataset — including feature transformations, a leaderboard of trained models, and reproducible notebooks — without hand-writing the modeling pipeline. Which Databricks feature is designed for this?",
+      "options": [
+        "Delta Live Tables running a `STREAMING LIVE TABLE`.",
+        "Databricks Workflows with a single scikit-learn task.",
+        "Databricks SQL Warehouses running an `ML.PREDICT` query.",
+        "Databricks AutoML, which produces a baseline experiment plus editable data-exploration and best-run notebooks."
+      ],
+      "correct": 3,
+      "explanation": "AutoML runs an experiment across multiple algorithms (LightGBM, XGBoost, scikit-learn), tracks every trial in MLflow, ranks them on a leaderboard, and generates fully editable Python notebooks (data-exploration + best-trial) — precisely the code-generated baseline the question describes. Delta Live Tables is an ETL framework, Workflows is a job orchestrator, and `ML.PREDICT` is a SQL surface for inference on already-trained models.",
+      "tags": [
+        "automl",
+        "baseline",
+        "notebooks",
+        "databricks-ml-associate"
+      ],
+      "difficulty": "easy",
+      "_normalized": true
+    },
+    {
+      "id": "databricks-ml-assoc-004",
+      "question": "In the Databricks Model Registry (Unity Catalog), a team wants to point production consumers at whichever model version is currently blessed for prod, and be able to swap that version without rewriting client code. What should they use?",
+      "options": [
+        "Load the model by its numeric version each time and update every consumer when the version changes.",
+        "Assign a registered-model alias such as `@Production` to the chosen version and load `models:/<catalog>.<schema>.<name>@Production`.",
+        "Delete the previous version and register the new one under the same name so the ID is reused.",
+        "Store the desired version number in a Databricks secret and read it at load time."
+      ],
+      "correct": 1,
+      "explanation": "In the Unity-Catalog-backed Model Registry, aliases (e.g. `@Production`, `@Champion`) are mutable pointers that a workspace admin can reassign between versions. Consumers reference `models:/<catalog>.<schema>.<name>@Production`, so a promotion is a one-line alias move, not a client-side code change. Hard-coding version numbers means every promotion touches every consumer, deleting old versions loses lineage and rollback ability, and a secret is not the intended promotion mechanism.",
+      "tags": [
+        "model-registry",
+        "aliases",
+        "unity-catalog",
+        "databricks-ml-associate"
+      ],
+      "difficulty": "intermediate",
+      "_normalized": true
+    },
+    {
+      "id": "databricks-ml-assoc-005",
+      "question": "A pipeline must transform a categorical column `country` into a numeric input for a Spark ML `LogisticRegression`. The intended sequence is: index the strings, one-hot encode the indices, then bundle everything into a feature vector. Which chain of Spark ML transformers is correct?",
+      "options": [
+        "`Bucketizer` → `StandardScaler` → `VectorAssembler`",
+        "`Tokenizer` → `HashingTF` → `IDF`",
+        "`StringIndexer` → `OneHotEncoder` → `VectorAssembler`",
+        "`ChiSqSelector` → `Imputer` → `LogisticRegression`"
+      ],
+      "correct": 2,
+      "explanation": "`StringIndexer` maps each distinct string category to a numeric index, `OneHotEncoder` expands those indices into sparse binary vectors so the linear model does not treat them as ordinal, and `VectorAssembler` concatenates the encoded column(s) with any other numeric features into the single `features` vector column that Spark ML estimators expect. `Bucketizer`/`StandardScaler` operate on numeric inputs, the `Tokenizer`/`HashingTF`/`IDF` chain is for text, and `ChiSqSelector`/`Imputer` are feature-selection/missing-value tools rather than a categorical-encoding pipeline.",
+      "tags": [
+        "spark-ml",
+        "pipeline",
+        "feature-engineering",
+        "databricks-ml-associate"
+      ],
+      "difficulty": "intermediate",
+      "_normalized": true
+    },
+    {
+      "id": "databricks-ml-assoc-006",
+      "question": "A team is tuning XGBoost on a Databricks cluster with Hyperopt. They want each hyperparameter trial to run as a separate Spark task on the workers rather than sequentially on the driver. Which Hyperopt integration should they pass to `fmin(..., trials=...)`?",
+      "options": [
+        "`Trials()`, the default in-process trial store — Spark parallelises it automatically.",
+        "`MongoTrials()`, because Databricks stores Hyperopt state in MongoDB.",
+        "`GridSearchCV(cv=…)` from scikit-learn wrapped in a `pandas_udf`.",
+        "`SparkTrials(parallelism=<n>)`, which distributes Hyperopt trials across Spark executors."
+      ],
+      "correct": 3,
+      "explanation": "`SparkTrials` is the Hyperopt integration provided by Databricks Runtime ML: each Bayesian-search trial is submitted as a Spark task, so `parallelism` controls how many trials execute concurrently across the executors. The plain in-process `Trials()` store runs sequentially on the driver; `MongoTrials` is unrelated to Databricks; and `GridSearchCV` is a scikit-learn API that does not use the Hyperopt search space or the Spark scheduler for trial dispatch.",
+      "tags": [
+        "hyperopt",
+        "spark-trials",
+        "hyperparameter-tuning",
+        "databricks-ml-associate"
+      ],
+      "difficulty": "intermediate",
+      "_normalized": true
+    },
+    {
+      "id": "databricks-ml-assoc-007",
+      "question": "A training job needs to join point-in-time-correct customer features from a Feature Engineering (Unity Catalog) feature table onto a `training_df` keyed by `customer_id` and `event_ts`, without leaking future feature values. Which primitive expresses this?",
+      "options": [
+        "A plain `DataFrame.join(features, on='customer_id')`, then filter by timestamp afterwards.",
+        "`VectorAssembler(inputCols=['customer_id','event_ts'])` before training.",
+        "A `FeatureLookup(table_name=…, lookup_key='customer_id', timestamp_lookup_key='event_ts')` passed into `FeatureEngineeringClient.create_training_set`.",
+        "`spark.sql.functions.window('event_ts', '30 days')` in the label query."
+      ],
+      "correct": 2,
+      "explanation": "`FeatureLookup` — with `lookup_key` for the entity join column and `timestamp_lookup_key` for the point-in-time column — is the Feature Engineering API for constructing training sets from feature tables. `FeatureEngineeringClient.create_training_set(...)` uses it to perform an as-of join that returns feature values valid at each label's timestamp, preventing leakage. A raw `DataFrame.join` followed by a filter typically leaks future values because the join happens first. `VectorAssembler` merely bundles columns, and a windowed aggregation is not a lookup at all.",
+      "tags": [
+        "feature-store",
+        "feature-lookup",
+        "point-in-time",
+        "databricks-ml-associate"
+      ],
+      "difficulty": "hard",
+      "_normalized": true
+    },
+    {
+      "id": "databricks-ml-assoc-008",
+      "question": "A data scientist must apply a vectorised, per-row scikit-learn scoring function over a Spark DataFrame of 500 million rows. To keep the scoring fast — batching rows into Arrow-backed pandas Series inside each executor — which construct should they use?",
+      "options": [
+        "`spark.udf.register('score', row_score_fn)` with a plain Python UDF over each Row.",
+        "A vectorised `pandas_udf` (`from pyspark.sql.functions import pandas_udf`), so each executor receives a `pd.Series`/`pd.DataFrame` batch via Arrow.",
+        "`df.collect()` on the driver and score with pandas locally.",
+        "`spark.sql.functions.aggregate` with a Scala lambda."
+      ],
+      "correct": 1,
+      "explanation": "A `pandas_udf` (a.k.a. vectorised UDF) uses Apache Arrow to hand each executor a batch of rows as a pandas Series/DataFrame, invoke the Python function once per batch, and return the results as a Series — orders of magnitude faster than a row-at-a-time Python UDF because it avoids the per-row Python serialisation cost. A plain Python UDF serialises every row, `df.collect()` on 500M rows would OOM the driver, and `aggregate` is a Spark SQL higher-order function on arrays, not a scoring surface.",
+      "tags": [
+        "pandas-udf",
+        "arrow",
+        "batch-inference",
+        "databricks-ml-associate"
+      ],
+      "difficulty": "intermediate",
+      "_normalized": true
+    },
+    {
+      "id": "databricks-ml-assoc-009",
+      "question": "In an AutoML classification run, the leaderboard reports two candidates with almost identical validation `f1`. What is the recommended next step, given the AutoML output?",
+      "options": [
+        "Open the auto-generated best-trial notebook and iterate on the model there — the notebook is fully editable, reproducible, and logs to MLflow.",
+        "Discard AutoML entirely and start over with a hand-authored scikit-learn notebook, because AutoML output is opaque.",
+        "Register the tie-breaker model under a random alias in the Model Registry and route production traffic to it immediately.",
+        "Delete the second-best trial in MLflow to keep the experiment clean."
+      ],
+      "correct": 0,
+      "explanation": "AutoML's leaderboard entry links to an editable notebook that reproduces the trial (imports, feature transforms, model, `mlflow.log_*` calls). Opening it lets the scientist inspect what was done, tune it, and re-run — the notebook itself logs to MLflow so lineage is preserved. AutoML is not a black box: the whole point of the generated notebook is transparency. Registering an untested model or deleting runs to \"clean up\" both destroy audit trail without adding signal.",
+      "tags": [
+        "automl",
+        "notebooks",
+        "iteration",
+        "databricks-ml-associate"
+      ],
+      "difficulty": "easy",
+      "_normalized": true
+    },
+    {
+      "id": "databricks-ml-assoc-010",
+      "question": "A model was logged with `mlflow.sklearn.log_model(sk_model, artifact_path='model')` inside a run. A downstream Databricks SQL user must batch-score a Delta table with this model. Which loader / API path is designed for that consumer?",
+      "options": [
+        "Load the model with `mlflow.pyfunc.load_model('runs:/<run_id>/model')` (or via a registry URI) and apply it as a Spark UDF with `mlflow.pyfunc.spark_udf`.",
+        "Copy the pickle file out of DBFS, `git clone` it into the SQL warehouse, and `SELECT unpickle(...)`.",
+        "Rewrite the training code in Spark SQL and re-fit the model each time the table is scored.",
+        "Delete the `model` artifact so SQL falls back to the built-in `PREDICT` function."
+      ],
+      "correct": 0,
+      "explanation": "The `pyfunc` flavor is MLflow's framework-agnostic contract: any logged model can be reloaded via `mlflow.pyfunc.load_model(uri)`, and `mlflow.pyfunc.spark_udf(spark, uri)` wraps it as a distributed Spark UDF so a Delta table can be scored in parallel — the canonical batch-scoring path on Databricks. The other options are either destructive, non-existent SQL features, or completely defeat the purpose of having a trained artifact.",
+      "tags": [
+        "mlflow",
+        "pyfunc",
+        "batch-inference",
+        "databricks-ml-associate"
+      ],
+      "difficulty": "intermediate",
+      "_normalized": true
+    },
+    {
+      "id": "databricks-ml-assoc-011",
+      "question": "For a supervised training dataset in a Delta table, the team wants reproducible splits so a rerun with the same code produces the same train / validation / test rows. Which Spark DataFrame API supports this out of the box?",
+      "options": [
+        "`df.orderBy(rand()).limit(n)` on each call.",
+        "`df.randomSplit([0.7, 0.15, 0.15], seed=42)`, which is deterministic for a given seed and DataFrame plan.",
+        "`df.repartition(3)` and treat each partition as a split.",
+        "`df.sample(0.7)` three times without a seed, and trust the ratios average out."
+      ],
+      "correct": 1,
+      "explanation": "`DataFrame.randomSplit(weights, seed)` returns non-overlapping DataFrames whose row counts approximate the requested weights, and passing an explicit `seed` makes the split deterministic across runs (given the same underlying logical plan). Chaining `orderBy(rand())` re-shuffles the entire dataset every call and produces different orderings, `repartition(3)` groups by partitioning hash — not by ratio — and unseeded `sample` calls are not reproducible and may overlap.",
+      "tags": [
+        "train-test-split",
+        "reproducibility",
+        "spark-dataframe",
+        "databricks-ml-associate"
+      ],
+      "difficulty": "easy",
+      "_normalized": true
+    },
+    {
+      "id": "databricks-ml-assoc-012",
+      "question": "During an MLflow experiment, a scientist wants to compare runs by validation AUC, filter to only runs where `params.model_type = 'xgboost'`, and export the top-5 to a pandas DataFrame — from Python. Which API supports this?",
+      "options": [
+        "The `mlflow ui` command, which prints the top-5 runs to stdout when called with `--top 5`.",
+        "`spark.read.mlflow('runs/*')`, an experimental Spark reader that indexes MLflow runs.",
+        "`mlflow.register_model()` — the Model Registry ranks runs by AUC internally.",
+        "`mlflow.search_runs(experiment_names=[...], filter_string=\"params.model_type = 'xgboost'\", order_by=['metrics.val_auc DESC'], max_results=5)`, which returns a pandas DataFrame."
+      ],
+      "correct": 3,
+      "explanation": "`mlflow.search_runs` is the Python API for querying an experiment: it accepts an MLflow filter DSL (`params.<name> = '…'`, `metrics.<name> > …`), an `order_by` list on metrics/params, and returns a pandas DataFrame — exactly the shape the scientist needs. `mlflow ui` is a local web viewer with no `--top` flag, `spark.read.mlflow(...)` is not a real API, and `register_model` is a promotion action, not a search interface.",
+      "tags": [
+        "mlflow",
+        "search-runs",
+        "experiments",
+        "databricks-ml-associate"
+      ],
+      "difficulty": "intermediate",
+      "_normalized": true
+    }
+  ]
+}
