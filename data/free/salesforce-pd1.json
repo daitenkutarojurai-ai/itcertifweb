@@ -1,0 +1,203 @@
+{
+  "meta": {
+    "id": "salesforce-pd1",
+    "name": "Salesforce Certified Platform Developer I (PDI)",
+    "vendor": "Salesforce",
+    "version": "1.0.0",
+    "question_count": 10,
+    "last_updated": "2026-07-10",
+    "notes": "Initial Salesforce Platform Developer I (PDI / CRT-450) pack — covers Apex triggers, SOQL FOR loops, testing, governor limits, sharing keywords, LWC vs Aura, Batch Apex, master-detail vs lookup, WITH SECURITY_ENFORCED, and @future restrictions. Balanced answer positions (0:2 / 1:3 / 2:3 / 3:2)."
+  },
+  "questions": [
+    {
+      "id": "salesforce-pd1-001",
+      "question": "In which trigger contexts is the `Trigger.old` collection populated with the previous version of the records?",
+      "options": [
+        "Only in after update triggers",
+        "In all update and delete triggers, both before and after phases",
+        "In every trigger context including insert and undelete",
+        "Only in before delete triggers"
+      ],
+      "correct": 1,
+      "explanation": "`Trigger.old` holds the pre-change snapshot of records and is populated in update and delete triggers (both before and after). It is null in insert triggers because there is no prior version, and it is not populated in undelete triggers — those use `Trigger.new` for the restored records. Restricting availability to one phase (before delete only, after update only) would break common comparison patterns like detecting field-value changes across all update variants.",
+      "tags": [
+        "apex",
+        "triggers",
+        "trigger-context",
+        "salesforce-pd1"
+      ],
+      "difficulty": "easy"
+    },
+    {
+      "id": "salesforce-pd1-002",
+      "question": "A developer must iterate over hundreds of thousands of Account records inside a single synchronous Apex transaction while keeping heap size low. Which construct handles this most safely?",
+      "options": [
+        "`List<Account> accs = [SELECT Id FROM Account]; for (Account a : accs) { ... }`",
+        "`Account[] batch = Database.query('SELECT Id FROM Account'); for (Account a : batch) { ... }`",
+        "`for (Account a : [SELECT Id FROM Account]) { ... }` — a SOQL FOR loop",
+        "A recursive method that queries 200 records at a time using `LIMIT` and `OFFSET`"
+      ],
+      "correct": 2,
+      "explanation": "Placing the SOQL query directly inside a for-loop parentheses produces a SOQL FOR loop, which internally retrieves records in chunks of 200 so heap only ever holds one chunk at a time. Materialising the full list into a variable (options 1 and 2 — both `Database.query` and inline SELECT into a List) loads every row into heap at once and blows the 6 MB synchronous heap limit on large tables. OFFSET is capped at 2,000 rows in SOQL and is not the recommended pagination pattern for large data volumes.",
+      "tags": [
+        "apex",
+        "soql",
+        "governor-limits",
+        "salesforce-pd1"
+      ],
+      "difficulty": "medium"
+    },
+    {
+      "id": "salesforce-pd1-003",
+      "question": "Which statement about Apex test methods is TRUE for classes created in API version 24.0 or later?",
+      "options": [
+        "Test methods can send outbound emails and make live callouts by default",
+        "Test methods automatically see all org data unless a query is added",
+        "Test methods can be defined in any Apex class if they are marked `private static`",
+        "Test methods must live in a class annotated with `@isTest` and are isolated from existing org data by default"
+      ],
+      "correct": 3,
+      "explanation": "Since API v24.0, test methods must reside in a class annotated with `@isTest`, and the runtime isolates them from real org data — every insert/update inside the test happens in a rolled-back transaction and queries return no existing rows unless the class is marked `@isTest(SeeAllData=true)`. Emails are not sent, callouts must be mocked via `HttpCalloutMock`, and test methods can no longer sit alongside production code just by being `private static` — the `@isTest` annotation on the enclosing class (or method) is mandatory.",
+      "tags": [
+        "apex",
+        "testing",
+        "isTest",
+        "salesforce-pd1"
+      ],
+      "difficulty": "easy"
+    },
+    {
+      "id": "salesforce-pd1-004",
+      "question": "What is the maximum number of SOQL queries a single synchronous Apex transaction can execute before hitting a governor limit?",
+      "options": [
+        "100",
+        "150",
+        "200",
+        "300"
+      ],
+      "correct": 0,
+      "explanation": "Synchronous Apex is capped at 100 SOQL queries per transaction; asynchronous contexts (Batch, Queueable, @future, Scheduled) get 200. This is why bulkified triggers must aggregate work into set-based queries rather than issuing one query per record — a trigger firing on a batch of 200 records that queries once per record instantly exceeds the sync limit. 150 is the DML statements limit (not queries), and 300 is not a governor-limit boundary.",
+      "tags": [
+        "apex",
+        "governor-limits",
+        "soql",
+        "salesforce-pd1"
+      ],
+      "difficulty": "easy"
+    },
+    {
+      "id": "salesforce-pd1-005",
+      "question": "An Apex class runs a SOQL query on Accounts and must respect the running user's record-level sharing rules and role hierarchy. What is the minimum change required on the class declaration?",
+      "options": [
+        "Annotate the class with `@isTest(SeeAllData=true)`",
+        "Wrap the SOQL in a `Database.query` call",
+        "Declare the class with the `with sharing` keyword",
+        "Append `WITH SECURITY_ENFORCED` to the SOQL query"
+      ],
+      "correct": 2,
+      "explanation": "The `with sharing` class modifier tells the Apex runtime to enforce the current user's sharing rules — private OWDs, role hierarchy, sharing rules, manual shares — on record-level access. `@isTest(SeeAllData=true)` only affects test isolation; `Database.query` is a runtime-string variant of SOQL that behaves identically for sharing; `WITH SECURITY_ENFORCED` policing FLS/CRUD at the field and object level, not record-level sharing rules.",
+      "tags": [
+        "apex",
+        "security",
+        "with-sharing",
+        "salesforce-pd1"
+      ],
+      "difficulty": "medium"
+    },
+    {
+      "id": "salesforce-pd1-006",
+      "question": "For a brand-new UI component in the Lightning Experience that should use modern JavaScript standards and load efficiently, which framework does Salesforce recommend today?",
+      "options": [
+        "Visualforce pages with JavaScript remoting",
+        "Lightning Web Components (LWC)",
+        "Aura components with `$A.enqueueAction`",
+        "Classic Visualforce with jQuery from a static resource"
+      ],
+      "correct": 1,
+      "explanation": "Lightning Web Components — the modern ES6+ / Web-Components-standard framework — is the recommended path for new work; the compiler and runtime target native browser primitives and outperform Aura. Aura remains supported but is legacy and slower; Visualforce (with or without remoting) targets Salesforce Classic and is no longer the recommended stack for Lightning Experience UI.",
+      "tags": [
+        "lwc",
+        "lightning",
+        "ui",
+        "salesforce-pd1"
+      ],
+      "difficulty": "easy"
+    },
+    {
+      "id": "salesforce-pd1-007",
+      "question": "A developer must update several million records every night, chunking them to stay under governor limits. Which Apex pattern is the right choice?",
+      "options": [
+        "A single `@future` method that queries and updates every record",
+        "A Queueable job that processes records synchronously in one execution",
+        "An `after update` trigger fired during a nightly data-load job",
+        "A class implementing `Database.Batchable<SObject>` invoked from a Scheduled Apex job"
+      ],
+      "correct": 3,
+      "explanation": "Batch Apex (`Database.Batchable<SObject>`) is designed for very high volumes: it accepts up to 50 million records from the start() query and processes them in configurable chunks (default 200) via execute(), each chunk getting its own governor-limit budget. A Scheduled Apex job (`System.schedulable`) triggers the batch on the nightly cadence. `@future` methods are capped at 50 per transaction and have no chunking. Queueable runs in a single transaction with normal async limits — insufficient for millions of records. Triggers execute on DML, not on a schedule, and would exceed limits at that volume.",
+      "tags": [
+        "apex",
+        "batch-apex",
+        "async",
+        "salesforce-pd1"
+      ],
+      "difficulty": "medium"
+    },
+    {
+      "id": "salesforce-pd1-008",
+      "question": "On a master-detail relationship, what happens to child records when the master record is deleted?",
+      "options": [
+        "The child records are cascade-deleted with the master automatically",
+        "The child records remain but are orphaned with a null master reference",
+        "The delete is blocked whenever the master has any child records",
+        "The child records are archived to the Recycle Bin independently and must be restored manually"
+      ],
+      "correct": 0,
+      "explanation": "Master-detail relationships enforce a strict parent-child ownership: deleting the master cascades and deletes every child in the same DML transaction, and the child inherits its owner and sharing settings from the master. That is a defining behaviour separating master-detail from Lookup relationships, where the admin picks per-field whether to clear the reference or block the delete when the referenced record is removed.",
+      "tags": [
+        "data-modeling",
+        "master-detail",
+        "relationships",
+        "salesforce-pd1"
+      ],
+      "difficulty": "easy"
+    },
+    {
+      "id": "salesforce-pd1-009",
+      "question": "What does the `WITH SECURITY_ENFORCED` clause on a SOQL query do?",
+      "options": [
+        "Runs the query using the current user's record-level sharing rules only",
+        "Bypasses field-level security so the query always returns every requested field",
+        "Throws a runtime exception if the running user lacks CRUD or FLS on any object or field referenced by the query",
+        "Encrypts the query result set at rest before returning it to Apex"
+      ],
+      "correct": 2,
+      "explanation": "`WITH SECURITY_ENFORCED` instructs the SOQL parser to check the running user's Create/Read/Update/Delete permissions and Field-Level Security on every object and field the query mentions — including in the SELECT clause, WHERE clause and relationship traversals — and to throw a `System.QueryException` if any check fails. It does NOT enforce record-level sharing rules (that is the job of `with sharing`), it does NOT bypass FLS, and it has nothing to do with encryption at rest (that is Shield Platform Encryption).",
+      "tags": [
+        "apex",
+        "soql",
+        "security",
+        "salesforce-pd1"
+      ],
+      "difficulty": "medium"
+    },
+    {
+      "id": "salesforce-pd1-010",
+      "question": "Which restriction applies to a method annotated with `@future` in Apex?",
+      "options": [
+        "It can return an sObject to the caller so that follow-up code can use the result",
+        "It must be `static`, return `void`, and accept only primitives, IDs, or collections of primitives as parameters",
+        "It executes synchronously inside the caller's transaction with the same governor limits",
+        "It can call another `@future` method directly from within its body to fan out work"
+      ],
+      "correct": 1,
+      "explanation": "`@future` methods must be `static`, return `void`, and take only primitive types (Integer, String, Long, etc.), IDs, or collections of those primitives — sObject and Apex-defined types are disallowed as parameters because the record state at execution time may differ from when the job was enqueued. Future methods run asynchronously (not in the caller's transaction), cannot call another `@future` (or be called from Batch or a Visualforce getter), and cannot return a value to the caller — the callback pattern in Salesforce is Queueable's `System.enqueueJob` chained returns, not @future.",
+      "tags": [
+        "apex",
+        "async",
+        "future",
+        "salesforce-pd1"
+      ],
+      "difficulty": "medium"
+    }
+  ]
+}
