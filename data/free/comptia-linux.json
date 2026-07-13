@@ -3,23 +3,23 @@
     "id": "comptia-linux",
     "name": "CompTIA Linux+ (XK0-005)",
     "vendor": "CompTIA",
-    "version": "1.0.4",
+    "version": "1.1.0",
     "question_count": 61,
-    "last_updated": "2026-05-23",
-    "notes": " [bulk-tag pass: added `comptia-linux` tag to 61 questions] [recall sweep: 3 balanced rewrites]"
+    "last_updated": "2026-07-13",
+    "notes": " [bulk-tag pass: added `comptia-linux` tag to 61 questions] [recall sweep: 3 balanced rewrites] | 2026-07-13 hardening v1 (scheduled-agent): full pack rewrite — repaired 12 truncated correct answers (Q10/Q14/Q15/Q18/Q20/Q27/Q39/Q42/Q44/Q49/Q55/Q58), fixed contradictory Q033 (third-field vs usernames), rebuilt Q042 (was a `- name` fragment), rebalanced correct positions to 15/15/15/15, length-balanced correct vs distractors, upgraded distractors to plausible near-miss commands, expanded every explanation to cover why each distractor is wrong."
   },
   "questions": [
     {
       "id": "linux-plus-001",
-      "question": "A Linux administrator needs to add a kernel module for a new network card without rebooting the system. The module is called 'e1000e'. Which command accomplishes this?",
+      "question": "A Linux administrator needs to load the kernel module `e1000e` into the running kernel so a newly-installed NIC is recognised without rebooting. Which command loads the module and any modules it depends on?",
       "options": [
-        "modprobe e1000e",
-        "modinfo e1000e",
-        "insmod e1000e",
-        "lsmod e1000e"
+        "`modinfo e1000e` — prints metadata (author, parameters, dependencies) without loading the module",
+        "`modprobe e1000e` — resolves the module's dependency chain in modules.dep and inserts them in order",
+        "`insmod e1000e` — expects a full path to a `.ko` file and does not resolve dependencies",
+        "`lsmod e1000e` — reads /proc/modules to list loaded modules and ignores extra arguments"
       ],
-      "correct": 0,
-      "explanation": "modprobe is the correct tool for loading kernel modules because it automatically resolves and loads any module dependencies. insmod can load a module but requires the full path to the .ko file and does not handle dependencies. modinfo only displays information about a module without loading it. lsmod lists currently loaded modules but does not load new ones.",
+      "correct": 1,
+      "explanation": "`modprobe e1000e` reads /lib/modules/$(uname -r)/modules.dep, walks the module's dependency chain and inserts each `.ko` in the right order, so it is the standard way to add a driver to a running kernel. `insmod` inserts a single module from an absolute path and does NOT resolve dependencies, so if e1000e needs mii or ptp preloaded it will simply fail. `modinfo` prints module metadata (author, license, parameters) and never modifies kernel state. `lsmod` reads /proc/modules to list the modules that are already loaded — it takes no filename argument and cannot load anything.",
       "tags": [
         "kernel",
         "modules",
@@ -31,15 +31,15 @@
     },
     {
       "id": "linux-plus-002",
-      "question": "After a power failure, a server boots into emergency mode with the message 'Failed to mount /data'. The /data partition uses ext4. Which command should the administrator run first to recover the filesystem?",
+      "question": "After an unclean shutdown a RHEL box drops to `emergency.target` with `Failed to mount /data` on an ext4 partition. Which command should the administrator run FIRST from the emergency shell to check and repair the unmounted /data filesystem?",
       "options": [
-        "fsck -y /dev/sdb1",
-        "mount -o remount,rw /data",
-        "e2fsck -f /dev/sdb1",
-        "xfs_repair /dev/sdb1"
+        "`mount -o remount,rw /data` — asks the kernel to remount an ext4 volume that has not yet passed a consistency check",
+        "`fsck -y /dev/sdb1` — runs fsck auto-answering yes to every prompt, including risky repairs on complex corruption",
+        "`xfs_repair /dev/sdb1` — only understands XFS metadata and refuses to touch an ext2/3/4 superblock",
+        "`e2fsck -f /dev/sdb1` — forces a full ext-family check even if the superblock is flagged clean"
       ],
-      "correct": 2,
-      "explanation": "e2fsck -f forces a filesystem check on an ext4 partition even if it appears clean, which is appropriate after an unclean shutdown. fsck -y would work but -y auto-answers yes to all prompts which can be risky. mount -o remount,rw will fail if the filesystem has errors. xfs_repair is only for XFS filesystems, not ext4.",
+      "correct": 3,
+      "explanation": "`e2fsck -f` is the ext-family repair tool: `-f` forces a full check even when the superblock's clean bit is set, which is exactly what you want after an unclean shutdown that may have left the journal in a suspect state. `fsck -y /dev/sdb1` dispatches to e2fsck for ext4 but the `-y` flag answers yes to every prompt including risky reallocations — safer to run e2fsck interactively. `mount -o remount,rw /data` cannot remount a filesystem that is not currently mounted (and would just re-hit the same error). `xfs_repair` only knows XFS on-disk format and refuses to run against an ext4 superblock.",
       "tags": [
         "filesystem",
         "fsck",
@@ -52,15 +52,15 @@
     },
     {
       "id": "linux-plus-003",
-      "question": "A sysadmin wants a new systemd service called 'appd' to start automatically at multi-user.target. Which directive in the [Install] section of the unit file is required?",
+      "question": "A sysadmin has written a new systemd service unit `appd.service` and wants `systemctl enable appd` to start the service automatically when the system reaches `multi-user.target`. Which directive belongs in the [Install] section of the unit?",
       "options": [
-        "RequiredBy=multi-user.target",
-        "After=multi-user.target",
-        "WantedBy=multi-user.target",
-        "Requires=multi-user.target"
+        "`WantedBy=multi-user.target` — enable creates a symlink in multi-user.target.wants/ so the target pulls it in",
+        "`After=multi-user.target` — only orders start-up, no autostart symlink is created",
+        "`Requires=multi-user.target` — declares a dependency but does not register the unit with a target",
+        "`RequiredBy=multi-user.target` — not a valid [Install] directive on any released systemd version"
       ],
-      "correct": 2,
-      "explanation": "WantedBy=multi-user.target in the [Install] section causes systemctl enable to create a symlink in multi-user.target.wants/, making the service start at that target. RequiredBy is not a standard [Install] directive. After= and Requires= belong in [Unit] and control ordering/dependencies but do not enable autostart.",
+      "correct": 0,
+      "explanation": "`WantedBy=multi-user.target` in the [Install] section is what `systemctl enable` looks for: it creates the symlink `/etc/systemd/system/multi-user.target.wants/appd.service`, so when systemd reaches multi-user.target the unit is pulled in and started. `After=` belongs in [Unit] and only orders start-up relative to another unit — it never causes autostart. `Requires=` also belongs in [Unit]; it declares a hard dependency but again does not register the unit with a target for enablement. `RequiredBy=` is not a recognised directive on shipping systemd releases (only `WantedBy=` and `RequiredBy=` documentation confusion — the actual [Install] keys are `WantedBy`, `Also`, `Alias`, `DefaultInstance`).",
       "tags": [
         "systemd",
         "unit-files",
@@ -72,15 +72,15 @@
     },
     {
       "id": "linux-plus-004",
-      "question": "An administrator needs to create a 10 GB logical volume named 'datalv' in a volume group named 'datavg'. Which command is correct?",
+      "question": "An administrator needs to create a new 10 GiB logical volume called `datalv` inside an existing LVM2 volume group `datavg`. Which command creates it?",
       "options": [
-        "lvcreate -L 10G -n datalv datavg",
-        "pvcreate -L 10G -n datalv datavg",
-        "vgcreate -L 10G datalv datavg",
-        "lvcreate -s 10G -n datalv datavg"
+        "`vgcreate -L 10G datalv datavg` — creates a volume GROUP, not an LV, and takes PV devices as arguments",
+        "`lvcreate -s 10G -n datalv datavg` — the `-s` flag creates a snapshot of an existing LV, not a fresh volume",
+        "`lvcreate -L 10G -n datalv datavg` — `-L` sets the size, `-n` sets the name, VG name comes last",
+        "`pvcreate -L 10G -n datalv datavg` — pvcreate initialises a physical volume and accepts neither `-L` nor `-n`"
       ],
-      "correct": 0,
-      "explanation": "lvcreate -L 10G -n datalv datavg creates a 10 GB logical volume named datalv in the datavg volume group. The -L flag specifies size and -n specifies the name. lvcreate -s creates a snapshot, not a regular LV. vgcreate creates a volume group from physical volumes, not logical volumes. pvcreate initializes a physical volume and does not accept -n or -L in this way.",
+      "correct": 2,
+      "explanation": "`lvcreate -L 10G -n datalv datavg` is the canonical form: `-L` sets an absolute size (use `-l` for extent counts or percentages), `-n` names the new LV, and the positional argument is the target volume group. `lvcreate -s` in that form is a snapshot request — it needs the origin LV, not a VG. `vgcreate` builds a volume GROUP from initialised PVs; it does not create logical volumes at all. `pvcreate` initialises a block device as a physical volume and rejects the `-L`/`-n` flags shown here.",
       "tags": [
         "lvm",
         "lvcreate",
@@ -92,15 +92,15 @@
     },
     {
       "id": "linux-plus-005",
-      "question": "A user account 'jsmith' needs to be locked immediately without deleting the account or its data. Which command achieves this?",
+      "question": "A security policy requires that the account `jsmith` be prevented from logging in with a password RIGHT NOW, without deleting the account, its home directory or its data. Which command achieves that?",
       "options": [
-        "usermod -L jsmith",
-        "passwd -e jsmith",
-        "userdel -r jsmith",
-        "chage -I -1 jsmith"
+        "`chage -I -1 jsmith` — sets password inactivity to -1 which disables the inactivity feature, it does not lock the account",
+        "`usermod -L jsmith` — prefixes the /etc/shadow password hash with `!`, so no password can match",
+        "`passwd -e jsmith` — expires the password so the user MUST change it on next login, but they can still log in",
+        "`userdel -r jsmith` — deletes the user AND their home directory, which the policy explicitly forbids"
       ],
-      "correct": 0,
-      "explanation": "usermod -L locks the account by prepending '!' to the password hash in /etc/shadow, preventing password-based login. userdel -r deletes the account and home directory. passwd -e forces the user to change their password at next login rather than locking the account. chage -I -1 sets the inactivity period but does not immediately lock the account.",
+      "correct": 1,
+      "explanation": "`usermod -L jsmith` (equivalent to `passwd -l`) locks the account by prepending `!` to the hash in /etc/shadow, so no supplied password can ever match — the account and its data are untouched. `passwd -e` only marks the password as expired: the user is forced to set a new one on next login but is not actually blocked. `chage -I -1` explicitly disables the inactivity feature, which is the opposite of locking. `userdel -r` removes the user entry AND the home directory, which violates the requirement to keep the data intact.",
       "tags": [
         "user-management",
         "usermod",
@@ -112,15 +112,15 @@
     },
     {
       "id": "linux-plus-006",
-      "question": "A system is configured with UEFI firmware. During boot, the administrator needs to interrupt the GRUB2 menu to boot an older kernel. Which file contains the GRUB2 menu timeout setting?",
+      "question": "On a UEFI-booted system running GRUB2, the administrator wants to change the boot-menu timeout so the user has more time to pick an older kernel entry. Which file should they edit and then regenerate grub.cfg from?",
       "options": [
-        "/etc/default/grub",
-        "/boot/grub2/grubenv",
-        "/etc/grub.d/40_custom",
-        "/boot/grub2/grub.cfg"
+        "`/boot/grub2/grub.cfg` — the compiled menu; editing it directly is overwritten on the next grub2-mkconfig",
+        "`/etc/grub.d/40_custom` — for adding CUSTOM menu entries, not for changing global settings like the timeout",
+        "`/boot/grub2/grubenv` — a key/value environment file that stores `saved_entry`, not the timeout",
+        "`/etc/default/grub` — holds `GRUB_TIMEOUT=` and friends, consumed by grub2-mkconfig when it rebuilds grub.cfg"
       ],
-      "correct": 0,
-      "explanation": "/etc/default/grub contains the GRUB_TIMEOUT and other configurable settings that are used as input by grub2-mkconfig to generate grub.cfg. The grub.cfg file is auto-generated and should not be edited directly. /etc/grub.d/40_custom is used for adding custom menu entries. grubenv stores boot environment variables like the saved default entry.",
+      "correct": 3,
+      "explanation": "`/etc/default/grub` is where you set `GRUB_TIMEOUT=`, `GRUB_DEFAULT=`, `GRUB_CMDLINE_LINUX=` and similar knobs; `grub2-mkconfig -o /boot/grub2/grub.cfg` then bakes them into the actual menu. `/boot/grub2/grub.cfg` IS the compiled menu and is stamped as auto-generated — hand edits are wiped on the next `grub2-mkconfig` run. `/etc/grub.d/40_custom` is the drop-in for hand-authored menu entries (rescue images, extra distros); it does not hold the timeout. `/boot/grub2/grubenv` is a small block-aligned env file that stores runtime state such as `saved_entry`, not menu configuration.",
       "tags": [
         "grub2",
         "boot",
@@ -132,15 +132,15 @@
     },
     {
       "id": "linux-plus-007",
-      "question": "An administrator runs 'chage -l alice' and sees 'Password expires: Mar 01, 2026'. It is currently April. Alice can still log in with her password. What is the most likely reason?",
+      "question": "`chage -l alice` prints `Password expires: Mar 01, 2026`. It is now late April 2026 and Alice can still log in with her password. What is the MOST likely reason her expired password is still accepted?",
       "options": [
-        "PAM is configured to ignore password expiry on this system",
-        "The account has INACTIVE days set to a high value allowing grace logins",
-        "The /etc/shadow file has a different expiry than chage reports",
-        "Alice's SSH key authentication bypasses password expiry checks"
+        "The `INACTIVE` field in /etc/shadow grants a grace period after expiry during which the password still works (with a forced change)",
+        "PAM has been reconfigured to ignore /etc/shadow expiry — the default `pam_unix` configuration would normally block her",
+        "`chage` reads a different source than /etc/shadow, so the tool's report is out of date compared to the real hash file",
+        "SSH public-key authentication bypasses password expiry — even though the scenario says she is entering a password"
       ],
-      "correct": 1,
-      "explanation": "The INACTIVE field in /etc/shadow defines a grace period in days after password expiry during which the user can still log in (but is forced to change the password). If INACTIVE is set to a large number, the user can continue logging in past the expiry date. PAM does enforce shadow expiry by default on standard configurations. chage reads directly from /etc/shadow so they match. SSH key authentication bypasses passwords entirely, but the question implies password login is working.",
+      "correct": 0,
+      "explanation": "The `INACTIVE` field (column 7 in /etc/shadow) sets how many days AFTER the password expiry the account still accepts logins, forcing a password change on entry. Set it to a large value and the user keeps working past the printed expiry date. `pam_unix` on a default system honours shadow expiry, so \"PAM ignores expiry\" is not the default explanation. `chage` reads /etc/shadow directly, so its report cannot be stale compared to shadow. SSH public-key auth would bypass expiry, but the scenario explicitly says Alice logs in with her password, so keys are not what is happening.",
       "tags": [
         "user-management",
         "chage",
@@ -153,15 +153,15 @@
     },
     {
       "id": "linux-plus-008",
-      "question": "A Linux server needs a process to run at the lowest possible scheduling priority without suspending it. Which command adjusts a running process with PID 1234 to nice value +19?",
+      "question": "A batch process with PID 1234 is currently running and needs to be given the lowest possible CPU scheduling priority (nice value +19) WITHOUT stopping or pausing it. Which command is correct?",
       "options": [
-        "renice +19 1234",
-        "nice -n 19 1234",
-        "nice --adjustment=19 -p 1234",
-        "renice -n 19 -p 1234"
+        "`nice -n 19 1234` — `nice` only applies to a command being started, it cannot re-nice an existing PID",
+        "`renice +19 1234` — the classic (non-POSIX) short form; deprecated on many distros in favour of `renice -n`",
+        "`renice -n 19 -p 1234` — POSIX form: `-n 19` sets the new nice value, `-p 1234` targets the running PID",
+        "`nice --adjustment=19 -p 1234` — `nice` has no `-p` option and `--adjustment` is not a recognised long form"
       ],
-      "correct": 3,
-      "explanation": "renice -n 19 -p 1234 changes the nice value of an already-running process (PID 1234) to +19, the lowest priority. The 'nice' command only sets priority when launching a new process, it cannot modify running processes. 'renice +19 1234' uses an older syntax that may work on some systems but renice -n is the standard POSIX form. nice --adjustment is not valid syntax.",
+      "correct": 2,
+      "explanation": "`renice -n 19 -p 1234` is the POSIX-portable syntax to re-nice an existing process: `-n` sets the new nice value (+19 is the lowest priority) and `-p` selects the PID. `nice` launches a NEW command with a modified nice value; it cannot address an already-running PID. `renice +19 1234` is the older BSD-style short form and still works on Linux, but it is not POSIX and some distros prefer the `-n` form for scripts. `nice --adjustment=19 -p 1234` is invalid — `nice` accepts `-n` (or `--adjustment`) only as a modifier to a command it is about to spawn, and it has no `-p` option.",
       "tags": [
         "process-management",
         "nice",
@@ -174,15 +174,15 @@
     },
     {
       "id": "linux-plus-009",
-      "question": "After installing a new package, an administrator wants to verify that none of the package's installed files have been modified. The system uses RPM. Which command performs this check?",
+      "question": "After a package upgrade the administrator wants to check whether any installed file from the `httpd` RPM has been modified since installation (size, checksum, mode). Which command performs that verification against the RPM database?",
       "options": [
-        "rpm -qi httpd",
-        "rpm --checksig httpd.rpm",
-        "rpm -V httpd",
-        "rpm -Vf httpd"
+        "`rpm -qi httpd` — prints package metadata (version, summary, description); does not check file integrity",
+        "`rpm --checksig httpd.rpm` — checks the GPG signature of a .rpm file on disk, not the installed files",
+        "`rpm -V httpd` — verifies each installed file against the RPM database (mode, size, MD5/SHA, mtime, owner)",
+        "`rpm -Vf httpd` — takes a FILE path, not a package name, so `httpd` as a bare name is not valid input"
       ],
       "correct": 2,
-      "explanation": "rpm -V (verify) compares the installed files of a package against the RPM database, checking size, MD5 hash, permissions, and more. It reports any discrepancies. rpm -qi shows package information (name, version, description). rpm -Vf verifies the package owning a specific file path, not a package name. rpm --checksig verifies the GPG signature of an RPM package file, not installed files.",
+      "explanation": "`rpm -V httpd` (verify) walks every file the package installed and compares it against the RPM database: size, hash, mode, owner, group, mtime, capabilities. Discrepancies are shown as a code column (`S.5....T.` etc.). `rpm -qi` prints metadata and never touches the files themselves. `rpm --checksig` validates the GPG signature of a `.rpm` file — useful before installation, but says nothing about files already on disk. `rpm -Vf` expects a filesystem PATH to identify which package to verify (`rpm -Vf /etc/httpd/conf/httpd.conf`); passing a package name to `-Vf` is not the correct usage.",
       "tags": [
         "rpm",
         "package-management",
@@ -194,15 +194,15 @@
     },
     {
       "id": "linux-plus-010",
-      "question": "A Debian-based server's apt update fails because a repository key is missing. The key fingerprint is 'ABCD1234'. Which command imports the GPG key from a keyserver?",
+      "question": "On a legacy Debian server, `apt update` fails because a repository's signing key is missing (short key ID `ABCD1234`). The administrator wants to import that key from `keyserver.ubuntu.com` into the APT trusted keyring. Which command does the job?",
       "options": [
-        "apt-key add ABCD1234 --from keyserver hkp://keyserver.ubuntu.com to import the GPG key",
-        "apt-key adv --keyserver",
-        "dpkg --add-key ABCD1234",
-        "gpg --recv-keys ABCD1234"
+        "`apt-key add ABCD1234` — `apt-key add` reads a key from a FILE or stdin; it does not know how to fetch from a keyserver",
+        "`apt-key adv --keyserver hkp://keyserver.ubuntu.com --recv-keys ABCD1234` — invokes gpg to fetch the key and adds it to /etc/apt/trusted.gpg",
+        "`dpkg --add-key ABCD1234` — `dpkg` has no `--add-key` sub-command; this is invented syntax",
+        "`gpg --recv-keys ABCD1234` — fetches the key into the USER's GnuPG keyring, not the APT trusted keyring"
       ],
       "correct": 1,
-      "explanation": "apt-key adv passes advanced options to gpg and is the traditional method for importing APT repository keys from a keyserver. apt-key add reads a key from stdin/file but does not fetch from a keyserver. gpg --recv-keys fetches for GPG keyring but not the APT trusted keyring. dpkg --add-key is not a valid dpkg option.",
+      "explanation": "`apt-key adv --keyserver hkp://keyserver.ubuntu.com --recv-keys ABCD1234` is the traditional recipe: `adv` passes the remaining flags straight to `gpg` on the trusted APT keyring, so the key is fetched from the given keyserver and added to /etc/apt/trusted.gpg (or /etc/apt/trusted.gpg.d). `apt-key add` only reads bytes from stdin or a supplied file — there is no keyserver mode. `dpkg --add-key` does not exist. `gpg --recv-keys` succeeds but drops the key into the invoking USER's keyring, which APT does not consult, so `apt update` still fails. (Modern releases prefer signed-by= and /etc/apt/keyrings/, but for classic `apt-key`-based systems this is the answer.)",
       "tags": [
         "apt",
         "gpg",
@@ -215,15 +215,15 @@
     },
     {
       "id": "linux-plus-011",
-      "question": "A systemd service unit file has 'Type=forking'. The service fails to start and systemctl shows 'Timeout waiting for PID file'. What is the most likely configuration issue?",
+      "question": "A systemd unit with `Type=forking` fails to start; the journal shows `Timeout waiting for PID file`. What is the MOST likely misconfiguration in the unit file?",
       "options": [
-        "PIDFile= directive is missing or pointing to the wrong path",
-        "The service requires Type=simple instead of Type=forking",
-        "The ExecStart command is incorrect and the service binary is missing",
-        "WantedBy= is not set in the [Install] section"
+        "The unit's `PIDFile=` directive is missing or points to a path the daemon never writes",
+        "`Type=simple` should be used instead — forking mode is deprecated in current systemd releases",
+        "The `ExecStart=` binary is missing from disk, which produces this timeout instead of an execve error",
+        "`[Install] WantedBy=` is not set, and systemd refuses to start units that are not enabled to a target"
       ],
       "correct": 0,
-      "explanation": "Type=forking tells systemd that the process forks and the parent exits. systemd then waits for the PID file to appear to confirm startup is complete. If PIDFile= is not set or points to the wrong location, systemd will time out waiting for it. A missing binary would produce 'executable not found', not a PID timeout. Type=simple is for non-forking daemons. WantedBy affects enabling, not startup success.",
+      "explanation": "When `Type=forking` is set, systemd starts the initial process, expects it to fork, expects the parent to exit, and then waits for the daemon's PID file to appear so it can track the surviving child. A missing or mistyped `PIDFile=` produces exactly the observed `Timeout waiting for PID file` error. `Type=simple` (not forking) is the systemd-preferred style but is not deprecated — traditional daemons that fork legitimately still need `forking`. A missing ExecStart binary raises `status=203/EXEC` immediately, not a PID-file timeout. `[Install] WantedBy=` only affects whether `systemctl enable` creates a symlink; it does not gate manual starts.",
       "tags": [
         "systemd",
         "unit-files",
@@ -235,15 +235,15 @@
     },
     {
       "id": "linux-plus-012",
-      "question": "An administrator needs to extend a mounted XFS filesystem on an LVM logical volume after expanding the logical volume with lvextend. Which command resizes the XFS filesystem?",
+      "question": "After running `lvextend -L +20G /dev/datavg/datalv`, the underlying XFS filesystem mounted at `/data` still reports the old size. Which command grows the XFS filesystem to fill the new LV?",
       "options": [
-        "xfs_repair -n /dev/datavg/datalv",
-        "fsck.xfs /data",
-        "xfs_growfs /data",
-        "resize2fs /dev/datavg/datalv"
+        "`fsck.xfs /data` — a no-op on Linux (returns 0 immediately); XFS does not have an offline fsck of this shape",
+        "`resize2fs /dev/datavg/datalv` — the ext2/3/4 resizer, refuses to touch an XFS superblock",
+        "`xfs_growfs /data` — grows the mounted XFS filesystem to its underlying block device size",
+        "`xfs_repair -n /dev/datavg/datalv` — dry-run repair, does not grow anything and needs the FS unmounted"
       ],
       "correct": 2,
-      "explanation": "xfs_growfs takes the mount point (or device) of a mounted XFS filesystem and expands it to fill the available space. XFS can only be grown while mounted, not unmounted. resize2fs is the correct tool for ext2/ext3/ext4, not XFS. xfs_repair -n performs a dry-run check and does not resize. fsck.xfs simply checks the filesystem for damage.",
+      "explanation": "`xfs_growfs` extends a MOUNTED XFS filesystem to the current size of its block device, which is exactly what you need after the underlying LV was extended. XFS was designed to only grow online — there is no offline grow tool. `resize2fs` is the ext-family resizer and refuses to operate on the XFS on-disk format. `xfs_repair -n` runs a read-only check (dry run) and additionally requires the filesystem to be unmounted, so it can neither grow the FS nor be run against `/data` while mounted. `fsck.xfs` is a stub that returns success — real XFS integrity work is done by `xfs_repair`, not `fsck.xfs`.",
       "tags": [
         "xfs",
         "lvm",
@@ -256,15 +256,15 @@
     },
     {
       "id": "linux-plus-013",
-      "question": "An administrator wants to ensure /dev/sdc1 is automatically mounted at /backup at boot, identified by UUID to avoid device naming changes. The filesystem is ext4 and should mount read-only. Which /etc/fstab entry is correct?",
+      "question": "The administrator wants `/backup` (ext4) to auto-mount at boot, keyed by UUID (so it survives sdX renaming), READ-ONLY, and included in normal fsck passes. Which /etc/fstab line meets ALL of those requirements?",
       "options": [
-        "/dev/sdc1 /backup ext4 ro,defaults 0 2",
-        "UUID=abc123 /backup ext4 ro 0 2",
-        "UUID=abc123 /backup ext4 defaults 0 0",
-        "UUID=abc123 /backup ext4 ro,noatime 0 0"
+        "`/dev/sdc1  /backup  ext4  ro,defaults  0  2` — uses the device name (defeats UUID stability); `defaults` also implies `rw`",
+        "`UUID=abc123  /backup  ext4  ro  0  2` — UUID-keyed, mounted read-only, fsck pass 2 (non-root)",
+        "`UUID=abc123  /backup  ext4  defaults  0  0` — `defaults` includes `rw` and pass 0 skips fsck entirely",
+        "`UUID=abc123  /backup  ext4  ro,noatime  0  0` — read-only is correct, but pass 0 disables the fsck pass"
       ],
       "correct": 1,
-      "explanation": "The correct fstab entry uses UUID for stable identification, specifies the mount point /backup, filesystem type ext4, 'ro' for read-only mounting, dump field 0 (no dump), and fsck order 2 (non-root filesystem checked after root). Option A uses 'defaults' which includes rw, not read-only. Option C uses the device path instead of UUID. Option D uses 0 for fsck pass which disables fsck checks on this partition.",
+      "explanation": "`UUID=abc123 /backup ext4 ro 0 2` ticks every requirement: UUID stops the entry from breaking when /dev/sdc becomes /dev/sdd, `ro` mounts read-only, dump field 0 skips dump(8) (deprecated), and pass 2 tells `fsck` to check non-root filesystems in parallel after the root. The other three fail at least one requirement: option A hard-codes the /dev name AND uses `defaults` (implies rw); option C uses `defaults` (implies rw) and disables fsck by using pass 0; option D correctly mounts read-only but uses pass 0, which explicitly opts the partition out of boot-time fsck.",
       "tags": [
         "fstab",
         "mount",
@@ -277,15 +277,15 @@
     },
     {
       "id": "linux-plus-014",
-      "question": "After running 'useradd -m -s /bin/bash -G wheel devuser', the administrator checks /etc/passwd and sees devuser's primary group is 'devuser', not 'wheel'. Why?",
+      "question": "After `useradd -m -s /bin/bash -G wheel devuser`, /etc/passwd shows devuser's PRIMARY group as `devuser`, not `wheel`. Why?",
       "options": [
-        "The wheel group does not exist on this system so useradd fell back to the default group",
-        "The -G flag sets the primary group, which was overridden by useradd defaults",
-        "useradd creates a private primary group matching the username by default;.",
-        "The -m flag overrides group assignment and creates a new group"
+        "The wheel group is missing on this box, so useradd silently fell back to a default private group",
+        "`-G` sets the primary group, so useradd overrode it with the passwd defaults from /etc/login.defs",
+        "`-m` implies primary-group creation and takes precedence over any group flag on the same command line",
+        "`useradd` creates a user-private primary group named after the user by default; `-G wheel` only adds wheel as a SUPPLEMENTARY group"
       ],
-      "correct": 2,
-      "explanation": "By default, useradd creates a new primary group with the same name as the user (user private group scheme). The -G flag specifies supplementary groups, not the primary group. To set the primary group, you must use -g. So devuser's primary group is 'devuser' and 'wheel' is a supplementary group. If wheel didn't exist, useradd would error, not fall back silently. The -m flag only controls home directory creation. G adds supplementary groups",
+      "correct": 3,
+      "explanation": "By default (`USERGROUPS_ENAB yes` in /etc/login.defs), `useradd` creates a private group named after the user and makes it the primary group. `-G` is exclusively for SUPPLEMENTARY groups; the primary is set with lowercase `-g`. If `wheel` did NOT exist, useradd would fail with an error rather than fall back silently — so option A is wrong. `-m` controls whether the home directory is created and copied from /etc/skel; it does not touch group assignment. So `devuser` is the primary group, and `wheel` is a supplementary group as requested.",
       "tags": [
         "user-management",
         "useradd",
@@ -293,20 +293,19 @@
         "comptia-linux"
       ],
       "difficulty": "easy",
-      "_normalized": true,
-      "_lenbal": true
+      "_normalized": true
     },
     {
       "id": "linux-plus-015",
-      "question": "A developer needs to give a script the ability to read files owned by root in /etc/ssl/private without giving the user root access. The script is at /opt/readcert.sh and is owned by root. Which permission configuration achieves this with least privilege?",
+      "question": "A developer's script at `/opt/readcert.sh` (owned by root) must read files in `/etc/ssl/private` (root-owned) WITHOUT giving the developer full root access. Which configuration best satisfies least-privilege?",
       "options": [
-        "chmod 4755 /opt/readcert.sh to set the SUID bit so it runs as root",
-        "Add the developer to the root group and chmod 640 /etc/ssl/private",
-        "Set sticky bit on /etc/ssl/private with chmod +t",
-        "Create a dedicated group, add both root and the developer to it."
+        "Dedicated group `sslreaders`: add the developer to it, chgrp the key directory to it, set mode 750 on the directory (640 on files inside)",
+        "`chmod 4755 /opt/readcert.sh` — set SUID so the script always runs as root; Linux, however, ignores SUID on interpreted scripts as a well-known race-condition mitigation",
+        "Add the developer to the `root` group and set `/etc/ssl/private` to 640 — but the root group grants access to root-group-owned files scattered across the entire system, not just SSL keys",
+        "`chmod +t /etc/ssl/private` — set the sticky bit on the directory; sticky only prevents non-owners from DELETING files inside, it has no effect at all on read permission"
       ],
-      "correct": 3,
-      "explanation": "Creating a dedicated group (e.g., sslreaders), adding the developer's user to it, changing the group ownership of /etc/ssl/private to sslreaders, and setting permissions to 640 or 750 provides access with least privilege. SUID on a shell script is ignored by Linux for security reasons. Adding the developer to the root group grants broad root-group access across the system, violating least privilege. The sticky bit on a directory only affects deletion, not read access. and chmod 640 /etc/ssl/private with group ownership",
+      "correct": 0,
+      "explanation": "Least privilege is a dedicated group: create `sslreaders`, add just the developer, change group ownership on `/etc/ssl/private` (and the key files inside it), then `chmod 750` on the directory and `640` on the files. The developer gets exactly the reads they need and nothing else. Setting SUID on a shell script is a common trap — the Linux kernel deliberately ignores the SUID bit on interpreted scripts to close a well-known race window, so `chmod 4755` does nothing useful. Adding a user to the `root` group grants read access to every root-group-owned file on the box, far beyond `/etc/ssl/private`. The sticky bit on a directory only prevents users from deleting files they do not own; it has no effect on read permission.",
       "tags": [
         "permissions",
         "groups",
@@ -319,15 +318,15 @@
     },
     {
       "id": "linux-plus-016",
-      "question": "A process is consuming excessive CPU. Running 'ps aux' shows PID 4521 using 98% CPU. The administrator wants to terminate it gracefully first, then forcefully if needed. In what order should signals be sent?",
+      "question": "`ps aux` shows PID 4521 pinning a CPU at 98%. The administrator wants to give it a chance to shut down cleanly, then force-kill it only if it will not exit. In what order should the signals be sent?",
       "options": [
-        "SIGSTOP (19), then SIGTERM (15) after pausing",
-        "SIGTERM (15), then SIGKILL (9) if it does not stop",
-        "SIGHUP (1), then SIGTERM (15), then SIGKILL (9)",
-        "SIGKILL (9), then SIGTERM (15) if it persists"
+        "SIGHUP (1), then SIGTERM (15), then SIGKILL (9) — SIGHUP is a config-reload/hangup signal, not a shutdown request",
+        "SIGKILL (9), then SIGTERM (15) — SIGKILL immediately terminates and cannot be caught, so nothing else runs afterwards",
+        "SIGTERM (15), then SIGKILL (9) — SIGTERM asks the process to clean up and exit; SIGKILL forces it if it refuses",
+        "SIGSTOP (19), then SIGTERM (15) — SIGSTOP pauses the process (T state) but does not shut it down at all"
       ],
-      "correct": 1,
-      "explanation": "The correct order is SIGTERM (15) first, which asks the process to terminate gracefully and allows cleanup handlers to run, then SIGKILL (9) if the process does not respond, which immediately terminates the process without cleanup. SIGKILL cannot be caught or ignored, so starting with it skips graceful shutdown. SIGHUP is used to reload configuration in many daemons. SIGSTOP pauses a process but does not terminate it.",
+      "correct": 2,
+      "explanation": "The graceful-then-forceful pattern is SIGTERM → wait → SIGKILL. SIGTERM (15) is the default `kill` signal and asks the process to clean up (flush buffers, run atexit handlers, release locks) before exiting; SIGKILL (9) is the fallback that the kernel delivers unconditionally, so no cleanup runs. Starting with SIGKILL destroys any chance of cleanup. SIGHUP historically meant hangup and modern daemons repurpose it for config reload — it is not a shutdown request. SIGSTOP simply pauses the process into the T state; it neither asks it to exit nor terminates it.",
       "tags": [
         "process-management",
         "signals",
@@ -339,15 +338,15 @@
     },
     {
       "id": "linux-plus-017",
-      "question": "An administrator wants to prevent a specific kernel module 'pcspkr' from loading at boot. Which method is correct?",
+      "question": "The `pcspkr` kernel module keeps loading and producing a system beep. The administrator wants to stop it from loading automatically at boot from now on. Which single action is the CORRECT persistent fix?",
       "options": [
-        "modprobe -r pcspkr && echo 'install pcspkr /bin/true' >> /etc/modprobe.d/blacklist.conf",
-        "echo 'blacklist pcspkr' >> /etc/modules",
-        "rmmod pcspkr && echo 'blacklist pcspkr' >> /etc/modprobe.d/blacklist.conf",
-        "echo 'blacklist pcspkr' >> /etc/modprobe.d/blacklist.conf"
+        "`echo 'blacklist pcspkr' > /etc/modprobe.d/nobeep.conf` — persists across reboots; modprobe skips blacklisted modules on autoload",
+        "`echo 'blacklist pcspkr' >> /etc/modules` — /etc/modules is a load-on-boot LIST, not a blacklist file",
+        "`rmmod pcspkr` — unloads the module RIGHT NOW but nothing prevents it from being autoloaded again on next boot",
+        "Set `install pcspkr /bin/true` on the command line — this is the runtime form; without a config file it does not persist"
       ],
-      "correct": 3,
-      "explanation": "Adding 'blacklist pcspkr' to a file in /etc/modprobe.d/ (such as blacklist.conf) prevents the module from being automatically loaded at boot. This is the persistent, correct method. rmmod removes a currently loaded module but does not prevent future loading. 'install pcspkr /bin/true' is a stronger override (replaces the install command) but is unnecessary for simply blacklisting. /etc/modules is used to load modules at boot, not prevent them.",
+      "correct": 0,
+      "explanation": "Dropping `blacklist pcspkr` into a file under `/etc/modprobe.d/` (with a `.conf` suffix) is what modprobe reads at every boot and on hotplug events, so the module is never autoloaded again. `/etc/modules` (Debian) does the opposite — it lists modules to be LOADED at boot. `rmmod pcspkr` removes it from the running kernel but leaves nothing on disk, so the next boot loads it again. `install pcspkr /bin/true` is a stronger override that has to live in a modprobe.d file too; giving it on the command line does not persist, so this option describes the mechanism but not a durable configuration.",
       "tags": [
         "kernel",
         "modules",
@@ -360,15 +359,15 @@
     },
     {
       "id": "linux-plus-018",
-      "question": "A GRUB2 boot entry fails and the system drops to the GRUB rescue prompt. The administrator types 'ls' and sees '(hd0) (hd0,gpt1) (hd0,gpt2)'. Which sequence of commands boots the system?",
+      "question": "GRUB2 dropped the system to the `grub rescue>` prompt. `ls` reports `(hd0) (hd0,gpt1) (hd0,gpt2)`, where /boot lives on `(hd0,gpt2)`. Which sequence of commands boots the running system to userspace?",
       "options": [
-        "boot (hd0,gpt2)/vmlinuz root=/dev/sda2",
-        "set root=(hd0,gpt2)",
-        "insmod normal; normal",
-        "grub-install (hd0); update-grub; boot"
+        "`insmod normal` then `normal` — that only works from the FULL GRUB shell once modules load; from `grub rescue>` you need the rescue-mode sequence",
+        "`grub-install (hd0); update-grub; boot` — `grub-install` and `update-grub` require a booted OS and cannot run from the rescue prompt",
+        "`boot (hd0,gpt2)/vmlinuz root=/dev/sda2` — GRUB rescue has no `boot IMAGE` form; you must first set root, load linux and initrd, then run boot",
+        "`set prefix=(hd0,gpt2)/grub2; set root=(hd0,gpt2); insmod normal; normal` — sets prefix/root, loads the normal module, then hands off to the standard GRUB menu"
       ],
-      "correct": 1,
-      "explanation": "From the GRUB rescue prompt, you must set the root device, load the kernel with 'linux', load the initrd, then run 'boot'. The set root command points GRUB to the boot partition. grub-install and update-grub require a running OS. 'insmod normal; normal' is used from the GRUB shell (not rescue) to load the normal module if GRUB modules are available but GRUB's normal mode failed to load. initrd /initrd.img; boot",
+      "correct": 3,
+      "explanation": "From `grub rescue>` the rescue shell only has a tiny built-in command set; the recovery pattern is to tell it where GRUB's modules live (`set prefix=(hd0,gpt2)/grub2`), set root, then load `insmod normal` and enter normal mode, which finds grub.cfg and boots as usual. Option A skips the required prefix/root setup and cannot find `normal.mod` on its own. Option B calls tools (`grub-install`, `update-grub`) that need a running Linux userspace — you are trying to get there. Option C uses a syntax `boot IMAGE` that GRUB2 does not accept; the correct hand-boot sequence is `linux ...; initrd ...; boot` — a single `boot IMAGE` line is not valid.",
       "tags": [
         "grub2",
         "boot",
@@ -377,20 +376,19 @@
         "comptia-linux"
       ],
       "difficulty": "hard",
-      "_normalized": true,
-      "_lenbal": true
+      "_normalized": true
     },
     {
       "id": "linux-plus-019",
-      "question": "A server running RHEL shows the following in 'journalctl -xe': 'kernel: Out of memory: Killed process 3201 (java) score 890'. What is the correct interpretation?",
+      "question": "A RHEL server's `journalctl -xe` shows `kernel: Out of memory: Killed process 3201 (java) score 890`. What has happened?",
       "options": [
-        "A cgroup memory limit was reached and the kernel killed the process to enforce the limit",
-        "The Linux OOM killer terminated the Java process because the system ran out of available memory",
-        "The Java process exceeded its ulimit memory limit and was stopped by the kernel",
-        "The Java process crashed due to a Java heap space exception in the application"
+        "The Java Virtual Machine threw a `java.lang.OutOfMemoryError` and the JVM aborted itself — this shows up as a JVM stack trace, not a kernel message",
+        "The Linux kernel's OOM killer terminated the java process because the system ran out of memory; the score reflects how heavily OOM targets it",
+        "The process exceeded a per-process `ulimit -v` memory cap; ulimit denials surface as `Cannot allocate memory` from libc, not as kernel OOM messages",
+        "A cgroup memory limit was reached and cgroup-OOM stepped in; cgroup-OOM logs include `Memory cgroup out of memory:` not the plain kernel form"
       ],
       "correct": 1,
-      "explanation": "The OOM (Out of Memory) killer is a kernel mechanism that kills processes when the system has exhausted available memory. The 'score' reflects how aggressively it targets a process (higher = more likely to kill). This is distinct from a Java heap exception (which is a JVM-level error with different log messages), ulimit enforcement (which produces 'Cannot allocate memory' or similar), and cgroup limits (which have different log patterns like 'Memory cgroup limit').",
+      "explanation": "The plain-kernel `Out of memory: Killed process ... score N` log line is the SYSTEM-wide OOM killer firing when free memory plus reclaimable is exhausted. The oom_score is a per-process ranking that the killer uses to pick a victim. A JVM heap-space error surfaces from Java (`java.lang.OutOfMemoryError: Java heap space`), not from the kernel journal. `ulimit -v` denials are reported by libc as EN0MEM/`Cannot allocate memory` on the calling syscall — they don't ride the OOM code path. cgroup memory limits produce a slightly different log prefix (`Memory cgroup out of memory:` / `Memory cgroup stats for /...`) that would appear alongside the container path, which the sample line does not include.",
       "tags": [
         "performance",
         "oom-killer",
@@ -403,15 +401,15 @@
     },
     {
       "id": "linux-plus-020",
-      "question": "After rebooting a system, an administrator notices that a custom service file at /etc/systemd/system/myapp.service has been changed on disk but systemd is still using the old version. What must the administrator run?",
+      "question": "After rebooting a system, an administrator notices that a custom service file at `/etc/systemd/system/myapp.service` was edited on disk but systemd still uses the OLD contents. Which command tells systemd to re-read unit files from disk without restarting the service?",
       "options": [
-        "systemctl reset-failed myapp",
-        "systemctl daemon-reload &&",
-        "systemctl reload myapp",
-        "systemctl restart myapp"
+        "`systemctl reset-failed myapp` — clears the FAILED state flag; does not re-read unit files",
+        "`systemctl reload myapp` — asks the SERVICE (via SIGHUP or ExecReload=) to reload its own config, not systemd itself",
+        "`systemctl daemon-reload` — re-parses every unit file from disk and rebuilds systemd's in-memory dependency graph",
+        "`systemctl restart myapp` — restarts the process using systemd's CACHED copy of the old unit file"
       ],
-      "correct": 1,
-      "explanation": "systemctl daemon-reload re-reads all unit files from disk without restarting running services, updating systemd's in-memory configuration. Without it, systemd keeps using the cached version of the unit file. After daemon-reload, restarting the service applies the new configuration. systemctl restart without daemon-reload uses the old unit file. systemctl reload sends SIGHUP to reload the service's own configuration (like nginx -s reload), not the unit file. reset-failed clears failed state flags.",
+      "correct": 2,
+      "explanation": "`systemctl daemon-reload` is the exact command for this scenario: it re-reads every unit file from disk (including your edited `myapp.service`), rebuilds the dependency graph and applies the new configuration to the systemd manager. `systemctl restart` alone uses the CACHED unit that daemon-reload has not yet refreshed, so the edits are ignored. `systemctl reload` sends the service its own `ExecReload=` (or SIGHUP) so the running daemon rereads ITS config file — not systemd's unit. `reset-failed` only clears the FAILED marker so the next start attempt is allowed; it does not refresh unit files.",
       "tags": [
         "systemd",
         "unit-files",
@@ -423,15 +421,15 @@
     },
     {
       "id": "linux-plus-021",
-      "question": "An administrator needs to set a file permission of rwxr-x--- (owner: rwx, group: r-x, other: none) using chmod with numeric notation. Which command is correct?",
+      "question": "Which numeric-notation `chmod` sets `/opt/script.sh` to `rwxr-x---` (owner rwx, group r-x, other no access)?",
       "options": [
-        "chmod 755 /opt/script.sh",
-        "chmod 750 /opt/script.sh",
-        "chmod 740 /opt/script.sh",
-        "chmod 754 /opt/script.sh"
+        "`chmod 755 /opt/script.sh` — sets other=r-x (5), granting world execute which the requirement forbids",
+        "`chmod 750 /opt/script.sh` — owner=rwx (7), group=r-x (5), other=--- (0), matching the requirement exactly",
+        "`chmod 740 /opt/script.sh` — sets group=r-- (4), stripping execute from the group which the requirement requires",
+        "`chmod 754 /opt/script.sh` — sets other=r-- (4), granting world read which the requirement forbids"
       ],
       "correct": 1,
-      "explanation": "The permission rwxr-x--- breaks down as: owner (rwx = 4+2+1 = 7), group (r-x = 4+0+1 = 5), other (--- = 0). This gives 750. chmod 754 would set other to r-- (4), adding unwanted read access. chmod 755 sets other to r-x (5). chmod 740 sets group to r-- (4), removing execute from group.",
+      "explanation": "Decoding `rwxr-x---`: owner rwx=4+2+1=7, group r-x=4+0+1=5, other ---=0, so the mode is `750`. `755` adds r-x for other, which the requirement forbids. `740` strips execute from the group (`r--` = 4). `754` grants read to other (`r--` = 4), also forbidden. Only `750` matches the exact rwx pattern given.",
       "tags": [
         "permissions",
         "chmod",
@@ -443,15 +441,15 @@
     },
     {
       "id": "linux-plus-022",
-      "question": "A security audit reveals that /etc/passwd is world-writable. Which command fixes this to the correct permissions (readable by all, writable only by root)?",
+      "question": "A security audit reports that /etc/passwd is world-writable. What is the CORRECT permission mode to restore — readable by everyone (many utilities depend on it), writable only by root?",
       "options": [
-        "chmod 444 /etc/passwd",
-        "chmod 640 /etc/passwd",
-        "chmod 644 /etc/passwd",
-        "chmod 600 /etc/passwd"
+        "`chmod 444 /etc/passwd` — makes it read-only for root as well, breaking password/user changes system-wide",
+        "`chmod 600 /etc/passwd` — root-only read/write; strips read from ordinary users and breaks user-lookup calls",
+        "`chmod 644 /etc/passwd` — root rw, everyone read; matches the reference mode shipped by every major distro",
+        "`chmod 640 /etc/passwd` — removes read for `other`, so unprivileged tools cannot resolve UIDs to names"
       ],
       "correct": 2,
-      "explanation": "/etc/passwd should have permissions 644 (rw-r--r--): root can read and write, and all users can read it (many programs need to look up user info). chmod 640 would prevent non-root/non-group users from reading it, breaking many utilities. chmod 600 makes it readable only by root, causing system-wide authentication failures. chmod 444 removes write permission from root, which is also incorrect since root must be able to modify it.",
+      "explanation": "The canonical mode for /etc/passwd is `644` (`rw-r--r--`): root can write, everyone can read. That world-readability is essential because a huge number of library calls (`getpwuid`, `id`, `ls -l`, name resolution in shells) depend on ordinary users being able to look UIDs up to usernames. `chmod 640` breaks those lookups for anyone not in the file's group. `chmod 600` locks out non-root readers entirely and produces the same failures more severely. `chmod 444` also removes write permission from root, so `passwd`, `useradd`, `usermod` and `chsh` — which run as root — cannot rewrite the file.",
       "tags": [
         "permissions",
         "security",
@@ -464,15 +462,15 @@
     },
     {
       "id": "linux-plus-023",
-      "question": "An administrator wants to grant user 'bob' read and write ACL access to /srv/project without changing the file's owner or traditional permissions. Which commands achieve this?",
+      "question": "The administrator wants to give user `bob` read/write access to `/srv/project` via a POSIX ACL, WITHOUT changing the file's owner, group or classical mode bits. Which command does that?",
       "options": [
-        "getfacl -m u:bob:rw /srv/project",
-        "chown bob /srv/project && chmod 664 /srv/project",
-        "setfacl -m u:bob:rw /srv/project",
-        "setfacl -x u:bob:rw /srv/project"
+        "`getfacl -m u:bob:rw /srv/project` — `getfacl` only DISPLAYS ACLs; `-m` is not one of its flags",
+        "`chown bob /srv/project && chmod 664 /srv/project` — changes the owner and the classic mode bits, violating the requirement",
+        "`setfacl -m u:bob:rw /srv/project` — `-m` MODIFIES ACLs, adding the u:bob:rw entry without touching UGO bits",
+        "`setfacl -x u:bob /srv/project` — `-x` REMOVES an ACL entry, not adds one"
       ],
       "correct": 2,
-      "explanation": "setfacl -m (modify) u:bob:rw /srv/project adds or modifies an ACL entry granting user bob read and write access without affecting ownership or traditional permissions. chown would change ownership. setfacl -x removes ACL entries rather than adding them. getfacl displays ACL entries and does not modify them.",
+      "explanation": "`setfacl -m u:bob:rw /srv/project` modifies the extended ACL to add an entry granting user `bob` read/write while leaving owner, group and the classical mode bits alone. `getfacl` is strictly a reader; it prints ACLs and has no `-m` option. `setfacl -x u:bob` removes any ACL entry for bob rather than adding one. `chown bob && chmod 664` DOES give bob write access, but by changing the owner and the mode bits it violates the requirement to leave them untouched.",
       "tags": [
         "acl",
         "setfacl",
@@ -485,15 +483,15 @@
     },
     {
       "id": "linux-plus-024",
-      "question": "An administrator needs to allow the 'developers' group to run 'systemctl restart httpd' as root without a password via sudo. Which /etc/sudoers entry is correct?",
+      "question": "Members of the group `developers` should be able to run `systemctl restart httpd` as root through sudo, with NO password prompt, and nothing else. Which /etc/sudoers entry is correct?",
       "options": [
-        "developers ALL=(root) NOPASSWD: ALL",
-        "%developers ALL=(ALL) NOPASSWD",
-        "%developers ALL=(root) /bin/systemctl restart httpd",
-        "developers ALL=(ALL) NOPASSWD: /bin/systemctl restart httpd"
+        "`developers ALL=(root) NOPASSWD: ALL` — no leading `%` means this rule applies to a USER called `developers`, not the group; also grants ALL commands",
+        "`%developers ALL=(ALL) NOPASSWD: /bin/systemctl restart httpd` — `%` marks the group, target user is root (implied by ALL), NOPASSWD skips the prompt, command is fully qualified",
+        "`%developers ALL=(root) /bin/systemctl restart httpd` — targets the group and the right command, BUT no NOPASSWD so sudo still prompts",
+        "`developers ALL=(ALL) NOPASSWD: /bin/systemctl restart httpd` — missing the `%`, so this applies to a user literally named `developers`"
       ],
       "correct": 1,
-      "explanation": "In sudoers, group names are prefixed with %. %developers applies the rule to all members of the developers group. NOPASSWD: allows execution without a password prompt. The command path must be fully qualified. Option A without % applies only to a user named 'developers'. Option C with ALL gives the group all sudo commands, not just the specific one. Option D is missing NOPASSWD:, so it would prompt for a password.",
+      "explanation": "In sudoers, `%developers` targets the GROUP `developers` (without `%` it means a user of that name). `ALL=(ALL)` lets any member run the rule on any host as any user (including root), `NOPASSWD:` skips the password prompt, and the fully-qualified path `/bin/systemctl restart httpd` restricts them to exactly that one command. Option A grants `ALL` commands and applies to a user, not a group. Option C targets the group and the right command but omits NOPASSWD, so sudo still prompts. Option D uses the right command and NOPASSWD but drops the `%`, so the rule matches a user named `developers`, not the group.",
       "tags": [
         "sudo",
         "sudoers",
@@ -506,15 +504,15 @@
     },
     {
       "id": "linux-plus-025",
-      "question": "A sysadmin needs to harden SSH on a production server. Which /etc/ssh/sshd_config settings are most important to disable password authentication and restrict root logins?",
+      "question": "A production sshd should reject password logins entirely (keys only) AND forbid direct root SSH access. Which pair of `/etc/ssh/sshd_config` settings enforces BOTH?",
       "options": [
-        "PasswordAuthentication no\nPermitRootLogin no",
-        "PasswordAuthentication no\nPermitRootLogin without-password",
-        "PubkeyAuthentication no\nPermitRootLogin no",
-        "PasswordAuthentication no\nPermitRootLogin yes"
+        "`PasswordAuthentication no` + `PermitRootLogin no` — passwords disabled, root SSH disabled outright",
+        "`PasswordAuthentication no` + `PermitRootLogin without-password` — passwords disabled, but root can still log in via key",
+        "`PubkeyAuthentication no` + `PermitRootLogin no` — DISABLES key auth, leaving only passwords (weakens the box)",
+        "`PasswordAuthentication no` + `PermitRootLogin yes` — passwords disabled but root SSH remains open"
       ],
       "correct": 0,
-      "explanation": "Setting PasswordAuthentication no disables password-based login (requiring key authentication), and PermitRootLogin no prevents any direct root SSH login. Option A disables passwords but still allows root login. Option B disables key auth (making the server less secure) but does block root. Option D (PermitRootLogin without-password) allows root login via SSH keys, which is generally still discouraged on production systems.",
+      "explanation": "`PasswordAuthentication no` refuses password-based logins so only keys (or other configured methods) work; `PermitRootLogin no` blocks any SSH login as root, key OR password. `PermitRootLogin without-password` (also spelt `prohibit-password` on OpenSSH ≥7.0) permits root via keys — that violates \"forbid direct root SSH\". Setting `PubkeyAuthentication no` turns off keys and leaves the server relying on passwords, which is the opposite of the goal. `PermitRootLogin yes` keeps root SSH wide open.",
       "tags": [
         "ssh",
         "hardening",
@@ -527,15 +525,15 @@
     },
     {
       "id": "linux-plus-026",
-      "question": "An administrator running iptables wants to block all incoming traffic on port 23 (Telnet) from any source. Which command adds the correct rule to the INPUT chain?",
+      "question": "On a legacy box running `iptables`, the administrator wants to drop all incoming TCP traffic destined for port 23 (Telnet), from any source. Which command adds the correct rule?",
       "options": [
-        "iptables -I OUTPUT -p tcp --dport 23 -j REJECT",
-        "iptables -A FORWARD -p tcp --dport 23 -j DROP",
-        "iptables -A INPUT -p tcp --sport 23 -j DROP",
-        "iptables -A INPUT -p tcp --dport 23 -j DROP"
+        "`iptables -I OUTPUT -p tcp --dport 23 -j REJECT` — filters OUTBOUND traffic and only affects packets THIS host originates",
+        "`iptables -A FORWARD -p tcp --dport 23 -j DROP` — FORWARD applies to routed traffic passing THROUGH, not destined for this host",
+        "`iptables -A INPUT -p tcp --sport 23 -j DROP` — matches packets whose SOURCE port is 23 (return traffic), not connections TO port 23",
+        "`iptables -A INPUT -p tcp --dport 23 -j DROP` — appends to INPUT, matches TCP with destination port 23, silently drops"
       ],
       "correct": 3,
-      "explanation": "iptables -A INPUT -p tcp --dport 23 -j DROP appends a rule to the INPUT chain that drops all TCP packets destined for port 23 on this server. --dport specifies the destination port. Using --sport 23 would block traffic from a source port of 23, not incoming connections to port 23. The OUTPUT chain controls outgoing traffic from the server. The FORWARD chain handles traffic being routed through the server, not traffic destined for it.",
+      "explanation": "The INPUT chain is what handles traffic destined for the local host; `-p tcp --dport 23` matches TCP packets whose DESTINATION port is 23; `-j DROP` silently discards them. `-A` appends the rule to the end of the chain — swap for `-I` if you want it inserted at the top. The other options fail on scope: `OUTPUT` filters what THIS host sends, `FORWARD` filters traffic being routed through this host to somewhere else, and `--sport 23` matches packets FROM port 23 (return traffic from a Telnet client if you were the server, not new incoming Telnet sessions).",
       "tags": [
         "iptables",
         "firewall",
@@ -548,15 +546,15 @@
     },
     {
       "id": "linux-plus-027",
-      "question": "SELinux is in enforcing mode and a web application cannot write to /var/app/uploads even though the directory permissions are 777. What is the most likely cause and correct fix?",
+      "question": "SELinux is enforcing. A web application cannot WRITE to `/var/app/uploads` even though the directory is chmod 777. Which is the most likely cause AND the correct fix?",
       "options": [
-        "The SELinux file context on /var/app/uploads is wrong;.",
-        "SELinux boolean httpd_can_network_connect needs to be enabled when the wrong file context blocks uploads to /var/app/uploads",
-        "The httpd process is running as the wrong user; fix with 'usermod -aG apache www-data'",
-        "The directory needs chmod 1777 to set the sticky bit for shared writes"
+        "The SELinux type label on the directory is wrong (e.g. `default_t`); run `chcon -Rt httpd_sys_rw_content_t /var/app/uploads` and use `semanage fcontext` for persistence",
+        "The `httpd_can_network_connect` boolean is off — but that boolean controls OUTBOUND network access, not filesystem writes",
+        "The httpd process runs as the wrong Unix user; add it to the `apache` group with `usermod -aG apache www-data` — Unix perms are already 777, so this cannot be the cause",
+        "The directory needs the sticky bit (`chmod 1777`) — sticky affects DELETION rules on shared dirs, not writes"
       ],
       "correct": 0,
-      "explanation": "SELinux enforcing mode enforces mandatory access controls based on file contexts. Even with permissions 777, if the SELinux context is wrong (e.g., default_t instead of httpd_sys_rw_content_t), the web server process will be denied. chcon changes the context immediately. For a permanent fix, restorecon or semanage fcontext should also be used. The sticky bit affects deletion, not writes. The boolean httpd_can_network_connect relates to network access, not filesystem writes. run 'chcon -t httpd_sys_rw_content_t /var/app/uploads'",
+      "explanation": "When SELinux is enforcing, the Unix mode bits are necessary but not sufficient — MAC also checks the type label. httpd runs confined as `httpd_t` and is only allowed to WRITE to files typed `httpd_sys_rw_content_t` (and a few others). A path that inherited `default_t` or `var_t` when it was created will refuse writes despite mode 777. Immediate fix: `chcon -Rt httpd_sys_rw_content_t /var/app/uploads`; for a persistent one that survives `restorecon`, add `semanage fcontext -a -t httpd_sys_rw_content_t \"/var/app/uploads(/.*)?\"`. The `httpd_can_network_connect` boolean is about outbound TCP, not the filesystem. Adding httpd to the apache group is orthogonal — 777 already gave everyone write. Sticky bit only limits WHO CAN DELETE files, not who can write them.",
       "tags": [
         "selinux",
         "security",
@@ -565,20 +563,19 @@
         "comptia-linux"
       ],
       "difficulty": "hard",
-      "_normalized": true,
-      "_lenbal": true
+      "_normalized": true
     },
     {
       "id": "linux-plus-028",
-      "question": "An administrator notices multiple failed sudo attempts in /var/log/auth.log for user 'mallory'. Which journalctl command filters only authentication failures for this user?",
+      "question": "The administrator sees repeated sudo failures in `/var/log/auth.log` for user `mallory`. Which command filters the systemd journal to entries emitted by the `sudo` binary that mention `mallory`?",
       "options": [
-        "journalctl -u sudo --since today | grep mallory",
-        "journalctl -xe --identifier=sudo",
-        "journalctl _COMM=sudo | grep -i mallory",
-        "journalctl -f /var/log/auth.log"
+        "`journalctl -u sudo --since today | grep mallory` — `sudo` is not a systemd UNIT, so `-u sudo` matches nothing on most systems",
+        "`journalctl -xe --identifier=sudo` — filters by syslog identifier `sudo` but shows ALL sudo entries, not just mallory's",
+        "`journalctl _COMM=sudo | grep -i mallory` — matches journal records where the emitting command was `sudo` (COMM field), then greps for mallory",
+        "`journalctl -f /var/log/auth.log` — `journalctl` reads the binary journal, not text files; passing a log-file path is a syntax error"
       ],
       "correct": 2,
-      "explanation": "journalctl _COMM=sudo filters journal entries where the command is 'sudo', then piping through grep -i mallory finds entries related to that user. This is a structured journal field query. Option A searches the sudo unit which may not exist (sudo is typically not a systemd unit). Option C shows recent context but doesn't filter by user. journalctl -f /var/log/auth.log is invalid syntax — you cannot specify both -f and a log file path; journalctl reads from the journal, not files.",
+      "explanation": "systemd-journald stores structured fields, one of which (`_COMM`) is the command name of the process that logged the entry. `journalctl _COMM=sudo` returns every record emitted by a sudo invocation; piping to `grep -i mallory` narrows it to entries mentioning her username. `journalctl -u sudo` matches by systemd UNIT, and sudo is not one, so it yields nothing. `--identifier=sudo` matches the SYSLOG_IDENTIFIER field (very close to `_COMM=sudo` here) but on its own returns every sudo record, not just mallory's — piping to grep would fix that, and this option omits the pipe. `journalctl -f /var/log/auth.log` mixes flags: `journalctl` reads the binary journal (not text log files) and does not accept a file path as a positional argument.",
       "tags": [
         "logging",
         "journalctl",
@@ -591,15 +588,15 @@
     },
     {
       "id": "linux-plus-029",
-      "question": "A developer generates a GPG key pair and wants to encrypt a file 'report.txt' for a colleague whose public key is already imported in the GPG keyring with email 'colleague@example.com'. Which command is correct?",
+      "question": "A developer has imported a colleague's public GPG key (uid `colleague@example.com`) into the local keyring. Which command encrypts `report.txt` so ONLY the colleague can decrypt it?",
       "options": [
-        "gpg --gen-key colleague@example.com report.txt to encrypt using a newly generated key pair",
-        "gpg --sign -r colleague@example.com report.txt",
-        "gpg --encrypt -r colleague@example.com report.txt",
-        "gpg --decrypt -r colleague@example.com report.txt"
+        "`gpg --gen-key colleague@example.com report.txt` — `--gen-key` starts an INTERACTIVE key-pair creation wizard; it does not encrypt files",
+        "`gpg --sign -r colleague@example.com report.txt` — signs the file to prove authorship; produces a cleartext-plus-signature, not ciphertext",
+        "`gpg --encrypt -r colleague@example.com report.txt` — encrypts to the colleague's public key; only their matching private key can decrypt",
+        "`gpg --decrypt -r colleague@example.com report.txt` — DECRYPTS existing ciphertext; useless when you have plaintext"
       ],
       "correct": 2,
-      "explanation": "gpg --encrypt -r colleague@example.com report.txt encrypts the file using the recipient's public key. Only the holder of the corresponding private key can decrypt it. --sign creates a digital signature to verify authenticity but does not encrypt. --decrypt is used to decrypt a file, not encrypt. --gen-key generates a new key pair and does not take email/file arguments this way.",
+      "explanation": "`gpg --encrypt -r <uid> <file>` encrypts the file to the recipient identified by the UID (`-r` for --recipient), producing `report.txt.gpg` that only the holder of the matching private key can open. `--sign` produces a signed but READABLE artefact (integrity, not confidentiality). `--decrypt` runs the reverse operation — it needs ciphertext as input, not plaintext. `--gen-key` is the interactive key-pair generation wizard and does not accept a filename to encrypt.",
       "tags": [
         "gpg",
         "encryption",
@@ -611,15 +608,15 @@
     },
     {
       "id": "linux-plus-030",
-      "question": "AppArmor is installed and a profile exists for /usr/sbin/nginx. The administrator wants to put the profile in complain mode for testing without enforcement. Which command is correct?",
+      "question": "AppArmor is installed and there is a profile for `/usr/sbin/nginx`. The administrator wants to switch that profile into COMPLAIN mode (log denials, do not block) for testing. Which command does it?",
       "options": [
-        "aa-complain /usr/sbin/nginx",
-        "setenforce 0 to put the AppArmor profile into complain mode without full enforcement globally",
-        "aa-enforce /usr/sbin/nginx",
-        "apparmor_parser -R /etc/apparmor.d/usr.sbin.nginx"
+        "`aa-complain /usr/sbin/nginx` — flips the named profile into complain (learning) mode; denials get logged, not blocked",
+        "`setenforce 0` — the SELinux command for permissive mode; AppArmor ignores it entirely",
+        "`aa-enforce /usr/sbin/nginx` — moves the profile into ENFORCE mode, the OPPOSITE of what is asked",
+        "`apparmor_parser -R /etc/apparmor.d/usr.sbin.nginx` — REMOVES (unloads) the profile from the kernel, no complain mode"
       ],
       "correct": 0,
-      "explanation": "aa-complain switches an AppArmor profile to complain mode, where policy violations are logged but not blocked — ideal for testing. setenforce 0 is an SELinux command, not AppArmor. aa-enforce switches a profile to enforcing mode. apparmor_parser -R removes (unloads) the profile entirely rather than setting a mode.",
+      "explanation": "`aa-complain <path-or-profile>` toggles the profile into complain mode: the kernel still evaluates the policy but logs denials to `dmesg`/audit instead of blocking, which is perfect for testing new rules. `setenforce 0` is an SELinux tool and has zero effect on AppArmor. `aa-enforce` is the opposite command — it moves a profile back into ENFORCE. `apparmor_parser -R` (remove) unloads the profile from the kernel entirely, so nginx runs unconfined and no learning happens.",
       "tags": [
         "apparmor",
         "security",
@@ -631,15 +628,15 @@
     },
     {
       "id": "linux-plus-031",
-      "question": "A Bash script contains the following code: `for f in *.log; do gzip $f; done`. The script runs but some filenames with spaces cause errors. How should the variable be quoted to fix this?",
+      "question": "A Bash loop `for f in *.log; do gzip $f; done` fails on filenames that contain spaces. Which fix quotes the variable so gzip sees each filename as a single argument?",
       "options": [
-        "for f in *.log; do gzip ${f}; done",
-        "for f in \"*.log\"; do gzip $f; done",
-        "for f in *.log; do gzip '$f'; done",
-        "for f in *.log; do gzip \"$f\"; done"
+        "`for f in *.log; do gzip ${f}; done` — brace form; still unquoted, so word-splitting on spaces remains",
+        "`for f in \"*.log\"; do gzip $f; done` — quotes prevent GLOB expansion; the literal string `*.log` becomes the only iterated value",
+        "`for f in *.log; do gzip '$f'; done` — single quotes pass the literal characters `$f` to gzip, not the variable value",
+        "`for f in *.log; do gzip \"$f\"; done` — double-quoted expansion keeps each filename (spaces included) as one shell word"
       ],
       "correct": 3,
-      "explanation": "Double-quoting \"$f\" ensures that filenames with spaces are treated as a single argument to gzip. Single quotes '$f' would pass the literal string '$f' rather than the variable value. Quoting the glob \"*.log\" prevents shell expansion, so no files would be found. ${f} (without quotes) still performs word splitting on spaces and does not fix the problem.",
+      "explanation": "Only `\"$f\"` (double-quoted parameter expansion) protects filenames with spaces from being split into multiple arguments. `${f}` clarifies where the variable name ends but still expands unquoted, so word-splitting kicks in. `\"*.log\"` prevents glob expansion — the loop iterates the LITERAL string `*.log` once, not the matching files. `'$f'` passes the literal three-character string `$f` to gzip; single quotes suppress variable expansion entirely.",
       "tags": [
         "bash",
         "scripting",
@@ -652,35 +649,34 @@
     },
     {
       "id": "linux-plus-032",
-      "question": "A sysadmin runs a Bash script and it exits with code 127. They open the script and check the last command, suspecting a typo. What does this exit code specifically indicate in Bash?",
+      "question": "A Bash script exits with status code 127. What does exit code 127 specifically mean in Bash?",
       "options": [
-        "Command not found",
-        "Permission denied — Bash found the executable but the command could not run because the user lacks execute access",
-        "Segmentation fault — the process accessed memory it does not own; typically generated by the kernel, not Bash itself",
-        "Successful exit — convention reserved for `0`, the opposite of an error indication"
+        "`Command not found` — Bash could not locate the requested executable in PATH (typo or missing binary)",
+        "`Permission denied` — Bash found the executable but the user lacks execute permission (exit 126 is the actual code for that)",
+        "`Segmentation fault` — a SIGSEGV kill produces status 139 (128+11), not 127",
+        "Successful exit — status 0 signals success; non-zero always signals an error"
       ],
       "correct": 0,
-      "explanation": "Exit code 127 in Bash means 'command not found' — the shell could not locate the executable being called. This is typically caused by a typo in the command name, a missing PATH entry, or a missing binary. Exit code 130 or 143 indicate signal termination. Internal function errors return whatever the function explicitly returns. There is no standard exit code for timeout (timeout command sends SIGTERM = 124).",
+      "explanation": "In Bash, 127 is the well-defined status for `command not found` — typo in the command name, missing binary, or wrong PATH. `Permission denied on an executable file` is 126 (found but not executable). A segfault is reported as 128 + signal number = 139 for SIGSEGV, not 127. Exit code 0 means success by convention; anything non-zero means an error, but the specific code 127 always means \"not found\".",
       "tags": [
         "bash",
         "exit-codes",
         "comptia-linux"
       ],
       "difficulty": "easy",
-      "_normalized": true,
-      "rewritten": true
+      "_normalized": true
     },
     {
       "id": "linux-plus-033",
-      "question": "An administrator needs to extract only the third field (colon-delimited) from /etc/passwd to list all usernames. Which command is correct?",
+      "question": "The administrator wants to list every username on the system by extracting the FIRST colon-delimited field from `/etc/passwd`. Which command prints just the usernames, one per line?",
       "options": [
-        "sed -n '3p' /etc/passwd",
-        "cut -d: -f3 /etc/passwd",
-        "cut -d: -f1 /etc/passwd",
-        "awk -F: '{print $1}' /etc/passwd"
+        "`sed -n '3p' /etc/passwd` — prints the THIRD LINE of the file, unrelated to per-line field extraction",
+        "`cut -d: -f1 /etc/passwd` — sets the delimiter to `:` and extracts field 1 (the username)",
+        "`cut -d: -f3 /etc/passwd` — extracts field 3, which is the numeric UID, not the username",
+        "`awk -F, '{print $1}' /etc/passwd` — sets the field separator to a COMMA, so /etc/passwd's colon layout is not split correctly"
       ],
-      "correct": 2,
-      "explanation": "Usernames are in the FIRST field of /etc/passwd. cut -d: -f1 uses colon as delimiter and extracts field 1 (the username). cut -d: -f3 extracts the UID (third field). awk -F: '{print $1}' also extracts the username correctly — but note that option A would be correct for usernames too, while the question asks which of the given commands lists usernames. sed -n '3p' prints the third line of the file, not a field.",
+      "correct": 1,
+      "explanation": "The username is field 1 of /etc/passwd (`user:x:UID:GID:GECOS:home:shell`). `cut -d: -f1` sets the delimiter to `:` and prints the first field for every line, giving the username list. `cut -d: -f3` would emit UIDs instead. `sed -n '3p'` prints the third LINE of the file — the third user's whole entry, not usernames. `awk -F,` splits on comma, so /etc/passwd (which has no commas in most fields) prints each whole line, not the username. The correct awk equivalent would be `awk -F: '{print $1}'`.",
       "tags": [
         "text-processing",
         "cut",
@@ -693,35 +689,34 @@
     },
     {
       "id": "linux-plus-034",
-      "question": "A Bash script must check whether `/var/log/app.log` exists as a regular file before reading from it. The author wants a single conditional test that returns true only when the path exists AND is a regular file (not a directory, socket, or block device). Which conditional fits?",
+      "question": "A Bash script must check that `/var/log/app.log` exists AND is a regular file (not a directory, symlink target that vanished, socket, or block device) before it reads from it. Which conditional test fits?",
       "options": [
-        "`if [ -f /var/log/app.log ]; then …` — `-f` tests that the path exists AND is a regular file",
-        "`if [ -d /var/log/app.log ]; then …` — `-d` tests that the path exists and is a directory, not a regular file",
-        "`if [ -e /var/log/app.log ]; then …` — `-e` tests existence but does NOT filter to regular files",
-        "`if [ -x /var/log/app.log ]; then …` — `-x` tests executability, unrelated to file-type filtering"
+        "`[ -x /var/log/app.log ]` — tests EXECUTABILITY, unrelated to file-type filtering",
+        "`[ -e /var/log/app.log ]` — tests EXISTENCE but does not distinguish regular files from directories/sockets/devices",
+        "`[ -d /var/log/app.log ]` — tests for a DIRECTORY, which is the opposite of what we want",
+        "`[ -f /var/log/app.log ]` — tests that the path exists AND that stat() reports it as a regular file"
       ],
-      "correct": 0,
-      "explanation": "[ -f /etc/config.file ] tests if the path exists AND is a regular file (not a directory or special file). -d tests for a directory, which is wrong for a file. The combination -e (exists) and -x (executable) checks existence and executability, which is not what 'processing a file' generally requires. The test with -r and -w checks read and write permissions, which is more than just 'exists'.",
+      "correct": 3,
+      "explanation": "`[ -f PATH ]` is the classical regular-file predicate: it returns true if the path both exists AND `stat()` reports it as a regular file (mode `S_IFREG`). `[ -e PATH ]` is the pure existence check and does not filter by type — directories, sockets, char/block devices and FIFOs all pass. `[ -d PATH ]` is the directory predicate — the opposite of what the scenario needs. `[ -x PATH ]` checks the effective UID has execute permission; it has nothing to do with file type filtering. (For symlinks, `-f` follows the link and returns true only if the target is a regular file, which is usually what a log-reading script wants.)",
       "tags": [
         "bash",
         "test-flags",
         "comptia-linux"
       ],
       "difficulty": "medium",
-      "_normalized": true,
-      "rewritten": true
+      "_normalized": true
     },
     {
       "id": "linux-plus-035",
-      "question": "A script needs to count how many times the word 'ERROR' appears in /var/log/app.log. Which command produces only the count?",
+      "question": "A script needs to print how many LINES in `/var/log/app.log` contain the word `ERROR`, and nothing else. Which is the MOST concise correct command?",
       "options": [
-        "All of the above produce the same output",
-        "grep ERROR /var/log/app.log | wc -l",
-        "grep -c ERROR /var/log/app.log",
-        "awk '/ERROR/ {count++} END {print count}' /var/log/app.log"
+        "`grep ERROR /var/log/app.log | wc -l` — correct count of matching lines, but requires an extra pipe and a second process",
+        "`grep -c ERROR /var/log/app.log` — `-c` makes grep emit just the count of matching lines, single process, exact requirement",
+        "`awk '/ERROR/ {count++} END {print count}' /var/log/app.log` — works, but more verbose than grep -c",
+        "`grep ERROR /var/log/app.log | tail -1` — prints the LAST matching line, not a count at all"
       ],
-      "correct": 2,
-      "explanation": "grep -c ERROR /var/log/app.log prints only the count of matching lines directly. grep | wc -l also counts matching lines but requires a pipe. awk counts matching lines too but with more verbosity. While A and B produce the same count for line occurrences, option D is incorrect because awk counts differently if a line has multiple occurrences of ERROR (it counts the line once). grep -c is the most concise single-command solution.",
+      "correct": 1,
+      "explanation": "`grep -c PATTERN FILE` prints just the number of matching LINES, using a single grep process — this is the concise correct answer. `grep ... | wc -l` produces the same number but forks an extra `wc` and adds a pipe. The awk one-liner works but is bulkier; also, if a line contains `ERROR` twice, both grep-based counts (and this awk pattern) still count that line only once — they all agree, but grep -c is the simplest. `grep ERROR ... | tail -1` returns the last matching LINE, not a count.",
       "tags": [
         "grep",
         "text-processing",
@@ -733,15 +728,15 @@
     },
     {
       "id": "linux-plus-036",
-      "question": "An administrator needs to replace every occurrence of 'localhost' with '127.0.0.1' in /etc/myapp.conf in place. Which sed command is correct?",
+      "question": "The administrator wants to replace EVERY occurrence of `localhost` with `127.0.0.1` in `/etc/myapp.conf`, editing the file in place. Which sed command does it?",
       "options": [
-        "sed -i 's/localhost/127.0.0.1/g' /etc/myapp.conf",
-        "sed -i 's/localhost/127.0.0.1/' /etc/myapp.conf",
-        "sed '/localhost/127.0.0.1/g' /etc/myapp.conf",
-        "sed 's/localhost/127.0.0.1/' /etc/myapp.conf"
+        "`sed -i 's/localhost/127.0.0.1/g' /etc/myapp.conf` — `-i` edits in place; `s///g` substitutes every occurrence on each line",
+        "`sed -i 's/localhost/127.0.0.1/' /etc/myapp.conf` — edits in place BUT without `g`, only the FIRST match on each line is replaced",
+        "`sed '/localhost/127.0.0.1/g' /etc/myapp.conf` — syntax error: missing the leading `s` for the substitution command",
+        "`sed 's/localhost/127.0.0.1/' /etc/myapp.conf` — prints to stdout only (no -i) and misses subsequent occurrences on a line (no g)"
       ],
       "correct": 0,
-      "explanation": "sed -i 's/localhost/127.0.0.1/g' modifies the file in place (-i) and the 'g' flag replaces ALL occurrences on each line. Without -i, sed outputs to stdout and does not modify the file. Without 'g', only the first occurrence per line is replaced. Option D uses incorrect sed syntax (missing 's' substitution command prefix).",
+      "explanation": "The correct incantation is `sed -i 's/localhost/127.0.0.1/g' /etc/myapp.conf`: `-i` rewrites the file in place, the `s///` command substitutes, and the `g` flag applies the substitution to EVERY match on each line, not just the first. Without `g` you get one replacement per line (option B). Without `-i` you get output on stdout and no file modification (option D). Option C is invalid sed syntax — the substitution command begins with the letter `s`.",
       "tags": [
         "sed",
         "text-processing",
@@ -753,15 +748,15 @@
     },
     {
       "id": "linux-plus-037",
-      "question": "A developer initializes a new git repository and stages all files with 'git add .'. Before committing, they want to see exactly what changes are staged. Which command shows the staged diff?",
+      "question": "A developer has just run `git add .` on a fresh repo and wants to preview the exact diff that the NEXT `git commit` will record. Which command prints that diff?",
       "options": [
-        "git diff --cached",
-        "git log --stat",
-        "git diff",
-        "git status --short"
+        "`git log --stat` — shows historical commits and per-file line counts; the repo has no commits yet, so nothing is printed",
+        "`git diff --cached` — diffs the INDEX (staging area) against HEAD, showing exactly what will be committed",
+        "`git status --short` — lists file states in the porcelain format but does not print any actual line diff",
+        "`git diff` — diffs the WORKING TREE against the INDEX; after `git add .` there are no unstaged changes so this is empty"
       ],
-      "correct": 0,
-      "explanation": "git diff --cached (also known as git diff --staged) shows the difference between the staging area (index) and the last commit — i.e., what will be included in the next commit. git diff without flags shows unstaged changes (working directory vs. staging area), which would be empty for newly staged files. git status --short shows file states but not the actual content diff. git log --stat shows commit history, not staged changes.",
+      "correct": 1,
+      "explanation": "`git diff --cached` (alias `git diff --staged`) compares the INDEX to HEAD, so it prints exactly the diff that a `git commit` would record. `git diff` with no flags compares the WORKING TREE to the INDEX; after `git add .` there are no unstaged deltas left, so it shows nothing. `git status --short` reports each file's state (A, M, ??) but does not emit a hunk-by-hunk diff. `git log --stat` walks commit history — on a repo that has never been committed to (or one where you want to see uncommitted changes), it does not answer the question at all.",
       "tags": [
         "git",
         "version-control",
@@ -773,15 +768,15 @@
     },
     {
       "id": "linux-plus-038",
-      "question": "A team wants to create a feature branch named 'feature/auth' from main and switch to it in one command. Which git command achieves this?",
+      "question": "A developer wants to create a NEW branch `feature/auth` from the current HEAD and switch to it in a SINGLE command. Which git command does that?",
       "options": [
-        "git clone --branch feature/auth",
-        "git switch feature/auth",
-        "git branch feature/auth && git checkout feature/auth",
-        "git checkout -b feature/auth"
+        "`git clone --branch feature/auth` — `git clone` copies a remote repo; needs a URL and does not create a local feature branch",
+        "`git switch feature/auth` — switches to an EXISTING branch; use `git switch -c feature/auth` for creating one",
+        "`git branch feature/auth && git checkout feature/auth` — technically works, but that is TWO commands, not one",
+        "`git checkout -b feature/auth` — the classic one-shot form: creates the branch AND switches to it"
       ],
       "correct": 3,
-      "explanation": "git checkout -b feature/auth creates a new branch named feature/auth and switches to it in a single command, equivalent to running git branch and git checkout separately. git switch feature/auth switches to an existing branch but does not create it (git switch -c would create it). git clone --branch checks out an existing remote branch from a repository, not creating a local feature branch.",
+      "explanation": "`git checkout -b feature/auth` combines branch creation with checkout in a single command, which is exactly the requirement. `git branch feature/auth && git checkout feature/auth` gets the same result, but as two chained commands, not one. `git switch feature/auth` (introduced in Git 2.23 as a cleaner split of checkout) requires the branch to already exist; the equivalent one-shot form is `git switch -c feature/auth`. `git clone` fetches a remote repository and does not create a local topic branch from the current HEAD.",
       "tags": [
         "git",
         "branching",
@@ -793,15 +788,15 @@
     },
     {
       "id": "linux-plus-039",
-      "question": "A Dockerfile is being written for a Python web application. The requirements.txt is copied and dependencies are installed first, before copying the application code. Why is this ordering important?",
+      "question": "A Dockerfile copies requirements.txt AND runs `pip install` BEFORE copying the application source. Why is that ordering deliberate?",
       "options": [
-        "Docker caches each layer;.",
-        "The COPY instruction fails if application files are copied before requirements.txt",
-        "Python's pip requires requirements.txt before application code can be parsed",
-        "The FROM instruction requires dependencies to be declared before application code"
+        "Layer caching — each Dockerfile step is cached by its inputs, so pip install runs only when requirements.txt actually changes; app-code edits skip that layer and rebuild in seconds",
+        "`COPY` semantics — the instruction refuses to execute if application source is placed on the working layer before requirements.txt, so the ordering is a hard build-graph requirement",
+        "`pip` parsing — the interpreter cannot process app code at build time until requirements.txt has been placed at the image root as a manifest for the dependency solver",
+        "`FROM` constraints — a base image resolves runtime dependencies at pull time and refuses application files that arrive before the dependency manifest has been declared"
       ],
       "correct": 0,
-      "explanation": "Docker builds images layer by layer and caches each layer. If requirements.txt changes infrequently but application code changes often, placing the COPY requirements.txt and RUN pip install before COPY . ensures that Docker reuses the cached dependency layer when only app code changes, dramatically speeding up builds. This is a fundamental Docker build optimization. pip does not require this ordering at a technical level, and COPY does not fail based on ordering. copying requirements first ensures the dependency install layer is cached when only app code changes",
+      "explanation": "The Docker build cache is the reason. Each instruction is hashed against its inputs; if the requirements.txt file is unchanged, Docker reuses the cached layer for the pip-install step, and only re-runs the `COPY .` and later layers when app code changes. Put `COPY . /app` first and the requirements install becomes part of a layer that changes on every code edit, invalidating the cache every time. `COPY` does not care what has been copied before it. `pip` does not need any specific ordering to \"parse\" app code (it does not, in fact). `FROM` sets the base image; it has no rule about dependency ordering.",
       "tags": [
         "docker",
         "dockerfile",
@@ -810,20 +805,19 @@
         "comptia-linux"
       ],
       "difficulty": "medium",
-      "_normalized": true,
-      "_lenbal": true
+      "_normalized": true
     },
     {
       "id": "linux-plus-040",
-      "question": "An administrator runs a container with 'docker run -d -v /host/data:/container/data:ro nginx'. What does the ':ro' flag specify?",
+      "question": "In `docker run -d -v /host/data:/container/data:ro nginx`, what does the `:ro` suffix on the volume mount do?",
       "options": [
-        "The bind mount /host/data is mounted read-only inside the container",
-        "The container filesystem is immutable and cannot write to any path",
-        "The nginx image is pulled from a read-only registry",
-        "The container runs in read-only (restricted operations) mode"
+        "The bind mount `/host/data → /container/data` is mounted READ-ONLY inside the container",
+        "The ENTIRE container filesystem is made immutable, equivalent to `docker run --read-only`",
+        "The `nginx` image itself is pulled from a read-only image registry",
+        "The container process runs with restricted (Read-Only) capabilities, similar to dropping CAP_DAC_OVERRIDE"
       ],
       "correct": 0,
-      "explanation": "In Docker volume syntax, the :ro suffix mounts the specific bind mount as read-only inside the container. The container can read files from /host/data but cannot write to it. This only affects this specific mount, not the container's writable layer or other paths. 'Read-only container mode' (docker run --read-only) is a separate flag. The :ro has no relation to registry access.",
+      "explanation": "In Docker volume syntax `HOST:CONTAINER[:mode]`, `:ro` marks this SPECIFIC mount as read-only inside the container. The container can `read()` from `/container/data` but every `write()` returns EROFS. Other mounts and the container's own writable overlay layer are unaffected. Making the entire container root filesystem immutable is a separate switch, `docker run --read-only`. `:ro` has nothing to do with registry access or the process's capabilities/security profile.",
       "tags": [
         "docker",
         "volumes",
@@ -836,15 +830,15 @@
     },
     {
       "id": "linux-plus-041",
-      "question": "A cron job must run a backup script every day at 2:30 AM. Which crontab entry is correct?",
+      "question": "A cron job must run `/opt/backup.sh` every day at 2:30 AM. Which crontab entry is correct? (Cron field order: minute, hour, day-of-month, month, day-of-week.)",
       "options": [
-        "0 2 30 * * /opt/backup.sh",
-        "2 30 * * * /opt/backup.sh",
-        "30 2 * * * /opt/backup.sh",
-        "* * 2 30 * /opt/backup.sh"
+        "`0 2 30 * * /opt/backup.sh` — runs at 02:00 on the 30th of each month; that is minute 0, hour 2, day-of-month 30, so it fires monthly, not daily",
+        "`2 30 * * * /opt/backup.sh` — puts 30 in the HOUR field; hour 30 is out of range (0–23) and most cron implementations reject or silently skip the line",
+        "`30 2 * * * /opt/backup.sh` — minute 30, hour 2, every day of month, every month, every day of week — evaluates to 02:30 daily, exactly what the task asks",
+        "`* * 2 30 * /opt/backup.sh` — every minute of every hour on day-of-month 2, in month 30; month 30 does not exist so this line never fires at all"
       ],
       "correct": 2,
-      "explanation": "Cron fields are: minute hour day-of-month month day-of-week. '30 2 * * *' means minute 30, hour 2, every day of month, every month, every day of week — i.e., 2:30 AM daily. Option B swaps minute and hour. Option C has the values in wrong positions (day 2, minute 30). Option D runs at 2:00 AM only on the 30th of each month.",
+      "explanation": "The cron field order is minute, hour, day-of-month, month, day-of-week. `30 2 * * *` is minute 30 of hour 2, every day, every month, every weekday — exactly 02:30 daily. `0 2 30 * *` fires at 02:00, but only on the 30th of every month. `2 30 * * *` puts 30 in the HOUR field, which is out of the 0–23 range and either rejected or clamped depending on cron implementation. `* * 2 30 *` is well-formed but nonsensical: every minute of every hour on day-of-month 2, in month 30 (invalid) — so it never runs at all.",
       "tags": [
         "cron",
         "scheduling",
@@ -856,15 +850,15 @@
     },
     {
       "id": "linux-plus-042",
-      "question": "An Ansible playbook task needs to install the 'nginx' package on Debian-based hosts and ensure it is the latest version. Which task definition is correct?",
+      "question": "An Ansible task must install the `nginx` package on Debian-family hosts AND ensure the LATEST available version is present. Which task definition is correct?",
       "options": [
-        "- name: Install nginx\n  apt:\n    name: nginx\n    state: present",
-        "- name",
-        "- name: Install nginx\n  yum:\n    name: nginx\n    state: latest",
-        "- name: Install nginx\n  package:\n    name: nginx\n    state: present"
+        "```yaml\n- name: Install nginx (yum)\n  yum:\n    name: nginx\n    state: latest\n```\n`yum:` targets RHEL-family hosts, not Debian",
+        "```yaml\n- name: Install nginx (package)\n  package:\n    name: nginx\n    state: present\n```\n`state: present` only ensures the package exists, not that it is the newest version",
+        "```yaml\n- name: Install nginx (apt)\n  apt:\n    name: nginx\n    state: latest\n    update_cache: yes\n```\n`apt:` is the Debian-family module, `state: latest` upgrades to the newest, `update_cache: yes` refreshes the index first",
+        "```yaml\n- name: Install nginx (apt)\n  apt:\n    name: nginx\n    state: present\n```\nDebian-family module, but `state: present` only guarantees existence, not latest"
       ],
-      "correct": 1,
-      "explanation": "The apt module is correct for Debian-based systems. state: latest ensures the most recent version is installed. update_cache: yes runs apt-get update before installing, ensuring fresh package information. The yum module is for Red Hat/CentOS. The generic 'package' module with state: present installs but does not guarantee the latest version. apt with state: present installs but only ensures the package exists, not that it is the latest version.",
+      "correct": 2,
+      "explanation": "The `apt` module is Ansible's Debian-family package manager; `state: latest` upgrades the package to the newest version available in the enabled repos, and `update_cache: yes` runs the equivalent of `apt-get update` first so the metadata is fresh. `yum:` is the RHEL-family module and will not run on Debian hosts. `package:` is a generic wrapper that dispatches to the right underlying module; combined with `state: present` it only ensures the package is installed, not upgraded. `apt` with `state: present` has the same problem — it does not upgrade an already-installed nginx.",
       "tags": [
         "ansible",
         "automation",
@@ -877,15 +871,15 @@
     },
     {
       "id": "linux-plus-043",
-      "question": "A Bash function is defined to check connectivity and return 0 on success or 1 on failure. How should the exit code of the function be captured in a script variable?",
+      "question": "A Bash function `check_connectivity` returns 0 on success or 1 on failure. What is the correct way to CAPTURE that return code into a shell variable?",
       "options": [
-        "result=check_connectivity()",
-        "check_connectivity; result=$?",
-        "result=$(check_connectivity); echo $result",
-        "export result; check_connectivity"
+        "`result=check_connectivity()` — Bash treats this as an ASSIGNMENT of the literal string `check_connectivity()`, the function is not run",
+        "`check_connectivity; result=$?` — runs the function and then reads `$?`, which holds the exit status of the last command",
+        "`result=$(check_connectivity)` — captures STDOUT, not the exit code; `result` ends up with any text the function printed",
+        "`export result; check_connectivity` — declares `result` as an environment variable before the function runs; nothing writes to it"
       ],
       "correct": 1,
-      "explanation": "In Bash, $? holds the exit status (return code) of the last command or function. Calling check_connectivity; result=$? runs the function and captures its return code in result. Option A captures stdout output of the function, not the exit code. Option C is invalid Bash syntax. Option D exports result before the function runs, which does not capture the return value.",
+      "explanation": "`$?` is Bash's built-in variable holding the exit status of the last foreground command or function, so `check_connectivity; result=$?` runs the function and captures its return code. `result=check_connectivity()` is not a call at all — Bash sees a variable assignment of a literal string with `()` glued on and never invokes the function. `result=$(check_connectivity)` runs the function in a subshell and captures its STDOUT, so `result` holds any echoed text rather than the exit code. `export result; check_connectivity` merely marks `result` for export; nothing writes to it.",
       "tags": [
         "bash",
         "functions",
@@ -898,15 +892,15 @@
     },
     {
       "id": "linux-plus-044",
-      "question": "A server shows a load average of '18.5 14.2 9.8' in top. The system has 4 CPU cores. What does this indicate?",
+      "question": "`top` shows a load average of `18.5 14.2 9.8` on a 4-core system. What does this indicate?",
       "options": [
-        "The load represents memory usage in gigabytes, not CPU load",
-        "The system had a brief spike 15 minutes ago and is now recovering, as shown by the decreasing trend",
-        "The system is severely overloaded;.",
-        "The system is healthy; load averages above 10 are normal for any server"
+        "The three numbers report memory usage in gigabytes over 1, 5 and 15 minutes — but load average has always been process-queue depth, not memory, so this reading has nothing to do with RAM",
+        "There was a brief 15-minute spike that has almost fully recovered and the system is now essentially healthy — but 18.5 at 1 min on 4 cores is far too high to call recovered",
+        "The system is severely overloaded — 4.6× more runnable/uninterruptible processes than the machine has cores; the trend IS decreasing but is still well above healthy on a 4-core box",
+        "The system is healthy — load averages above 10 are normal on any modern multi-core box, but that is a myth: healthy load is relative to core count, not an absolute number"
       ],
       "correct": 2,
-      "explanation": "Load average represents the average number of runnable (or uninterruptible) processes over 1, 5, and 15 minutes. On a 4-core system, a load of 1.0 per core (4.0 total) means fully utilized. A load of 18.5 at 1 minute means 4.6x overload — the system is severely overloaded with many processes waiting for CPU. Option C is partially true (the trend is decreasing) but does not address the severity. Load average measures process queue depth, not memory. there are far more runnable processes than CPU cores can handle",
+      "explanation": "Linux load average counts the average number of processes in R (running) or D (uninterruptible sleep) state over 1, 5 and 15 minutes. On a 4-core box, a load equal to 4 means fully saturated; anything higher means processes are queuing. 18.5 on the 1-min figure is 4.6× cores — badly overloaded. The 5-min (14.2) and 15-min (9.8) numbers ARE lower, so the trend is downward, but they are still well above 4, so the box is far from healthy. Load averages are process-queue depth, not memory. There is no fixed \"load above 10 = normal\" rule — normal depends on core count.",
       "tags": [
         "performance",
         "load-average",
@@ -915,20 +909,19 @@
         "comptia-linux"
       ],
       "difficulty": "medium",
-      "_normalized": true,
-      "_lenbal": true
+      "_normalized": true
     },
     {
       "id": "linux-plus-045",
-      "question": "An administrator suspects network issues and wants to capture all TCP traffic on interface eth0 on port 443 to a file for later analysis. Which tcpdump command is correct?",
+      "question": "The administrator wants to capture all TCP traffic on interface `eth0` with destination or source port 443 to a pcap file for later analysis in Wireshark. Which tcpdump invocation is correct?",
       "options": [
-        "tcpdump -i eth0 -w /tmp/capture.pcap tcp port 443",
-        "tcpdump -i eth0 port 443",
-        "tcpdump --interface eth0 --port 443 --write /tmp/capture.pcap",
-        "tcpdump -i eth0 tcp:443 > /tmp/capture.pcap"
+        "`tcpdump -i eth0 -w /tmp/capture.pcap tcp port 443` — captures on eth0, filter `tcp port 443`, writes raw packets to a pcap file",
+        "`tcpdump -i eth0 port 443` — captures on eth0 and port 443, but only prints to stdout; no pcap is written",
+        "`tcpdump --interface eth0 --port 443 --write /tmp/capture.pcap` — tcpdump does not accept these long-option names",
+        "`tcpdump -i eth0 tcp:443 > /tmp/capture.pcap` — `tcp:443` is not valid BPF syntax, and `> file` captures TEXT output, not a pcap"
       ],
       "correct": 0,
-      "explanation": "tcpdump -i eth0 -w /tmp/capture.pcap tcp port 443 captures TCP traffic on port 443 on interface eth0 and writes raw packets to a pcap file for analysis with Wireshark or tcpdump -r. Option A captures to stdout but does not save to file. Option C uses incorrect filter syntax (tcp:443 is not valid; it should be 'tcp port 443') and redirecting tcpdump stdout captures text output, not binary pcap. tcpdump does not use --interface or --write as long options.",
+      "explanation": "`tcpdump -i eth0 -w /tmp/capture.pcap tcp port 443` sets the interface (`-i`), writes raw packets to a pcap file (`-w`), and uses BPF filter `tcp port 443` to match TCP traffic where the source OR destination port is 443. The `-w` flag is essential — without it (option B) tcpdump only prints a decoded summary to stdout. Redirecting stdout with `> file` (option D) captures the text summary, not a binary pcap Wireshark can read; also `tcp:443` is not valid BPF syntax (the correct form is `tcp port 443`). tcpdump does not accept the `--interface`, `--port`, `--write` long options shown in option C.",
       "tags": [
         "tcpdump",
         "networking",
@@ -941,15 +934,15 @@
     },
     {
       "id": "linux-plus-046",
-      "question": "After a kernel update, an administrator attempts to boot but sees 'Kernel panic - not syncing: VFS: Unable to mount root fs'. The most likely cause is:",
+      "question": "After a kernel update, the box refuses to boot with `Kernel panic - not syncing: VFS: Unable to mount root fs`. What is the MOST likely cause?",
       "options": [
-        "The GRUB bootloader configuration points to the wrong kernel version",
-        "The root filesystem has a journal error that can be fixed with fsck",
-        "The new kernel's initramfs is missing or does not contain the storage driver",
-        "The /etc/fstab entry for the root filesystem uses an incorrect UUID"
+        "The GRUB config is pointing at the wrong kernel version — but a wrong entry usually boots the OTHER kernel instead of panicking here",
+        "The root filesystem has a journal error — but journal errors surface AFTER the root is mounted, with different messages",
+        "The new kernel's initramfs is missing or does not contain the storage/HBA driver the root device needs (SCSI, NVMe, RAID, encryption)",
+        "The /etc/fstab entry for the root has an incorrect UUID — but fstab is not consulted until AFTER the kernel mounts the initial root"
       ],
       "correct": 2,
-      "explanation": "The initramfs (initial RAM filesystem) contains the minimal drivers and tools needed to mount the root filesystem during early boot. If the initramfs for the new kernel is missing or does not include the storage controller driver (e.g., a SCSI or NVMe driver), the kernel cannot find and mount the root device. Wrong GRUB kernel pointer would either boot the old kernel or show a different error. A filesystem journal error causes different messages. An incorrect UUID in fstab would cause issues after root is mounted, not prevent VFS mount.",
+      "explanation": "The panic `VFS: Unable to mount root fs` fires when the kernel has finished loading initramfs and cannot find or open a working root block device. That almost always means the initramfs is missing a driver the kernel needs to see the disk — a SCSI/AHCI/NVMe HBA module, a software RAID or dm-crypt setup, or a filesystem module. A wrong GRUB default typically boots the OTHER kernel; even when it names a bad initramfs the error path is different. Filesystem journal errors happen AFTER the root is mounted (options B/D). fstab is not read until the initramfs pivot-root completes — VFS mount fails before that.",
       "tags": [
         "boot",
         "initramfs",
@@ -962,15 +955,15 @@
     },
     {
       "id": "linux-plus-047",
-      "question": "A system with SELinux in enforcing mode was cloned from another server. On first boot, files have incorrect SELinux contexts. The administrator needs to trigger a full filesystem relabeling on next reboot. Which command creates the required trigger file?",
+      "question": "A cloned RHEL VM boots with SELinux in enforcing mode and MANY files have wrong labels because the clone bypassed the source's relabel. The administrator wants to trigger a full filesystem relabel on the NEXT reboot. Which is the standard trigger?",
       "options": [
-        "touch /.autorelabel",
-        "fixfiles -F onboot",
-        "semanage fcontext -a -t root_t '/'",
-        "restorecon -Rv /"
+        "`touch /.autorelabel` — creates the flag file the init scripts look for; on reboot the system relabels and reboots itself again",
+        "`fixfiles -F onboot` — schedules a similar boot-time relabel; less commonly documented and specific to policycoreutils",
+        "`semanage fcontext -a -t root_t '/'` — adds a POLICY rule, does not trigger a relabel run",
+        "`restorecon -Rv /` — relabels IMMEDIATELY on the live filesystem, may miss busy files and is not the standard next-boot mechanism"
       ],
       "correct": 0,
-      "explanation": "Creating the file /.autorelabel causes the SELinux subsystem to perform a full filesystem relabeling on the next reboot, then remove the file and reboot again. This is the standard method after cloning or major context changes. restorecon -Rv / would attempt relabeling on a live system but may miss some files if the filesystem is busy. semanage fcontext adds policy rules but doesn't trigger relabeling. fixfiles -F onboot is an alternative method but touch /.autorelabel is the most widely documented standard approach.",
+      "explanation": "`touch /.autorelabel` is the canonical trigger: the RHEL init scripts detect the flag on early boot, do a full `restorecon` across the filesystem, remove the flag and reboot the machine once more. It works even on files that would be busy on a running system. `fixfiles -F onboot` is a valid alternative and shares the same mechanism, but `/.autorelabel` is what the exam and Red Hat docs recommend first. `semanage fcontext -a -t root_t '/'` writes a POLICY entry — no relabel actually runs from that command alone. `restorecon -Rv /` relabels immediately but on a live system it can miss files that are locked or bind-mounted, and does not benefit from the early-boot single-user context autorelabel uses.",
       "tags": [
         "selinux",
         "boot",
@@ -983,15 +976,15 @@
     },
     {
       "id": "linux-plus-048",
-      "question": "A disk shows 95% usage but 'df -h' shows the filesystem is 60% full. What is the most likely cause?",
+      "question": "A user reports \"disk full\" errors, but `df -h` shows the filesystem at only 60% usage. Which is the MOST likely cause?",
       "options": [
-        "LVM thin provisioning is reporting available physical space, not logical space",
-        "The filesystem was mounted with the 'noatime' option which skews usage reporting",
-        "Inode exhaustion — the filesystem has run out of inodes even though block space is available",
-        "There are large files deleted but still held open by running processes, so space is not reclaimed"
+        "LVM thin provisioning is reporting POOL capacity rather than volume capacity — shows up in vgs/lvs, not on df",
+        "The filesystem was mounted `noatime`, which skews usage reporting — noatime affects atime updates, not `df` accounting",
+        "Inodes are exhausted — `df -h` shows block usage but the filesystem has run out of inodes so no new files can be created (check with `df -i`)",
+        "Large files have been deleted but processes still hold them open — that scenario keeps SPACE reserved, so `df -h` would show HIGH, not 60%, usage"
       ],
       "correct": 2,
-      "explanation": "Each file requires an inode. If a filesystem runs out of inodes (even with block space remaining), no new files can be created. df -h shows block usage but df -i shows inode usage. When df -i shows 100% but df -h shows 60%, inode exhaustion is the cause. Deleted files held open (option C) would show high block usage on df -h. noatime affects access time updates, not usage reporting. LVM thin provisioning discrepancies would show in different vgs/lvs output.",
+      "explanation": "`df -h` reports BLOCK usage; a filesystem can be block-fine but out of INODES, at which point `open(..., O_CREAT)` fails with ENOSPC. `df -i` shows inode usage; on inode-exhausted volumes it reads 100% while `df -h` still reads 60%. Deleted-but-open files (option D) actually SHOW as used space on df — they cannot be reclaimed until the process closes the fd — so `df -h` would report high, not 60%. LVM thin-pool exhaustion is real but shows up in `vgs`/`lvs`/`dmsetup` and produces I/O errors, not a `disk full` from userspace at the filesystem layer. `noatime` disables access-time updates for performance and has no effect on df accounting.",
       "tags": [
         "filesystem",
         "inodes",
@@ -1004,15 +997,15 @@
     },
     {
       "id": "linux-plus-049",
-      "question": "An administrator uses 'ip route show' and sees 'default via 192.168.1.1 dev eth0'. When they try to reach an external server, connections time out. 'ping 192.168.1.1' succeeds. What should the administrator check next?",
+      "question": "`ip route show` prints `default via 192.168.1.1 dev eth0`. External connections time out, but `ping 192.168.1.1` succeeds. What should the administrator investigate NEXT?",
       "options": [
-        "Run 'systemctl restart networking' to refresh routes and check if the default gateway has connectivity",
-        "The MTU on eth0 may be incorrect; run 'ip link set eth0 mtu 1500'",
-        "Add a static route with 'ip route add 0.0.0.0/0 via 192.168.1.1'",
-        "Check if the default gateway 192.168.1.1 has internet connectivity and"
+        "Run `systemctl restart networking` — routes are correct and reachable; restarting the service will not change anything upstream",
+        "MTU on eth0 may be wrong — run `ip link set eth0 mtu 1500`; MTU mismatches cause size-dependent drops, not universal timeouts one hop out",
+        "Add a static route `ip route add 0.0.0.0/0 via 192.168.1.1` — the default route already exists, so adding a duplicate has no effect",
+        "Investigate whether the gateway 192.168.1.1 has its OWN internet reachability (or if firewall/NAT on it is blocking outbound sessions)"
       ],
       "correct": 3,
-      "explanation": "The local routing is correct (default gateway is reachable). Since ping to 192.168.1.1 works but external connectivity fails, the problem is upstream from the server: the gateway may lack internet access, or NAT/firewall rules may be blocking outbound traffic. restarting networking won't help since routes are already correct. ip route add 0.0.0.0/0 is redundant since a default route already exists. MTU issues would cause partial connectivity or large packet drops, not complete timeouts from a single hop away.",
+      "explanation": "The routing table is correct AND the gateway itself is up (ping to `192.168.1.1` succeeds), so the fault sits UPSTREAM of the gateway. Typical causes: the router has lost its own uplink, its NAT/firewall rules are blocking or SNATing incorrectly, or the ISP session is down. Adding a duplicate default route (option C) does nothing because one already exists. Restarting `networking` does not change upstream reachability. An MTU issue would show as size-sensitive symptoms (small packets fine, large ones dropped mid-session), not a full timeout to every external destination.",
       "tags": [
         "networking",
         "routing",
@@ -1025,15 +1018,15 @@
     },
     {
       "id": "linux-plus-050",
-      "question": "A Linux server's /var partition is 100% full, causing application failures. The administrator identifies large rotated logs in /var/log. Which sequence of commands frees space and prevents recurrence?",
+      "question": "`/var` is 100% full because of accumulated rotated logs in `/var/log`. Which action BOTH reclaims space now AND prevents recurrence?",
       "options": [
-        "truncate -s 0 /var/log/syslog && systemctl restart rsyslog",
-        "rm -rf /var/log/* && echo 'maxsize 100M' >> /etc/logrotate.conf",
-        "find /var/log -name '*.gz' -mtime +30 -delete && configure logrotate",
-        "mount --bind /tmp /var/log && restart logging services"
+        "`truncate -s 0 /var/log/syslog && systemctl restart rsyslog` — reclaims space from a single file and restarts the logger, but does nothing to stop the same files from ballooning again",
+        "`rm -rf /var/log/* && echo 'maxsize 100M' >> /etc/logrotate.conf` — reclaims space aggressively but deletes ACTIVE log files, breaks live loggers and destroys the directory layout services expect",
+        "`find /var/log -name '*.gz' -mtime +30 -delete` and add a per-service logrotate policy (size/maxage/rotate count) — reclaims space by removing old archives AND caps future growth",
+        "`mount --bind /tmp /var/log` — hides existing logs behind a tmpfs mount, never actually reclaims space on /var, and puts new logs on a volatile filesystem that clears at reboot"
       ],
       "correct": 2,
-      "explanation": "Finding and deleting compressed rotated log archives older than 30 days removes old data without risking active log files, then configuring logrotate with size limits prevents recurrence. rm -rf /var/log/* is dangerous as it removes active log files and directory structure. Truncating syslog only frees space from one file without addressing root cause. Bind mounting /tmp to /var/log would hide existing logs and is not a real solution.",
+      "explanation": "The safe reclamation pattern is to remove OLD compressed archives (`find /var/log -name '*.gz' -mtime +30 -delete`) — never live log files — and then tighten logrotate (`maxsize`, `rotate N`, `maxage`) so the archives cannot balloon again. `rm -rf /var/log/*` blows away directory layout and active files that services have open, which typically breaks logging until services are restarted and directories re-created. `truncate` only shrinks one file and leaves the rotation policy unchanged. Bind-mounting `/tmp` onto `/var/log` hides the old logs (they still occupy /var), sends new logs to a volatile mount and does not reclaim any space.",
       "tags": [
         "storage",
         "logging",
@@ -1046,15 +1039,15 @@
     },
     {
       "id": "linux-plus-051",
-      "question": "A systemd service 'webapp' keeps failing. Running 'systemctl status webapp' shows 'Active: failed (Result: exit-code)'. Which command shows the detailed failure reason from the service's log output?",
+      "question": "A systemd service `webapp` shows `Active: failed (Result: exit-code)`. Which command shows the process's own stdout/stderr as captured by systemd so the administrator can see WHY it exited?",
       "options": [
-        "cat /var/log/webapp.log",
-        "dmesg | grep webapp",
-        "journalctl -u webapp -n",
-        "systemctl show webapp"
+        "`cat /var/log/webapp.log` — assumes the service writes to that file; many modern services log to stdout, which is captured by the journal instead",
+        "`dmesg | grep webapp` — dmesg is the kernel ring buffer; it does not contain userspace stdout/stderr",
+        "`systemctl show webapp` — prints the unit's PROPERTIES (ExecStart, Restart, etc.) in key=value form; no runtime logs",
+        "`journalctl -u webapp -n 100 --no-pager` — pulls the last 100 journal entries for the webapp UNIT, including stdout/stderr that systemd captured"
       ],
-      "correct": 2,
-      "explanation": "journalctl -u webapp -n 50 shows the last 50 journal entries for the webapp unit, including the process's stdout/stderr output which reveals why it exited with an error. The service may not write to /var/log/webapp.log at all if it's logging to stdout (captured by systemd journal). systemctl show displays unit properties/parameters in machine-readable format, not service output. dmesg shows kernel ring buffer messages, not application logs.",
+      "correct": 3,
+      "explanation": "systemd captures every unit's stdout and stderr into the journal, tagged with the unit name. `journalctl -u webapp -n 100` (or `-e` to jump to the end) is the exact query for a failed unit's own runtime output, including the last few lines that immediately preceded the failure. `systemctl show webapp` prints property key=value pairs (ExecStart, Restart, MainPID) — no log data. `dmesg` is the kernel ring buffer; userspace stdout does not go there. Assuming `/var/log/webapp.log` exists is only correct if the daemon opens that file itself — many packaged services now rely on journald.",
       "tags": [
         "systemd",
         "journalctl",
@@ -1067,15 +1060,15 @@
     },
     {
       "id": "linux-plus-052",
-      "question": "A user reports they cannot log in with their password. The administrator checks /etc/shadow and sees the account entry as: 'alice:!$6$hash...:19000:0:90:7:::'. What does the '!' prefix on the password hash indicate?",
+      "question": "Alice cannot log in with her password. /etc/shadow shows her entry as `alice:!$6$hash...:19000:0:90:7:::`. What does the `!` prefix on the second field mean?",
       "options": [
-        "The account requires two-factor authentication before the password is validated",
-        "The account password is locked — logins using this password will be rejected",
-        "The password field uses a different hashing algorithm than SHA-512",
-        "The account has never had a password set and the field is empty"
+        "The account requires 2FA — /etc/shadow does not encode 2FA state, that is configured in PAM",
+        "The account is LOCKED — the `!` makes the stored hash impossible to match, so no supplied password can log in (this is what `usermod -L` does)",
+        "The field uses a hashing algorithm other than SHA-512 — the algorithm is signalled by the `$id$` prefix (`$6$` here means SHA-512) regardless of `!`",
+        "The account has never had a password set — an unset password shows as an empty field or `*`, not `!hash`"
       ],
       "correct": 1,
-      "explanation": "A '!' (exclamation mark) prepended to the password hash in /etc/shadow locks the account by making the hash invalid. Authentication will fail because no password can produce a hash matching '!hash'. This is what usermod -L does. Two-factor authentication is configured via PAM, not shadow file markers. The hash algorithm is indicated by the $6$ prefix (SHA-512) regardless of the leading !. An unset password would have an empty field or a single '*'.",
+      "explanation": "A `!` (or `!!`) prefix on the /etc/shadow password field marks the account as LOCKED: the crypt algorithm can never produce a hash that starts with `!`, so no password supplied via PAM will match. That is exactly the state `usermod -L` and `passwd -l` leave the field in. 2FA is configured in PAM stacks, not by /etc/shadow markers. The hashing algorithm is indicated by the `$id$` prefix (`$6$` = SHA-512, `$5$` = SHA-256, `$y$` = yescrypt) and is independent of the leading `!`. An empty password would show as an empty field or `*`, not `!hash`.",
       "tags": [
         "shadow",
         "user-management",
@@ -1088,15 +1081,15 @@
     },
     {
       "id": "linux-plus-053",
-      "question": "An administrator needs to troubleshoot why a network service is not listening on port 8080. Which command shows all listening TCP sockets with the associated process name?",
+      "question": "The administrator wants to see every LISTENING TCP socket on the local host along with the OWNING process (PID and program name), in a compact one-line-per-socket format. Which command does it?",
       "options": [
-        "netstat -a",
-        "ss -tlnp",
-        "lsof -i :8080",
-        "ip link show"
+        "`netstat -a` — shows every socket (listening and established) but not just listeners, and without `-p` it does not include PID/program",
+        "`ss -tlnp` — TCP (`-t`), listening only (`-l`), numeric (`-n`), with process info (`-p`) — exactly what is asked",
+        "`lsof -i :8080` — shows fd usage for ONE specific port; excellent tool, but not the compact all-listeners view",
+        "`ip link show` — reports network INTERFACE link state (up/down, MAC, MTU); says nothing about sockets"
       ],
       "correct": 1,
-      "explanation": "ss -tlnp shows TCP (-t) listening (-l) sockets with numeric ports (-n) and the process name/PID (-p). This confirms whether anything is bound to port 8080. netstat -a shows all connections but not just listening, and netstat is deprecated in favor of ss. lsof -i :8080 is also valid but the question asks for the tool showing listening sockets with process info in a compact format. ip link show displays network interface information, not socket states.",
+      "explanation": "`ss -tlnp` — from the modern iproute2 suite — is the direct answer: `-t` restricts to TCP, `-l` to listening sockets, `-n` prevents port-name resolution, `-p` adds the PID and program name. `netstat -a` returns EVERY socket state (including ESTABLISHED and TIME_WAIT), and without `-p` and `-l` you do not get the requested compact listener-only view with process info; on many distros netstat is also deprecated in favour of ss. `lsof -i :8080` is great for a single-port drill-down, but the question asks for the full listener enumeration. `ip link show` reports interface link state (up/down, MTU, MAC), not socket state.",
       "tags": [
         "networking",
         "ss",
@@ -1109,15 +1102,15 @@
     },
     {
       "id": "linux-plus-054",
-      "question": "A server's performance is slow. Running 'vmstat 1 5' shows consistently high 'wa' values around 80%. What does this indicate?",
+      "question": "`vmstat 1 5` shows the `wa` column consistently around 80%. What does that mean?",
       "options": [
-        "80% of CPU time is being used by user-space processes",
-        "The network interface is saturated and causing packet wait times",
-        "The CPUs are waiting for I/O operations to complete — disk is the bottleneck",
-        "The system's swap usage is extremely high and pages are being swapped to disk"
+        "80% of CPU time was consumed by USERSPACE processes — that is the `us` column, not `wa`",
+        "The network interface is saturated and packets are queuing — vmstat does not report network state on its main line",
+        "The CPUs are sitting IDLE waiting for I/O to return — I/O (usually disk) is the current bottleneck",
+        "Memory is being swapped hard — swap I/O appears in the `si`/`so` columns of vmstat, not `wa`"
       ],
       "correct": 2,
-      "explanation": "In vmstat output, 'wa' (iowait) represents the percentage of CPU time spent waiting for I/O operations (typically disk) to complete. High wa (>20-30%) indicates the disk is the bottleneck. Swap activity is shown in the 'si' (swap in) and 'so' (swap out) columns. Network saturation is not directly shown by vmstat wa. CPU user-space time is shown in the 'us' column.",
+      "explanation": "`wa` in `vmstat` is iowait — the percentage of time the CPU was IDLE while there was at least one outstanding I/O request. High and sustained wa (say, above 20–30%) usually points to the disk subsystem as the bottleneck. User-space CPU time is the `us` column. Swap activity is reported in `si` (swap-in) and `so` (swap-out). Network saturation is not reported directly by vmstat — you would use `sar -n DEV`, `ip -s link` or `iftop` for that.",
       "tags": [
         "performance",
         "vmstat",
@@ -1130,15 +1123,15 @@
     },
     {
       "id": "linux-plus-055",
-      "question": "An administrator is rebuilding initramfs after installing a new storage driver on a RHEL/CentOS system. Which command regenerates initramfs for the currently running kernel?",
+      "question": "After installing a new storage driver on a RHEL/CentOS system, the administrator needs to regenerate initramfs for the CURRENTLY RUNNING kernel so the new module is included at next boot. Which command is correct?",
       "options": [
-        "update-initramfs -u",
-        "grub2-mkconfig -o /boot/grub2/grub.cfg",
-        "mkinitrd /boot/initrd-$(uname -r).img $(uname -r)",
-        "dracut --force /boot/initramfs-$(uname"
+        "`update-initramfs -u` — Debian/Ubuntu's initramfs-tools wrapper; not shipped on RHEL/CentOS, which use the dracut generator instead",
+        "`grub2-mkconfig -o /boot/grub2/grub.cfg` — regenerates the GRUB boot-menu configuration only; does not rebuild initramfs images at all",
+        "`mkinitrd /boot/initrd-$(uname -r).img $(uname -r)` — the legacy Red Hat generator, superseded by dracut on all modern RHEL/CentOS releases",
+        "`dracut --force /boot/initramfs-$(uname -r).img $(uname -r)` — dracut is the RHEL initramfs generator; `--force` overwrites the existing image for that kernel"
       ],
       "correct": 3,
-      "explanation": "On RHEL/CentOS systems, dracut is the initramfs generator. 'dracut --force' regenerates the initramfs, overwriting the existing one. The --force flag is needed when the file already exists. update-initramfs -u is the Debian/Ubuntu equivalent (uses initramfs-tools). mkinitrd is the older legacy tool replaced by dracut on modern RHEL. grub2-mkconfig regenerates GRUB configuration, not initramfs.",
+      "explanation": "On modern RHEL/CentOS (7+), `dracut` is the initramfs generator. `dracut --force <output> <kver>` regenerates the initramfs for the specified kernel version and `--force` allows overwriting an existing file. Interpolating `$(uname -r)` targets the currently running kernel. `update-initramfs -u` is the Debian/Ubuntu equivalent (uses initramfs-tools) and is not available on RHEL. `mkinitrd` is the older Red-Hat tool that was replaced by dracut. `grub2-mkconfig` regenerates GRUB configuration but does not rebuild the initramfs image.",
       "tags": [
         "initramfs",
         "dracut",
@@ -1151,15 +1144,15 @@
     },
     {
       "id": "linux-plus-056",
-      "question": "A developer's Dockerfile has 'CMD [\"python\", \"app.py\"]' and the container is started with 'docker run myimage python debug.py'. What actually runs?",
+      "question": "A Dockerfile ends with `CMD [\"python\", \"app.py\"]`. The container is started with `docker run myimage python debug.py`. Which command actually executes inside the container?",
       "options": [
-        "Both app.py and debug.py run in parallel within the container",
-        "python debug.py — the run command arguments override CMD",
-        "An error occurs because conflicting commands cannot be resolved",
-        "python app.py — CMD cannot be overridden at runtime"
+        "Both `app.py` and `debug.py` run in parallel — Docker treats CMD and run-args as merged commands",
+        "`python debug.py` — arguments supplied to `docker run` after the image name REPLACE the CMD entirely",
+        "An error is raised because the two commands conflict — Docker never raises this error; the run-args simply win",
+        "`python app.py` — CMD is baked into the image and cannot be overridden at run time"
       ],
       "correct": 1,
-      "explanation": "CMD in a Dockerfile specifies the default command to run, but it is overridden by arguments passed to 'docker run' after the image name. So 'docker run myimage python debug.py' runs 'python debug.py' instead. ENTRYPOINT (not CMD) is harder to override and is typically used for fixed commands. CMD is designed to be overridable defaults. No error occurs — this is expected behavior.",
+      "explanation": "When you pass arguments after the image name to `docker run`, they REPLACE the image's CMD. So `docker run myimage python debug.py` runs `python debug.py` and CMD is ignored for this container. ENTRYPOINT behaves differently — arguments become PARAMETERS appended to ENTRYPOINT — but the Dockerfile shown uses only CMD. There is no error path; overriding CMD at run time is a supported feature, not a conflict.",
       "tags": [
         "docker",
         "dockerfile",
@@ -1172,15 +1165,15 @@
     },
     {
       "id": "linux-plus-057",
-      "question": "An administrator needs to view all DNS records for the domain 'example.com', including MX and TXT records. Which command retrieves all record types?",
+      "question": "The administrator wants to view ALL DNS record types for `example.com` (A, AAAA, MX, TXT, NS, …) using standard troubleshooting tools. Which command is the standard choice?",
       "options": [
-        "nslookup example.com",
-        "host -a example.com",
-        "ping -a example.com",
-        "dig example.com ANY"
+        "`nslookup example.com` — legacy tool; defaults to A records only unless you set `type=ANY` in interactive mode",
+        "`host -a example.com` — valid alternative that queries multiple record types; less scriptable than dig",
+        "`ping -a example.com` — the `-a` flag on ping only means \"audible bell on reply\", it does not fetch other DNS record types",
+        "`dig example.com ANY` — dig with the `ANY` qtype requests every record the resolver will hand back for the name"
       ],
       "correct": 3,
-      "explanation": "dig example.com ANY queries for ALL DNS record types associated with the domain. nslookup example.com by default only queries for A records. host -a does query for all records and is a valid alternative, but dig is the standard tool for detailed DNS investigation and is preferred in exam contexts. ping -a does DNS resolution but only retrieves the A record for ICMP testing purposes.",
+      "explanation": "`dig example.com ANY` is the standard troubleshooting query for retrieving every record type in one call; it prints an authoritative-style answer section and is the tool most exam material recommends. `host -a` is a valid, more terse alternative and would also be accepted operationally. `nslookup` defaults to A records unless you use interactive `set type=ANY`, so a bare `nslookup example.com` does not meet the requirement. `ping -a` is a red herring — the `-a` flag has nothing to do with DNS record types (in some pings it emits an audible bell on reply, in others it maps to IP-address resolution). (Note: since 2019 many authoritative servers return HINFO/refuse for ANY per RFC 8482, so `dig` may not always return every record in practice — but as a documented exam answer for the standard tool, `dig ANY` is the choice.)",
       "tags": [
         "dns",
         "networking",
@@ -1193,15 +1186,15 @@
     },
     {
       "id": "linux-plus-058",
-      "question": "A production system's GRUB2 boot menu shows two kernel entries. The older kernel is currently booting. An administrator wants to permanently set the newer kernel as the default. After updating /etc/default/grub with GRUB_DEFAULT=0, what must be run?",
+      "question": "A production system's GRUB2 menu has two kernel entries. The administrator edits `/etc/default/grub` and sets `GRUB_DEFAULT=0` so the newer kernel becomes the default. What must be run for the change to take effect?",
       "options": [
-        "grub2-install /dev/sda",
-        "systemctl reboot",
-        "grub2-mkconfig -o",
-        "update-grub && reboot"
+        "`grub2-install /dev/sda` — reinstalls the bootloader to the MBR; does not rebuild grub.cfg from /etc/default/grub",
+        "`systemctl reboot` — reboots the machine but reads the OLD grub.cfg because it was never regenerated",
+        "`grub2-mkconfig -o /boot/grub2/grub.cfg` — rebuilds grub.cfg from /etc/default/grub and /etc/grub.d/*, applying the new setting",
+        "`update-grub && reboot` — `update-grub` is the Debian/Ubuntu wrapper name; on RHEL/CentOS it is `grub2-mkconfig`"
       ],
       "correct": 2,
-      "explanation": "After modifying /etc/default/grub, grub2-mkconfig regenerates the active grub.cfg from the templates in /etc/grub.d/ and the settings in /etc/default/grub. Without running this command, grub.cfg is unchanged and the setting has no effect. systemctl reboot just reboots without updating GRUB. grub2-install reinstalls the GRUB bootloader to the MBR/EFI partition, which is not needed here. update-grub is a Debian/Ubuntu wrapper equivalent to grub2-mkconfig but uses different output path syntax.",
+      "explanation": "`grub2-mkconfig -o /boot/grub2/grub.cfg` (RHEL/CentOS) or `grub-mkconfig -o /boot/grub/grub.cfg` (some Debian derivatives) reads /etc/default/grub together with the scriptlets in /etc/grub.d/*, and writes a new grub.cfg. That is the step that translates `GRUB_DEFAULT=0` into a real change in the boot menu. `grub2-install` reinstalls the boot loader binary to the disk MBR/EFI partition — not the same as regenerating grub.cfg. `systemctl reboot` would just reboot with the stale grub.cfg. `update-grub` is Debian/Ubuntu's wrapper for grub-mkconfig — the intent is right but the tool is not available on RHEL/CentOS.",
       "tags": [
         "grub2",
         "boot",
@@ -1213,15 +1206,15 @@
     },
     {
       "id": "linux-plus-059",
-      "question": "A Podman container must run a long-running data processing job and continue after the user logs out. The container is named 'dataproc'. Which command ensures the container keeps running after logout?",
+      "question": "The administrator needs a long-running Podman container `dataproc` that continues after the interactive login that started it ends. Which command starts the container so that it survives logout?",
       "options": [
-        "podman run -d --name dataproc --restart always myimage",
-        "podman run --detach --name dataproc myimage",
-        "nohup podman run --name dataproc myimage &",
-        "podman run --name dataproc myimage & disown"
+        "`podman run -d --name dataproc --restart always myimage` — `--restart always` on its own is not enough in rootless mode; you also need a generated systemd unit plus `loginctl enable-linger` to survive logout",
+        "`podman run --detach --name dataproc myimage` — `--detach` (`-d`) starts the container under the Podman/conmon supervisor detached from the launching shell, so it outlives the login session",
+        "`nohup podman run --name dataproc myimage &` — a shell-level trick to detach a foreground process from SIGHUP; works but is not the Podman-native way to run a long-lived container",
+        "`podman run --name dataproc myimage & disown` — same category as the nohup trick; runs in the background of the current shell then removes it from the shell's job table, not idiomatic Podman"
       ],
       "correct": 1,
-      "explanation": "podman run --detach (-d) runs the container in the background, detached from the terminal. The container process runs under the Podman system, not tied to the user's shell session, so it persists after logout. --restart always is a Docker concept; in rootless Podman, auto-restart requires systemd unit files or podman generate systemd. nohup and disown are shell techniques to detach processes from terminal sessions but are not the clean Podman-native approach.",
+      "explanation": "`podman run --detach --name dataproc myimage` starts the container detached under the Podman `conmon` supervisor; its lifecycle is independent of the shell that launched it, so logging out leaves it running. `--restart always` is not sufficient in rootless mode — it needs the container's systemd user unit (`podman generate systemd --new --files --name dataproc` + `systemctl --user enable ...` with `loginctl enable-linger`) to fire after logout. `nohup ... &` and `& disown` are shell techniques that also work in practice, but they are not the Podman-idiomatic pattern and can leave orphaned processes in some configurations.",
       "tags": [
         "podman",
         "containers",
@@ -1233,15 +1226,15 @@
     },
     {
       "id": "linux-plus-060",
-      "question": "A script is failing intermittently in production. To debug it, an administrator wants to trace every command executed and its expanded value. Which bash invocation enables this tracing?",
+      "question": "A bash script fails intermittently in production. To debug, the administrator wants to see every command EXECUTED with variables expanded and prefixed with `+`. Which invocation enables that trace mode?",
       "options": [
-        "bash -e script.sh",
-        "bash -x script.sh",
-        "bash -v script.sh",
-        "bash -n script.sh"
+        "`bash -e script.sh` — enables errexit so the script aborts on the FIRST command that returns non-zero; useful as a safety belt but prints no trace of what ran",
+        "`bash -v script.sh` — echoes each raw source line to stderr as it is READ from disk (before variable expansion), so you see the code but not the runtime values",
+        "`bash -x script.sh` — enables xtrace: every command is echoed to stderr prefixed with `+` after parameter expansion but before execution, so you see actual values",
+        "`bash -n script.sh` — enables noexec; the shell parses the script and reports any syntax error but never actually runs a command from it (dry-run parse)"
       ],
-      "correct": 1,
-      "explanation": "bash -x runs a script in trace mode, printing each command after parameter expansion and before execution, prefixed with '+'. This shows the actual values of variables and the exact commands being run. bash -e causes the script to exit immediately on any error but does not show trace output. bash -v prints lines as they are read (before expansion), which is less useful for debugging. bash -n parses the script for syntax errors without executing it.",
+      "correct": 2,
+      "explanation": "`bash -x` enables xtrace: each command is printed to stderr with a `+ ` prefix AFTER parameter and command substitution but BEFORE execution, so the actual expanded values are visible. `bash -v` prints the RAW source lines as they are read — helpful for parse errors but shows the unexpanded form. `bash -e` (errexit) aborts on the first failing command and prints nothing extra, so it is a safety mode, not a trace mode. `bash -n` (noexec) walks the syntax and reports parse errors without ever running the script.",
       "tags": [
         "bash",
         "debugging",
@@ -1254,18 +1247,18 @@
     },
     {
       "id": "linux-multi-1",
-      "question": "A sysadmin wants to enumerate the TCP ports a host is listening on, with PID/program owner info, from the command line. Which TWO commands display essentially the same active-TCP-listener information on a modern Linux host?",
+      "question": "The administrator wants to enumerate the TCP ports the host is currently LISTENING on, with the owning process, from the command line. Which TWO commands display essentially the same listening-TCP-socket information on a modern Linux host?",
       "options": [
-        "`ss -tlnp` — modern utility shipped in iproute2; lists TCP listeners with numeric ports and the owning process",
-        "`netstat -tlnp` — legacy net-tools utility; same output shape as `ss -tlnp` but on older systems",
-        "`ip link show` — displays modern interface link state; same output shape as ss -tlnp for listener enumeration",
-        "`lsof -i :22` — lists processes with file descriptors on a specific port; targeted to one port, not the full listener set"
+        "`ss -tlnp` — iproute2 utility; lists TCP listeners with numeric ports and the owning process",
+        "`netstat -tlnp` — legacy net-tools utility; same output shape as `ss -tlnp` on systems that still ship it",
+        "`ip link show` — reports interface link state (up/down, MTU, MAC); says nothing about listening sockets",
+        "`lsof -i :22` — lists processes with fds on ONE specific port; targeted to a port, not the full listener set"
       ],
       "correct": [
         0,
         1
       ],
-      "explanation": "`ss -ltn` and `netstat -ltn` both list listening (-l) TCP (-t) sockets in numeric form (-n) — they're functionally equivalent, with `ss` being the modern replacement. `lsof -i :22` shows processes on a specific port (different scope). `ps | grep listen` greps process names — unrelated to socket state.",
+      "explanation": "`ss -tlnp` (modern) and `netstat -tlnp` (legacy net-tools) both enumerate LISTENING (`-l`) TCP (`-t`) sockets in numeric form (`-n`) with the owning process (`-p`). Their output is functionally equivalent; ss is the current standard and netstat is being phased out on many distros but ships the same information where present. `lsof -i :22` is scoped to a single port (also useful, but different scope). `ip link show` is about interface link state, not sockets.",
       "tags": [
         "networking",
         "ss-vs-netstat",
