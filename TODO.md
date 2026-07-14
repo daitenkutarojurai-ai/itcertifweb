@@ -1520,6 +1520,47 @@ competition-driven, community-driven** layer. Highest-priority builds:
 
 ---
 
+## 📦 Content expansion R23 (2026-07-14)
+
+Scheduled-agent run targeting the ToolRadar cluster — the longest-quiet content
+cluster since R22 (last touched 2026-06-10 with R17's `meilleur-observability-saas`,
+while FailBase / RealityCheck / PromptDungeon / DevStack / Comparator have all
+picked up entries more recently). One new high-search-volume, high-commercial-intent
+category directly aligned with the CertQuests security cert audience (Security+,
+CySA+, PenTest+, CISSP, OSCP, eJPT, CEH):
+
+- **+1 ToolRadar category** (cluster 8 → 9):
+  - `meilleur-plateforme-labs-cybersecurite` — Best cybersecurity hands-on labs
+    platform for cert prep or SOC/pentester training. 5 platforms compared
+    (TryHackMe, Hack The Box, INE Security, OffSec, PortSwigger Web Security
+    Academy) on 5 criteria (progression pédagogique, free tier, prix mensuel,
+    alignement cert reconnue, coverage offensif/défensif/web/net). Verdict-vs-math
+    winner: Hack The Box (4.20), with 5 conditional verdicts by profile
+    (débutant Security+ → TryHackMe ; intermédiaire OSCP → HTB ; eJPT prep →
+    INE ; OSCP cert budget entreprise → OffSec ; focus web AppSec →
+    PortSwigger).
+  - **Sources publiques uniquement** : pages pricing officielles des 5
+    plateformes (tryhackme.com/pricing, hackthebox.com/pricing, ine.com/pricing,
+    offsec.com/pricing, portswigger.net/web-security), HTB Academy paths
+    officiels, INE Security certifications page, OffSec PEN-200/OSCP course
+    page. Disclaimer transparent : pas de bench hands-on parallèle sur 30 jours ;
+    scoring compilé depuis docs officielles + retours communauté (Reddit
+    r/cybersecurity, r/oscp) + structure publique des paths. Vouchers exam
+    eLearnSecurity explicitement notés comme NON inclus dans l'abonnement INE.
+  - Title 55 chars, meta description 143 chars, ItemList JSON-LD, canonical,
+    OG tags, cache-busted CSS (?v=135) — contraintes du brief respectées.
+    `lastReviewed` "2026-07" (freshness pill verte).
+- `scripts/gen-toolradar-pages.js` `CACHE_BUST` already at v=135 (aligned with
+  the current global `?v=` key) — no generator bump needed. The 8 existing
+  category pages regenerated idempotently (no HTML diffs beyond the new page +
+  index).
+- `npm run gen-toolradar` regenerated 9 category pages + the `/tool-radar/`
+  index. sitemap.xml +1 entry (priority 0.85, monthly changefreq, lastmod
+  2026-07-14); tool-radar index lastmod bumped 2026-06-10 → 2026-07-14.
+- 265/265 tests still pass. No CSS/JS cache version bump (new HTML/data only).
+
+---
+
 ## 📦 Content expansion R22 (2026-07-07)
 
 Scheduled-agent run targeting the FailBase cluster — the longest-quiet content
