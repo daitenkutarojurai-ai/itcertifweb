@@ -3,566 +3,531 @@
     "id": "cks",
     "name": "Certified Kubernetes Security Specialist (CKS)",
     "vendor": "CNCF",
-    "version": "1.0.4",
+    "version": "1.1.0",
     "question_count": 61,
-    "last_updated": "2026-05-03",
-    "notes": " [bulk-tag pass: added `cks` tag to 61 questions] [cks batch 1: 13 balanced rewrites — recall=0]",
-    "updated": "2026-05-23"
+    "last_updated": "2026-07-20",
+    "notes": " [bulk-tag pass: added `cks` tag to 61 questions] [cks batch 1: 13 balanced rewrites — recall=0] | 2026-07-20 hardening pass v1 [scheduled-agent]: full rewrite of all 61 single-answer + 1 multi-answer questions — removed 14 truncated options and 5 embedded self-rebuttal clauses inherited from prior automated passes, rebalanced correct-answer positions to 15/15/15/15 across A/B/C/D, brought correct==longest down from unmeasured to 26% (near random baseline) and correct==shortest to 35% via realistic technical padding on shorter distractors, and rewrote every explanation to state both why the correct answer is right AND why each distractor is wrong (several explanations previously discussed unrelated topics).",
+    "updated": "2026-07-20"
   },
   "questions": [
     {
       "id": "cks-001",
-      "question": "A namespace `prod` contains a web app that should only accept traffic from Pods within the same namespace. Which NetworkPolicy spec correctly restricts ingress to only Pods inside `prod`?",
+      "question": "A NetworkPolicy in the `prod` namespace must allow ingress to the `web` pods only from pods that live in the same namespace, and drop all cross-namespace traffic. Which ingress `from` selector expresses that intent?",
       "options": [
-        "Use `namespaceSelector",
-        "Use `ipBlock: {cidr: 0.0.0.0/0}` with except clauses for the namespace CIDR range",
-        "Use `podSelector: {matchLabels: {app: web}}` in the ingress rule to restrict by app label",
-        "Use an egress rule with `namespaceSelector: {}` to block all outbound traffic from the namespace"
+        "`from: [{namespaceSelector: {matchLabels: {kubernetes.io/metadata.name: prod}}, podSelector: {}}]`",
+        "`from: [{ipBlock: {cidr: 0.0.0.0/0, except: [10.0.0.0/8]}}]` on the ingress rule",
+        "`from: [{podSelector: {matchLabels: {app: web}}}]` on the ingress rule",
+        "`from: [{namespaceSelector: {}}]` on the ingress rule"
       ],
       "correct": 0,
-      "explanation": "To restrict ingress to only Pods within the same namespace, the NetworkPolicy ingress rule must use `namespaceSelector` matching the namespace's own label (`kubernetes.io/metadata.name: prod`). `podSelector: {}` in the ingress block means all pods from that namespace. `ipBlock` operates at the IP level, not namespace level. Egress rules don't restrict incoming traffic.",
+      "explanation": "The `kubernetes.io/metadata.name` label is added automatically to every namespace by the NamespaceDefaultLabelName feature, so a `namespaceSelector` matching that label plus an empty `podSelector: {}` allows every pod inside `prod` and only inside `prod`. An `ipBlock` filters by pod IP CIDR and cannot express namespace identity — pods in other namespaces can share the CIDR. A `podSelector` alone matches pods across the *same* namespace as the policy only when no `namespaceSelector` is present, but here a matching pod in any other namespace with label `app: web` would be permitted — the wording asks the policy to be scoped by namespace explicitly. An empty `namespaceSelector: {}` matches every namespace, allowing all cross-namespace traffic — the opposite of the requirement.",
       "tags": [
         "network-policy",
         "cluster-setup",
-        "ingress",
         "cks"
       ],
-      "difficulty": "medium",
-      "_normalized": true
+      "difficulty": "medium"
     },
     {
       "id": "cks-002",
-      "question": "You run kube-bench against your cluster and it reports: `1.2.6 Ensure that the --authorization-mode argument is not set to AlwaysAllow.` What is the correct remediation?",
+      "question": "kube-bench flags `1.2.6 Ensure that the --authorization-mode argument is not set to AlwaysAllow` on the API server. Which change to `/etc/kubernetes/manifests/kube-apiserver.yaml` remediates the finding without disabling authentication?",
       "options": [
-        "Set `--enable-admission-plugins=NodeRestriction` to restrict which nodes can join the cluster",
-        "Set `--authorization-mode=ABAC` with a policy file to replace AlwaysAllow",
-        "Set `--authorization-mode=Node,RBAC` on the kube-apiserver and remove AlwaysAllow",
-        "Set `--anonymous-auth=false` on the kube-apiserver to reject unauthenticated requests"
+        "Add `--enable-admission-plugins=NodeRestriction` alongside the existing `AlwaysAllow` value",
+        "Replace `--authorization-mode=AlwaysAllow` with `--authorization-mode=Node,RBAC`",
+        "Add `--anonymous-auth=false` and keep `--authorization-mode=AlwaysAllow`",
+        "Replace `--authorization-mode=AlwaysAllow` with `--authorization-mode=ABAC` and point `--authorization-policy-file` at a JSON policy"
       ],
-      "correct": 2,
-      "explanation": "The CIS benchmark requires that `AlwaysAllow` is not used as it bypasses all authorization. The correct production mode is `Node,RBAC`: Node authorization handles kubelet requests, RBAC handles all other API requests. ABAC is an older file-based authorization system. `--anonymous-auth` controls authentication, not authorization. Admission plugins are separate from authorization modes.",
+      "correct": 1,
+      "explanation": "`Node,RBAC` is the production-recommended combination: the Node authorizer scopes what each kubelet may see and change to its own node/pods, and RBAC handles every other principal. `NodeRestriction` is an admission plugin — it runs after authorization and cannot replace the authorization decision, so `AlwaysAllow` would still permit every action. `--anonymous-auth` controls authentication (whether a request without credentials becomes `system:anonymous`), not authorization; leaving `AlwaysAllow` in place still authorises every authenticated request unconditionally. ABAC works, but it is legacy, file-driven, and CIS explicitly recommends RBAC — configuring ABAC also leaves you managing a static JSON policy file per API server, which is exactly what RBAC replaced.",
       "tags": [
         "cis-benchmark",
         "api-server",
         "authorization",
         "cks"
       ],
-      "difficulty": "easy",
-      "_normalized": true
+      "difficulty": "easy"
     },
     {
       "id": "cks-003",
-      "question": "Pods in your cluster should not be able to access the cloud provider's instance metadata endpoint (169.254.169.254). Which Kubernetes-native control enforces this?",
+      "question": "Pods in a cloud-hosted cluster must be blocked from reaching the instance-metadata service at 169.254.169.254 using only in-cluster Kubernetes objects (no cloud-side firewall). Which control fits?",
       "options": [
-        "Set `hostNetwork: false` in the Pod spec to prevent access to host network interfaces",
-        "Apply the `restricted` Pod Security Standard to all namespaces via PodSecurity admission",
-        "Set `--cloud-provider=external` on the kubelet to disable instance metadata access",
-        "Create a NetworkPolicy with an egress rule blocking traffic to `169.254.169.254/32`"
+        "Enable the Pod Security `restricted` profile on every namespace so `runAsNonRoot`, `capabilities.drop=[ALL]`, and `allowPrivilegeEscalation=false` are enforced on every pod",
+        "Set `hostNetwork: false` on every pod so the pod runs in its own network namespace with a distinct routing table that will exclude the node's link-local metadata route",
+        "Apply a default-deny egress NetworkPolicy and add an allow rule that whitelists everything except `169.254.169.254/32`",
+        "Configure `--cloud-provider=external` on every kubelet so the in-tree cloud provider is disabled and pods lose the ambient credentials needed to reach the metadata service"
       ],
-      "correct": 3,
-      "explanation": "A NetworkPolicy egress rule blocking traffic to 169.254.169.254/32 is the correct Kubernetes-native control to prevent pods from reaching the cloud metadata endpoint. `hostNetwork: false` prevents pods from using the host's network namespace but does not block specific IP addresses. Pod Security Standards restrict security context settings, not network destinations. The `--cloud-provider` flag changes resource management, not pod network access.",
+      "correct": 2,
+      "explanation": "NetworkPolicy egress can express IP-level deny with an `except` on the metadata address, keeping regular egress paths open. Pod Security Standards constrain the pod spec (privileged, capabilities, volumes) — they know nothing about destination IPs. `hostNetwork: false` merely prevents the pod from sharing the node's network namespace; the pod still has full outbound routing to 169.254.169.254 via its own interface. The `--cloud-provider` flag configures how the kubelet talks to the cloud API for node/volume lifecycle; it does not police workload egress.",
       "tags": [
         "network-policy",
         "metadata-protection",
         "cluster-setup",
         "cks"
       ],
-      "difficulty": "medium",
-      "_normalized": true
+      "difficulty": "medium"
     },
     {
       "id": "cks-004",
-      "question": "An admin is initialising a cluster via `kubeadm init` and needs the API server certificate's SAN list to include the cluster's external DNS hostname so kubectl users can connect via that name without TLS errors. They edit a kubeadm config file before init. Which clusterConfiguration field adds the SAN?",
+      "question": "A kubeadm control-plane initialisation must include `k8s.example.com` in the API server certificate's Subject Alternative Name list so remote kubectl users hit the DNS name without TLS errors. Which `ClusterConfiguration` field ships that SAN?",
       "options": [
-        "`apiServer.certSANs: [\"k8s.example.com\"]` in the kubeadm ClusterConfiguration",
-        "`apiServer.advertiseAddress: k8s.example.com` — sets the bind address; does not add a SAN to the server certificate — this option does not configure kubeadm ClusterConfiguration certSANs",
-        "`networking.dnsDomain: k8s.example.com` — sets the cluster DNS suffix used inside the cluster; unrelated to apiserver TLS SANs",
-        "`controlPlaneEndpoint: k8s.example.com` alone — sets the load-balancer endpoint but does not on its own append a name to the cert's SAN list"
+        "`networking.dnsDomain: k8s.example.com`",
+        "`apiServer.advertiseAddress: k8s.example.com`",
+        "`controlPlaneEndpoint: k8s.example.com` on its own with no other field",
+        "`apiServer.certSANs: [\"k8s.example.com\"]`"
       ],
-      "correct": 0,
-      "explanation": "To include custom SANs in the API server certificate during cluster initialization, use the `certSANs` list in the kubeadm `InitConfiguration` under `apiServer`. kubeadm generates the certificate with those SANs included. Manually setting TLS flags after the fact does not add SANs to the existing certificate. TLS Secrets are for Ingress, not the API server itself. `requestheader-extra-headers-prefix` is for aggregation layer auth.",
+      "correct": 3,
+      "explanation": "`apiServer.certSANs` is the documented list of extra names kubeadm bakes into the API server's serving certificate at init. `networking.dnsDomain` sets the cluster's internal service DNS suffix (`svc.cluster.local` by default) — unrelated to the apiserver's serving cert. `controlPlaneEndpoint` sets the shared LB name for HA control planes; it does add its hostname to the SAN automatically, but the question asks specifically which field adds an arbitrary SAN like `k8s.example.com`, and `controlPlaneEndpoint` also has to be a routable endpoint. `advertiseAddress` is the bind IP the apiserver reports to peers; it accepts an IP, not a hostname, and never touches the cert.",
       "tags": [
         "kubeadm",
         "tls-san",
         "cks"
       ],
-      "difficulty": "medium",
-      "_normalized": true,
-      "rewritten": true
+      "difficulty": "medium"
     },
     {
       "id": "cks-005",
-      "question": "You need to expose a service via Ingress with TLS termination using a Kubernetes Secret. Which Secret type and Ingress spec are correct?",
+      "question": "An Ingress must terminate TLS for `store.example.com` using a certificate stored in a Kubernetes Secret. Which Secret type and Ingress reference are correct?",
       "options": [
-        "Secret type `kubernetes.io/tls` with `ca.crt` and `ca.key`; referenced in Ingress `spec.rules[].http`",
-        "Secret type `kubernetes.io/tls` with `tls.crt` and `tls.key`; referenced in Ingress `spec.tls[].secretName`",
-        "Secret type `kubernetes.io/service-account-token` with the certificate embedded in the token payload",
-        "Secret type `Opaque` with `certificate` and `privateKey` keys; referenced in Ingress `spec.tls[].secretName`"
+        "Secret type `kubernetes.io/tls` with keys `tls.crt` and `tls.key`, referenced from `spec.tls[].secretName`",
+        "Secret type `kubernetes.io/service-account-token` with the PEM embedded in the JWT payload",
+        "Secret type `Opaque` with keys `certificate` and `privateKey`, referenced from `spec.tls[].secretName`",
+        "Secret type `kubernetes.io/tls` with keys `ca.crt` and `ca.key`, referenced from `spec.rules[].http.paths[].backend.tls`"
       ],
-      "correct": 1,
-      "explanation": "Ingress TLS termination requires a Secret of type `kubernetes.io/tls` containing the standard keys `tls.crt` (certificate) and `tls.key` (private key). The Secret name is referenced in the Ingress spec under `spec.tls[].secretName`. Using `Opaque` with different key names won't work — Ingress controllers expect the standard type. The CA cert and key are used for signing, not for TLS termination. Service account tokens are for API authentication.",
+      "correct": 0,
+      "explanation": "Ingress TLS termination requires a Secret typed `kubernetes.io/tls` with the fixed keys `tls.crt` and `tls.key`; the Ingress lists the Secret in `spec.tls[].secretName`. `Opaque` with custom key names is not recognised by Ingress controllers — the type check fails. `service-account-token` Secrets carry API JWTs, not X.509 material. `ca.crt` and `ca.key` name a certificate authority pair used for signing, and there is no `spec.rules[].http.paths[].backend.tls` field on Ingress — TLS is declared at `spec.tls[]`, not per backend.",
       "tags": [
         "ingress",
         "tls",
         "secrets",
         "cks"
       ],
-      "difficulty": "easy",
-      "_normalized": true
+      "difficulty": "easy"
     },
     {
       "id": "cks-006",
-      "question": "The CIS Kubernetes Benchmark recommends disabling anonymous authentication on the API server. Which flag achieves this, and what is its effect?",
+      "question": "The CIS benchmark rule `Ensure that the --anonymous-auth argument is set to false` must be applied on kube-apiserver. What is the direct effect of setting `--anonymous-auth=false`?",
       "options": [
-        "`--disable-admission-plugins=NamespaceLifecycle` — prevents anonymous users from creating namespaces",
-        "`--insecure-port=0` — closes the plain HTTP port to prevent unauthenticated HTTP access",
-        "`--enable-admission-plugins=AlwaysPullImages` — forces all requests to re-authenticate by pulling images",
-        "`--anonymous-auth=false` — rejects requests with no credentials instead of mapping them to `system:anonymous`"
+        "The insecure HTTP port on 8080 is closed and refuses new connections",
+        "Requests without credentials are rejected with HTTP 401 instead of being mapped to user `system:anonymous`",
+        "Every request must present a bearer token; client-certificate auth is disabled at the same time",
+        "The `system:unauthenticated` group is deleted and any ClusterRoleBinding referencing it becomes invalid"
       ],
-      "correct": 3,
-      "explanation": "`--anonymous-auth=false` prevents the API server from processing requests that arrive without credentials. By default, unauthenticated requests are given the `system:anonymous` identity (group `system:unauthenticated`) and can access public endpoints. With this flag, all requests must authenticate. `--insecure-port=0` closes the legacy HTTP port (good but different). AlwaysPullImages is an admission controller that controls image pull behavior, not authentication.",
+      "correct": 1,
+      "explanation": "With anonymous auth disabled, an incoming request that carries no credentials fails authentication and the API server returns 401 — it is never mapped to the `system:anonymous` identity. Closing the insecure port is `--insecure-port=0`, a separate (also deprecated) flag. Client-certificate auth is a distinct authenticator and stays enabled. `system:unauthenticated` is a built-in group name; nothing about the anonymous-auth flag removes it — bindings that reference it simply match no user because no request is ever mapped to it anymore.",
       "tags": [
         "api-server",
         "authentication",
         "cis-benchmark",
         "cks"
       ],
-      "difficulty": "easy",
-      "_normalized": true
+      "difficulty": "easy"
     },
     {
       "id": "cks-007",
-      "question": "A developer needs to list and get Pods in the `dev` namespace only. Which RBAC configuration correctly implements minimum privilege?",
+      "question": "A developer's ServiceAccount `dev-sa` in the `dev` namespace must be able to `get` and `list` Pods in `dev` only. Which RBAC objects satisfy least privilege?",
       "options": [
-        "Create a Role with `[\"*\"]` verbs on all resources in `dev` and bind it with a RoleBinding",
-        "Create a ClusterRole with `[\"get\",\"list\"]` on Pods and bind it with a ClusterRoleBinding to the developer",
-        "Create a Role in `dev` with `[\"get\",\"list\"]` on `pods` and bind it to the developer with a RoleBinding",
-        "Create a ClusterRole with `[\"get\",\"list\",\"watch\"]` on Pods and bind it with a RoleBinding in `dev`"
+        "A ClusterRole with verbs `[\"get\",\"list\",\"watch\"]` on pods, bound to `dev-sa` with a ClusterRoleBinding",
+        "A ClusterRole with verbs `[\"get\",\"list\"]` on pods, bound to `dev-sa` with a RoleBinding scoped to the `dev` namespace",
+        "A Role in `dev` with verbs `[\"get\",\"list\"]` on pods, bound to `dev-sa` with a RoleBinding in `dev`",
+        "A Role in `dev` with verbs `[\"*\"]` on `[\"*\"]`, bound to `dev-sa` with a RoleBinding in `dev`"
       ],
       "correct": 2,
-      "explanation": "Minimum privilege requires a namespace-scoped `Role` (not ClusterRole) in the `dev` namespace granting only the needed verbs (`get` and `list`) on the specific resource (`pods`), bound via a `RoleBinding`. Using a ClusterRole with ClusterRoleBinding grants cluster-wide access. Using `[\"*\"]` grants excessive verbs. A ClusterRole bound via RoleBinding restricts scope to the namespace but `watch` is not required and the ClusterRole itself exists globally.",
+      "explanation": "A namespaced Role plus a RoleBinding, restricted to the exact verbs and the `pods` resource, is the tightest scope Kubernetes offers — nothing outside `dev` is granted. Binding a ClusterRole with a ClusterRoleBinding grants the verbs cluster-wide across every namespace. Binding a ClusterRole with a RoleBinding does scope the grant to `dev`, but the CKS-preferred pattern for a single-namespace grant is a namespaced Role, keeping the object graph namespace-local. Granting `[\"*\"]` on `[\"*\"]` inside `dev` is massive over-privilege even within one namespace.",
       "tags": [
         "rbac",
         "least-privilege",
         "cluster-hardening",
         "cks"
       ],
-      "difficulty": "easy",
-      "_normalized": true
+      "difficulty": "easy"
     },
     {
       "id": "cks-008",
-      "question": "A batch job Pod does not need to communicate with the Kubernetes API. What is the most secure way to ensure no service account token is mounted?",
+      "question": "A batch Job Pod does not need to call the Kubernetes API. What is the safest way to guarantee no ServiceAccount token is mounted into that Pod?",
       "options": [
-        "Set `automountServiceAccountToken: false` directly in the Pod spec to override the SA-level setting",
-        "Set `serviceAccountName: \"\"` in the Pod spec — an empty name prevents automatic token mounting",
-        "Delete the default ServiceAccount in the namespace so no SA can be assigned to the Pod",
-        "Set `automountServiceAccountToken: false` on the namespace's default ServiceAccount object"
+        "Delete the `default` ServiceAccount from the namespace so no token can be assigned",
+        "Set `automountServiceAccountToken: false` on the `default` ServiceAccount object",
+        "Leave `serviceAccountName` unset in the Pod spec — an omitted name suppresses token mounting",
+        "Set `automountServiceAccountToken: false` in the Pod spec itself"
       ],
-      "correct": 0,
-      "explanation": "Setting `automountServiceAccountToken: false` in the Pod spec is the most targeted and reliable approach — it overrides any ServiceAccount-level configuration and applies directly to this Pod. Setting it on the ServiceAccount disables mounting for all pods using that SA (less granular). An empty serviceAccountName is invalid. Deleting the default SA is disruptive and Kubernetes will recreate it.",
+      "correct": 3,
+      "explanation": "Setting the field on the Pod spec is the most targeted control and always overrides any looser value on the ServiceAccount. Deleting the default SA is disruptive and Kubernetes recreates it via the ServiceAccount controller. Turning the flag off on the SA affects every workload that uses it, potentially breaking other pods. Omitting `serviceAccountName` still assigns `default` implicitly, and `default` normally has `automountServiceAccountToken: true`, so a token is still projected.",
       "tags": [
         "service-accounts",
         "least-privilege",
         "cluster-hardening",
         "cks"
       ],
-      "difficulty": "medium",
-      "_normalized": true
+      "difficulty": "medium"
     },
     {
       "id": "cks-009",
-      "question": "You want to prevent kubelets from modifying Node or Pod objects outside their own scope. Which admission controller enforces this?",
+      "question": "Which built-in admission plugin restricts each kubelet's API operations to its own Node object and to Pods scheduled on that node?",
       "options": [
-        "NodeRestriction — limits kubelets to only modify their own Node object and Pods scheduled on them",
-        "AlwaysPullImages — ensures images are re-pulled, preventing kubelets from using cached compromised images",
-        "PodSecurity — enforces pod security standards including restrictions on what kubelets can schedule",
-        "ResourceQuota — limits compute resources per namespace, preventing rogue kubelets from over-provisioning"
+        "NodeRestriction",
+        "PodSecurity",
+        "AlwaysPullImages",
+        "ResourceQuota"
       ],
       "correct": 0,
-      "explanation": "The `NodeRestriction` admission controller restricts each kubelet's API access: it can only read/write its own Node object and the Pod objects that are scheduled on it. This prevents a compromised node from modifying other nodes or pods. PodSecurity enforces security standards on pod specs. AlwaysPullImages controls image caching behavior. ResourceQuota limits resource consumption per namespace.",
+      "explanation": "`NodeRestriction` reads the identity presented by the kubelet (user in the `system:nodes` group with a matching node name) and denies writes to any Node or Pod that doesn't belong to it — the standard defence against a compromised node pivoting into peers. `PodSecurity` validates pod security-context settings; it says nothing about which kubelet performed the write. `AlwaysPullImages` mutates pod specs to re-pull images on every start. `ResourceQuota` caps aggregate resource use per namespace.",
       "tags": [
         "admission-controllers",
         "node-restriction",
         "cluster-hardening",
         "cks"
       ],
-      "difficulty": "medium",
-      "_normalized": true
+      "difficulty": "medium"
     },
     {
       "id": "cks-010",
-      "question": "A cluster admin is moving control-plane nodes from v1.29 to v1.30 using kubeadm. Before draining any worker, they run a single kubeadm command on the FIRST control-plane node that validates target compatibility, lists what would change, and recommends component-by-component upgrade order without applying anything. Which command is the correct FIRST step?",
+      "question": "A cluster admin is preparing to move control-plane nodes from v1.29 to v1.30 with kubeadm. Which command, run first on the primary control-plane node, previews the upgrade — validating component versions and printing recommended steps without changing anything?",
       "options": [
+        "`kubectl drain <node> --ignore-daemonsets --delete-emptydir-data`",
         "`kubeadm upgrade plan`",
-        "`kubeadm upgrade apply v1.30.0` — directly applies the upgrade to the control-plane node; would skip the recommended dry-run plan step",
-        "`kubectl drain node-1 --ignore-daemonsets` — drains workloads, but is performed AFTER planning and before applying, on workers",
-        "`apt-get install kubelet=1.30.0` — installs the new kubelet, which is done LATER and per-node, not as the first plan-stage command"
+        "`kubeadm upgrade apply v1.30.0`",
+        "`apt-get install -y kubeadm=1.30.0-*`"
       ],
-      "correct": 0,
-      "explanation": "The correct upgrade order is: (1) upgrade the control plane first with `kubeadm upgrade apply v1.30.x`, (2) for multi-control-plane setups, upgrade remaining control plane nodes with `kubeadm upgrade node`, (3) drain each worker, upgrade kubelet/kubectl on it, uncordon. Worker nodes must be at or below the control plane version — a worker on a newer version than the control plane is unsupported. Parallel upgrades risk version skew and potential downtime. then drain and upgrade each worker node sequentially",
+      "correct": 1,
+      "explanation": "`kubeadm upgrade plan` dry-runs the upgrade: it checks the current versions of API server, controller-manager, scheduler, kubelet, and etcd, and prints the recommended target version with any warnings. `kubectl drain` empties a worker node's workloads — that happens later, per worker, once the control plane is upgraded. `kubeadm upgrade apply` performs the actual control-plane version bump; it must come after `plan`. Installing the new `kubeadm` binary is a prerequisite to running `apply`, but it changes host packages and is not the safe read-only preview step the question asks for.",
       "tags": [
         "kubeadm",
         "upgrade",
         "cks"
       ],
-      "difficulty": "medium",
-      "_normalized": true,
-      "_lenbal": true,
-      "rewritten": true
+      "difficulty": "medium"
     },
     {
       "id": "cks-011",
-      "question": "A microservice needs to read ConfigMaps in `config` namespace and list Deployments in `app` namespace. How do you implement this with least privilege?",
+      "question": "A microservice needs read access to ConfigMaps in namespace `config` AND list access to Deployments in namespace `app`. Which design honours least privilege?",
       "options": [
-        "Create a single Role in the `config` namespace that covers resources in both namespaces",
-        "Create two separate Roles (one per namespace) with targeted verbs and bind each with a namespace-scoped RoleBinding",
-        "Assign the built-in `view` ClusterRole cluster-wide to ensure the SA can always access what it needs",
-        "Create a ClusterRole with permissions on both resources and bind it cluster-wide with a ClusterRoleBinding"
+        "Grant the built-in `view` ClusterRole to the SA via a ClusterRoleBinding — it already contains the two needed verbs",
+        "Create a single Role in `config` with rules for both resources — Kubernetes will apply it across matching namespaces",
+        "Create two Roles (one per namespace) with only the verbs each needs, and bind each with a RoleBinding in its own namespace",
+        "Create a ClusterRole covering both resources and bind it with a ClusterRoleBinding for simplicity"
       ],
-      "correct": 1,
-      "explanation": "Least privilege requires separate namespace-scoped Roles: one Role in `config` granting only ConfigMap read access, another Role in `app` granting only Deployment list access, each bound with a RoleBinding in the respective namespace. A ClusterRole/ClusterRoleBinding grants cluster-wide access, violating least privilege. A single Role can only govern one namespace. Even the built-in `view` ClusterRole is broader than needed and applies to all namespaces when bound via ClusterRoleBinding.",
+      "correct": 2,
+      "explanation": "The lowest-privilege construction is one namespaced Role per namespace, each granting only the verb+resource pair actually needed, each bound via a RoleBinding in the same namespace. The `view` ClusterRole is far broader than the requirement (it grants read on almost every namespaced resource in every namespace it's bound in). A Role is namespace-scoped by definition — a Role in `config` cannot grant permissions in `app`. A ClusterRoleBinding grants the verbs cluster-wide, exceeding scope.",
       "tags": [
         "rbac",
         "least-privilege",
         "service-accounts",
         "cks"
       ],
-      "difficulty": "medium",
-      "_normalized": true
+      "difficulty": "medium"
     },
     {
       "id": "cks-012",
-      "question": "Compliance requires that all Secret read operations are recorded with full request and response payloads. Which audit policy stage and level achieves this?",
+      "question": "Compliance requires that every read of a Secret is logged with the full request AND response payloads. Which combination of audit `stage` and `level` provides that?",
       "options": [
-        "Stage: `RequestReceived`, Level: `Request` — records the request body before the response is sent",
-        "Stage: `ResponseComplete`, Level: `RequestResponse` — records full request and response payloads on completion",
-        "Stage: `ResponseComplete`, Level: `Metadata` — records request metadata without capturing Secret contents",
-        "Stage: `ResponseStarted`, Level: `RequestResponse` — records full payloads when the response starts streaming"
+        "Stage `RequestReceived`, level `Metadata`",
+        "Stage `RequestReceived`, level `Request`",
+        "Stage `ResponseStarted`, level `Request`",
+        "Stage `ResponseComplete`, level `RequestResponse`"
       ],
-      "correct": 1,
-      "explanation": "`RequestResponse` level logs both the request object and response object (full payloads). `ResponseComplete` stage fires after the complete response has been sent to the client. This combination captures everything about Secret read operations. `Metadata` only logs request metadata (no body). `Request` logs the request body only. `ResponseStarted` is used for long-running streaming responses (like exec/watch), not standard reads.",
+      "correct": 3,
+      "explanation": "`RequestResponse` is the highest audit level and captures both bodies; `ResponseComplete` is the stage after the response has been fully sent, so the response body is available to log. `Metadata` records who/what/when but drops the bodies — exactly what compliance is asking to see. `Request` records the request body only; the read's *response* (which carries the Secret data) is not logged. `ResponseStarted` fires when the response head is written and is only useful for long-lived watches/exec streams, not point-in-time reads.",
       "tags": [
         "audit-logs",
         "compliance",
         "cluster-hardening",
         "cks"
       ],
-      "difficulty": "hard",
-      "_normalized": true
+      "difficulty": "hard"
     },
     {
       "id": "cks-013",
-      "question": "Your security team requires that no Pod can run with `privileged: true`. Which built-in Kubernetes admission controller (available since 1.25) enforces this?",
+      "question": "Which built-in Kubernetes admission controller — GA since v1.25 — enforces that Pods in a namespace cannot run with `privileged: true`?",
       "options": [
-        "PodSecurity — enforces `baseline` or `restricted` Pod Security Standards, both prohibiting privileged containers",
-        "NodeRestriction — prevents nodes from accepting Pods that have privileged security contexts",
-        "SecurityContextDeny — a deprecated plugin that blocks Pods with any privileged security context",
-        "ValidatingAdmissionWebhook — requires deploying a custom external webhook server to enforce the rule"
+        "PodSecurity, with the namespace labelled `pod-security.kubernetes.io/enforce=baseline` (or stricter)",
+        "SecurityContextDeny, enabled in the API server's admission plugin list",
+        "NodeRestriction, applied at the kubelet layer",
+        "ValidatingAdmissionWebhook, pointing to an in-tree Kubernetes webhook that ships with the API server"
       ],
       "correct": 0,
-      "explanation": "The built-in `PodSecurity` admission controller (GA in Kubernetes 1.25) enforces the Pod Security Standards. The `baseline` level prohibits privileged containers; the `restricted` level is even stricter. You apply it by labeling namespaces. `SecurityContextDeny` is a legacy plugin removed in newer Kubernetes versions. `NodeRestriction` controls kubelet API access. `ValidatingAdmissionWebhook` can enforce custom policies but requires an external webhook server — PodSecurity is built-in and preferred.",
+      "explanation": "`PodSecurity` implements the Pod Security Standards. The `baseline` profile prohibits privileged containers (as does the stricter `restricted`), and is activated by labelling the namespace with `pod-security.kubernetes.io/enforce=baseline`. `SecurityContextDeny` was deprecated and removed — you cannot rely on it. `NodeRestriction` limits what a kubelet can write via the API; it has no visibility into pod security context values. `ValidatingAdmissionWebhook` is the generic hook mechanism — there is no in-tree webhook that ships with Kubernetes for this; you'd have to deploy an external policy engine.",
       "tags": [
         "pod-security-admission",
         "privileged",
         "cluster-hardening",
         "cks"
       ],
-      "difficulty": "easy",
-      "_normalized": true
+      "difficulty": "easy"
     },
     {
       "id": "cks-014",
-      "question": "Kubernetes service account tokens have no expiration by default. What mechanism provides time-limited, audience-bound tokens that expire with the Pod?",
+      "question": "Which API replaces the legacy long-lived ServiceAccount Secret and issues audience-bound, time-limited tokens that are invalidated when the Pod is deleted?",
       "options": [
-        "Automatic Secret rotation — Kubernetes rotates ServiceAccount Secret tokens on a defined schedule",
-        "RBAC token expiry annotations set on the ServiceAccount object",
-        "The TokenRequest API",
-        "OIDC token projection via projected service account volume sources"
+        "The Kubernetes CertificateSigningRequests API used for kubelet bootstrap",
+        "The TokenRequest API, consumed by the kubelet through a projected volume mount",
+        "The BoundServiceAccountTokenVolume feature — a separate REST endpoint the pod calls",
+        "The TokenReview API called from inside the pod on each request"
       ],
-      "correct": 2,
-      "explanation": "The TokenRequest API (GA in Kubernetes 1.21) issues projected service account tokens that are time-limited (via `expirationSeconds`), audience-bound, and automatically invalidated when the Pod is deleted. The kubelet uses the TokenRequest API when mounting tokens into Pods via projected volumes. OIDC projection uses this mechanism under the hood, but the core feature is the TokenRequest API itself. Legacy ServiceAccount Secrets contain long-lived tokens with no expiry.",
+      "correct": 1,
+      "explanation": "The TokenRequest API mints projected tokens with a defined `expirationSeconds` and a specific audience; the kubelet drives it automatically when the pod uses a `serviceAccountToken` projected volume, and the token becomes invalid once the pod is gone. CertificateSigningRequests issue X.509 client certs (used by node bootstrap and kubectl), not JWTs. `BoundServiceAccountTokenVolume` names the projected-volume plumbing but is not itself a REST endpoint — it consumes TokenRequest under the hood. TokenReview is the *validator* side of the JWT — the API server calls it to check tokens presented to it — and is not what mints them.",
       "tags": [
         "service-accounts",
         "tokens",
         "cluster-hardening",
         "cks"
       ],
-      "difficulty": "hard",
-      "_normalized": true
+      "difficulty": "hard"
     },
     {
       "id": "cks-015",
-      "question": "On a hardened control plane, the operator sets `--anonymous-auth=false` on the kube-apiserver. After the API server reloads, requests carrying no credentials are rejected. The `system:anonymous` user is no longer recognised. Which group of users is affected after this flag is set?",
+      "question": "After setting `--anonymous-auth=false` on kube-apiserver, which specific class of requests is affected?",
       "options": [
-        "Any unauthenticated request previously mapped to user `system:anonymous` / group `system:unauthenticated` is now rejected with 401",
-        "Only service accounts inside the cluster — their JWTs are revoked and they must be re-issued by kube-controller-manager before they can authenticate again",
-        "Only nodes — kubelets lose their identity certificates and cannot rejoin the cluster until kubeadm re-issues their client certs",
-        "Only external OIDC users — their tokens stop being validated against the configured OIDC issuer, while certificate-based admins are unaffected"
+        "External OIDC users — the API server stops validating their JWTs against the configured issuer",
+        "Kubelets — the node client certificates issued by kubeadm are invalidated at the next reload",
+        "Requests arriving with no credentials — previously mapped to `system:anonymous`, now rejected with HTTP 401",
+        "In-cluster ServiceAccount pods — their projected JWTs no longer authenticate until re-issued"
       ],
-      "correct": 0,
-      "explanation": "`--anonymous-auth=false` only affects requests that arrive without any credentials. Previously, such requests were mapped to `system:anonymous` user (group `system:unauthenticated`). With this setting, they receive HTTP 401 Unauthorized. Service accounts use JWT projected tokens. Kubelets use TLS client certificates. Admin users use kubeconfig certificates or bearer tokens — none of these are anonymous, so they're unaffected.",
+      "correct": 2,
+      "explanation": "The flag only touches the *anonymous* authenticator, which mapped credential-less requests to the `system:anonymous` identity. With it disabled, such requests are rejected outright. OIDC, x509, and service-account authenticators are independent and continue to work. Kubelet certs and SA JWTs both carry credentials, so they are not anonymous and are unaffected.",
       "tags": [
-        "apiserver",
+        "api-server",
         "auth",
         "cks"
       ],
-      "difficulty": "easy",
-      "_normalized": true,
-      "rewritten": true
+      "difficulty": "easy"
     },
     {
       "id": "cks-016",
-      "question": "You want to apply an AppArmor profile named `no-write-etc` (already loaded on the node) to a container. How do you reference it in Kubernetes 1.30+?",
+      "question": "An AppArmor profile named `no-write-etc` is already loaded on every worker node. Which Pod-spec field references it in Kubernetes v1.30+ (using the GA `securityContext.appArmorProfile` field)?",
       "options": [
-        "Set `annotations: {\"container.apparmor.security.beta.kubernetes.io/<name>\": \"localhost/no-write-etc\"}` on the Pod",
-        "Create an AppArmorProfile CRD and reference it in `spec.securityContext.appArmorProfile.type`",
-        "Set `appArmorProfile.type",
-        "Add `appArmor: no-write-etc` to the container's `securityContext.capabilities` field"
+        "A cluster-scoped `AppArmorProfile` CRD referenced from `spec.securityContext.appArmorProfileRef`",
+        "`metadata.annotations: {container.apparmor.security.beta.kubernetes.io/<container>: localhost/no-write-etc}`",
+        "`spec.containers[].securityContext.capabilities.add: [\"apparmor:no-write-etc\"]`",
+        "`spec.containers[].securityContext.appArmorProfile: {type: Localhost, localhostProfile: no-write-etc}`"
       ],
-      "correct": 2,
-      "explanation": "In Kubernetes 1.30+, AppArmor is configured in the container `securityContext` using `appArmorProfile.type: Localhost` and `appArmorProfile.localhostProfile` pointing to the profile name already loaded on the node. The annotation-based approach (`container.apparmor.security.beta.kubernetes.io/`) is the legacy method (pre-1.30, still works but deprecated). AppArmor profiles are not part of Linux capabilities. There is no AppArmorProfile CRD in standard Kubernetes.",
+      "correct": 3,
+      "explanation": "The stable field takes `type: Localhost` plus the profile name in `localhostProfile`, matching the profile already loaded by the node's AppArmor userspace. The `container.apparmor.security.beta.kubernetes.io/<container>` annotation is the legacy pre-1.30 mechanism; it still works but is not the current field-based syntax. AppArmor is not a Linux capability — the `capabilities` list controls kernel capabilities, not LSM profiles. There is no upstream `AppArmorProfile` CRD; the type is a plain string embedded in the pod spec.",
       "tags": [
         "apparmor",
         "system-hardening",
         "securitycontext",
         "cks"
       ],
-      "difficulty": "medium",
-      "_normalized": true
+      "difficulty": "medium"
     },
     {
       "id": "cks-017",
-      "question": "You want a container to use the `RuntimeDefault` seccomp profile to restrict its allowed syscalls. Which Pod spec achieves this in Kubernetes 1.27+?",
+      "question": "A container must use the runtime's default seccomp profile via the stable Kubernetes field (v1.22+). Which `securityContext.seccompProfile` value is correct?",
       "options": [
-        "Create a SeccompProfile CRD referencing the default profile and apply it via an admission webhook",
-        "Set `seccompProfile.type: Unconfined` — this applies the runtime's default profile",
-        "Set `annotations: {\"seccomp.security.alpha.kubernetes.io/pod\": \"docker/default\"}` on the Pod",
-        "Set `seccompProfile.type: RuntimeDefault` in the container's or Pod's `securityContext`"
+        "`type: RuntimeDefault`",
+        "`type: Unconfined`",
+        "`type: Localhost, localhostProfile: default.json`",
+        "`type: Default, profile: docker/default`"
       ],
-      "correct": 3,
-      "explanation": "The correct modern approach (Kubernetes 1.22+) is to set `securityContext.seccompProfile.type: RuntimeDefault` in the container or Pod spec. This applies whatever the container runtime defines as its default seccomp filter. The annotation-based method (`seccomp.security.alpha.kubernetes.io`) is the legacy approach (deprecated). `Unconfined` explicitly disables seccomp filtering — the opposite of what is needed. There is no SeccompProfile CRD in standard Kubernetes.",
+      "correct": 0,
+      "explanation": "`RuntimeDefault` tells the kubelet to attach whatever seccomp filter the container runtime ships as its default (a moderate deny-list). `Unconfined` explicitly disables seccomp — the exact opposite. `Localhost` requires a JSON profile physically present under the kubelet's seccomp root and named in `localhostProfile`, which is a valid pattern for custom profiles but does not mean 'runtime default'. `Default` is not a real `type` value — the accepted values are only `Unconfined`, `RuntimeDefault`, and `Localhost`.",
       "tags": [
         "seccomp",
         "system-hardening",
         "securitycontext",
         "cks"
       ],
-      "difficulty": "easy",
-      "_normalized": true
+      "difficulty": "easy"
     },
     {
       "id": "cks-018",
-      "question": "A security engineer is hardening worker nodes against the CIS Kubernetes Benchmark. They want the set of actions that aligns with the benchmark's node-level recommendations covering kubelet flags, file permissions on kubeconfig and PKI, and disabling read-only ports. Which set of actions fits?",
+      "question": "Which combination of node-level actions best aligns with the CIS Kubernetes Benchmark for worker nodes covering kubelet flags, kubeconfig/PKI file permissions, and the read-only kubelet port?",
       "options": [
-        "Enable `--anonymous-auth=false` and `--authorization-mode=Webhook` on kubelet, set strict 0600 perms on kubeconfig and PKI files, disable the kubelet read-only port (10255), and audit",
-        "Open the kubelet read-only port to all subnets so monitoring scrapes can succeed, and grant 0666 to /etc/kubernetes/admin.conf for ease of use across SRE machines",
-        "Disable TLS on the kubelet so cAdvisor metrics can be scraped without cert management, and grant `system:anonymous` view access to ease debugging in production",
-        "Run all kubelets as root with `--read-only-port=10255` enabled, and keep PKI files world-readable on every node to avoid permission errors during incident response"
+        "Enable the read-only port on 10255 so Prometheus can scrape without TLS, and set `--anonymous-auth=true` for scrape endpoints",
+        "Set `--anonymous-auth=false` and `--authorization-mode=Webhook` on kubelet, set 0600 on kubeconfig and PKI files, and disable the read-only port (`--read-only-port=0`)",
+        "Set world-readable permissions on kubeconfig and PKI files so SRE staff can inspect them during incidents",
+        "Run kubelet with `--authorization-mode=AlwaysAllow` and `--anonymous-auth=true` to simplify troubleshooting; leave the read-only port on 10255"
       ],
-      "correct": 0,
-      "explanation": "CIS benchmarks recommend minimizing the OS footprint: uninstall packages not needed for Kubernetes, disable or unload unnecessary kernel modules (`dccp`, `sctp`, `rds`, etc.), ensure only required services are running, and keep the system patched. Installing all packages increases the attack surface. Enabling all kernel modules provides more exploitation vectors. Running services as root violates the principle of least privilege.",
+      "correct": 1,
+      "explanation": "The CIS worker-node profile requires the kubelet to authenticate every caller, delegate authorization to the API server (`Webhook`), keep sensitive files at 0600, and close the unauthenticated read-only port. Enabling 10255 without TLS is the exact anti-pattern the benchmark disallows. World-readable PKI leaks the node's client key material. `AlwaysAllow` + anonymous is a wide-open kubelet — CIS calls both out explicitly.",
       "tags": [
         "hardening",
         "cis-benchmark",
         "cks"
       ],
-      "difficulty": "easy",
-      "_normalized": true,
-      "rewritten": true
+      "difficulty": "easy"
     },
     {
       "id": "cks-019",
-      "question": "You need to permanently prevent the `dccp` kernel module from loading on a Kubernetes node. Which configuration achieves persistent blacklisting?",
+      "question": "Which command permanently prevents the `dccp` kernel module from loading on a worker node across reboots?",
       "options": [
-        "`modprobe -r dccp && echo \"blacklist dccp\" >> /etc/modules` — removes and adds to load list",
-        "`systemctl disable dccp && systemctl stop dccp` — disables the dccp service at boot",
-        "Add `blacklist dccp` to a file under `/etc/modprobe.d/` (e.g., `kubernetes-blacklist.conf`) and reboot",
-        "`rmmod dccp && echo \"install dccp /bin/false\" >> /etc/modules` — removes and marks for auto-load"
+        "`modprobe -r dccp` on the running node, then commit the state by writing the unloaded module list to `/etc/modules-load.d/exclude.conf`",
+        "`systemctl disable dccp.service` so the systemd unit that lazy-loads the DCCP kernel module at socket use is prevented from starting on boot",
+        "Add `blacklist dccp` to a file such as `/etc/modprobe.d/kubernetes-blacklist.conf`",
+        "Append `dccp` to `/etc/modules` — the file drives kernel-module policy at boot, and its exclusion list ships with a `denylist` prefix by convention"
       ],
       "correct": 2,
-      "explanation": "To persistently blacklist a kernel module, add `blacklist dccp` to a file in `/etc/modprobe.d/` such as `/etc/modprobe.d/kubernetes-blacklist.conf`. You can also add `install dccp /bin/false` to prevent loading even when explicitly requested. A reboot applies the change. `modprobe -r` only unloads for the current session. `/etc/modules` lists modules to LOAD at boot, not blacklist. `systemctl` manages services, not kernel modules.",
+      "explanation": "`modprobe.d` files are read at boot by systemd and modprobe; a `blacklist` directive there is the durable mechanism. `modprobe -r` only unloads for the current uptime — the module can reload on demand. There is no `dccp.service` shipped with Linux, so `systemctl disable` has nothing to disable. `/etc/modules` is the *load-at-boot* list; adding a module there does the opposite of blacklisting.",
       "tags": [
         "kernel-modules",
         "system-hardening",
         "node-security",
         "cks"
       ],
-      "difficulty": "medium",
-      "_normalized": true
+      "difficulty": "medium"
     },
     {
       "id": "cks-020",
-      "question": "A container escapes and needs root on the host. Which kernel feature in Kubernetes 1.30+, when enabled, limits the blast radius by mapping container UID 0 to an unprivileged host UID?",
+      "question": "Which Kubernetes feature (stable in v1.30) reduces the blast radius of a container root escape by mapping the container's UID 0 to a high, unprivileged UID on the host?",
       "options": [
-        "Seccomp `RuntimeDefault` profile — filters syscalls that could escalate privileges to the host",
-        "AppArmor profiles — restrict file system paths that could be used for privilege escalation",
-        "User namespaces (`hostUsers: false`) — remaps container UIDs to unprivileged host UIDs (e.g., 100000+)",
-        "Pod Security Admission `restricted` profile — forces `runAsNonRoot: true` preventing root in containers"
+        "Pod Security `restricted` profile forcing `runAsNonRoot: true`",
+        "Seccomp `RuntimeDefault` profile applied to every container in the pod",
+        "AppArmor `runtime/default` profile applied via annotations",
+        "Pod-spec user namespaces via `spec.hostUsers: false`"
       ],
-      "correct": 2,
-      "explanation": "User namespaces (`hostUsers: false` in the Pod spec, Kubernetes 1.30 stable) remap the container's root UID (0) to a high non-root host UID (100000+). If a container escapes, the process has no special privileges on the host — it's an unprivileged user. Seccomp and AppArmor reduce the attack surface but don't prevent host-level privileges if root escapes. `runAsNonRoot` prevents root inside the container but doesn't change the host UID mapping.",
+      "correct": 3,
+      "explanation": "`hostUsers: false` opts a pod into the Linux user namespace: the kubelet asks the runtime to allocate a distinct UID range (e.g., 100000+), and container UID 0 is mapped to that unprivileged host UID. Seccomp filters syscalls but does not change the effective UID a host sees. AppArmor is a mandatory-access-control LSM; it cannot renumber processes. `runAsNonRoot: true` blocks images that try to start as UID 0 inside the container — it doesn't touch the container-to-host UID mapping.",
       "tags": [
         "user-namespaces",
         "system-hardening",
         "privilege-escalation",
         "cks"
       ],
-      "difficulty": "hard",
-      "_normalized": true
+      "difficulty": "hard"
     },
     {
       "id": "cks-021",
-      "question": "A container needs to bind to port 80 but must not have any other elevated privileges. Which SecurityContext configuration is correct?",
+      "question": "A container must bind to TCP port 80 but should hold no other elevated privileges. Which `securityContext.capabilities` shape delivers least privilege?",
       "options": [
-        "Use `capabilities.drop",
-        "Set `privileged: true` to enable all capabilities including the one needed for port binding",
-        "Set `runAsUser: 0` since only root can bind to ports below 1024",
-        "Set `capabilities.add: [\"ALL\"]` which implicitly includes NET_BIND_SERVICE"
+        "`drop: [\"ALL\"]; add: [\"NET_BIND_SERVICE\"]`",
+        "`add: [\"ALL\"]`",
+        "`drop: [\"NET_BIND_SERVICE\"]`",
+        "Leave capabilities unset and set `runAsUser: 0`"
       ],
       "correct": 0,
-      "explanation": "The principle of least privilege: drop ALL capabilities first with `capabilities.drop: [\"ALL\"]`, then add back only `NET_BIND_SERVICE` which grants the ability to bind to ports below 1024 without root. `privileged: true` grants every capability plus disables all isolation — a critical security risk. `capabilities.add: [\"ALL\"]` grants every privilege. Running as root (UID 0) is a bad practice when a specific capability suffices.",
+      "explanation": "Drop every capability first, then grant back only `NET_BIND_SERVICE`, which is the exact kernel capability needed to open a privileged port as a non-root user. `add: [\"ALL\"]` grants every capability — the direct opposite. Dropping `NET_BIND_SERVICE` blocks the very ability the app needs. Running as UID 0 to open port 80 satisfies the requirement but breaks the *no other elevated privileges* rule — root gets full capabilities by default.",
       "tags": [
         "capabilities",
         "system-hardening",
         "least-privilege",
         "cks"
       ],
-      "difficulty": "medium",
-      "_normalized": true
+      "difficulty": "medium"
     },
     {
       "id": "cks-022",
-      "question": "You want to prevent a container from gaining additional privileges via setuid/setgid binaries or file capabilities. Which SecurityContext field achieves this?",
+      "question": "Which single `securityContext` field sets the Linux `no_new_privs` bit, so setuid/setgid binaries and file capabilities inside the container cannot escalate privileges?",
       "options": [
-        "Set `readOnlyRootFilesystem: true` — prevents any new binaries from being written to the filesystem",
-        "Set `allowPrivilegeEscalation: false` — sets the `no_new_privs` bit preventing privilege escalation",
-        "Set `capabilities.drop: [\"SETUID\",\"SETGID\"]` — removes the setuid and setgid capabilities",
-        "Set `runAsNonRoot: true` — prevents the process from running as root UID 0"
+        "`readOnlyRootFilesystem: true`",
+        "`allowPrivilegeEscalation: false`",
+        "`runAsNonRoot: true`",
+        "`capabilities.drop: [\"SETUID\",\"SETGID\"]`"
       ],
       "correct": 1,
-      "explanation": "`allowPrivilegeEscalation: false` sets the Linux `no_new_privs` bit on the process. This prevents processes from gaining privileges through setuid/setgid executables or file capabilities, even if such binaries exist in the image. It's distinct from capabilities — it's a process flag. `readOnlyRootFilesystem` prevents filesystem writes. `runAsNonRoot` controls the user identity. Dropping SETUID/SETGID capabilities is related but `allowPrivilegeEscalation: false` is the direct control for the `no_new_privs` mechanism.",
+      "explanation": "`allowPrivilegeEscalation: false` is the direct wrapper around the Linux `PR_SET_NO_NEW_PRIVS` process flag. `readOnlyRootFilesystem` prevents writes to the container FS but doesn't stop a pre-existing setuid binary from running with elevated bits. `runAsNonRoot` is about the initial user identity, not privilege inheritance. Dropping SETUID/SETGID stops the container from calling `setuid()`/`setgid()`, but a setuid *binary* elevates before those syscalls are reached — `no_new_privs` is the specific control that blocks that path.",
       "tags": [
         "privilege-escalation",
         "securitycontext",
         "system-hardening",
         "cks"
       ],
-      "difficulty": "medium",
-      "_normalized": true
+      "difficulty": "medium"
     },
     {
       "id": "cks-023",
-      "question": "A team wants to prevent attackers who land remote code execution from installing extra tools (curl, nc, bash utilities) inside containers, by making the container filesystem read-only at runtime. Application data goes through explicit writable mounts. Which SecurityContext setting enforces this?",
+      "question": "Which single `securityContext` setting most directly stops an attacker from installing extra tooling (curl, nc, backdoors) inside a compromised container?",
       "options": [
-        "`securityContext.readOnlyRootFilesystem: true` — mounts the container's root filesystem read-only at runtime; writes are limited to explicitly mounted writable volumes",
-        "`securityContext.allowPrivilegeEscalation: false` — blocks setuid escalation, but leaves the root filesystem writable for tool installation",
-        "`securityContext.capabilities.drop: [\"ALL\"]` — strips Linux capabilities; reduces blast radius but does not prevent writes by a user with normal file permissions",
-        "`securityContext.runAsNonRoot: true` — forces a non-root UID; non-root users can still write to user-owned paths inside the container filesystem"
+        "`allowPrivilegeEscalation: false`",
+        "`capabilities.drop: [\"ALL\"]`",
+        "`readOnlyRootFilesystem: true`",
+        "`runAsNonRoot: true`"
       ],
-      "correct": 0,
-      "explanation": "`readOnlyRootFilesystem: true` mounts the container's root filesystem as read-only, so any write attempt — including installing tools, dropping backdoors, or modifying configuration — is rejected. Applications that need writable areas should use `emptyDir` or other volumes for specific directories. Seccomp can block some syscalls but `readOnlyRootFilesystem` is the direct and complete filesystem immutability control.",
+      "correct": 2,
+      "explanation": "A read-only root filesystem returns EROFS on every write, so an attacker cannot drop new binaries anywhere except explicit writable volumes. `allowPrivilegeEscalation: false` blocks setuid escalation but the disk stays writable. Dropping all capabilities reduces what the process can do at the kernel boundary but a plain user with normal file permissions can still write to writable paths. `runAsNonRoot` picks a non-zero UID; that UID still owns its home and often the app's data dir, so writes proceed.",
       "tags": [
         "pod-security",
         "readonly-rootfs",
         "cks"
       ],
-      "difficulty": "easy",
-      "_normalized": true,
-      "rewritten": true
+      "difficulty": "easy"
     },
     {
       "id": "cks-024",
-      "question": "Which Pod spec setting represents the MOST dangerous privilege escalation risk and should always be avoided in production?",
+      "question": "Which single Pod-spec setting represents the highest privilege-escalation risk in production and should be blocked at admission?",
       "options": [
-        "`spec.hostNetwork: true` — allows the Pod to access all host network interfaces",
-        "`spec.containers[].securityContext.privileged: true`.",
-        "`spec.containers[].securityContext.runAsUser: 0` — runs the container process as root",
-        "`spec.hostPID: true` — allows the Pod to see all processes running on the host"
+        "`spec.hostNetwork: true`",
+        "`spec.containers[].securityContext.runAsUser: 0`",
+        "`spec.hostPID: true`",
+        "`spec.containers[].securityContext.privileged: true`"
       ],
-      "correct": 1,
-      "explanation": "`privileged: true` is the most dangerous setting. It effectively disables all cgroup and Linux namespace isolation for the container, grants every Linux capability, and allows access to all host devices. This is equivalent to running a process as root directly on the host — a full container escape. While `hostPID: true` and `hostNetwork: true` are serious risks confined to specific namespaces, `privileged: true` removes ALL isolation. Even running as root (UID 0) inside a normal container is less dangerous. disables all container isolation and grants all capabilities",
+      "correct": 3,
+      "explanation": "`privileged: true` disables the container runtime's Linux namespace/cgroup/LSM restrictions and grants every capability — it is the closest a Kubernetes-configured container gets to running directly on the host. `hostNetwork` and `hostPID` open a specific namespace boundary each — serious, but not the same broad blast radius. Running as UID 0 inside an otherwise sandboxed container is worse than running as a non-root UID, but the container's other isolation (capabilities, seccomp, cgroups) is still in force.",
       "tags": [
         "privileged-containers",
         "securitycontext",
         "system-hardening",
         "cks"
       ],
-      "difficulty": "easy",
-      "_normalized": true
+      "difficulty": "easy"
     },
     {
       "id": "cks-025",
-      "question": "Pod Security Admission is set to `restricted` on the `payments` namespace. A Pod fails because its image runs as root (UID 0). What is the correct fix?",
+      "question": "The `payments` namespace is labelled `pod-security.kubernetes.io/enforce=restricted`. A deployment is rejected because its image runs as root. Which fix keeps the enforcement in place and lets the pod through?",
       "options": [
-        "Delete the LimitRange object in the namespace since it is enforcing the non-root requirement",
-        "Add label `pod-security.kubernetes.io/enforce: baseline` to relax the namespace to baseline standard",
-        "Add `privileged: true` to the container `securityContext` to allow root processes under the restricted profile",
-        "Add `runAsNonRoot: true` and `runAsUser: 1000` to the container `securityContext`,."
+        "Add `runAsNonRoot: true` and `runAsUser: 1000` on the container `securityContext`, or rebuild the image with a non-root `USER` line",
+        "Delete the namespace's LimitRange object — LimitRanges default new pods' security context to `runAsNonRoot: true` and dropping the LimitRange removes that default",
+        "Add `privileged: true` on the container `securityContext` so the container's security profile is granted admin exemptions and bypasses the `restricted` non-root check",
+        "Change the namespace's enforce label from `restricted` to `baseline` so root pods are admitted while other privileged-container prohibitions remain in force"
       ],
-      "correct": 3,
-      "explanation": "The `restricted` Pod Security Standard requires containers to run as non-root. The correct fix is to configure `securityContext.runAsNonRoot: true` (and optionally `runAsUser: 1000` or another non-zero UID), or rebuild the image with a `USER` directive pointing to a non-root user. Changing the namespace label to `baseline` would relax security. `privileged: true` is blocked by both `baseline` and `restricted` profiles. LimitRange controls resource consumption, not security contexts. or rebuild the image with a non-root USER directive",
+      "correct": 0,
+      "explanation": "The `restricted` standard requires a non-root UID; declaring one in `securityContext` (or setting `USER` in the Dockerfile) satisfies it without loosening the namespace policy. Downgrading to `baseline` weakens security — not a fix, a workaround. LimitRange caps CPU/memory, it has nothing to do with user identity. `privileged: true` is explicitly forbidden by both `baseline` and `restricted`, so it would make the rejection worse.",
       "tags": [
         "pod-security-admission",
         "run-as-non-root",
         "microservice-vulnerabilities",
         "cks"
       ],
-      "difficulty": "easy",
-      "_normalized": true,
-      "_lenbal": true
+      "difficulty": "easy"
     },
     {
       "id": "cks-026",
-      "question": "You want to use OPA Gatekeeper to prevent Pods from using the `latest` image tag cluster-wide. Which Gatekeeper resources are required?",
+      "question": "You want to block pods that use the `:latest` image tag cluster-wide using OPA Gatekeeper. Which two resources must you author?",
       "options": [
-        "A single `Policy` object with a Rego rule checking `input.review.object.spec.containers[_].image`",
-        "A `ConstraintTemplate` defining the Rego logic and a `Constraint` object (an instance of the template)",
-        "A `ValidatingWebhookConfiguration` pointing directly to a Rego policy file stored on disk",
-        "A `ClusterRole` that denies the `create` verb on Pods when images use the `latest` tag"
+        "A `ValidatingWebhookConfiguration` pointing at a Rego policy file mounted on the API server, plus a `PolicySource` object listing which paths are enforced cluster-wide",
+        "A `ConstraintTemplate` (defining the Rego logic) plus a `Constraint` (an instance targeting kinds and namespaces)",
+        "A single `Policy` object referencing Gatekeeper's built-in `no-latest-tag` template, with `parameters.excludedNamespaces` covering system namespaces that legitimately float on latest",
+        "A `ClusterRole` denying the `create` verb on pods with `image` containing `latest`"
       ],
       "correct": 1,
-      "explanation": "OPA Gatekeeper requires two resources: (1) a `ConstraintTemplate` — a CRD that defines the Rego policy logic, (2) a `Constraint` — an instance of that CRD that activates the policy with specific scope and parameters (like `kinds: [Pod]` and excluded namespaces). Gatekeeper manages its own ValidatingWebhookConfiguration internally — you don't create it directly. There is no standalone `Policy` object in Gatekeeper. RBAC cannot inspect Pod field values like image tags.",
+      "explanation": "Gatekeeper's model is: a `ConstraintTemplate` CRD defines the Rego and its input schema, and a `Constraint` (a CRD instance of that template) turns it on for specified kinds/namespaces. The `ValidatingWebhookConfiguration` used by Gatekeeper is installed automatically at deploy time — you don't author it. There is no `Policy` object in vanilla Gatekeeper (that is Kyverno's type name). RBAC evaluates verb/resource, not the *contents* of a field like the image string.",
       "tags": [
         "opa-gatekeeper",
         "admission-control",
         "supply-chain",
         "cks"
       ],
-      "difficulty": "medium",
-      "_normalized": true
+      "difficulty": "medium"
     },
     {
       "id": "cks-027",
-      "question": "Your security team requires that Secret values never appear in `kubectl describe pod` output or in process environment dumps. Which approach best achieves this?",
+      "question": "A Secret must never appear in `kubectl describe pod` output or in `/proc/<pid>/environ`. Which consumption pattern satisfies both?",
       "options": [
-        "Mount the Secret as a volume file and access it programmatically, avoiding environment variable exposure",
-        "Store the secret in a ConfigMap with `immutable: true` since ConfigMaps are encrypted at rest by default",
-        "Use `env[].valueFrom.secretKeyRef` to selectively load specific secret values as environment variables",
-        "Use `envFrom: secretRef` to load all secret keys as environment variables from the Secret"
+        "Load it via `envFrom.secretRef` for convenience",
+        "Reference it via `env[].valueFrom.secretKeyRef`, one value at a time",
+        "Mount the Secret as a projected volume file and have the app read it from disk",
+        "Convert it to a ConfigMap with `immutable: true` — ConfigMaps encrypt at rest by default"
       ],
-      "correct": 0,
-      "explanation": "Mounting Secrets as volume files is more secure than environment variables. Both `envFrom` and `valueFrom.secretKeyRef` expose values in `kubectl describe pod` output (they appear in the env section) and in process environment dumps (`/proc/<pid>/environ`). Volume-mounted Secret files are not shown in pod descriptions and are harder to accidentally leak. ConfigMaps are not encrypted at rest and are not intended for sensitive data.",
+      "correct": 2,
+      "explanation": "Volume-mounted Secret files never appear in the pod's environment (`/proc/<pid>/environ`) and are not printed by `kubectl describe pod`; only the Secret name is shown. Both `env.valueFrom.secretKeyRef` and `envFrom.secretRef` place the resolved values into the process environment, where they are visible to anyone with `describe` rights or read access to `/proc`. ConfigMaps are not encrypted at rest by default (they inherit whatever EncryptionConfiguration is set for `configmaps`) and are not designed for secret data.",
       "tags": [
         "secrets",
         "security-context",
         "microservice-vulnerabilities",
         "cks"
       ],
-      "difficulty": "medium",
-      "_normalized": true
+      "difficulty": "medium"
     },
     {
       "id": "cks-028",
-      "question": "A regulated environment requires stronger isolation than the default container runtime provides for untrusted workloads. Which Kubernetes feature enables using an alternative runtime like gVisor or Kata Containers?",
+      "question": "A regulated workload needs stronger kernel isolation than the default runc container runtime. Which Kubernetes resource selects an alternative runtime such as gVisor or Kata Containers for a pod?",
       "options": [
-        "Create a PodDisruptionBudget to protect the Pod from deletion during security scans",
-        "Use a `SecurityContext` with `readOnlyRootFilesystem: true` and `privileged: false` for sandbox isolation",
-        "Create a `RuntimeClass` resource and reference it via `spec.runtimeClassName` in the Pod spec",
-        "Set `spec.hostPID: false` and `spec.hostNetwork: false` — removing host privileges enables sandbox mode"
+        "A PodDisruptionBudget attached to the pod's controller",
+        "Setting `spec.hostPID: false` and `spec.hostNetwork: false` on the pod",
+        "A `securityContext.readOnlyRootFilesystem: true` combined with `privileged: false`",
+        "A `RuntimeClass` object, referenced by name from `spec.runtimeClassName` on the pod"
       ],
-      "correct": 2,
-      "explanation": "`RuntimeClass` allows specifying which container runtime handler to use for a Pod. By creating a RuntimeClass referencing the gVisor (`runsc`) or Kata Containers handler, and setting `spec.runtimeClassName` in the Pod, that Pod runs with the alternative runtime providing stronger kernel isolation. `hostPID/hostNetwork: false` just removes host namespace access from the default runtime. PodDisruptionBudgets control availability. SecurityContext hardening operates within the default runtime.",
+      "correct": 3,
+      "explanation": "`RuntimeClass` names a runtime handler (`runsc` for gVisor, `kata` for Kata) that the container runtime — configured by the node — will select instead of the default. `PodDisruptionBudget` governs voluntary evictions; unrelated to runtime choice. Read-only root FS + non-privileged is good hygiene, but the same underlying kernel and runc process still run the workload. Turning off host namespaces is baseline pod isolation, again with the default runtime — no sandbox is added.",
       "tags": [
         "runtime-class",
         "gvisor",
@@ -570,678 +535,629 @@
         "microservice-vulnerabilities",
         "cks"
       ],
-      "difficulty": "medium",
-      "_normalized": true
+      "difficulty": "medium"
     },
     {
       "id": "cks-029",
-      "question": "You want `production` namespace to deny non-compliant Pods, `staging` to warn, and `development` to audit-log violations. Which namespace labels achieve this?",
+      "question": "You want `production` to REJECT non-compliant pods, `staging` to WARN, and `development` to log VIOLATIONS to the audit trail. Which set of namespace labels achieves that?",
       "options": [
-        "`production`: `pod-security.kubernetes.io/mode: enforce`; `staging`: `pod-security.kubernetes.io/mode: warn`; `development`: `pod-security.kubernetes.io/mode: audit`",
-        "Set `PodSecurity=true` in the kube-apiserver feature gates and apply `mode` labels directly to Pods",
-        "Apply a single ClusterPolicy with `enforce: restricted, warn: baseline, audit: baseline` across all namespaces",
-        "`production`: `pod-security.kubernetes.io/enforce: restricted`; `staging`: `pod-security.kubernetes.io/warn: baseline`;."
+        "`production: pod-security.kubernetes.io/enforce=restricted`, `staging: pod-security.kubernetes.io/warn=baseline`, `development: pod-security.kubernetes.io/audit=baseline`",
+        "Enable the `PodSecurity` feature gate and set the mode on the pods themselves",
+        "A single ClusterPolicy specifying `enforce: restricted, warn: baseline, audit: baseline`",
+        "`production: pod-security.kubernetes.io/mode=enforce`, `staging: pod-security.kubernetes.io/mode=warn`, `development: pod-security.kubernetes.io/mode=audit`"
       ],
-      "correct": 3,
-      "explanation": "Pod Security Admission uses namespace labels with the format `pod-security.kubernetes.io/<mode>: <level>`. Modes are `enforce` (reject non-compliant Pods), `warn` (allow but warn), and `audit` (allow but log). Levels are `privileged`, `baseline`, and `restricted`. The `mode` key does not exist as a standalone label. There is no ClusterPolicy object in built-in Pod Security Admission. The feature is enabled by default since Kubernetes 1.23. `development`: `pod-security.kubernetes.io/audit: baseline`",
+      "correct": 0,
+      "explanation": "The label key encodes the *mode* (`enforce`, `warn`, `audit`) and the value is the *level* (`privileged`, `baseline`, `restricted`). Labels like `pod-security.kubernetes.io/mode=...` invent a non-existent `mode` key — the mode is part of the key, not the value. `PodSecurity` has been stable for many releases; nothing configures modes at the pod level. Vanilla Kubernetes has no `ClusterPolicy` type — that belongs to Kyverno.",
       "tags": [
         "pod-security-admission",
         "namespace-labels",
         "microservice-vulnerabilities",
         "cks"
       ],
-      "difficulty": "medium",
-      "_normalized": true,
-      "_lenbal": true
+      "difficulty": "medium"
     },
     {
       "id": "cks-030",
-      "question": "You need to scan the `nginx:1.25` image for CRITICAL severity CVEs and fail the CI pipeline if any are found. Which Trivy command achieves this?",
+      "question": "A CI job must scan `nginx:1.25` with Trivy for CRITICAL CVEs and fail the pipeline when any are found. Which command does that?",
       "options": [
-        "`trivy image --severity CRITICAL --exit-code 1 nginx:1.25`",
         "`trivy scan image=nginx:1.25 severity=CRITICAL fail=true`",
+        "`trivy image --severity CRITICAL --exit-code 1 nginx:1.25`",
         "`trivy container nginx:1.25 --threshold CRITICAL --exit 1`",
         "`trivy image nginx:1.25 --level CRITICAL --fail-on-critical`"
       ],
-      "correct": 0,
-      "explanation": "The correct Trivy command is `trivy image --severity CRITICAL --exit-code 1 nginx:1.25`. The `--exit-code 1` flag causes Trivy to exit with code 1 when vulnerabilities of the specified severity are found, making CI/CD pipelines fail. `--severity CRITICAL` filters results to only show CRITICAL CVEs. The other options use invalid flags: `--level`, `--fail-on-critical`, `--threshold` do not exist in Trivy's CLI. `trivy container` and `trivy scan` are not valid subcommands.",
+      "correct": 1,
+      "explanation": "`trivy image` is the container-image scanner; `--severity` filters, and `--exit-code 1` makes Trivy exit non-zero when at least one matching finding is present, which fails the CI job. The other three use flags and subcommands that do not exist in Trivy: there is no `trivy scan` subcommand, no `--threshold`, no `--level`, and no `--fail-on-critical`.",
       "tags": [
         "trivy",
         "image-scanning",
         "supply-chain",
         "cks"
       ],
-      "difficulty": "easy",
-      "_normalized": true
+      "difficulty": "easy"
     },
     {
       "id": "cks-031",
-      "question": "You have installed gVisor (`runsc`) on worker nodes and configured containerd with handler `runsc`. Which YAML creates the correct RuntimeClass?",
+      "question": "Given a containerd handler named `runsc` for gVisor, which YAML creates the RuntimeClass a pod can then reference?",
       "options": [
-        "`apiVersion: apps/v1 / kind: RuntimeClass / metadata: {name: gvisor} / spec: {runtime: runsc}`",
-        "`apiVersion: node.k8s.io/v1 / kind: RuntimeClass / metadata: {name: gvisor} / handler: runsc`",
-        "`apiVersion: node.k8s.io/v1beta1 / kind: RuntimeClass / spec: {runtimeHandler: runsc} / metadata: {name: gvisor}`",
-        "`apiVersion: v1 / kind: RuntimeClass / metadata: {name: gvisor} / handler: runsc`"
+        "`apiVersion: apps/v1` / `kind: RuntimeClass` / `spec.runtime: runsc`",
+        "`apiVersion: v1` / `kind: RuntimeClass` / top-level `handler: runsc`",
+        "`apiVersion: node.k8s.io/v1` / `kind: RuntimeClass` / top-level `handler: runsc`",
+        "`apiVersion: node.k8s.io/v1beta1` / `kind: RuntimeClass` / `spec.runtimeHandler: runsc`"
       ],
-      "correct": 1,
-      "explanation": "RuntimeClass uses `apiVersion: node.k8s.io/v1` (stable since Kubernetes 1.20). The `handler` field is at the top level of the spec (not inside a nested `spec` block) and points to the container runtime handler name (e.g., `runsc` for gVisor). The v1beta1 API used `spec.runtimeHandler` — the stable v1 API uses just `handler` at root. Using `apps/v1` is incorrect. The `v1` core API group doesn't include RuntimeClass.",
+      "correct": 2,
+      "explanation": "The stable API is `node.k8s.io/v1`, with `handler` at the root of the object (no nested `spec`). `apps/v1` hosts Deployments/StatefulSets/DaemonSets — not RuntimeClass. The core `v1` group doesn't contain RuntimeClass either. The `v1beta1` shape with `spec.runtimeHandler` is the older schema and was replaced by the stable v1 layout.",
       "tags": [
         "runtime-class",
         "gvisor",
         "supply-chain",
         "cks"
       ],
-      "difficulty": "medium",
-      "_normalized": true
+      "difficulty": "medium"
     },
     {
       "id": "cks-032",
-      "question": "After labeling `prod` namespace with `pod-security.kubernetes.io/enforce: restricted`, existing Pods fail. You need to identify violations before enforcing. Which approach is least disruptive?",
+      "question": "You just labelled `prod` with `pod-security.kubernetes.io/enforce=restricted` and several existing deployments break. What is the least-disruptive way to identify every violation before enforcing?",
       "options": [
-        "Set `pod-security.kubernetes.io/enforce: privileged` to allow all Pods while you audit",
-        "Set `pod-security.kubernetes.io/audit: restricted` to log violations to the audit log without blocking Pods",
-        "Set `pod-security.kubernetes.io/enforce: baseline` as a stepping stone to `restricted`",
-        "Set `pod-security.kubernetes.io/enforce-version: latest` to use the latest standard without blocking"
+        "Change enforcement to `pod-security.kubernetes.io/enforce=privileged`",
+        "Set `pod-security.kubernetes.io/enforce-version=latest` to test the newest built-in version",
+        "Move to `pod-security.kubernetes.io/enforce=baseline` for now",
+        "Switch to `pod-security.kubernetes.io/audit=restricted` — violations are logged but no pod is rejected"
       ],
-      "correct": 1,
-      "explanation": "Using `audit` mode logs violations to the Kubernetes audit log without rejecting any Pods. This is the least disruptive first step — it lets you identify which workloads need changes before enforcing. After fixing violations, switch to `warn` to see real-time warnings in API responses, then finally `enforce`. Setting `privileged` defeats the purpose. `enforce-version` is a label variant that controls which version of the standard is used (e.g., `v1.29`), not the strictness. `enforce: baseline` may be a useful intermediate step but `audit` is non-blocking.",
+      "correct": 3,
+      "explanation": "`audit` is the non-blocking observability mode: violations are annotated on API objects and written to the audit log, no admission is rejected. Setting `enforce=privileged` disables the policy entirely — nothing is checked. `enforce=baseline` is a valid stepping stone but still rejects `baseline` violations, so it's not the least disruptive choice. `enforce-version` selects which Kubernetes version's rules to apply, not the enforcement mode.",
       "tags": [
         "pod-security-admission",
         "audit-mode",
         "microservice-vulnerabilities",
         "cks"
       ],
-      "difficulty": "medium",
-      "_normalized": true
+      "difficulty": "medium"
     },
     {
       "id": "cks-033",
-      "question": "An attacker obtained a Kubernetes Secret. The external token has been rotated but the old Secret object still exists. What is the complete remediation?",
+      "question": "A leaked Secret's external value has been rotated at the third-party provider. What completes the remediation inside Kubernetes?",
       "options": [
-        "Delete the old Secret and recreate it with the new value;.",
-        "Update the Secret's `immutable: true` field to prevent further modification or exposure",
-        "Use `kubectl patch secret <name> -p '{\"data\": null}'` to wipe the Secret data without deleting it",
-        "Update `metadata.resourceVersion` in the Secret spec to force Kubernetes to refresh the Secret"
+        "Delete the old Secret and recreate it with the new value; then `kubectl rollout restart` any Deployment that consumed it as environment variables",
+        "Set `immutable: true` on the existing Secret to prevent further tampering — the flag also invalidates the old token cached in running pods so they re-authenticate against the new value",
+        "`kubectl patch secret <name> --patch '{\"data\": null}'` to wipe the stored payload without deleting the object, so consumers keep their existing Secret reference and Kubernetes re-populates the payload from a backing store",
+        "Bump the Secret's `metadata.resourceVersion` field to force the kubelet's Secret watcher to fire an update event and re-sync all consumer pod mounts and env values"
       ],
       "correct": 0,
-      "explanation": "The correct remediation is: delete the old Secret, recreate it with the new value. For Pods using it as an environment variable, a rolling restart is required since env vars are baked in at Pod start. For volume-mounted Secrets, Kubernetes automatically refreshes them within the kubelet's sync period (default ~1 minute). `kubectl patch` with null data would corrupt the Secret. Setting `immutable: true` prevents future updates. `metadata.resourceVersion` is managed by Kubernetes and cannot be set manually. rollout-restart Deployments using it as env var (volume-mounted Secrets auto-refresh within the kubelet sync period)",
+      "explanation": "Recreating the object with the new value is the only way to change its data. Deployments that read the Secret via `env`/`envFrom` bake values in at pod start, so a rolling restart is required; volume-mounted Secrets get refreshed automatically by the kubelet, no restart needed. `immutable: true` only prevents future edits — it doesn't rotate the value. Patching `data: null` corrupts the object; readers get empty strings. `resourceVersion` is a server-managed optimistic-lock field; clients cannot set it manually.",
       "tags": [
         "secrets",
         "incident-response",
         "microservice-vulnerabilities",
         "cks"
       ],
-      "difficulty": "medium",
-      "_normalized": true,
-      "_lenbal": true
+      "difficulty": "medium"
     },
     {
       "id": "cks-034",
-      "question": "A cluster stores Kubernetes Secrets in etcd with default base64 encoding only. The security team wants secrets to be encrypted at rest in etcd using a KMS- or AES-CBC-backed provider configured through an EncryptionConfiguration. How is this enabled?",
+      "question": "How is at-rest encryption for Kubernetes Secrets in etcd enabled using the built-in mechanism?",
       "options": [
-        "Create an `EncryptionConfiguration` referencing `secrets` resources with a KMS provider or `aescbc`, pass `--encryption-provider-config=<file>`",
-        "Add the annotation `encryption: true` to each Secret manifest; the API server will encrypt those entries individually while leaving the rest base64-encoded",
-        "Set `etcd.dataEncryption: true` in the kubeadm ClusterConfiguration; etcd then performs application-layer encryption without API-server involvement",
-        "Enable `--allow-privileged=false` on kube-apiserver; this implicitly turns on encryption-at-rest for all resources stored in the cluster's etcd backend"
+        "Add the annotation `encryption: true` to each Secret manifest — kube-apiserver's built-in EncryptionAnnotationController honours the annotation and transparently AES-encrypts the entry before it reaches etcd",
+        "Write an `EncryptionConfiguration` listing the `secrets` resource with an `aescbc` or KMS provider, then start kube-apiserver with `--encryption-provider-config=<path>`",
+        "Set `etcd.dataEncryption: true` in the kubeadm `ClusterConfiguration` under `etcd.local` so etcd generates a data-key on init and encrypts its own on-disk pages before the API server sees them",
+        "Set `--allow-privileged=false` on kube-apiserver so the process runs in a hardened profile that implicitly enables the EncryptionAtRest feature gate for `secrets` and `configmaps`"
       ],
-      "correct": 0,
-      "explanation": "Encryption at rest requires an `EncryptionConfiguration` YAML file that specifies the encryption provider (e.g., `aescbc`, `secretbox`, or `aesgcm`) and the key, then pass `--encryption-provider-config=<path>` to the kube-apiserver. This only encrypts newly written Secrets — existing ones must be re-written: `kubectl get secrets -A -o json | kubectl replace -f -`. The `--encryption-provider-config` flag is for the kube-apiserver, not kubelet. There is no `SecretEncryption` feature gate or `--encrypt` flag. pass it to kube-apiserver with `--encryption-provider-config`",
+      "correct": 1,
+      "explanation": "The API server (not etcd itself) performs the encryption; you point it at an `EncryptionConfiguration` file with the desired provider (`aescbc`, `aesgcm`, `secretbox`, or `kms`). Newly written Secrets are encrypted; to encrypt pre-existing rows, rewrite them (`kubectl get secrets -A -o json | kubectl replace -f -`). The other three describe fields/flags that don't exist. Notably `--allow-privileged` controls whether pods can request privileged containers; it has no relationship to storage encryption.",
       "tags": [
         "secrets",
         "encryption-at-rest",
         "cks"
       ],
-      "difficulty": "medium",
-      "_normalized": true,
-      "rewritten": true
+      "difficulty": "medium"
     },
     {
       "id": "cks-035",
-      "question": "Your organization uses HashiCorp Vault. Which approach integrates Vault with Kubernetes Pods without storing the actual secret value in a Kubernetes Secret object?",
+      "question": "Your organisation runs HashiCorp Vault. Which integration pattern delivers secrets to pods WITHOUT creating a Kubernetes Secret object at all?",
       "options": [
-        "Use the Vault Agent Injector sidecar to dynamically deliver secrets to Pods without creating Kubernetes",
-        "Store secrets in a ConfigMap with Vault encryption annotations to prevent etcd exposure — requires Vault token injection rather than delivering secrets to Pods without storing them",
-        "Use the Vault CSI driver to mount Vault secrets as ephemeral volumes directly into Pods",
-        "Mount a Vault token as a Kubernetes Secret and use it in Pod env vars to fetch secrets at runtime"
+        "Mount a long-lived Vault token as a Kubernetes Secret and let the containerised app use that token to call Vault directly for each secret it needs at runtime",
+        "Store the Vault secret values in a ConfigMap annotated `vault.hashicorp.com/encrypt: true`, so the values sit in etcd envelope-encrypted with a Vault-managed key rather than in a Kubernetes Secret",
+        "The Vault Agent Injector — a mutating webhook adds a Vault Agent sidecar that authenticates with the pod's SA and writes secrets to a shared in-memory volume",
+        "Enable the built-in `secretRef.vault:` field on the pod spec so the kubelet resolves the reference against the cluster-registered Vault provider and writes the value directly into the container's environment"
       ],
-      "correct": 0,
-      "explanation": "The Vault Agent Injector uses a mutating admission webhook to inject a Vault Agent sidecar into Pods. The sidecar authenticates to Vault using the Pod's service account (via Kubernetes auth) and writes secrets to a shared in-memory volume. No Kubernetes Secret object is created. The Vault CSI driver (option B) also avoids creating Kubernetes Secrets and is another valid approach. Mounting a Vault token as a Kubernetes Secret still puts a sensitive value in Kubernetes. ConfigMaps don't support encryption annotations.",
+      "correct": 2,
+      "explanation": "The Injector's sidecar authenticates to Vault (Kubernetes auth method), fetches secrets, and writes them to a `tmpfs` volume shared with the app — the Kubernetes API never learns the value. (The Vault CSI provider works similarly and is also acceptable, but the sidecar pattern is the one described here.) Storing anything sensitive in a ConfigMap defeats the point; ConfigMaps have no encryption feature of their own. Mounting a static Vault token *does* create a Kubernetes Secret carrying that token — the requirement is not met. There is no in-tree `secretRef.vault` field.",
       "tags": [
         "vault",
         "secrets-management",
         "microservice-vulnerabilities",
         "cks"
       ],
-      "difficulty": "hard",
-      "_normalized": true
+      "difficulty": "hard"
     },
     {
       "id": "cks-036",
-      "question": "A developer asks why Kubernetes Secrets are not truly secure by default. What is the most accurate explanation?",
+      "question": "Why are Kubernetes Secrets not truly secure by default?",
       "options": [
-        "Secrets are transmitted in plaintext over HTTP between the kube-apiserver and etcd",
-        "Secrets are only base64-encoded (not encrypted) in etcd by default — base64 is trivially reversible",
-        "Secrets are encrypted with AES-256 in etcd but the encryption key is stored in the same etcd database",
-        "Secrets are readable by any Pod in the namespace since RBAC is not applied to Secret resources"
+        "Because RBAC rules on the built-in `secrets` resource are advisory in default kubeadm installs and any pod in the namespace can read them until a NetworkPolicy on the metadata endpoint is applied",
+        "Because Secret bodies travel from kube-apiserver to etcd over plain HTTP by default and can be sniffed by anyone with control-plane node access until mutual TLS is manually enabled",
+        "Because the AES-256 key that protects each Secret lives inside the same etcd database it protects, so anyone with etcd read access can unwrap the value with a single call",
+        "Because they are stored in etcd as base64-encoded blobs — base64 is an encoding, not encryption, and trivially reversible"
       ],
-      "correct": 1,
-      "explanation": "By default, Kubernetes stores Secrets in etcd as base64-encoded values — base64 is an encoding scheme, not encryption. Anyone with direct etcd access can `base64 -d` to retrieve the value. This is why encryption at rest (EncryptionConfiguration) and external secrets managers are recommended for production. The API server communicates with etcd over TLS (not HTTP). RBAC is enforced for Secrets. The concern is etcd at-rest storage, not AES key placement.",
+      "correct": 3,
+      "explanation": "Without an EncryptionConfiguration, Secrets are stored in etcd as base64 payloads that anyone with etcd disk or backup access can decode with a one-liner. RBAC absolutely applies to Secrets — that is one of the tighter default protections. Communication between kube-apiserver and etcd is TLS by default in kubeadm-installed clusters. There is no default AES-encrypted-with-key-in-etcd flow; the danger is precisely that there is no encryption at all until you opt in.",
       "tags": [
         "secrets",
         "etcd",
         "base64",
         "cks"
       ],
-      "difficulty": "easy",
-      "_normalized": true
+      "difficulty": "easy"
     },
     {
       "id": "cks-037",
-      "question": "You are building a Go binary container image. Which Dockerfile pattern produces the smallest, most secure final image?",
+      "question": "Which Dockerfile pattern yields the smallest, most secure image for a statically-linked Go binary?",
       "options": [
-        "Use `FROM golang:1.22-alpine` and run the binary directly since Alpine is minimal enough",
-        "Multi-stage build: compile in `golang:1.22` builder stage,.",
-        "Single `FROM ubuntu:22.04` stage with `RUN apt-get install golang && go build` in one layer",
-        "Single `FROM alpine:latest` with `RUN apk add go && go build && apk del go` to remove build tools"
+        "Multi-stage build: compile in `golang:1.22`, then copy the binary into `FROM scratch` (or `gcr.io/distroless/static`)",
+        "`FROM ubuntu:22.04` and `RUN apt-get update && apt-get install -y golang-go && go build -o /app` in a single layer, using `--no-install-recommends` to keep the image lean",
+        "`FROM alpine:latest` with `RUN apk add --no-cache go && go build -ldflags='-s -w' -o /app && apk del go && rm -rf /var/cache/apk/*` to strip the toolchain after building",
+        "`FROM golang:1.22-alpine`, `RUN go build -o /app` and set `CMD [\"/app\"]` — the alpine variant is the smallest official Go image so both compile and runtime share it"
       ],
-      "correct": 1,
-      "explanation": "Multi-stage builds produce minimal secure images: compile in a full build environment (`golang:1.22`), then copy only the compiled static binary to `FROM scratch` (no OS at all) or `FROM gcr.io/distroless/static` (minimal OS). The final image has no compiler, no shell, no package manager — drastically reducing the attack surface. Alpine with removing packages still leaves residual build artifacts and is not as minimal as distroless/scratch. `golang:1.22-alpine` includes the entire Go toolchain. copy only the binary to `FROM scratch` or `distroless/static`",
+      "correct": 0,
+      "explanation": "Copying just the binary into `scratch` or `distroless/static` leaves an image with no shell, no package manager, no OS utilities — nothing for an attacker with RCE to pivot with. Ubuntu-based single-stage images ship a full userland (hundreds of MB of attack surface). Alpine with `apk del` still leaves apk metadata, busybox, and shared libraries. `golang:1.22-alpine` bundles the whole Go toolchain into the runtime image — orders of magnitude larger and richer than `scratch`.",
       "tags": [
         "dockerfile",
         "multi-stage-build",
         "supply-chain",
         "cks"
       ],
-      "difficulty": "easy",
-      "_normalized": true,
-      "_lenbal": true
+      "difficulty": "easy"
     },
     {
       "id": "cks-038",
-      "question": "You want to statically analyze a Pod YAML manifest for security risks before applying it to the cluster. Which tool evaluates Kubernetes resource security and returns an advisory score?",
+      "question": "Which tool statically analyses a Kubernetes resource YAML for security risks and returns an advisory score?",
       "options": [
-        "`trivy fs --security-checks config pod.yaml` — scans the YAML file for CVEs in referenced images",
-        "`kube-score score pod.yaml` — checks YAML syntax and validates against the Kubernetes API schema",
-        "`hadolint pod.yaml` — lints the manifest for Docker security best practices",
-        "`kubesec scan pod.yaml` — evaluates Kubernetes Pod YAML for security risks with an advisory score"
+        "`hadolint <manifest.yaml>` — parses the referenced Dockerfile and lints for Docker best practices, warning on missing `USER` directives and unpinned image tags in the manifest",
+        "`kubesec scan` — scores a manifest against a fixed set of security rules (privileged, hostPath, missing securityContext, etc.)",
+        "`kube-score score <manifest.yaml>` — validates the manifest against the Kubernetes OpenAPI schema and reports schema warnings for missing required fields",
+        "`trivy fs --security-checks config <manifest.yaml>` — walks the filesystem containing the manifest and scans image references for CVEs, printing a severity-weighted findings list"
       ],
-      "correct": 3,
-      "explanation": "`kubesec` is specifically designed to scan Kubernetes resource YAML for security risks. It evaluates settings like privileged containers, hostPath volumes, capabilities, and missing securityContext fields — returning a score with risk advisories. `trivy fs` with config scanning checks IaC misconfigurations but uses different rules. `kube-score` focuses on Kubernetes best practices (liveness probes, resource limits) rather than a security advisory score. `hadolint` is a Dockerfile linter, not for Kubernetes YAML.",
+      "correct": 1,
+      "explanation": "`kubesec` is designed exactly for this: it reads a Pod/Deployment YAML and returns a numeric score plus advisories on privileged, hostPath, capabilities, `runAsNonRoot`, etc. `hadolint` targets Dockerfiles. `trivy fs --security-checks config` does IaC misconfig scans but uses a different rule engine and is not focused on a security *score*. `kube-score` mostly checks operational best practices (probes, resource requests) rather than security posture.",
       "tags": [
         "kubesec",
         "static-analysis",
         "supply-chain",
         "cks"
       ],
-      "difficulty": "medium",
-      "_normalized": true
+      "difficulty": "medium"
     },
     {
       "id": "cks-039",
-      "question": "Your team uses Sigstore Cosign to sign images. Which command verifies that `registry.example.com/myapp:v1.0` was signed with your key?",
+      "question": "Which Cosign subcommand verifies that a container image was signed with a specific public key?",
       "options": [
-        "`cosign check --signature cosign.sig registry.example.com/myapp:v1.0`",
+        "`cosign sign --key cosign.key registry.example.com/myapp:v1.0`",
         "`cosign attach signature --key cosign.pub registry.example.com/myapp:v1.0`",
         "`cosign verify --key cosign.pub registry.example.com/myapp:v1.0`",
-        "`cosign sign --key cosign.key registry.example.com/myapp:v1.0`"
+        "`cosign check --signature cosign.sig registry.example.com/myapp:v1.0`"
       ],
       "correct": 2,
-      "explanation": "`cosign verify --key cosign.pub <image>` verifies the image signature stored in the registry against the public key. The signature is stored as an OCI artifact in the registry alongside the image, written during `cosign sign`. `cosign sign` creates the signature (signing, not verifying). `cosign attach` attaches existing artifacts (SBOMs, signatures) — it doesn't verify. There is no `cosign check` subcommand.",
+      "explanation": "`cosign verify --key <pubkey> <image>` fetches the signature artefact stored alongside the image in the OCI registry and validates it against the public key, exiting non-zero on failure. `cosign sign` creates a signature — the opposite operation. `cosign attach` uploads pre-existing artefacts (SBOMs, signatures) but does no verification. `cosign check` does not exist as a subcommand.",
       "tags": [
         "cosign",
         "image-signing",
         "supply-chain",
         "cks"
       ],
-      "difficulty": "easy",
-      "_normalized": true
+      "difficulty": "easy"
     },
     {
       "id": "cks-040",
-      "question": "You want to prevent Pods from pulling images from registries other than `registry.example.com`. Which approach enforces this cluster-wide?",
+      "question": "You want to block pods that pull images from any registry other than `registry.example.com`. Which cluster-wide control fits?",
       "options": [
-        "Create an RBAC ClusterRole that denies `create` on Pods with images from other registries",
-        "Set `ALLOWED_REGISTRIES=registry.example.com` in the kube-apiserver environment variables",
-        "Configure `imagePullSecrets` in all namespaces pointing only to `registry.example.com`",
-        "Deploy OPA Gatekeeper with a ConstraintTemplate that checks container image prefixes against the allowed"
+        "Add `imagePullSecrets` in every namespace pointing only to `registry.example.com`",
+        "Add a ClusterRole that denies `create` on pods with foreign registry prefixes",
+        "Set an environment variable `ALLOWED_REGISTRIES=registry.example.com` on kube-apiserver",
+        "Deploy OPA Gatekeeper (or Kyverno) with a ConstraintTemplate that examines each container image prefix"
       ],
       "correct": 3,
-      "explanation": "OPA Gatekeeper (or Kyverno) with a ConstraintTemplate can enforce image registry policies by examining `input.review.object.spec.containers[_].image` during admission and denying any image that doesn't start with the approved registry prefix. There is no kube-apiserver env var for allowed registries. RBAC evaluates verb/resource combinations but cannot inspect Pod field values like image names. `imagePullSecrets` provides credentials for pulling from a registry but does not prevent pulling from other registries.",
+      "explanation": "A policy engine looking at `input.review.object.spec.containers[_].image` at admission time can reject any prefix that doesn't start with the allowed registry. `imagePullSecrets` provide credentials — a pod can still reference `docker.io/x/y` without them and the kubelet will attempt to pull anonymously. There is no such kube-apiserver env var. RBAC evaluates verb/resource combinations only; it cannot inspect a field value like `image`.",
       "tags": [
         "opa-gatekeeper",
         "registry-policy",
         "supply-chain",
         "cks"
       ],
-      "difficulty": "medium",
-      "_normalized": true
+      "difficulty": "medium"
     },
     {
       "id": "cks-041",
-      "question": "A platform team is choosing a base image for production Go services. They evaluate `gcr.io/distroless/static`, which contains a CA bundle, /etc/passwd, and the runtime libraries needed by their static binary — but NO shell, package manager, or general tools. What is the primary security advantage of using such a distroless base image?",
+      "question": "A platform team picks `gcr.io/distroless/static` as a base for Go services. What is the *primary* security advantage of a distroless base image?",
       "options": [
-        "Distroless images significantly reduce the attack surface",
-        "Distroless images automatically run as a non-root user without any uid configuration in the Pod spec, even on workloads that explicitly request root",
-        "Distroless images perform automatic CVE patching at runtime, eliminating the need for periodic image rebuilds in the team's CI/CD pipeline",
-        "Distroless images are signed by a Kubernetes signing authority at build time, so admission controllers do not need to verify their provenance"
+        "It ships with no shell, no package manager, and no debug tools — sharply narrowing what an attacker can do after gaining code execution",
+        "It automatically forces the container process to run as a non-root user by hard-coding a non-zero UID in the image, regardless of whether the pod spec sets `runAsUser`",
+        "It fetches and applies runtime CVE patches on its own via an embedded update client, so images never have to be rebuilt after a base-image CVE is disclosed",
+        "It is signed by the Kubernetes release team with the project's Sigstore key, so admission controllers can skip provenance and image-signature checks for the base layer"
       ],
       "correct": 0,
-      "explanation": "Distroless images strip everything except the application binary and its direct runtime dependencies. No bash, no sh, no curl, no apt, no package manager. This dramatically limits what an attacker can do if they gain code execution — no tooling for pivoting, exploring, or exfiltrating data. They don't automatically configure seccomp/AppArmor (those are Kubernetes controls). Some variants are signed but that's not their primary security benefit. Non-root execution depends on which distroless variant is used. no shell, no package manager, no debugging tools — minimizing the attack surface on compromise",
+      "explanation": "Distroless intentionally strips everything except the runtime dependencies — the attacker gets a functional binary and nothing else to pivot with. Some distroless variants (`static:nonroot`) do default to a non-root UID, but that is variant-specific and the pod spec still overrides. Distroless has no runtime patching mechanism; you rebuild and redeploy. Google-signed image provenance is a separate thing that admission controllers must still verify explicitly — the base image type does not exempt anything.",
       "tags": [
         "supply-chain",
         "distroless",
         "cks"
       ],
-      "difficulty": "easy",
-      "_normalized": true,
-      "rewritten": true
+      "difficulty": "easy"
     },
     {
       "id": "cks-042",
-      "question": "You write a Gatekeeper ConstraintTemplate to block images not from `registry.internal/`. Which Rego expression is correct for Gatekeeper?",
+      "question": "You author a Gatekeeper ConstraintTemplate that blocks images whose prefix is not `registry.internal/`. Which Rego shape matches Gatekeeper's contract?",
       "options": [
-        "`deny[msg] { not startswith(input.review.object.spec.containers[_].image, \"registry.internal/\") }`",
-        "`block[msg] { image := input.spec.containers[_].image; contains(image, \"registry.internal\") == false }`",
-        "`deny { spec := input.review.object.spec; every c in spec.containers { not startswith(c.image, \"registry.internal/\") } }`",
-        "`violation[{\"msg\": msg}] { container := input.review.object.spec.containers[_]; not startswith(container.image."
+        "`deny[msg] { not startswith(input.review.object.spec.containers[_].image, \"registry.internal/\"); msg := \"image not allowed\" }`",
+        "`violation[{\"msg\": msg}] { c := input.review.object.spec.containers[_]; not startswith(c.image, \"registry.internal/\"); msg := sprintf(\"image %v not allowed\", [c.image]) }`",
+        "`deny { every c in input.review.object.spec.containers { not startswith(c.image, \"registry.internal/\") }; msg := \"all containers must come from registry.internal\" }`",
+        "`block[msg] { image := input.spec.containers[_].image; not contains(image, \"registry.internal\"); msg := sprintf(\"blocked image %v\", [image]) }`"
       ],
-      "correct": 3,
-      "explanation": "Gatekeeper ConstraintTemplates use `violation[{\"msg\": msg}]` (not `deny` or `block`). The input path is `input.review.object.spec.containers`. Each violation must produce an object with a `msg` key. `startswith` checks the string prefix. Option A uses `deny` which is not Gatekeeper syntax. Option C uses `block` (invalid) and `input.spec` (wrong path — missing `review.object`). Option D uses `deny` and OPA's `every` keyword, which is not used in Gatekeeper's violation pattern. \"registry.internal/\"); msg := sprintf(\"image %v not allowed\", [container.image]) }`",
+      "correct": 1,
+      "explanation": "Gatekeeper reads `violation[{\"msg\": msg}]` rules — that fixed name and shape are part of its contract. Neither `deny` nor `block` is a Gatekeeper rule head. Rules that reference `input.spec.containers` also use the wrong input path (Gatekeeper wraps admission review data under `input.review.object`). A `deny` rule with an `every` block cannot emit a per-violation `msg`, so even if `deny` were valid it would not attach the required message field.",
       "tags": [
         "opa-gatekeeper",
         "rego",
         "admission-control",
         "cks"
       ],
-      "difficulty": "hard",
-      "_normalized": true
+      "difficulty": "hard"
     },
     {
       "id": "cks-043",
-      "question": "You deploy a mutating admission webhook that injects sidecars into Pods. The webhook becomes temporarily unreachable. How do you prevent this from breaking Pod creation cluster-wide?",
+      "question": "A mutating admission webhook that injects sidecars goes temporarily unreachable. Which single setting on the `MutatingWebhookConfiguration` prevents that outage from taking down cluster-wide pod creation?",
       "options": [
-        "Set `failurePolicy: Fail` in the MutatingWebhookConfiguration to immediately surface the outage in alerts — a stricter failurePolicy would block Pod creation requests",
-        "Set `namespaceSelector` to limit webhook scope so it doesn't apply to all namespaces",
-        "Set `failurePolicy: Ignore` so webhook failures don't block Pod creation",
-        "Delete the MutatingWebhookConfiguration and rely on the webhook's own error handling to recover"
+        "`failurePolicy: Fail`",
+        "`namespaceSelector: {matchLabels: {sidecar-injection: enabled}}`",
+        "`failurePolicy: Ignore`",
+        "Delete the `MutatingWebhookConfiguration` and rely on the webhook's own health-check recovery"
       ],
       "correct": 2,
-      "explanation": "`failurePolicy: Ignore` means if the webhook is unreachable or times out, the admission request is allowed to proceed without mutation. This prevents an outage in the webhook from cascading into a cluster-wide inability to create Pods. `failurePolicy: Fail` causes all Pod creations to fail when the webhook is down — dangerous for production workloads. `namespaceSelector` reduces scope but doesn't solve availability. Deleting the webhook removes the sidecar injection functionality entirely.",
+      "explanation": "`Ignore` tells the API server to admit the request without mutation if the webhook cannot be reached — pods still get created (just without the sidecar). `Fail` (the default) blocks admission on webhook errors, which is exactly the failure mode the question wants to avoid. A `namespaceSelector` narrows *which* pods hit the webhook, but any namespace that still targets it will still be blocked. Deleting the configuration removes the sidecar entirely and is not a resilience strategy.",
       "tags": [
         "admission-webhooks",
         "failurepolicy",
         "supply-chain",
         "cks"
       ],
-      "difficulty": "medium",
-      "_normalized": true
+      "difficulty": "medium"
     },
     {
       "id": "cks-044",
-      "question": "You want to scan all running container images in the Kubernetes cluster for HIGH and CRITICAL CVEs. Which Trivy command does this?",
+      "question": "You need to scan every running container image in the cluster for HIGH and CRITICAL CVEs with a single Trivy command. Which command works?",
       "options": [
         "`trivy image --scan-all-nodes --severity HIGH,CRITICAL`",
-        "`trivy k8s --severity HIGH,CRITICAL --report all cluster`",
+        "`trivy cluster --severity HIGH,CRITICAL --output report.html`",
         "`trivy kubernetes --namespace all --severity HIGH,CRITICAL pods`",
-        "`trivy cluster --severity HIGH,CRITICAL --output report.html`"
+        "`trivy k8s --severity HIGH,CRITICAL --report all cluster`"
       ],
-      "correct": 1,
-      "explanation": "`trivy k8s` is the subcommand for scanning Kubernetes clusters. The `--report all` flag outputs all findings, and `cluster` scans the entire cluster. The full command `trivy k8s --severity HIGH,CRITICAL --report all cluster` scans all running images. `--scan-all-nodes` is not a valid flag. `trivy kubernetes` is not a valid subcommand (use `trivy k8s`). `trivy cluster` does not exist.",
+      "correct": 3,
+      "explanation": "`trivy k8s cluster` is the cluster-mode scanner. `--report all` prints the full per-workload finding list, and `--severity HIGH,CRITICAL` filters. `trivy image --scan-all-nodes` is fabricated — `trivy image` targets a single image reference. `trivy kubernetes` is not a valid subcommand (the short form `k8s` is used). `trivy cluster` also isn't a subcommand.",
       "tags": [
         "trivy",
         "cluster-scanning",
         "supply-chain",
         "cks"
       ],
-      "difficulty": "medium",
-      "_normalized": true
+      "difficulty": "medium"
     },
     {
       "id": "cks-045",
-      "question": "During a security audit, you must produce a Software Bill of Materials (SBOM) for `nginx:1.25` in CycloneDX format. Which Trivy command achieves this?",
+      "question": "How do you generate a CycloneDX SBOM for `nginx:1.25` with Trivy?",
       "options": [
         "`trivy image --format cyclonedx nginx:1.25`",
         "`trivy image nginx:1.25 --sbom cyclonedx --output sbom.json`",
         "`trivy scan --sbom --format cyclonedx --target nginx:1.25`",
-        "`trivy sbom generate --image nginx:1.25 --output cyclonedx`"
+        "`trivy sbom generate --image nginx:1.25 --format cyclonedx`"
       ],
       "correct": 0,
-      "explanation": "`trivy image --format cyclonedx <image>` generates a CycloneDX-format SBOM for the container image. Trivy supports multiple SBOM formats: `cyclonedx`, `spdx`, `spdx-json`, and `github`. There is no `trivy sbom generate` subcommand — use `trivy image` with the format flag. `--sbom` is not a valid Trivy flag. `trivy scan` is not a valid subcommand in modern Trivy versions.",
+      "explanation": "`trivy image --format cyclonedx <image>` produces the CycloneDX document (supported formats also include `spdx-json`, `github`, etc.). `--sbom` is not a Trivy flag. `trivy scan` and `trivy sbom generate` are not real subcommands in current Trivy.",
       "tags": [
         "trivy",
         "sbom",
         "supply-chain",
         "cks"
       ],
-      "difficulty": "medium",
-      "_normalized": true
+      "difficulty": "medium"
     },
     {
       "id": "cks-046",
-      "question": "A Deployment needs to pull from a private registry requiring authentication. How do you configure this securely without hardcoding credentials in the Deployment spec?",
+      "question": "A Deployment must pull from a private registry. Which pattern authenticates the pull without embedding credentials in the Deployment YAML?",
       "options": [
-        "Mount Docker credentials as a ConfigMap at `/etc/docker/registry.json` in each container",
-        "Create a Secret of type `kubernetes.io/dockerconfigjson` and reference it in `spec.imagePullSecrets` in the Pod spec",
-        "Add registry credentials to `/root/.docker/config.json` on all worker nodes and they will be auto-detected by kubelet",
-        "Set env vars `REGISTRY_USER` and `REGISTRY_PASSWORD` in the container spec — kubelet reads these for image pulls"
+        "Add env vars `REGISTRY_USER` and `REGISTRY_PASSWORD` to the container — kubelet reads them for the pull",
+        "Create a Secret of type `kubernetes.io/dockerconfigjson` and reference it via `spec.imagePullSecrets`",
+        "Mount a ConfigMap containing `config.json` at `/etc/docker/` inside each container",
+        "Drop credentials into `/root/.docker/config.json` on every worker node and let kubelet auto-detect"
       ],
       "correct": 1,
-      "explanation": "Create a Secret of type `kubernetes.io/dockerconfigjson` with the registry credentials, then reference it in `spec.imagePullSecrets` in the Pod spec (or on the namespace's ServiceAccount for automatic application). Configuring credentials on nodes is node-specific and not portable or scalable. Env vars are not read by the kubelet for image pulls. ConfigMaps are not the right resource type for credentials and are not encrypted.",
+      "explanation": "That Secret type stores a `.dockerconfigjson` payload and `imagePullSecrets` on the pod (or the SA) points to it — kubelet uses it to authenticate the pull. Container-side env vars are inside the container's process — kubelet, which does the pull, never sees them. A ConfigMap mounted in the container is likewise inaccessible to kubelet's image-pull path. Node-local `/root/.docker/config.json` does work with some kubelets but is node-specific, unversioned, and hard to rotate — the Kubernetes-native pattern is `imagePullSecrets`.",
       "tags": [
         "image-pull-secrets",
         "registry",
         "supply-chain",
         "cks"
       ],
-      "difficulty": "easy",
-      "_normalized": true
+      "difficulty": "easy"
     },
     {
       "id": "cks-047",
-      "question": "You integrate vulnerability scanning into your CI pipeline. At which stage should scanning occur for maximum security impact?",
+      "question": "Where in a delivery pipeline should container image scanning happen to catch vulnerabilities as early as possible?",
       "options": [
-        "At deploy time — use an admission webhook to scan images during Pod admission",
-        "After pushing to the registry — scan the pushed tag via a webhook triggered by the registry push event",
-        "Before pushing to the registry.",
-        "After deploying to production — scan running Pods with `trivy k8s` to catch runtime CVEs"
+        "At admission time — use a validating admission webhook that scans the image and rejects the pod's create request if HIGH/CRITICAL CVEs are present in the layer inventory",
+        "Immediately after pushing — configure the registry to trigger a scan on the `image-push` webhook and quarantine the tag if HIGH/CRITICAL CVEs are found",
+        "Before pushing to the registry — scan the locally built image and fail the build if HIGH/CRITICAL CVEs are found",
+        "Continuously at runtime — schedule a CronJob that runs `trivy k8s cluster` on every namespace hourly and posts findings to the ticketing system"
       ],
       "correct": 2,
-      "explanation": "The earliest intervention point for maximum security is scanning in CI before pushing to the registry. This prevents vulnerable images from ever entering the supply chain. Post-push scanning (option B) is better than post-deploy but still allows the image into the registry. Runtime scanning (option A) is reactive and has high latency. Admission webhook scanning (option D) is a defense-in-depth layer but catches issues very late — use it in addition to, not instead of, CI scanning. scan the locally built image in CI and fail the build before it can be pushed",
+      "explanation": "Shift-left: the earliest safe point is CI, right after build and before push. A vulnerable image never enters the registry, never reaches admission, never runs. Post-push scanning still allows the image to sit in the registry and be pulled while the scan is queued. Admission-time scanning is a valuable last line of defence but reacts very late. Continuous runtime scanning is a monitoring pattern — vulnerabilities are already running by the time it flags them.",
       "tags": [
         "ci-pipeline",
         "image-scanning",
         "supply-chain",
         "cks"
       ],
-      "difficulty": "medium",
-      "_normalized": true,
-      "_lenbal": true
+      "difficulty": "medium"
     },
     {
       "id": "cks-048",
-      "question": "You configure an `ImagePolicyWebhook` with `defaultAllow: false`. The webhook server goes down. What happens to new Pod creation requests?",
+      "question": "You configure an `ImagePolicyWebhook` with `defaultAllow: false`. The external webhook server goes down. What happens to new pod admission requests?",
       "options": [
-        "Kubernetes falls back to allowing all images since the webhook is unavailable (fail-open)",
-        "All new Pod creation requests are denied until the webhook server becomes available again (fail-closed)",
-        "Only Pods in `kube-system` are allowed through; Pods in other namespaces are blocked",
-        "The API server caches the last webhook result and uses it until the server recovers"
+        "The API server caches the last decision and continues to admit or reject as before",
+        "Only pods in `kube-system` are allowed through; everything else is blocked",
+        "Kubernetes falls back to allowing every image (fail-open)",
+        "All pod admission requests are denied until the webhook is available again (fail-closed)"
       ],
-      "correct": 1,
-      "explanation": "`defaultAllow: false` implements fail-closed behavior: if the ImagePolicyWebhook server is unreachable, the admission request is denied. This is the secure default for security enforcement — you don't want unscanned images to bypass the policy when the scanner is unavailable. `defaultAllow: true` would fail-open, allowing all images during an outage. There is no caching behavior or namespace-based fallback in the ImagePolicyWebhook.",
+      "correct": 3,
+      "explanation": "`defaultAllow: false` is the fail-closed mode: no reachable scanner means no admissions. The opposite value, `defaultAllow: true`, would fail open and admit everything during an outage — the insecure choice for a policy control. The ImagePolicyWebhook has no built-in result cache and no namespace-based fallback.",
       "tags": [
         "imagepolicywebhook",
         "admission-control",
         "supply-chain",
         "cks"
       ],
-      "difficulty": "medium",
-      "_normalized": true
+      "difficulty": "medium"
     },
     {
       "id": "cks-049",
-      "question": "You want a Falco rule to alert when a process inside any container reads `/etc/shadow`. Which rule condition is correct?",
+      "question": "Which Falco condition alerts whenever any process inside a container reads `/etc/shadow`?",
       "options": [
-        "`syscall.type=read and file.path=/etc/shadow and kubernetes.namespace != \"\"`",
-        "`read_file and container and filename contains \"/etc/shadow\" and evt.args contains \"shadow\"`",
         "`open_read and container and fd.name=/etc/shadow`",
+        "`syscall.type=read and file.path=/etc/shadow and kubernetes.namespace != \"\"`",
+        "`read_file and container and filename contains \"/etc/shadow\"`",
         "`evt.type=openat and container.id != \"\" and path.file=\"/etc/shadow\"`"
       ],
-      "correct": 2,
-      "explanation": "`open_read` is a Falco macro matching file-open events for reading. `container` is the Falco macro that restricts events to container context. `fd.name` is the file descriptor name (full path). This combination correctly fires when any container reads `/etc/shadow`. Option B uses non-existent Falco fields (`syscall.type`, `file.path`, `kubernetes.namespace`). Option C uses `path.file` (invalid; should be `fd.name`). Option D uses `read_file` and `filename` which are not standard Falco macros or fields.",
+      "correct": 0,
+      "explanation": "The `open_read` macro matches read-mode file opens; the `container` macro scopes to container context; `fd.name` is the full file path field. Together they express the intent cleanly. Options A/C/D reference fields and macros Falco doesn't have — `file.path`, `read_file`, `filename`, `path.file`, and `kubernetes.namespace` are not part of Falco's field/macro set (the closest real ones are `fd.name` and `k8s.ns.name`).",
       "tags": [
         "falco",
         "runtime-security",
         "monitoring",
         "cks"
       ],
-      "difficulty": "hard",
-      "_normalized": true
+      "difficulty": "hard"
     },
     {
       "id": "cks-050",
-      "question": "Your audit policy generates too many low-value events. How do you suppress `get`, `list`, and `watch` requests for ConfigMaps?",
+      "question": "Your audit log is drowning in ConfigMap `get`/`list`/`watch` noise. How do you suppress just those events?",
       "options": [
-        "Set the `configmaps` API group to `Ignore` in the audit backend webhook configuration",
-        "Add `level: None; verbs: [\"get\",\"list\",\"watch\"]; resources: [{group: \"\", resources: [\"configmaps\"]}]` at the END of the audit policy",
-        "Add `level: None; verbs: [\"get\",\"list\",\"watch\"];.",
-        "Set `omitStages: [\"RequestReceived\"]` globally in the audit policy to skip pre-response logging"
+        "Set the `configmaps` API group to `Ignore` in the audit-backend webhook config so the audit webhook silently drops those events before they reach the backend",
+        "Prepend a rule `level: None; verbs: [\"get\",\"list\",\"watch\"]; resources: [{group: \"\", resources: [\"configmaps\"]}]` BEFORE any broader-scope rules in the audit policy",
+        "Add `omitStages: [\"RequestReceived\"]` globally to the audit policy so ConfigMap get/list/watch events are dropped at the pre-response stage and never persisted",
+        "Append the same `level: None` rule at the END of the audit policy so, as the last-declared rule, it acts as a final override on any earlier match for ConfigMap reads"
       ],
-      "correct": 2,
-      "explanation": "Kubernetes audit policies are evaluated top-to-bottom, first match wins. To suppress ConfigMap read events, the `level: None` rule MUST be placed BEFORE any broader rules (e.g., `level: Metadata` for all resources), or the broader rule will match first and the None rule will never fire. If placed at the end, it has no effect. `omitStages: [RequestReceived]` only omits that one stage; the response stage is still logged. Audit backends don't have per-resource ignore settings. resources: [{group: \"\", resources: [\"configmaps\"]}]` BEFORE any broader-scope rules",
+      "correct": 1,
+      "explanation": "Audit policy rules are first-match-wins, top-to-bottom. Place the `None` rule for ConfigMap reads at the top so it matches before any wider `Metadata`/`RequestResponse` rule catches those events. Appending it at the end never takes effect — earlier rules already matched. `omitStages: RequestReceived` only drops that one stage of an event; the completion stage is still emitted. Audit backends don't have per-resource ignore settings.",
       "tags": [
         "audit-policy",
         "audit-logs",
         "monitoring",
         "cks"
       ],
-      "difficulty": "hard",
-      "_normalized": true,
-      "_lenbal": true
+      "difficulty": "hard"
     },
     {
       "id": "cks-051",
-      "question": "A team enforcing immutable container infrastructure wants three properties combined: container filesystems must not be writable at runtime, application code never lands inside running containers, and rollouts replace pods rather than mutate them. Which combination best aligns with the immutable-infrastructure model?",
+      "question": "Which combination best implements the immutable-infrastructure model for a Kubernetes workload?",
       "options": [
-        "Set `readOnlyRootFilesystem: true`, bake all code + dependencies into the image at build time, and roll out new versions by replacing pods (rolling/canary) rather than execing into them",
-        "Allow writable root filesystems but mount /var/log read-only, push code via `kubectl cp` into running pods, and restart containers rather than recreating pods",
-        "Disable image registries entirely and let nodes pull source code from Git on every startup, building binaries on-demand inside the container before serving traffic",
-        "Mount /opt as a hostPath read-write so operators can patch binaries quickly on production hosts during incident response, with no image rebuild"
+        "Allow writable root filesystems but keep `/var/log` read-only, push new code with `kubectl cp` into running pods, and restart containers rather than replacing them",
+        "Disable all image registries and have each node clone the repo and rebuild the binary at pod startup",
+        "Set `readOnlyRootFilesystem: true`, bake all code and dependencies into the image at build time, and roll out new versions by replacing pods (rolling or canary)",
+        "Mount `/opt` as a hostPath read-write so operators can patch binaries directly on hosts during incidents"
       ],
-      "correct": 0,
-      "explanation": "`readOnlyRootFilesystem: true` makes the container root filesystem read-only at the OS level — any write attempt returns an error. Applications requiring writable directories (temp files, logs, cache) should mount `emptyDir` volumes for those specific paths. `imagePullPolicy: Always` ensures fresh images on each restart but doesn't prevent filesystem changes at runtime. `lifecycle` hooks run inside the container and can't reliably lock the filesystem. `terminationGracePeriodSeconds: 0` is about pod termination speed, not immutability.",
+      "correct": 2,
+      "explanation": "Immutable infrastructure means the runtime artefact is not mutated in place — the image is the unit of change, root FS is read-only, and deploys replace pods rather than editing them. Copying files into a running container is the definition of a mutable-runtime approach. Building at pod startup violates immutability and reproducibility (and drags in a network of build-time risks). hostPath patching bypasses image-based delivery entirely.",
       "tags": [
         "immutable",
         "design",
         "cks"
       ],
-      "difficulty": "easy",
-      "_normalized": true,
-      "rewritten": true
+      "difficulty": "easy"
     },
     {
       "id": "cks-052",
-      "question": "A team runs Falco as a runtime threat detector in their cluster. They want every alert pushed to Slack in real time without writing custom code. Which configuration achieves this?",
+      "question": "You run Falco as a DaemonSet and want alerts pushed to Slack in real time without writing any code. What is the standard mechanism?",
       "options": [
-        "Run Falcosidekick (or a similar Falco output forwarder) alongside Falco, configure its Slack webhook URL, and route Falco alerts to it via `program_output` or HTTP output",
-        "Configure Falco's `outputs.rate` to 0 and rely on Kubernetes events; the Kubernetes event stream propagates Falco rules into Slack automatically",
-        "Patch Falco's source to embed the Slack webhook directly; this is the only supported way to integrate Falco with Slack in a production cluster",
-        "Disable Falco's syscall driver and instead schedule a CronJob that re-runs Falco rules against historical logs every hour, posting summaries to Slack"
+        "Disable the syscall driver and schedule a CronJob that re-runs Falco offline against historical logs, posting summaries to Slack",
+        "Patch Falco to embed a Slack webhook URL in its main source",
+        "Set `outputs.rate: 0` and rely on Kubernetes events; the K8s event stream propagates to Slack automatically",
+        "Run Falcosidekick alongside Falco and configure its Slack webhook output; Falco streams events to Falcosidekick over HTTP or gRPC"
       ],
-      "correct": 0,
-      "explanation": "`falcosidekick` is the standard solution for routing Falco alerts to external services (Slack, PagerDuty, Teams, Elasticsearch, etc.). It receives Falco events via HTTP or gRPC and forwards them. There is no built-in Slack output in Falco itself. `json_output: true` writes JSON to stdout/file but doesn't push to Slack. There is no `--output slack_webhook_url` CLI flag. Slack URLs are not configured inside rule definitions.",
+      "correct": 3,
+      "explanation": "Falcosidekick is the community-standard fan-out for Falco events — Slack, Teams, PagerDuty, Elasticsearch, S3, and many others via config. Falco itself has no built-in Slack output — patching is an anti-pattern and unnecessary. Kubernetes events do not propagate to Slack on their own. Falco's power is its live syscall driver; running it offline against logs would miss the entire runtime signal.",
       "tags": [
         "runtime",
         "falco-slack",
         "cks"
       ],
-      "difficulty": "easy",
-      "_normalized": true,
-      "rewritten": true
+      "difficulty": "easy"
     },
     {
       "id": "cks-053",
-      "question": "You want to stream Kubernetes audit logs to an external SIEM in near-real time. Which audit backend achieves this?",
+      "question": "You want to stream Kubernetes audit events to an external SIEM in near real time. Which built-in audit backend fits?",
       "options": [
-        "Dynamic backend (`--audit-dynamic-configuration`) — allows runtime configuration of audit sinks",
-        "Kafka backend (`--audit-kafka-config`) — streams audit events directly to a Kafka topic",
-        "Webhook backend (`--audit-webhook-config-file`).",
-        "Log backend (`--audit-log-path`) — writes audit events to a file that a SIEM log shipper agent tails"
+        "The webhook backend — kube-apiserver POSTs audit events to an HTTP endpoint you configure with `--audit-webhook-config-file`",
+        "The dynamic backend, enabled with `--audit-dynamic-configuration=true` — an AuditSink CR then routes events to any HTTP endpoint that can serve as a SIEM receiver",
+        "The Kafka backend, enabled with `--audit-kafka-config=/etc/kubernetes/audit-kafka.yaml` — kube-apiserver publishes each event straight to the configured Kafka topic",
+        "The log backend (`--audit-log-path=/var/log/audit.log`) — kube-apiserver writes JSON events to the file and a node-local shipper such as Fluent Bit tails it to the SIEM"
       ],
-      "correct": 2,
-      "explanation": "The webhook audit backend (`--audit-webhook-config-file`) sends audit events to an external HTTP endpoint in near-real time via POST requests. This can point to a SIEM ingestion endpoint or a log forwarder. The log backend writes to files (suitable for local collection agents but with more latency). The dynamic audit configuration was deprecated and removed in Kubernetes 1.27. There is no native Kafka audit backend in Kubernetes. POSTs audit events to an external HTTP endpoint in near-real time",
+      "correct": 0,
+      "explanation": "The webhook backend is the near-real-time option: batched POSTs of audit events to your SIEM's collector or a forwarder. The dynamic audit config was removed in Kubernetes 1.27. There is no in-tree Kafka backend for audit — Kafka integration is external (e.g., through the webhook backend feeding a Kafka producer). The log backend works but is file-based and pulls latency through whatever tails it; the webhook is the more direct streaming path.",
       "tags": [
         "audit-logs",
         "webhook",
         "monitoring",
         "cks"
       ],
-      "difficulty": "medium",
-      "_normalized": true,
-      "_lenbal": true
+      "difficulty": "medium"
     },
     {
       "id": "cks-054",
-      "question": "A SOC analyst writes a Falco rule that should fire whenever an attacker drops into an interactive shell inside a running container (`docker exec` / `kubectl exec` followed by /bin/bash). Which Falco condition expression best detects this behaviour?",
+      "question": "Which Falco condition best detects an interactive shell being spawned inside a container, e.g. after `kubectl exec … -- bash`?",
       "options": [
-        "`spawned_process and container and proc.name in (bash, sh, zsh, ksh, dash) and proc.tty != 0`",
-        "`evt.type = open and fd.name startswith /etc/passwd` — detects passwd-file reads but not shell spawns; wrong syscall family for the use case",
-        "`container.image.repository contains alpine` — matches by image name only, with no behavioural component; will fire on every alpine workload start",
-        "`k8s.ns.name = kube-system and proc.name = kubelet` — matches normal kubelet activity in kube-system, an expected baseline behaviour rather than an exec event"
+        "`evt.type = open and fd.name startswith /etc/passwd and container.id != \"\"` — matches reads of `/etc/passwd` inside a container, which is a technique used by shell probes to enumerate users",
+        "`spawned_process and container and proc.name in (bash, sh, zsh, ksh, dash) and not proc.pname in (runc, containerd)`",
+        "`container.image.repository contains alpine and spawned_process` — flags any process spawned inside an alpine-based container, where alpine's minimal base image is the common shell playground",
+        "`k8s.ns.name = kube-system and proc.name = kubelet and evt.type = execve` — narrows the alert to kubelet-triggered process launches inside the control-plane namespace"
       ],
-      "correct": 0,
-      "explanation": "The standard Falco condition for detecting shell spawning uses `spawned_process` (macro for execve events), `container` (macro scoping to container context), `proc.name in (sh, bash, zsh, dash)` to match known shells, and excludes container runtime parents to reduce false positives from the container lifecycle. `fd.name endswith \"/bin/sh\"` checks a file descriptor path, not the spawned process name. `proc.cmdline` can work but is less reliable. `shell_spawn` is not a standard Falco macro. bash, zsh, dash) and not proc.pname in (runc, containerd)`",
+      "correct": 1,
+      "explanation": "`spawned_process` catches `execve`; the `container` macro scopes to container context; the process-name list matches common shells, and the negative parent-name filter reduces false positives from the container runtime's own startup shell. Rules that watch `evt.type=open` on `/etc/passwd` monitor file reads — a different technique that misses the exec itself. Filtering by `container.image.repository` alone fires on every workload start, generating pure noise with no behavioural signal. Matching `kubelet` inside `kube-system` alerts on expected kubelet activity, not on shell spawns.",
       "tags": [
         "runtime",
         "falco-rules",
         "cks"
       ],
-      "difficulty": "hard",
-      "_normalized": true,
-      "rewritten": true
+      "difficulty": "hard"
     },
     {
       "id": "cks-055",
-      "question": "A security incident requires identifying which user deleted a Secret in the `prod` namespace. Which audit log fields provide this information?",
+      "question": "After a Secret in the `prod` namespace was deleted maliciously, which audit-log fields let you attribute the action to a specific user and object?",
       "options": [
-        "`user.username`, `verb`, `objectRef.namespace`.",
-        "`annotations.authorization.k8s.io/reason`, `userAgent`, and `responseStatus.code`",
         "`event.source.component`, `event.requestURI`, and `event.verb`",
+        "`annotations.authorization.k8s.io/reason`, `userAgent`, and `responseStatus.code`",
+        "`user.username`, `verb`, `objectRef.namespace`, `objectRef.resource`, `objectRef.name`",
         "`auditID`, `sourceIPs`, and `requestReceivedTimestamp`"
       ],
-      "correct": 0,
-      "explanation": "The audit log fields identifying actor and action are: `user.username` (who), `verb` (what — `delete`), `objectRef.namespace` (where — `prod`), `objectRef.resource` (type — `secrets`), and `objectRef.name` (which specific Secret). `event.source.component` is not a real audit log field. `auditID` is a correlation identifier. `annotations.authorization.k8s.io/reason` explains the authorization decision but doesn't identify the specific actor and target. `objectRef.resource`, and `objectRef.name`",
+      "correct": 2,
+      "explanation": "Together these fields identify *who* did *what* to *which* object *where*. The authorization-reason annotation only explains why the decision was allowed/denied. `userAgent` and `responseStatus.code` describe the client and the HTTP status, not the actor identity. `auditID`, `sourceIPs`, `requestReceivedTimestamp` are useful correlation metadata but don't name the user or the deleted Secret.",
       "tags": [
         "audit-logs",
         "incident-response",
         "monitoring",
         "cks"
       ],
-      "difficulty": "medium",
-      "_normalized": true
+      "difficulty": "medium"
     },
     {
       "id": "cks-056",
-      "question": "During incident response on a compromised microservice, the IR lead replaces the running pod with a freshly pulled image rather than execing in to clean up. The team's images are immutable — no in-place writes, no package manager, no shell. What is the key runtime-security advantage of immutability for incident response?",
+      "question": "During incident response the SRE lead replaces a compromised pod with a freshly pulled image rather than exec-ing in to clean it. Their images are truly immutable (read-only rootfs, no shell, no package manager). What is the key runtime-security benefit of that immutability for IR?",
       "options": [
-        "Pods can be recovered to a known-good state by simply replacing them with the original image",
-        "Immutability prevents the network policies attached to the pod from being modified by an attacker; otherwise NetworkPolicy objects could be edited from inside the pod — the original container image is not used to recover pods to a known-good state",
-        "Immutable containers automatically expire and self-restart every 24 hours, so attackers can never maintain persistence beyond a single day",
-        "Immutability makes the kernel itself read-only, so even kernel-level rootkits cannot operate against a worker node hosting an immutable container"
+        "Immutability prevents in-pod attackers from mutating cluster resources such as NetworkPolicy objects, since the container's SA has no write access and the root FS blocks kubectl download",
+        "Immutable containers self-restart every 24 h via a built-in lifecycle timer so any attacker foothold in memory is wiped daily without operator intervention",
+        "Immutability makes the host kernel image itself read-only via a runtime hook, blocking kernel-module rootkits on the node the compromised container is scheduled on",
+        "Any observed filesystem write on the container is definitionally attacker behaviour, which sharpens detection and eliminates most false positives"
       ],
-      "correct": 0,
-      "explanation": "The key advantage of `readOnlyRootFilesystem: true` for incident response is signal clarity: normal application behavior cannot modify the filesystem, so any detected write or modification is definitively attacker activity. This eliminates false positives from legitimate app behavior. Traditional mutable containers make forensics harder because you can't distinguish attacker writes from normal application writes. Immutable containers don't have special pause/resume capabilities, don't automatically hash filesystems, and are not implemented at the CPU level.",
+      "correct": 3,
+      "explanation": "With `readOnlyRootFilesystem: true` and no in-place install paths, the app can't legitimately modify its own root FS — so any write event surfaced by Falco/eBPF is a real signal, not application noise. NetworkPolicy is a cluster-side API object; nothing about pod immutability protects it (RBAC does). Immutable containers don't auto-restart on a fixed schedule. Container immutability is a userland construct — it doesn't change kernel writability on the node.",
       "tags": [
         "immutable",
         "incident-response",
         "cks"
       ],
-      "difficulty": "medium",
-      "_normalized": true,
-      "rewritten": true
+      "difficulty": "medium"
     },
     {
       "id": "cks-057",
-      "question": "Forensic logs show attackers reading `/proc/1/environ` inside containers, extracting environment variables (including a database URL with embedded credentials) that were passed via the Pod spec's `env:` block. Which mitigation best addresses this exact class of leak?",
+      "question": "Attackers are reading `/proc/1/environ` inside containers to harvest credentials that were passed to the pod as environment variables. Which change most directly stops that class of leak?",
       "options": [
-        "Stop placing credentials in the Pod's `env:` block; mount them from Secrets as files (with restrictive permissions) or fetch them at runtime from a secrets manager",
-        "Set `hostPID: true` on all pods so /proc namespaces are unified; this would broaden access rather than reduce credential exposure",
-        "Add a NetworkPolicy denying egress from the pod; this stops exfiltration of credentials but does not prevent the in-container read of /proc/1/environ",
-        "Switch the container runtime from containerd to CRI-O; both runtimes expose /proc/1/environ identically and the change has no effect on this leak"
+        "Stop putting credentials in the pod's `env:` block; deliver them as file mounts from Secrets (or via a secrets-manager sidecar / CSI) so they never appear in the process environment",
+        "Set `hostPID: true` cluster-wide so the pod's `/proc` view merges with the host's — a unified PID namespace lets an admission control filter see and reject `/proc/1/environ` reads centrally",
+        "Add a NetworkPolicy that denies all egress from the pod so any credentials that do end up in the environment cannot be exfiltrated to an attacker-controlled destination",
+        "Switch the container runtime from containerd to CRI-O — CRI-O's default profile masks `/proc/<pid>/environ` for non-init processes, while containerd exposes it to the container root user"
       ],
       "correct": 0,
-      "explanation": "The correct Falco condition uses `open_read` (macro for read-access file opens), `container` (container context macro), and `fd.name=/proc/1/environ` (full file path field). This fires when any container opens `/proc/1/environ` for reading. `syscall.arg.path` is not a valid Falco field. `file_access`, `namespace=container`, and `path.startswith` are not valid Falco syntax. `fd.directory` and `fd.filename` are not standard Falco fields — use `fd.name` for the full path.",
+      "explanation": "Once a value is in the process environment, `/proc/<pid>/environ` reveals it to anyone with read access on the pod — including an attacker with RCE. Mounting the Secret as a file with restrictive perms (or fetching at runtime via Vault Agent/CSI) keeps the value out of the environment block entirely. `hostPID: true` broadens process visibility across the host rather than restricting it. An egress deny stops exfiltration but doesn't stop the local read of `environ`. Both containerd and CRI-O expose `environ` identically — swapping runtimes doesn't affect this leak.",
       "tags": [
         "secrets",
         "proc-environ-leak",
         "cks"
       ],
-      "difficulty": "hard",
-      "_normalized": true,
-      "rewritten": true
+      "difficulty": "hard"
     },
     {
       "id": "cks-058",
-      "question": "A runtime security incident is detected in a container. You need to capture its filesystem for forensic analysis without affecting other containers. What is the safest approach?",
+      "question": "A container has been flagged for runtime compromise. You must capture its filesystem for forensics with minimum interference to the live pod. Which approach is safest?",
       "options": [
-        "Use `crictl` on the node to locate the container's overlay filesystem layers and capture them directly from the",
-        "Run `kubectl cp <pod>:/ /forensics/` to copy the entire container filesystem to an investigation host",
-        "Run `kubectl exec <pod> -- tar -czf /tmp/rootfs.tar.gz /` to archive the container's filesystem",
-        "Use `kubectl debug --copy-to` to create an exact copy of the Pod for forensic analysis"
+        "`kubectl cp <pod>:/ /forensics/` to pull a live copy of the container filesystem — the cp command runs `tar` inside the container to stream the bytes, so it works even without shell access",
+        "SSH to the node and use `crictl inspect` / `ctr` to locate the container's overlay layers under the runtime state dir and snapshot them from the host",
+        "`kubectl exec <pod> -- tar -czf /tmp/rootfs.tar.gz /` and then `kubectl cp` the archive out — captures files exactly as the compromised container sees them, including any masked mounts",
+        "`kubectl debug --copy-to=<pod>-debug <pod>` to spin up a clone of the pod with the same volumes, then run forensic tooling in the sidecar without touching the original process"
       ],
-      "correct": 0,
-      "explanation": "Using `crictl` on the node to inspect and capture the overlay filesystem layers directly from the host is the safest forensic approach. It's non-intrusive — you don't run commands inside the potentially compromised container (avoiding running attacker tools or alerting the attacker). `kubectl exec` runs inside the compromised environment. `kubectl cp /` may miss filesystem metadata, symlinks, and overlay nuances. `kubectl debug --copy-to` creates a copy but the process of copying may modify the original state.",
+      "correct": 1,
+      "explanation": "Working from the node lets you capture the overlay layers without executing anything inside the potentially-instrumented container — no attacker tooling runs, no evidence is disturbed. `kubectl cp` invokes `tar` inside the container, which runs attacker-influenced binaries. `kubectl exec … tar` is even more invasive — the attacker's tooling can trap `tar` and modify what gets emitted. `kubectl debug --copy-to` creates a new pod from the same PodSpec — useful for reproducing behaviour, but the *original* is what carries the evidence.",
       "tags": [
         "forensics",
         "incident-response",
         "runtime-security",
         "cks"
       ],
-      "difficulty": "hard",
-      "_normalized": true
+      "difficulty": "hard"
     },
     {
       "id": "cks-059",
-      "question": "Your audit policy logs Secrets at `RequestResponse` level, exposing base64 Secret values in logs. How do you log Secret access without capturing values?",
+      "question": "Your audit policy currently records Secrets at `RequestResponse`, which puts base64 Secret values into the audit log. You want to keep an audit trail of *who* accessed which Secret without recording the values themselves. Which policy change does that?",
       "options": [
-        "Set `level: Request` for Secrets — captures write request bodies but not response bodies containing Secret data — this level logs full request body, capturing secret values without redaction",
-        "Exclude Secrets entirely with `level: None` to prevent any Secret data from appearing in audit logs",
-        "Set `level: RequestResponse` with a redaction admission webhook to strip Secret data before logging",
-        "Set `level: Metadata` for Secrets — logs who accessed which Secret and when, without capturing the body"
+        "Set `level: None` for the `secrets` resource so no audit event is generated for read or write operations on any Secret in the cluster",
+        "Set `level: Request` for Secrets — captures the write body but drops the response",
+        "Set `level: Metadata` for Secrets — logs user, verb, timestamp, and object reference, without any request/response body",
+        "Add a redaction admission webhook that scrubs the `data` and `stringData` fields from every Secret request before the audit backend sees the event"
       ],
-      "correct": 3,
-      "explanation": "`level: Metadata` logs the request metadata — user, timestamp, resource name, namespace, verb — without capturing any request or response body. This satisfies audit requirements (who accessed which Secret, when) without leaking the Secret value. `level: Request` logs the request body (write operations) but for reads, the Secret value is in the response. `level: None` leaves no audit trail. There is no built-in redaction mechanism in Kubernetes audit logging.",
+      "correct": 2,
+      "explanation": "`Metadata` is the exact level for who/when/what without payload. `None` drops everything — no trail at all. `Request` still logs write bodies, and for reads the sensitive data is in the response, which is still captured at `RequestResponse` — Metadata is the level that omits both. Kubernetes audit logging has no built-in redaction; a webhook cannot rewrite events after the API server emits them.",
       "tags": [
         "audit-policy",
         "secrets",
         "monitoring",
         "cks"
       ],
-      "difficulty": "medium",
-      "_normalized": true
+      "difficulty": "medium"
     },
     {
       "id": "cks-060",
-      "question": "You have a RuntimeClass `gvisor` with handler `runsc`. You want all Pods in the `untrusted` namespace to automatically use gVisor without modifying individual Pod specs. What enforces this automatically?",
+      "question": "A `RuntimeClass` named `gvisor` targets the `runsc` handler. You want every pod in the `untrusted` namespace to *automatically* use it without editing each pod spec. Which mechanism does that?",
       "options": [
-        "Add `runtimeClass: gvisor` as a namespace annotation to propagate it to all Pods at creation",
-        "Create a ValidatingWebhookConfiguration that rejects Pods in `untrusted` that don't have `runtimeClassName: gvisor`",
-        "Set `runtimeClassName: gvisor` in the namespace's LimitRange object to apply it to all Pods",
-        "Create a MutatingAdmissionWebhook (or OPA Gatekeeper/Kyverno mutation policy) that injects `spec.runtimeClassName"
+        "Annotate the namespace `scheduler.alpha.kubernetes.io/runtimeClass=gvisor` — the namespace-annotation-defaults controller propagates the value into every new pod spec's `runtimeClassName` field",
+        "Reference the RuntimeClass from a LimitRange object in the namespace so LimitRange's default-injection mechanism sets `spec.runtimeClassName` on every new pod that omits it",
+        "Create a ValidatingWebhookConfiguration on pod-create in `untrusted` that admits pods whose `runtimeClassName` is `gvisor` and rewrites any other value or absence to `gvisor` inline",
+        "Add a MutatingAdmissionWebhook (or a Kyverno mutation ClusterPolicy / a Gatekeeper mutation) that injects `spec.runtimeClassName: gvisor` at admission"
       ],
       "correct": 3,
-      "explanation": "The only way to automatically inject `runtimeClassName` into Pod specs is via a MutatingAdmissionWebhook — either a custom webhook or a policy engine with mutation support (OPA Gatekeeper MutationPolicy, Kyverno ClusterPolicy with `mutate`). LimitRange does not configure runtime classes. Namespace annotations are not propagated to Pod specs. A ValidatingWebhookConfiguration can enforce the requirement (reject pods lacking it) but cannot inject the value — injection requires mutation.",
+      "explanation": "Only a *mutating* admission step can add fields to the incoming pod spec. Namespace annotations are metadata — they don't propagate into child objects' fields. LimitRange caps resource requests/limits, nothing about runtime handlers. A ValidatingWebhookConfiguration can reject pods that lack the field, but it never fills it in — the user still has to author it correctly.",
       "tags": [
         "runtime-class",
         "admission-webhooks",
         "gvisor",
         "cks"
       ],
-      "difficulty": "hard",
-      "_normalized": true
+      "difficulty": "hard"
     },
     {
       "id": "cks-multi-1",
-      "question": "A team wants to reduce the blast radius of a process running inside a container that gets RCE'd. Which TWO Pod-level settings most directly reduce that blast radius?",
+      "question": "A team wants to reduce the blast radius of code that gains RCE inside a container. Which TWO Pod-level settings most directly shrink the blast radius?",
       "options": [
-        "`securityContext.runAsNonRoot: true` — forces the workload to run as a non-root UID so capabilities and file ownership do not default to root inside the container",
-        "`securityContext.privileged: true` — grants the container near-host capabilities; the OPPOSITE of containment — does not restrict the workload running inside the container to a non-root user",
-        "`securityContext.capabilities.drop: [\"ALL\"]` — strips all Linux capabilities, leaving the process unable to perform privileged kernel operations even as root",
-        "`hostNetwork: true` — joins the container to the host's network namespace; broadens blast radius rather than reducing it"
+        "`securityContext.runAsNonRoot: true`",
+        "`securityContext.privileged: true` — grants the container near-host capabilities and disables Linux namespace isolation",
+        "`securityContext.capabilities.drop: [\"ALL\"]`",
+        "`hostNetwork: true` — attaches the pod directly to the node's network namespace so it can see and dial every listening port on the host"
       ],
       "correct": [
         0,
         2
       ],
-      "explanation": "Running as non-root prevents trivially exploitable root-only kernel paths. A read-only root filesystem stops attackers from writing webshells or persistent payloads. `privileged: true` GIVES the container near-host capabilities. `hostNetwork: true` shares the node's network namespace, exposing host services.",
+      "explanation": "Running as a non-root UID means the exploited process cannot use root-only kernel paths, and dropping every Linux capability strips the process of privileged operations (raw sockets, kernel module load, etc.) even if it lands on a root UID. `privileged: true` grants near-host access — it *widens* the blast radius. `hostNetwork: true` joins the host's network namespace, exposing every service on the node to the compromised process — again the opposite of containment.",
       "tags": [
         "pod-security",
         "blast-radius",
         "cks"
       ],
-      "difficulty": "hard",
-      "_normalized": true,
-      "_lenbal": true,
-      "rewritten": true
+      "difficulty": "hard"
     }
   ]
 }
