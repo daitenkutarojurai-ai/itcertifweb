@@ -1,0 +1,229 @@
+{
+  "meta": {
+    "id": "devnet-pro",
+    "name": "Cisco Certified DevNet Professional (DEVCOR 350-901)",
+    "vendor": "Cisco",
+    "version": "1.0.0",
+    "question_count": 12,
+    "last_updated": "2026-07-20",
+    "notes": "Initial DevNet Professional pack — covers concurrency vs parallelism, OAuth 2.0 authorisation-code with PKCE, Meraki Dashboard pagination (Link header), Webex webhooks vs polling, model-driven telemetry vs SNMP, NETCONF vs RESTCONF vs gNMI, YANG data modelling, 12-factor config, container image immutability, HashiCorp Vault dynamic secrets, Firepower FMC API tokens, and DNA Center intent APIs. Answer positions balanced 3/3/3/3. [scheduled-agent]"
+  },
+  "questions": [
+    {
+      "id": "devnetpro-001",
+      "question": "A Python service polls three slow REST APIs during each request; total wall time is dominated by network I/O. Which language-level primitive gives the biggest wall-clock improvement without spawning OS-level workers per request?",
+      "options": [
+        "Native threads via `threading.Thread` bound to a `Queue`",
+        "OS process pool via `multiprocessing.Pool`",
+        "`asyncio` with `aiohttp` running the three calls concurrently in a single event loop",
+        "Signal-driven callbacks via `signal.signal(SIGALRM, …)`"
+      ],
+      "correct": 2,
+      "explanation": "The bottleneck is network I/O, not CPU, so single-threaded cooperative concurrency wins: `asyncio.gather` overlaps the three HTTP requests inside one event loop with no per-request thread stack. `multiprocessing` is designed for CPU-bound work and pays a fork/serialisation cost; native threads help but the GIL yields no gain for I/O beyond what asyncio already provides at far lower memory cost; POSIX `SIGALRM` is a timer mechanism, not a concurrency primitive.",
+      "tags": [
+        "concurrency",
+        "asyncio",
+        "devnet-pro"
+      ],
+      "difficulty": "medium"
+    },
+    {
+      "id": "devnetpro-002",
+      "question": "You are building a public single-page app that calls a protected Webex API. Which OAuth 2.0 flow is currently recommended for a browser client that cannot safely store a client secret?",
+      "options": [
+        "Resource Owner Password Credentials",
+        "Implicit Grant (`response_type=token`)",
+        "Client Credentials Grant",
+        "Authorisation Code with PKCE"
+      ],
+      "correct": 3,
+      "explanation": "OAuth 2.1 and IETF BCP recommend the Authorisation Code flow with PKCE (Proof Key for Code Exchange) for public clients: the browser generates a code verifier / challenge pair, so an intercepted authorisation code cannot be exchanged for a token. The Implicit flow is now discouraged because tokens leak through the URL fragment; Password Grant requires the app to handle the user's credentials directly (also discouraged); Client Credentials is for machine-to-machine identities with no user context.",
+      "tags": [
+        "oauth2",
+        "pkce",
+        "devnet-pro"
+      ],
+      "difficulty": "medium"
+    },
+    {
+      "id": "devnetpro-003",
+      "question": "A script calls `GET /organizations/{orgId}/networks` on the Meraki Dashboard API and receives 1 000 networks per page. How should the script find the URL for the next page?",
+      "options": [
+        "Increment a `?page=` query parameter until an empty array is returned",
+        "Read a `nextPageToken` field embedded in the JSON body",
+        "Add one to the largest `id` value in the current page and set it as `?startingAfter=`",
+        "Follow the `Link` response header entry whose `rel` attribute equals `next`"
+      ],
+      "correct": 3,
+      "explanation": "The Meraki Dashboard API uses RFC 5988 Web Linking: pagination cursors are returned in the `Link` header with `rel=\"first\" | \"prev\" | \"next\" | \"last\"`. The client follows the `next` link verbatim until it disappears. There is no `?page=` numeric cursor and no `nextPageToken` body field on this API; `startingAfter` exists on some Meraki endpoints as an opaque cursor but is populated by the server (via the Link header), not derived by the caller from an `id`.",
+      "tags": [
+        "meraki",
+        "pagination",
+        "devnet-pro"
+      ],
+      "difficulty": "medium"
+    },
+    {
+      "id": "devnetpro-004",
+      "question": "A room booking bot must react within one second when someone posts a message containing `/book` in a Webex space. The bot currently polls `GET /messages` every 30 s. Which change satisfies the latency requirement most efficiently?",
+      "options": [
+        "Reduce the polling interval to 500 ms and add exponential back-off on 429s",
+        "Open a long-lived WebSocket to the messages endpoint",
+        "Register a Webex webhook filtered by `resource=messages` and `event=created` targeting the bot's HTTPS URL",
+        "Subscribe to Kafka topic `webex.messages` on the Webex broker"
+      ],
+      "correct": 2,
+      "explanation": "Webex Cloud APIs expose webhooks: the platform pushes an HTTPS POST to a registered URL within seconds of the event, so the bot has no polling loop and no rate-limit exposure. Aggressive polling burns quota and cannot beat the 30 s round-trip guarantee; Webex does not expose a public WebSocket for message streams (that is an internal transport), and there is no customer-facing Kafka broker.",
+      "tags": [
+        "webex",
+        "webhooks",
+        "devnet-pro"
+      ],
+      "difficulty": "easy"
+    },
+    {
+      "id": "devnetpro-005",
+      "question": "Your operations team currently pulls interface counters from 400 IOS XE routers every 30 seconds via SNMP GET-BULK. What is the primary reason to migrate to model-driven telemetry (MDT) with a gRPC dial-out subscription?",
+      "options": [
+        "SNMP is unavailable in IOS XE 17 and later",
+        "MDT pushes structured YANG data on change or on a fine timer, avoiding the poll-based scaling ceiling of SNMP",
+        "gRPC transports use less bandwidth than SNMP for the same OIDs",
+        "MDT does not require any authentication on the collector side"
+      ],
+      "correct": 1,
+      "explanation": "Model-driven telemetry is a push model: the device streams structured YANG-modelled data (JSON or GPB over gRPC / NETCONF) to the collector, either on-change or at a configured cadence, so the collector is not the polling bottleneck. SNMP still ships in IOS XE for backward compatibility; MDT payloads are not inherently smaller (GPB is compact but JSON often isn't); collectors still authenticate the session — TLS certificates for gRPC and SSH keys for NETCONF.",
+      "tags": [
+        "telemetry",
+        "iosxe",
+        "devnet-pro"
+      ],
+      "difficulty": "medium"
+    },
+    {
+      "id": "devnetpro-006",
+      "question": "A developer wants to `PATCH` a single leaf inside a running config on IOS XE without carrying the rest of the config. Which combination is the correct fit?",
+      "options": [
+        "RESTCONF `PATCH` to `/data/…` — HTTP verb maps to a partial YANG merge",
+        "NETCONF `edit-config` with `operation=\"replace\"` on the whole datastore",
+        "gNMI `Get` with `type=CONFIG`",
+        "SNMP `SET` with a scoped `PDU`"
+      ],
+      "correct": 0,
+      "explanation": "RESTCONF (RFC 8040) maps HTTP verbs to YANG datastore operations: PATCH performs a partial merge — only the leaves supplied in the payload change. NETCONF `edit-config operation=\"replace\"` on the whole datastore would wipe every other leaf; gNMI `Get` is read-only (the mutation verb is `Set` with `update`/`replace`); SNMP `SET` is column-oriented and not YANG-aware.",
+      "tags": [
+        "restconf",
+        "yang",
+        "devnet-pro"
+      ],
+      "difficulty": "medium"
+    },
+    {
+      "id": "devnetpro-007",
+      "question": "A YANG module defines `container interface { leaf mtu { type uint16; default 1500; } }`. A client sends a RESTCONF PATCH that omits the `mtu` leaf entirely. What is the server's expected behaviour?",
+      "options": [
+        "Reset `mtu` to the default value 1500",
+        "Reject the request with HTTP 400 because `mtu` is required",
+        "Leave the current `mtu` value unchanged",
+        "Delete the `interface` container because a mandatory child is missing"
+      ],
+      "correct": 2,
+      "explanation": "RESTCONF PATCH is a merge: leaves not present in the payload are untouched. A `default` statement only supplies a value when the leaf has never been set — it does not make omission mean 'reset'. `mtu` is optional (no `mandatory true;`), so the server neither rejects the request nor deletes the parent container.",
+      "tags": [
+        "yang",
+        "restconf",
+        "devnet-pro"
+      ],
+      "difficulty": "hard"
+    },
+    {
+      "id": "devnetpro-008",
+      "question": "According to the 12-factor App methodology, where should the database URL for a production microservice live?",
+      "options": [
+        "Committed to `config/production.yaml` in the source repository",
+        "Compiled into the container image at build time as an `ARG`",
+        "Hard-coded as a constant next to the DAO layer",
+        "Read at runtime from an environment variable set by the platform"
+      ],
+      "correct": 3,
+      "explanation": "Factor III (Config) says strict separation of config from code: values that vary between deployments live in the environment (env vars, secret managers) so the same immutable image can be promoted from staging to production. Checking config into the repo leaks secrets and pins one environment; baking values into the image at build time forces a rebuild per environment and defeats immutability; hard-coding is the worst of both.",
+      "tags": [
+        "12-factor",
+        "config",
+        "devnet-pro"
+      ],
+      "difficulty": "easy"
+    },
+    {
+      "id": "devnetpro-009",
+      "question": "A team keeps rebuilding container images because someone `docker exec`s into a running container and installs `curl` to debug. Which principle is being violated and what is the right fix?",
+      "options": [
+        "Image immutability — bake the tool into a debug image tag and rebuild rather than patching a live container",
+        "Least privilege — grant `CAP_NET_ADMIN` inside the container so `apt-get` succeeds",
+        "Copy-on-write — mount `/usr/bin` as a `tmpfs` overlay so changes persist",
+        "Statefulness — attach a persistent volume to `/var/lib/apt`"
+      ],
+      "correct": 0,
+      "explanation": "Containers are meant to be immutable artefacts: what runs in production is exactly what was built and scanned in CI. Modifying a running container makes it different from every replica, breaks scaling and rollback, and any change disappears on restart. The correct fix is a dedicated debug image (or an ephemeral debug sidecar) rebuilt through CI. Extra capabilities, tmpfs overlays or persistent volumes address different problems and would still leave the runtime drifting from the image.",
+      "tags": [
+        "containers",
+        "immutability",
+        "devnet-pro"
+      ],
+      "difficulty": "medium"
+    },
+    {
+      "id": "devnetpro-010",
+      "question": "An application must connect to PostgreSQL with short-lived credentials that rotate every hour and are never written to disk. Which HashiCorp Vault feature fits best?",
+      "options": [
+        "The `kv` v2 secrets engine with automated version pruning",
+        "The `database` secrets engine issuing dynamic PostgreSQL roles per lease",
+        "The `transit` engine to encrypt a long-lived password at rest",
+        "AppRole authentication so the app can log in without a human"
+      ],
+      "correct": 1,
+      "explanation": "The Vault `database` secrets engine mints a fresh PostgreSQL user on every lease, revoking it when the lease expires — exactly the 'short-lived, rotating, never on disk' pattern. `kv` stores static values (rotation is manual); `transit` is encryption-as-a-service and never issues DB credentials; AppRole is an authentication method the app uses to obtain a Vault token, orthogonal to how the DB secret is generated.",
+      "tags": [
+        "vault",
+        "dynamic-secrets",
+        "devnet-pro"
+      ],
+      "difficulty": "medium"
+    },
+    {
+      "id": "devnetpro-011",
+      "question": "A script authenticates to Cisco Firepower Management Center (FMC) via its REST API. Which sequence issues the tokens correctly?",
+      "options": [
+        "POST `/api/fmc_platform/v1/auth/generatetoken` with HTTP Basic auth; read `X-auth-access-token` and `X-auth-refresh-token` from the response headers",
+        "POST `/api/fmc_config/v1/domain/{domainUUID}/login` with a JSON body of `{username, password}`; read `token` from the JSON body",
+        "GET `/api/fmc_platform/v1/auth/token` with a bearer JWT already signed by the client",
+        "POST OAuth 2.0 Client-Credentials to `https://tokens.cisco.com/oauth/token` to obtain an FMC token"
+      ],
+      "correct": 0,
+      "explanation": "FMC's REST API uses a custom token flow: the client sends HTTP Basic authentication to `/api/fmc_platform/v1/auth/generatetoken`, and the server returns the access token and refresh token as `X-auth-access-token` and `X-auth-refresh-token` response headers (not in the JSON body). There is no `/login` JSON endpoint on FMC, no pre-signed JWT is accepted, and FMC does not use Cisco's public OAuth token service.",
+      "tags": [
+        "firepower",
+        "fmc-api",
+        "devnet-pro"
+      ],
+      "difficulty": "hard"
+    },
+    {
+      "id": "devnetpro-012",
+      "question": "You need to push a new SSID to every wireless site managed by Cisco DNA Center. Which API family and workflow should you use?",
+      "options": [
+        "Command Runner — send `wlan add …` CLI strings to each WLC",
+        "Intent API — POST the SSID as a wireless-profile resource; DNA Center generates and pushes device configuration",
+        "Integration API — publish an event on ServiceNow so ITSM propagates the change",
+        "Multivendor SDK — invoke a Python driver per WLC vendor over NETCONF"
+      ],
+      "correct": 1,
+      "explanation": "DNA Center exposes an Intent API: the caller states *what* should be true (an SSID with these properties, applied to these sites), and DNA Center reconciles device state — pushing the correct config to each managed WLC. Command Runner is a diagnostic passthrough for ad-hoc CLI, not a config workflow; the Integration API is for external ITSM/telemetry systems consuming DNA events; the Multivendor SDK targets non-Cisco devices in an SD-Access fabric and is out of scope for standard SSID provisioning.",
+      "tags": [
+        "dna-center",
+        "intent-api",
+        "devnet-pro"
+      ],
+      "difficulty": "medium"
+    }
+  ]
+}
