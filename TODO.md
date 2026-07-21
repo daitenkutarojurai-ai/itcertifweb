@@ -1520,6 +1520,49 @@ competition-driven, community-driven** layer. Highest-priority builds:
 
 ---
 
+## 📦 Content expansion R24 (2026-07-21)
+
+Scheduled-agent run targeting the comparator cluster — the longest-quiet content
+cluster since R23 (last touched 2026-06-11 with R18's `cism-vs-cissp`, 40 days
+ago; DevStack / PromptDungeon / RealityCheck / FailBase / ToolRadar have all
+picked up entries more recently). One new high-search-volume, high-commercial-
+intent comparison the dataset was missing despite both certs being shipped packs
+(`az-500.json` + `sc-200.json`) with a healthy salary page on the AZ-500 side:
+
+- **+1 Cert Comparator page** (cluster 18 → 19):
+  - `az-500-vs-sc-200` — the Microsoft security career-direction decision:
+    Cloud Security Engineer (BUILD) vs Security Operations Analyst (RUN).
+    9 verdict rows covering: Azure workload builder → AZ-500, SOC / CSIRT
+    Microsoft-shop or Sentinel-primary → SC-200, AZ-104 admin looking for
+    the natural next step → AZ-500, junior transition from IT support toward
+    a first SOC role → SC-200, Cloud Security Architect (90-120k€) → AZ-500
+    (prerequisite for the SC-100 Expert), Threat Hunter / Detection Engineer
+    Microsoft-native → SC-200, non-Microsoft shop (AWS + CrowdStrike + Splunk)
+    → SC-200 (transferable blue-team reasoning), max French salary in 12
+    months → AZ-500 (65-80k€ vs 45-60k€ SOC analyst per APEC + Hays 2026),
+    pass both for complete Blue Team Azure profile → SC-200 first (fewer
+    Azure prereqs) then AZ-500 6-12 months later.
+  - `salaryAlias: "az-500"` resolves the France median (70k€ senior) into
+    the comparison table; SC-200 has no salary file yet so the cell shows
+    "—" gracefully. Data + generator pattern matches `_schema.md` (no schema
+    drift). Title truncates to 60 chars via the generator, meta description
+    stays under 160 chars, Article JSON-LD, canonical, OG tags, cache-busted
+    CSS (?v=135) — all brief constraints respected. `lastReviewed` "2026-07"
+    (freshness pill verte).
+- `scripts/gen-compare-pages.js` `CACHE_BUST` already at v=135 (aligned with
+  the current global `?v=` key) — no generator bump needed. The 18 existing
+  comparator pages regenerated idempotently; 4 sibling `<td>N Q →</td>` cells
+  refreshed to match updated `question_count` values in `data/index.json`
+  (cism 12→22, cissp still 25, aws-clf-c02 pack counts, terraform-003 pack
+  count — benign, brings HTML back in sync with the source-of-truth pack
+  index).
+- `npm run gen-compare` regenerated 19 comparator pages + the `/compare/`
+  index. sitemap.xml +1 entry (priority 0.85, monthly changefreq, lastmod
+  2026-07-21); compare index lastmod bumped 2026-06-11 → 2026-07-21.
+- 265/265 tests still pass. No CSS/JS cache version bump (new HTML/data only).
+
+---
+
 ## 📦 Content expansion R23 (2026-07-14)
 
 Scheduled-agent run targeting the ToolRadar cluster — the longest-quiet content
