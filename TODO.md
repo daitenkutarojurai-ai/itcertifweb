@@ -1520,6 +1520,61 @@ competition-driven, community-driven** layer. Highest-priority builds:
 
 ---
 
+## 📦 Content expansion R25 (2026-07-28)
+
+Scheduled-agent run targeting the DevStack cluster — the longest-quiet content
+cluster since R24 (last touched 2026-06-12 with R19's `shopify` dossier, 46 days
+ago; Comparator / ToolRadar / FailBase / RealityCheck / PromptDungeon have all
+picked up entries more recently). One new abundantly-sourced dossier the cluster
+was missing on a company the CertQuests IT/DevOps/SRE audience uses daily and
+whose engineering blog is one of the most-cited on the web:
+
+- **+1 DevStack dossier** (cluster 14 → 15):
+  - `discord` — plateforme temps-réel (chat, voix, vidéo) revendiquant 200M+ MAU
+    et un pic historique documenté à 11M+ utilisateurs concurrents sur une seule
+    bibliothèque Elixir (2019). Stack hybride Elixir + Rust + Python : Elixir
+    (Erlang OTP) porte le fanout WebSocket, Rust remplace progressivement Go et
+    optimise les chemins chauds Elixir via NIFs, Python reste sur l'API
+    historique et le tooling ML Safety. Messages migrés de MongoDB (2016) →
+    Cassandra (2016-2022) → **ScyllaDB (2022+)** — trillions de messages migrés
+    pour améliorer les P99 latencies. Infra sur GCP + Kubernetes, WebRTC + SFU
+    maison pour le voice, clients web/desktop en React/Electron, mobiles
+    historiquement en React Native puis migration progressive vers natif
+    (Swift/Kotlin). 20 composants documentés sur 6 catégories, 5 contributions
+    OSS référencées (erlpack, sortedcontainers-rs, lilliput, gorepogen).
+  - **Sources publiques uniquement** : discord.com/blog/tag/engineering (série
+    de posts d'architecture — "How Discord Scaled Elixir to 5,000,000
+    Concurrent Users" 2017, "Using Rust to Scale Elixir for 11 Million
+    Concurrent Users" 2019, "Why Discord is switching from Go to Rust" 2020,
+    "How Discord Stores Trillions of Messages" 2023 pour la migration ScyllaDB,
+    "How Discord Stores Billions of Messages" 2017 pour l'historique Cassandra),
+    github.com/discord (orga publique : erlpack, sortedcontainers-rs, lilliput,
+    gorepogen), discord.com/careers (offres listant Elixir / Rust / Python /
+    GCP / Kubernetes / React / Electron). Chaque item de stack cite sa source
+    exacte ; les items non-documentés par un post spécifique pointent vers la
+    landing eng blog conformément au `_schema.md` (« prefer landing over
+    specific URL when topic is enduring »). Pas de rumeurs internes,
+    disclaimer "stack interne plus large" repris du template.
+  - Organization JSON-LD avec sameAs vers blog + careers, freshness pill verte
+    (lastReviewed "2026-07"), schema-valide vs `_schema.md`. Title 61 chars
+    (`Le stack tech de Discord en 2026 — DevStack · CertQuests`), meta
+    description reprend le `tldr` (~340 chars — le template devstack accepte
+    des descriptions plus longues que la limite SEO stricte 160, comportement
+    hérité des 14 pages siblings ; tous les autres champs SEO présents).
+    Tags `chat`, `realtime`, `elixir`, `rust`, `gcp` — 3 nouveaux tags dans
+    la grille de filtres (`chat`, `realtime`, `elixir`) qui ouvre le cluster
+    à la thématique temps-réel/protocoles.
+- `scripts/gen-devstack-pages.js` `CACHE_BUST` already at v=135 (aligned with
+  the current global `?v=` key) — no generator bump needed. The 14 existing
+  dossiers regenerated idempotently (no HTML diffs beyond the new page + the
+  regenerated index).
+- `npm run gen-devstack` regenerated 15 dossiers + the `/devstack/` index.
+  sitemap.xml +1 entry (priority 0.8, monthly changefreq, lastmod 2026-07-28);
+  devstack index lastmod bumped 2026-06-12 → 2026-07-28.
+- No CSS/JS cache version bump (new HTML/data only).
+
+---
+
 ## 📦 Content expansion R24 (2026-07-21)
 
 Scheduled-agent run targeting the comparator cluster — the longest-quiet content

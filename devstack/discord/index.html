@@ -1,0 +1,340 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="theme-color" content="#06080f" />
+  <title>Le stack tech de Discord en 2026 — DevStack · CertQuests</title>
+  <meta name="description" content="Stack temps-réel hybride Elixir + Rust + Python. Elixir/Erlang OTP porte le fanout messages ; Rust remplace progressivement Go et Elixir sur les chemins chauds ; Python reste sur l&#39;API historique. Messages stockés dans ScyllaDB (migré depuis Cassandra en 2022), infra sur Google Cloud + Kubernetes." />
+  <meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large" />
+  <link rel="canonical" href="https://certquests.com/devstack/discord/" />
+  <meta property="og:type" content="article" />
+  <meta property="og:url" content="https://certquests.com/devstack/discord/" />
+  <meta property="og:title" content="Le stack tech de Discord en 2026" />
+  <meta property="og:description" content="Stack temps-réel hybride Elixir + Rust + Python. Elixir/Erlang OTP porte le fanout messages ; Rust remplace progressivement Go et Elixir sur les chemins chauds ; Python reste sur l&#39;API historique. Messages stockés dans ScyllaDB (migré depuis Cassandra en 2022), infra sur Google Cloud + Kubernetes." />
+  <meta property="og:image" content="https://certquests.com/src/assets/og/og-default.png?v=1" />
+  <meta property="og:image:width" content="1200" />
+  <meta property="og:image:height" content="630" />
+  <meta property="og:image:type" content="image/png" />
+  <meta name="twitter:card" content="summary_large_image" />
+  <link rel="manifest" href="/manifest.json" />
+  <link rel="icon" href="/favicon.ico?v=4" sizes="any" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700;800&family=DM+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/src/styles/main.css?v=135" />
+  <link rel="stylesheet" href="/src/styles/desktop.css?v=135" />
+  <script type="application/ld+json">{"@context":"https://schema.org","@type":"Organization","name":"Discord","foundingDate":"2015","description":"Stack temps-réel hybride Elixir + Rust + Python. Elixir/Erlang OTP porte le fanout messages ; Rust remplace progressivement Go et Elixir sur les chemins chauds ; Python reste sur l'API historique. Messages stockés dans ScyllaDB (migré depuis Cassandra en 2022), infra sur Google Cloud + Kubernetes.","url":"https://certquests.com/devstack/discord/","sameAs":["https://discord.com/blog/tag/engineering","https://discord.com/careers"]}</script>
+  <style>
+.ds-page { max-width: 1000px; margin: 0 auto; padding: 0 20px 80px; color: #e8edf8; }
+.breadcrumb { font-family:'JetBrains Mono',monospace; font-size:11px; letter-spacing:.1em; text-transform:uppercase; color:#506885; padding:14px 0 0; }
+.breadcrumb a { color:#7c90ae; text-decoration:none; }
+.breadcrumb a:hover { color:#e8edf8; }
+.breadcrumb span { color:#7c90ae; margin:0 8px; }
+
+.ds-hero { padding: 32px 8px 8px; }
+.ds-hero .eyebrow { display:inline-flex; align-items:center; gap:6px; font-family:'JetBrains Mono',monospace; font-size:11px; font-weight:600; letter-spacing:.12em; text-transform:uppercase; padding:5px 14px; border-radius:999px; margin-bottom:14px; }
+.ds-hero h1 { font-family:'Space Grotesk',sans-serif; font-size:clamp(28px,4.4vw,42px); font-weight:800; letter-spacing:-.02em; margin:0 0 8px; line-height:1.15; color:#f1f5fb; }
+.ds-hero .lede { font-size:15.5px; line-height:1.6; color:#a8b6d1; max-width:760px; margin:0; }
+.ds-meta { display:flex; flex-wrap:wrap; gap:8px; margin: 14px 0 4px; font-size:12px; color:#7c90ae; font-family:'JetBrains Mono',monospace; }
+.ds-meta .pill { padding:4px 10px; border-radius:999px; background:rgba(255,255,255,.04); border:1px solid rgba(255,255,255,.08); }
+.ds-meta .pill.fresh { color:#6ee7b7; border-color:rgba(52,211,153,.3); background:rgba(52,211,153,.08); }
+.ds-meta .pill.warn  { color:#fbbf24; border-color:rgba(251,191,36,.3); background:rgba(251,191,36,.08); }
+.ds-meta .pill.stale { color:#f87171; border-color:rgba(248,113,113,.3); background:rgba(248,113,113,.08); }
+
+.ds-scale { margin: 22px 0 0; padding: 14px 18px; background: rgba(255,255,255,.04); border-left: 3px solid var(--ds-color, #60a5fa); border-radius: 10px; color: #cbd5e1; font-size: 14px; line-height: 1.6; }
+.ds-scale strong { color: var(--ds-color, #60a5fa); font-family:'JetBrains Mono',monospace; font-size: 11px; letter-spacing: .14em; text-transform: uppercase; display: block; margin-bottom: 3px; }
+
+.ds-section { margin: 26px 0 0; padding: 22px 22px 18px; background:rgba(255,255,255,.025); border:1px solid rgba(255,255,255,.06); border-radius:14px; }
+.ds-section h2 { font-family:'Space Grotesk',sans-serif; font-size:19px; font-weight:700; margin:0 0 14px; color:#f1f5fb; letter-spacing:-.015em; display: flex; align-items: center; gap: 8px; }
+
+/* Stack category */
+.ds-category { margin-bottom: 16px; }
+.ds-category-name { font-family:'JetBrains Mono',monospace; font-size: 11px; letter-spacing: .14em; text-transform: uppercase; color: var(--ds-color, #60a5fa); margin-bottom: 8px; padding-bottom: 4px; border-bottom: 1px dashed rgba(255,255,255,.08); }
+.ds-items { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 10px; }
+.ds-item { padding: 12px 14px; background: rgba(0,0,0,.25); border: 1px solid rgba(255,255,255,.06); border-radius: 10px; }
+.ds-item-head { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; margin-bottom: 4px; }
+.ds-item-name { font-family:'Space Grotesk',sans-serif; font-weight: 700; color: #f1f5fb; font-size: 14px; }
+.ds-item-status { font-family:'JetBrains Mono',monospace; font-size: 9.5px; padding: 2px 7px; border-radius: 999px; letter-spacing: .08em; text-transform: uppercase; }
+.ds-item-status.st-current { color: #34d399; background: rgba(52,211,153,.10); border: 1px solid rgba(52,211,153,.32); }
+.ds-item-status.st-from    { color: #fbbf24; background: rgba(251,191,36,.10); border: 1px solid rgba(251,191,36,.32); }
+.ds-item-status.st-to      { color: #60a5fa; background: rgba(96,165,250,.10); border: 1px solid rgba(96,165,250,.32); }
+.ds-item-status.st-retired { color: #7c90ae; background: rgba(124,144,174,.10); border: 1px solid rgba(124,144,174,.32); }
+.ds-item-role { color: #cbd5e1; font-size: 12.5px; line-height: 1.5; margin: 0 0 6px; }
+.ds-item-meta { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; font-family:'JetBrains Mono',monospace; font-size: 10.5px; color: #7c90ae; }
+.ds-item-meta a { color: #60a5fa; text-decoration: none; }
+.ds-item-meta a:hover { text-decoration: underline; }
+
+/* OSS table */
+.ds-oss-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.ds-oss-table th, .ds-oss-table td { padding: 9px 12px; text-align: left; border-bottom: 1px solid rgba(255,255,255,.04); }
+.ds-oss-table th { font-family:'JetBrains Mono',monospace; font-size: 10.5px; letter-spacing: .12em; text-transform: uppercase; color: #7c90ae; }
+.ds-oss-table td a { color: var(--ds-color, #60a5fa); text-decoration: none; font-weight: 700; }
+.ds-oss-table td a:hover { text-decoration: underline; }
+.ds-oss-stars { font-family:'JetBrains Mono',monospace; color: #fbbf24; font-size: 12px; }
+
+.ds-culture, .ds-hiring { color: #cbd5e1; font-size: 14px; line-height: 1.65; margin: 0; }
+
+.ds-links { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 12px; }
+.ds-links a { padding: 8px 14px; border-radius: 10px; background: rgba(255,255,255,.04); border: 1px solid rgba(255,255,255,.10); color: #cbd5e1; font-family:'JetBrains Mono',monospace; font-size: 12px; text-decoration: none; }
+.ds-links a:hover { background: rgba(96,165,250,.10); border-color: rgba(96,165,250,.32); color: #60a5fa; }
+
+.ds-disclaimer { margin-top: 22px; padding: 12px 16px; background:rgba(251,191,36,.06); border:1px solid rgba(251,191,36,.22); border-radius:10px; color:#fde68a; font-size:12.5px; line-height:1.6; }
+.ds-disclaimer strong { color:#fbbf24; font-family:'JetBrains Mono',monospace; font-size:10.5px; letter-spacing:.14em; text-transform:uppercase; display:block; margin-bottom:4px; }
+
+.ds-sources { margin-top: 18px; padding: 14px 16px; background:rgba(0,0,0,.25); border:1px solid rgba(255,255,255,.05); border-radius:10px; }
+.ds-sources h3 { font-family:'JetBrains Mono',monospace; font-size:11px; letter-spacing:.14em; text-transform:uppercase; color:#7c90ae; margin:0 0 6px; }
+.ds-sources ul { margin:0; padding-left:18px; color:#a8b6d1; font-size:12.5px; line-height:1.65; }
+.ds-sources a { color:#60a5fa; text-decoration:none; }
+.ds-sources a:hover { text-decoration:underline; }
+</style>
+</head>
+<body>
+  <header class="web-header">
+    <a href="/" class="web-header-logo">
+      <img src="/src/assets/icons/favicon-96.png?v=4" alt="CertQuests" class="web-header-bolt" width="32" height="32">
+      CertQuests
+    </a>
+    <nav class="web-header-links" aria-label="Main navigation">
+      <a href="/path.html" class="web-header-link-new">Cert Quest<span class="web-header-link-pill">NEW</span></a>
+      <a href="/certifications/">Certifications</a>
+      <a href="/courses/">Courses</a>
+      <a href="/careers/">Careers</a>
+    </nav>
+  </header>
+
+<main class="ds-page" id="main-content" style="--ds-color:#5865F2">
+  <nav class="breadcrumb" aria-label="Breadcrumb">
+    <a href="/">Home</a><span>/</span><a href="/devstack/">DevStack</a><span>/</span>Discord
+  </nav>
+
+  <section class="ds-hero">
+    <span class="eyebrow" style="color:#5865F2;background:#5865F21a;border:1px solid #5865F255">💬 DevStack · Plateforme de communication temps-réel (chat texte, voix, vidéo) — communautés, gaming, dev, éducation</span>
+    <h1>Le stack tech de Discord en 2026</h1>
+    <p class="lede">Stack temps-réel hybride Elixir + Rust + Python. Elixir/Erlang OTP porte le fanout messages ; Rust remplace progressivement Go et Elixir sur les chemins chauds ; Python reste sur l&#39;API historique. Messages stockés dans ScyllaDB (migré depuis Cassandra en 2022), infra sur Google Cloud + Kubernetes.</p>
+    <div class="ds-meta">
+      <span class="pill fresh">Révisé 2026-07</span>
+      <span class="pill">Fondé 2015 · San Francisco, USA (majoritairement remote — bureaux SF, NYC, Amsterdam)</span>
+      <span class="pill">6 catégories · 18 composants</span>
+    </div>
+  </section>
+
+  <div class="ds-scale"><strong>📈 Échelle (signaux publics)</strong>Plus de 200 millions d&#39;utilisateurs actifs mensuels revendiqués publiquement, ~19+ millions de serveurs actifs par semaine, et un pic historique documenté à 11+ millions d&#39;utilisateurs concurrents sur une seule bibliothèque Elixir (2019).</div>
+
+  <section class="ds-section">
+    <h2>🧱 Stack technique (sourcé public)</h2>
+    <div class="ds-category">
+    <div class="ds-category-name">▸ Backend temps-réel</div>
+    <div class="ds-items"><div class="ds-item">
+    <div class="ds-item-head">
+      <span class="ds-item-name">Elixir + Erlang OTP</span>
+      <span class="ds-item-status st-current">actuel</span>
+    </div>
+    <p class="ds-item-role">Gateway WebSocket + fanout des messages — cœur temps-réel qui pousse chaque message aux bons destinataires. Post viral 2017 sur la mise à l&#39;échelle à 5M+ d&#39;utilisateurs concurrents.</p>
+    <div class="ds-item-meta">depuis ~2016 · vu 2025 · <a href="https://discord.com/blog/how-discord-scaled-elixir-to-5-000-000-concurrent-users" target="_blank" rel="noopener nofollow">📝 Discord Engineering — How Discord Scaled Elixir to 5,000,000 Concurrent Users (2017)</a></div>
+  </div><div class="ds-item">
+    <div class="ds-item-head">
+      <span class="ds-item-name">Rust (NIFs Elixir + services hot-path)</span>
+      <span class="ds-item-status st-current">actuel</span>
+    </div>
+    <p class="ds-item-role">NIFs Rust intégrées dans les nœuds Elixir pour éviter les goulots BEAM sur le tri des membres — cité par Discord comme la clé pour tenir 11M+ d&#39;utilisateurs concurrents sur un serveur unique.</p>
+    <div class="ds-item-meta">depuis 2019 · vu 2025 · <a href="https://discord.com/blog/using-rust-to-scale-elixir-for-11-million-concurrent-users" target="_blank" rel="noopener nofollow">📝 Discord Engineering — Using Rust to Scale Elixir for 11 Million Concurrent Users (2019)</a></div>
+  </div><div class="ds-item">
+    <div class="ds-item-head">
+      <span class="ds-item-name">Rust (Read States, remplacement Go)</span>
+      <span class="ds-item-status st-to">migration entrante</span>
+    </div>
+    <p class="ds-item-role">Service &#39;Read States&#39; (l&#39;état lu/non-lu par utilisateur, milliards de req/jour) réécrit de Go vers Rust en 2020 — motif public : les GC pauses Go étaient inacceptables au 99e percentile.</p>
+    <div class="ds-item-meta">depuis 2020 · vu 2024 · <a href="https://discord.com/blog/why-discord-is-switching-from-go-to-rust" target="_blank" rel="noopener nofollow">📝 Discord Engineering — Why Discord is switching from Go to Rust (2020)</a></div>
+  </div><div class="ds-item">
+    <div class="ds-item-head">
+      <span class="ds-item-name">Python (API historique + services internes)</span>
+      <span class="ds-item-status st-current">actuel</span>
+    </div>
+    <p class="ds-item-role">Stack Python d&#39;origine — API monolithique historique et services outillage internes. Offres backend Python toujours publiées régulièrement.</p>
+    <div class="ds-item-meta">depuis 2015 · vu 2025 · <a href="https://discord.com/careers" target="_blank" rel="noopener nofollow">💼 Discord Careers — offres Backend Python (signal stack public)</a></div>
+  </div><div class="ds-item">
+    <div class="ds-item-head">
+      <span class="ds-item-name">Go (services périphériques restants)</span>
+      <span class="ds-item-status st-from">migration sortante</span>
+    </div>
+    <p class="ds-item-role">Reste utilisé pour certains services périphériques mais les chemins hot ont majoritairement basculé vers Rust ou Elixir depuis 2020.</p>
+    <div class="ds-item-meta">depuis ~2017 · vu 2024 · <a href="https://discord.com/blog/why-discord-is-switching-from-go-to-rust" target="_blank" rel="noopener nofollow">📝 Discord Engineering — Why Discord is switching from Go to Rust (contexte)</a></div>
+  </div></div>
+  </div><div class="ds-category">
+    <div class="ds-category-name">▸ Data store</div>
+    <div class="ds-items"><div class="ds-item">
+    <div class="ds-item-head">
+      <span class="ds-item-name">ScyllaDB</span>
+      <span class="ds-item-status st-to">migration entrante</span>
+    </div>
+    <p class="ds-item-role">Store principal des messages depuis la migration 2022 — trillions de messages migrés depuis Cassandra en visant des tail latencies P99 nettement plus basses.</p>
+    <div class="ds-item-meta">depuis 2022 · vu 2025 · <a href="https://discord.com/blog/how-discord-stores-trillions-of-messages" target="_blank" rel="noopener nofollow">📝 Discord Engineering — How Discord Stores Trillions of Messages (2023)</a></div>
+  </div><div class="ds-item">
+    <div class="ds-item-head">
+      <span class="ds-item-name">Apache Cassandra</span>
+      <span class="ds-item-status st-retired">retiré</span>
+    </div>
+    <p class="ds-item-role">Store historique des messages — objet du célèbre post 2017 &#39;How Discord Stores Billions of Messages&#39;, remplacé par ScyllaDB en 2022 pour les problèmes de compaction et de garbage collection JVM.</p>
+    <div class="ds-item-meta">depuis 2016 · vu 2022 · <a href="https://discord.com/blog/how-discord-stores-billions-of-messages" target="_blank" rel="noopener nofollow">📝 Discord Engineering — How Discord Stores Billions of Messages (2017)</a></div>
+  </div><div class="ds-item">
+    <div class="ds-item-head">
+      <span class="ds-item-name">MongoDB</span>
+      <span class="ds-item-status st-retired">retiré</span>
+    </div>
+    <p class="ds-item-role">Store d&#39;origine des messages (2015) — abandonné très vite lorsqu&#39;à ~100M messages les read-latencies sont devenues incohérentes (document dans le même post 2017).</p>
+    <div class="ds-item-meta">depuis 2015 · vu 2016 · <a href="https://discord.com/blog/how-discord-stores-billions-of-messages" target="_blank" rel="noopener nofollow">📝 Discord Engineering — How Discord Stores Billions of Messages (historique MongoDB)</a></div>
+  </div><div class="ds-item">
+    <div class="ds-item-head">
+      <span class="ds-item-name">Redis</span>
+      <span class="ds-item-status st-current">actuel</span>
+    </div>
+    <p class="ds-item-role">Cache et bus de présence (statut en ligne / activité) — mentionné comme composant infra de longue date dans plusieurs posts.</p>
+    <div class="ds-item-meta">depuis ~2016 · vu 2024 · <a href="https://discord.com/blog/tag/engineering" target="_blank" rel="noopener nofollow">📝 Discord Engineering — série de posts sur l&#39;infra temps-réel</a></div>
+  </div><div class="ds-item">
+    <div class="ds-item-head">
+      <span class="ds-item-name">Google BigQuery + data platform</span>
+      <span class="ds-item-status st-current">actuel</span>
+    </div>
+    <p class="ds-item-role">Data warehouse et pipelines analytics — la plateforme data côté Discord est décrite publiquement, avec BigQuery comme colonne vertébrale du warehouse.</p>
+    <div class="ds-item-meta">depuis ~2018 · vu 2024 · <a href="https://discord.com/blog/tag/engineering" target="_blank" rel="noopener nofollow">📝 Discord Engineering — série data platform</a></div>
+  </div></div>
+  </div><div class="ds-category">
+    <div class="ds-category-name">▸ Voice / vidéo</div>
+    <div class="ds-items"><div class="ds-item">
+    <div class="ds-item-head">
+      <span class="ds-item-name">WebRTC + Media Server maison</span>
+      <span class="ds-item-status st-current">actuel</span>
+    </div>
+    <p class="ds-item-role">Voice/vidéo bâti sur WebRTC avec un Selective Forwarding Unit maison (streaming vers uniquement les destinataires actifs) — architecture décrite publiquement dans les posts voice/vidéo.</p>
+    <div class="ds-item-meta">depuis 2015 · vu 2024 · <a href="https://discord.com/blog/tag/engineering" target="_blank" rel="noopener nofollow">📝 Discord Engineering — série voice/vidéo et scaling WebRTC</a></div>
+  </div></div>
+  </div><div class="ds-category">
+    <div class="ds-category-name">▸ Frontend / Clients</div>
+    <div class="ds-items"><div class="ds-item">
+    <div class="ds-item-head">
+      <span class="ds-item-name">React (client web)</span>
+      <span class="ds-item-status st-current">actuel</span>
+    </div>
+    <p class="ds-item-role">Application web principale bâtie sur React + Redux — mêmes composants partagés avec le client desktop Electron.</p>
+    <div class="ds-item-meta">depuis 2015 · vu 2025 · <a href="https://discord.com/careers" target="_blank" rel="noopener nofollow">💼 Discord Careers — offres Frontend Engineer (React/TypeScript)</a></div>
+  </div><div class="ds-item">
+    <div class="ds-item-head">
+      <span class="ds-item-name">Electron (desktop)</span>
+      <span class="ds-item-status st-current">actuel</span>
+    </div>
+    <p class="ds-item-role">Client desktop packagé avec Electron — partage la majorité du code du client web (posts publics et offres Client Engineer le confirment).</p>
+    <div class="ds-item-meta">depuis 2015 · vu 2025 · <a href="https://discord.com/careers" target="_blank" rel="noopener nofollow">💼 Discord Careers — offres Client Engineer (Electron)</a></div>
+  </div><div class="ds-item">
+    <div class="ds-item-head">
+      <span class="ds-item-name">React Native → Natif (iOS/Android)</span>
+      <span class="ds-item-status st-from">migration sortante</span>
+    </div>
+    <p class="ds-item-role">Apps mobiles historiquement en React Native — Discord a publiquement documenté une réécriture progressive vers Swift (iOS) puis Kotlin (Android) pour améliorer les performances et le tempo de release.</p>
+    <div class="ds-item-meta">depuis 2015 · vu 2024 · <a href="https://discord.com/blog/tag/engineering" target="_blank" rel="noopener nofollow">📝 Discord Engineering — série clients mobiles et refonte native</a></div>
+  </div></div>
+  </div><div class="ds-category">
+    <div class="ds-category-name">▸ Infra &amp; cloud</div>
+    <div class="ds-items"><div class="ds-item">
+    <div class="ds-item-head">
+      <span class="ds-item-name">Google Cloud Platform (GCP)</span>
+      <span class="ds-item-status st-current">actuel</span>
+    </div>
+    <p class="ds-item-role">Cloud principal — mentionné dans les posts d&#39;infra temps-réel et de data platform, offres SRE citant GCP explicitement.</p>
+    <div class="ds-item-meta">depuis ~2016 · vu 2025 · <a href="https://discord.com/careers" target="_blank" rel="noopener nofollow">💼 Discord Careers — offres SRE / Infra mentionnant GCP</a></div>
+  </div><div class="ds-item">
+    <div class="ds-item-head">
+      <span class="ds-item-name">Kubernetes</span>
+      <span class="ds-item-status st-current">actuel</span>
+    </div>
+    <p class="ds-item-role">Orchestrateur des services — Discord opère un déploiement Kubernetes significatif décrit publiquement, notamment pour les services hors du plan de messages ScyllaDB.</p>
+    <div class="ds-item-meta">depuis ~2019 · vu 2025 · <a href="https://discord.com/careers" target="_blank" rel="noopener nofollow">💼 Discord Careers — offres SRE / Platform Engineer mentionnant Kubernetes</a></div>
+  </div><div class="ds-item">
+    <div class="ds-item-head">
+      <span class="ds-item-name">HAProxy / Envoy</span>
+      <span class="ds-item-status st-current">actuel</span>
+    </div>
+    <p class="ds-item-role">Couche edge et load balancing interne — HAProxy en front, Envoy pour le service-mesh interne (mentionnés dans les offres platform et posts infra).</p>
+    <div class="ds-item-meta">depuis ~2017 · vu 2024 · <a href="https://discord.com/blog/tag/engineering" target="_blank" rel="noopener nofollow">📝 Discord Engineering — infra edge et service-mesh</a></div>
+  </div></div>
+  </div><div class="ds-category">
+    <div class="ds-category-name">▸ Data / ML / Safety</div>
+    <div class="ds-items"><div class="ds-item">
+    <div class="ds-item-head">
+      <span class="ds-item-name">Python + PyTorch / TensorFlow (ML Safety, recommandation)</span>
+      <span class="ds-item-status st-current">actuel</span>
+    </div>
+    <p class="ds-item-role">ML principalement pour Trust &amp; Safety (détection contenus abusifs, spam) et recommandation — offres ML Engineer Python + PyTorch régulières.</p>
+    <div class="ds-item-meta">depuis ~2019 · vu 2025 · <a href="https://discord.com/careers" target="_blank" rel="noopener nofollow">💼 Discord Careers — offres ML Engineer / Safety (Python, PyTorch)</a></div>
+  </div></div>
+  </div>
+  </section>
+
+  <section class="ds-section">
+    <h2>🐙 Open-source notable</h2>
+    <table class="ds-oss-table">
+    <thead><tr><th>Projet</th><th>Description</th><th>Stars</th></tr></thead>
+    <tbody><tr>
+    <td><a href="https://github.com/discord/erlpack" target="_blank" rel="noopener">erlpack</a></td>
+    <td>Extension C/Python de sérialisation Erlang External Term Format utilisée par le gateway WebSocket de Discord — plus dense que JSON pour les événements gateway.</td>
+    <td class="ds-oss-stars">1k+</td>
+  </tr><tr>
+    <td><a href="https://github.com/discord/sorted-containers-rs" target="_blank" rel="noopener">sortedcontainers-rs</a></td>
+    <td>Port Rust des sorted-containers Python — utilisé dans les NIFs Elixir qui trient les listes de membres de guilde.</td>
+    <td class="ds-oss-stars">≈100</td>
+  </tr><tr>
+    <td><a href="https://github.com/discord/lilliput" target="_blank" rel="noopener">lilliput</a></td>
+    <td>Wrapper Go/C++ (libavcodec, libjpeg, giflib) pour redimensionner images/GIFs — moteur derrière les avatars et embeds Discord.</td>
+    <td class="ds-oss-stars">2k+</td>
+  </tr><tr>
+    <td><a href="https://github.com/discord/gorepogen" target="_blank" rel="noopener">gorepogen</a></td>
+    <td>Générateur de code CRUD pour Go — outillage interne open-sourcé.</td>
+    <td class="ds-oss-stars">≈100</td>
+  </tr><tr>
+    <td><a href="https://github.com/discord" target="_blank" rel="noopener">jelly-bean-bot</a></td>
+    <td>Divers utilitaires publiés par l&#39;orga github.com/discord — infra hackathons, tooling public, sample-code SDK Discord.</td>
+    <td class="ds-oss-stars">—</td>
+  </tr></tbody>
+  </table>
+  </section>
+
+  <section class="ds-section">
+    <h2>🏛️ Culture ingénierie</h2>
+    <p class="ds-culture">Discord fait partie des entreprises les plus prolifiques en engineering blogging depuis 2017 — posts longs, chiffrés, avec vraie post-mortem style (le post &#39;Why we&#39;re switching from Go to Rust&#39; cite les GC pauses Go au P99, celui sur ScyllaDB cite les compactions Cassandra JVM). Le pattern récurrent : partir d&#39;un langage &#39;assez bon&#39; (Go, Cassandra, MongoDB, React Native) puis migrer vers un choix plus optimisé (Rust, ScyllaDB, natif mobile) une fois la contrainte comprise. Culture &#39;small teams, big impact&#39; revendiquée dans les offres publiques ; entreprise remote-first depuis la pandémie.</p>
+  </section>
+
+  <section class="ds-section">
+    <h2>👋 Recrutement</h2>
+    <p class="ds-hiring">Recrutement remote-first majoritairement US + certains pays européens (offres &#39;remote in select countries&#39; publiées). Process typique : screening RH → home assignment ou live coding selon rôle → panels (design système, culture) → onsite virtuel. Offres détaillées par stack : Backend Engineer (Elixir / Rust / Python), Platform Engineer (Kubernetes / GCP), Client Engineer (React / Electron / Native), Data / ML Engineer (Python / BigQuery). Page d&#39;offres publique : discord.com/careers.</p>
+    <div class="ds-links">
+      <a href="https://discord.com/careers" target="_blank" rel="noopener">💼 Careers Discord</a>
+      <a href="https://discord.com/blog/tag/engineering" target="_blank" rel="noopener">📝 Blog ingénierie</a>
+    </div>
+  </section>
+
+  <div class="ds-disclaimer"><strong>Méthodologie & limites</strong>Ce dossier compile ce qui a été publiquement disclosed via le blog ingénierie, les job postings, GitHub et les talks de conférence. Ce n'est pas un audit complet — la stack interne est plus large. Chaque item liste sa source pour que tu puisses re-vérifier. Les stacks tech bougent — la date "Révisé" en haut indique la fraîcheur de cette revue.</div>
+
+  <div class="ds-sources">
+    <h3>Sources principales</h3>
+    <ul><li><a href="https://discord.com/blog/tag/engineering" target="_blank" rel="noopener">Discord Engineering Blog (officiel — série de posts d&#39;architecture)</a></li><li><a href="https://github.com/discord" target="_blank" rel="noopener">github.com/discord — orga publique (Erlpack, sortedcontainers-rs, lilliput, etc.)</a></li><li><a href="https://discord.com/careers" target="_blank" rel="noopener">Discord Careers — offres publiques (signal stack rôles Backend/Infra/Data)</a></li></ul>
+  </div>
+</main>
+
+  <footer class="web-footer">
+    <div class="web-footer-inner">
+      <div class="web-footer-links">
+        <a href="/">Home</a>
+        <a href="/certifications/">Certifications</a>
+        <a href="/courses/">Courses</a>
+        <a href="/careers/">Careers</a>
+        <a href="/contact.html">Contact</a>
+        <a href="/privacy-policy.html">Privacy</a>
+      </div>
+      <div class="web-footer-text">CertQuests — Free IT certification training, courses, and career planning</div>
+    </div>
+  </footer>
+
+<script src="/src/cq-core.js?v=135" defer></script>
+<script src="/src/mascot-loader.js?v=135" defer></script>
+</body>
+</html>
