@@ -1,0 +1,214 @@
+{
+  "meta": {
+    "id": "nutanix-ncp-mci",
+    "name": "Nutanix Certified Professional - Multicloud Infrastructure (NCP-MCI-6.5)",
+    "vendor": "Nutanix",
+    "version": "1.0.0",
+    "question_count": 10,
+    "last_updated": "2026-07-29",
+    "notes": "Initial pack — NCP-MCI-6.5 covering Distributed Storage Fabric (CVM/Stargate/Cassandra/Curator), Prism Element vs Prism Central, AHV networking and virtualization, data efficiency features (compression, dedup, EC-X), Redundancy Factor, snapshots and Protection Domains, Life Cycle Manager, and cluster lifecycle."
+  },
+  "questions": [
+    {
+      "id": "ncpmci-001",
+      "question": "A Nutanix cluster runs one Controller VM (CVM) per node. Which component running on the CVM is the primary I/O path that serves guest read and write requests for local user VMs?",
+      "options": [
+        "Cassandra (distributed metadata store)",
+        "Stargate (data I/O manager and NFS/iSCSI/SMB target)",
+        "Curator (background scan and cluster housekeeping)",
+        "Zeus (cluster configuration service backed by Zookeeper)"
+      ],
+      "correct": 1,
+      "explanation": "Stargate is the data I/O service on every CVM — it terminates the storage protocols (NFS for AHV, iSCSI for ESXi/Hyper-V, SMB for Hyper-V) that guest VMs use to reach the Distributed Storage Fabric, and it is what enforces data locality by preferring the local CVM for reads. Cassandra holds distributed metadata (extent maps, oplog indexes) but is not on the guest I/O path directly. Curator is a MapReduce-style background scan that handles disk balancing, tier down-migration, deduplication and garbage collection — it runs offline, not on the request path. Zeus is the configuration-service layer (leader election, cluster config) sitting on top of Zookeeper and has nothing to do with guest I/O.",
+      "tags": [
+        "dsf",
+        "stargate",
+        "cvm",
+        "nutanix-ncp-mci"
+      ],
+      "difficulty": "medium",
+      "_normalized": true
+    },
+    {
+      "id": "ncpmci-002",
+      "question": "You manage twelve independent Nutanix clusters across three sites and want a single place to run cross-cluster reporting, policy-based VM management, category-based automation and Calm blueprints. Which product should you deploy?",
+      "options": [
+        "Prism Element on each cluster, federated by DNS aliases",
+        "Prism Central deployed as a multi-VM scale-out instance",
+        "Foundation Central running on a jump host",
+        "AOS Insights installed on the seed CVM of each cluster"
+      ],
+      "correct": 1,
+      "explanation": "Prism Central is the multi-cluster manager: it registers one or more clusters and provides cross-cluster reporting, categories/policies, self-service, Calm, Flow micro-segmentation and Karbon — exactly the fleet-wide management surface described. Prism Element is the per-cluster UI and cannot manage other clusters. Foundation Central is used to image bare-metal nodes at remote sites, not to run day-2 operations. AOS Insights is a marketing term for pulse-driven analytics inside Prism, not a separate installable product.",
+      "tags": [
+        "prism-central",
+        "prism-element",
+        "multi-cluster",
+        "nutanix-ncp-mci"
+      ],
+      "difficulty": "easy",
+      "_normalized": true
+    },
+    {
+      "id": "ncpmci-003",
+      "question": "A Nutanix storage container is configured with Redundancy Factor 2 (RF2). What does this guarantee about the cluster's tolerance to hardware failure, assuming the cluster itself is at RF2 with block awareness disabled?",
+      "options": [
+        "The cluster can lose two nodes simultaneously without data loss",
+        "The cluster can lose one node or one disk without data loss",
+        "The cluster keeps three replicas of every write across three separate blocks",
+        "The cluster is immune to metadata loss because RF2 also duplicates the Cassandra ring"
+      ],
+      "correct": 1,
+      "explanation": "RF2 stores two copies of every write extent on two different nodes, so the cluster survives the loss of a single node or a single drive without data loss — a second concurrent failure risks data unavailability until Curator finishes re-replication. Surviving two simultaneous node failures is an RF3 property, not RF2. RF2 keeps two replicas (not three) and block awareness is orthogonal — with block awareness enabled the replicas are also placed on different blocks, but the question explicitly states it is disabled. Metadata is protected by Cassandra's own replication (which is typically ring-3 on RF2 clusters), not by the container's data RF setting.",
+      "tags": [
+        "redundancy-factor",
+        "data-protection",
+        "nutanix-ncp-mci"
+      ],
+      "difficulty": "medium",
+      "_normalized": true
+    },
+    {
+      "id": "ncpmci-004",
+      "question": "You want to reduce the storage footprint of a container that holds many similar Windows Server VDI clones. Which combination of Distributed Storage Fabric features is best suited to reclaim capacity across those clones?",
+      "options": [
+        "Inline compression only, because dedup is not supported on AHV",
+        "Post-process compression combined with capacity-tier deduplication",
+        "Erasure Coding-X (EC-X) alone, since EC-X automatically deduplicates similar blocks",
+        "Cache deduplication only, because capacity dedup is deprecated in AOS 6"
+      ],
+      "correct": 1,
+      "explanation": "For many similar VMs, capacity-tier (post-process) deduplication run by Curator finds identical extents across clones and collapses them to one copy, and compression further shrinks each remaining extent — the two features stack. Dedup is fully supported on AHV; the 'AHV does not support dedup' claim is false. Erasure Coding-X saves capacity by turning cold data into parity strips, but it does not deduplicate — it is not a substitute for dedup on similar clones. Capacity-tier dedup is very much still shipping in AOS 6.x — Nutanix has not deprecated it.",
+      "tags": [
+        "data-efficiency",
+        "deduplication",
+        "compression",
+        "erasure-coding",
+        "nutanix-ncp-mci"
+      ],
+      "difficulty": "medium",
+      "_normalized": true
+    },
+    {
+      "id": "ncpmci-005",
+      "question": "On an AHV cluster you need to give a group of VMs a dedicated Layer-2 broadcast domain that is tagged VLAN 30 on the upstream switch. Which object should you create in Prism to expose that network to the VMs?",
+      "options": [
+        "A new virtual switch (vs1) with a separate uplink bond, then attach VMs to vs1 directly",
+        "A VM-network subnet on the existing virtual switch, specifying VLAN ID 30",
+        "A Flow security policy quarantining the VMs onto VLAN 30",
+        "An IPAM range on br0-up with the VLAN encoded in the gateway address"
+      ],
+      "correct": 1,
+      "explanation": "On AHV, VM network connectivity is modelled as a subnet (a port-group equivalent) on a virtual switch, with an optional VLAN tag. Creating a subnet on the default virtual switch and setting VLAN ID 30 gives the VMs the tagged broadcast domain — no extra virtual switch is needed unless you specifically want a separate uplink bond. A Flow policy controls east-west traffic filtering; it does not create networks. IPAM ranges are additional address-management on top of a subnet, not a substitute for defining the subnet itself, and VLAN tags are configured on the subnet, not embedded in a gateway address.",
+      "tags": [
+        "ahv",
+        "networking",
+        "vlan",
+        "nutanix-ncp-mci"
+      ],
+      "difficulty": "easy",
+      "_normalized": true
+    },
+    {
+      "id": "ncpmci-006",
+      "question": "You must protect a group of production VMs with crash-consistent snapshots taken every hour and asynchronously replicated to a remote Nutanix cluster with an RPO of one hour. Which native construct configures this?",
+      "options": [
+        "A Recovery Plan in Nutanix DR (Leap) targeting Xi Leap",
+        "A Protection Domain of type Async DR with a schedule and the remote site as target",
+        "A Metro Availability container stretched between the two sites",
+        "A NearSync schedule set to 60 minutes"
+      ],
+      "correct": 1,
+      "explanation": "Async DR is Nutanix's snapshot-based replication with a minimum 60-minute RPO — Protection Domains group the VMs, a schedule takes the snapshots, and a remote-site pairing carries them to the target cluster. Metro Availability is synchronous replication with RPO=0 and requires <5 ms RTT — heavier than what the requirement asks for. NearSync is designed for RPOs between 20 seconds and 15 minutes and is configured with light-weight snapshots; you would not use it for a 60-minute RPO. A Leap Recovery Plan is used with Nutanix Disaster Recovery (Prism Central), and Xi Leap specifically is the SaaS variant — neither is required here when a native Protection Domain covers the RPO.",
+      "tags": [
+        "protection-domain",
+        "async-dr",
+        "snapshots",
+        "nutanix-ncp-mci"
+      ],
+      "difficulty": "medium",
+      "_normalized": true
+    },
+    {
+      "id": "ncpmci-007",
+      "question": "During normal steady-state operation on an AHV cluster, Nutanix data locality means that a running VM's reads are preferentially served from which location?",
+      "options": [
+        "The CVM on the local host where the VM is running",
+        "Whichever CVM currently owns the leader token for that vDisk",
+        "The CVM with the lowest CPU utilisation in the cluster",
+        "The Prism Central VM, which brokers all read traffic cluster-wide"
+      ],
+      "correct": 0,
+      "explanation": "Data locality is the property that once a VM has been running on a host for a while, its working-set replicas are held on the same host's SSDs and served by the local CVM — that gives predictable low-latency reads and avoids the network hop. There is no per-vDisk 'leader token' in the DSF, and reads are not steered by CVM CPU utilisation. Prism Central is a management plane; it never sits on the guest I/O path.",
+      "tags": [
+        "data-locality",
+        "dsf",
+        "cvm",
+        "nutanix-ncp-mci"
+      ],
+      "difficulty": "easy",
+      "_normalized": true
+    },
+    {
+      "id": "ncpmci-008",
+      "question": "You need to upgrade AOS, AHV, the firmware on NIC and HBA cards, and the BMC/BIOS on every node in a cluster from a single guided workflow that also handles CVM/host rolling reboots. Which Nutanix tool is designed for this?",
+      "options": [
+        "Foundation, run again against the running cluster",
+        "Life Cycle Manager (LCM) from Prism",
+        "Ncli 'cluster upgrade-all' followed by manual firmware flashing",
+        "1-click hypervisor upgrade only — firmware must always be updated out-of-band"
+      ],
+      "correct": 1,
+      "explanation": "Life Cycle Manager (LCM) is the unified upgrade framework in Prism: it inventories every software and firmware component (AOS, AHV, ESXi bundles, NCC, Foundation, NIC/HBA/SATA-DOM firmware, BMC/BIOS) and orchestrates rolling upgrades with the correct host and CVM reboots. Foundation is for imaging bare-metal nodes into a new cluster, not for day-2 upgrades. The 'cluster upgrade-all' ncli command is not a real single-shot firmware-and-software workflow. It is not true that firmware must be handled out-of-band — LCM specifically exists so it doesn't have to be.",
+      "tags": [
+        "lcm",
+        "lifecycle",
+        "upgrades",
+        "nutanix-ncp-mci"
+      ],
+      "difficulty": "easy",
+      "_normalized": true
+    },
+    {
+      "id": "ncpmci-009",
+      "question": "You need to place a new AHV cluster into maintenance for chassis work. What is the correct sequence to safely take a single node offline while the guest VMs stay online?",
+      "options": [
+        "Shut down the CVM first, then live-migrate the guest VMs off the host, then power the host down",
+        "Put the host into maintenance mode (which live-migrates guest VMs off), then shut down the CVM gracefully, then power the host down",
+        "Power the host off directly — AHV HA will restart the CVM and VMs elsewhere with no data loss",
+        "Detach the node from the cluster with 'cluster remove-node' before powering it down"
+      ],
+      "correct": 1,
+      "explanation": "The supported sequence is to put the AHV host into maintenance mode, which live-migrates all guest VMs to other hosts, then gracefully shut down the CVM (cvm_shutdown -P now) so the DSF can rebalance replica placement, and only then power the host down. Shutting the CVM down before evacuating VMs leaves running VMs without local storage access. Yanking power relies on HA to restart the VMs — that is an outage, not planned maintenance. 'cluster remove-node' permanently removes the node from the cluster and triggers full data migration — far more work than a maintenance window needs.",
+      "tags": [
+        "maintenance",
+        "ahv",
+        "operations",
+        "nutanix-ncp-mci"
+      ],
+      "difficulty": "medium",
+      "_normalized": true
+    },
+    {
+      "id": "ncpmci-010",
+      "question": "A Nutanix cluster runs oplog on an SSD tier for incoming random writes. Which statement best describes when and why data leaves the oplog?",
+      "options": [
+        "Oplog is a persistent cache that never drains — writes stay in oplog forever to accelerate reads",
+        "Curator drains oplog once a day during the scheduled deep scan, regardless of oplog fill level",
+        "Once oplog reaches its per-vDisk fill threshold or the writes coalesce into sequential patterns, Stargate flushes them into the extent store on the capacity tier",
+        "Oplog is drained only when the CVM is rebooted, which is why frequent CVM restarts are recommended"
+      ],
+      "correct": 2,
+      "explanation": "Oplog absorbs random write bursts on SSD, and Stargate drains it to the extent store either when the per-vDisk oplog fill threshold is hit or when the incoming stream becomes sequential enough that it bypasses oplog entirely — the drain lands data on the appropriate tier of the extent store. Oplog is a write cache, not a persistent parking area, so 'never drains' is wrong. Curator's scans are for cold-tier down-migration, EC-X, dedup and garbage collection, not for oplog draining, and they do not run only once a day. And you certainly do not want to reboot CVMs to drain oplog — CVM restarts should be planned and rare.",
+      "tags": [
+        "oplog",
+        "extent-store",
+        "dsf",
+        "write-path",
+        "nutanix-ncp-mci"
+      ],
+      "difficulty": "hard",
+      "_normalized": true
+    }
+  ]
+}
