@@ -1520,6 +1520,72 @@ competition-driven, community-driven** layer. Highest-priority builds:
 
 ---
 
+## 📦 Content expansion R26 (2026-08-04)
+
+Scheduled-agent run targeting the PromptDungeon cluster — the longest-quiet
+content cluster since R20 (last touched 2026-06-23 with the `azure-cert-prep`
+sibling, 42 days ago; DevStack / Comparator / ToolRadar / FailBase /
+RealityCheck have all picked up entries more recently). One new high-traffic
+workflow filling the most obvious gap in the cluster — GCP cert prep, sibling
+to the long-shipped `aws-cert-prep` and R20's `azure-cert-prep`, completing
+the "big three cloud provider" trio:
+
+- **+1 PromptDungeon workflow** (cluster 12 → 13):
+  - `gcp-cert-prep` — Google Cloud cert prep coach mirroring `azure-cert-prep`'s
+    6-prompt structure and adapted to GCP-specific traps. The 6 prompts:
+    (1) deep-explain a GCP concept layered for ACE/PCA/PDE/PCSE/PMLE/PCD/CDL
+    audience with mandatory hierarchy + scope call-outs (Organization / Folder /
+    Project / Resource; global VPC + regional subnets + zonal GCE — the #1 GCP
+    exam trap) and renamed-service pitfalls (Stackdriver → Cloud Operations, AI
+    Platform → Vertex AI, Datastore → Firestore, Cloud IoT retired, Deployment
+    Manager marked legacy), (2) generate 10 scenario MCQs in the Google house
+    style (Cymbal Superstores / Cymbal Bank / TerramEarth / Mountkirk Games
+    case-study companies, single-answer only — the tell that AI didn't lazily
+    copy the Microsoft multi-select format), (3) wrong-answer post-mortem
+    forcing the model to name the confused twin-service (Cloud Run vs GKE
+    Autopilot, Cloud SQL vs Spanner vs AlloyDB, Dataflow vs Dataproc, Bigtable
+    vs BigQuery, Cloud KMS vs Cloud HSM vs EKM, Cloud Armor vs Cloud IDS vs
+    VPC-SC) and lean on the 6 Google Cloud Architecture Framework pillars
+    (Operational Excellence / Security & Compliance / Reliability / Performance
+    Optimization / Cost Optimization / Sustainability — 6, not Azure's 5),
+    (4) which-GCP-service decider tied to a Framework pillar with
+    region/compliance/data-residency constraints, (5) edition/tier decoder for
+    the BigQuery Standard/Enterprise/Enterprise Plus (autoscaling since 2023,
+    flat-rate retired), Storage Standard/Nearline/Coldline/Archive (retrieval
+    fees + 90-day min-duration traps), GKE Standard vs Autopilot vs Enterprise,
+    and Spanner PU pricing mazes, (6) cross-format translator (Console
+    clickpath ↔ gcloud one-liner ↔ Terraform google provider ↔ Config Connector
+    YAML) plus the 3 implicit Console defaults (uniform bucket-level access,
+    public access prevention, CMEK vs GMEK) that IaC forms make you spell out
+    — the trap that burns ACE / PCA candidates on interface-mixed questions.
+  - Targets the ACE / PCA / PDE / PCSE / PCNE / PMLE / PCD / CDL audience the
+    cluster had ZERO prompts for despite CertQuests shipping 8 GCP packs
+    (`gcp-ace`, `gcp-cdl`, `gcp-pca`, `gcp-pcd`, `gcp-pcne`, `gcp-pcse`,
+    `gcp-pde`, `gcp-pmle`). Explicitly warns off legacy paths that still
+    linger in old training material (Deployment Manager for greenfield, App
+    Engine Flex when Cloud Run fits, BigQuery flat-rate, AI Platform
+    Notebooks, Cloud IoT Core). All prompts respect the schema
+    (`<UPPER_KEBAB>` placeholders, no system-prompt magic, `model_tested`
+    dated against Claude 4.7 Opus / GPT-5 / Gemini 2.5 Pro in 2026-07/08).
+  - `tldr` trimmed to 156 chars so the generator's `<meta description>` /
+    `og:description` stay under the project's ≤160-char SEO rule. Title
+    "GCP Cert Prep Coach — battle-tested AI prompts" (og:title, 46 chars +
+    generator suffix). HowTo JSON-LD per page via the generator template.
+    Tags `study, cert, gcp, cloud` — slots cleanly into the cluster's existing
+    tag filter (adds `gcp` alongside sibling `aws` / `azure` tags).
+- `scripts/gen-prompt-pages.js` `CACHE_BUST` already at v=135 (aligned with
+  the current global `?v=` key) — no generator bump needed. The 12 existing
+  workflow pages regenerated idempotently (only the new page + the index
+  changed in git status; the 12 siblings were byte-identical).
+- `npm run gen-prompts` regenerated 13 workflow pages + the
+  `/prompt-dungeon/` index. sitemap.xml +1 entry (priority 0.8, monthly
+  changefreq, lastmod 2026-08-04); prompt-dungeon index lastmod bumped
+  2026-06-23 → 2026-08-04.
+- 265/265 tests still pass. No CSS/JS cache version bump (new HTML/data
+  only).
+
+---
+
 ## 📦 Content expansion R25 (2026-07-28)
 
 Scheduled-agent run targeting the DevStack cluster — the longest-quiet content
