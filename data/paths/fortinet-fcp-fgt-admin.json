@@ -1,0 +1,383 @@
+{
+  "packId": "fortinet-fcp-fgt-admin",
+  "title": "Fortinet FCP – FortiGate 7.4 Administrator (FCP_FGT_AD-7.4)",
+  "brandName": "Fortinet",
+  "brandColor": "#EF3E25",
+  "chapters": [
+    {
+      "id": "ch1",
+      "title": "Part 1",
+      "tag": "part-1",
+      "nodes": [
+        {
+          "id": "c1-concept",
+          "type": "concept",
+          "title": "Network Address Translation: Key Ideas",
+          "content": "NAT translates private IPs (10.0.0.0/8, 192.168.0.0/16) to public IPs at the network edge — the trick that lets billions of devices share the 4 billion IPv4 address space. Knowing the three NAT flavors is a CCNA / Network+ staple.",
+          "flashcards": [
+            {
+              "front": "Static NAT vs Dynamic NAT vs PAT — pick the right one.",
+              "back": "Static NAT: 1:1 fixed mapping (one private IP ↔ one public IP). Use for inbound services (web server gets a dedicated public). Dynamic NAT: pool of public IPs assigned on-demand, no port translation. PAT (Port Address Translation, a.k.a. NAT Overload): many private IPs share one public IP, distinguished by source port. PAT is what 'NAT' usually means in home routers."
+            },
+            {
+              "front": "How does PAT distinguish two clients hitting the same server?",
+              "back": "By the source port. Client A from 10.0.0.5:50000 → translated to 1.2.3.4:32145. Client B from 10.0.0.6:50000 → translated to 1.2.3.4:32146. The router keeps a translation table mapping (private IP, port) ↔ (public IP, port). When reply comes back, look up the port, send to the right private host."
+            },
+            {
+              "front": "Why does NAT break some protocols (FTP, SIP)?",
+              "back": "Protocols that embed IP addresses or port numbers INSIDE the payload (FTP PORT command, SIP INVITE) break when NAT rewrites only the IP header. The payload still contains the private IP, the remote end gets confused. Mitigation: an Application Layer Gateway (ALG) on the router rewrites the embedded addresses too. Many ALGs are buggy — vendors recommend disabling SIP ALG for VoIP."
+            },
+            {
+              "front": "What's the difference between source NAT and destination NAT?",
+              "back": "Source NAT (SNAT): rewrites the source address of outbound traffic — what PAT/dynamic NAT do for internet access. Destination NAT (DNAT): rewrites the destination address of inbound traffic — used to publish internal servers, also called 'port forwarding' on home routers. Most NAT devices do both, in different directions."
+            }
+          ],
+          "source": "concept-library",
+          "sourceTag": "nat"
+        },
+        {
+          "id": "c1-quiz1",
+          "type": "quiz",
+          "title": "Part 1 — Drill 1",
+          "questionIds": [
+            "fcpfgt-001",
+            "fcpfgt-002",
+            "fcpfgt-003",
+            "fcpfgt-004"
+          ]
+        },
+        {
+          "id": "c1-game",
+          "type": "minigame",
+          "gameType": "lightning",
+          "mode": "lightning-round",
+          "data": {
+            "secondsPerQuestion": 7,
+            "livesAllowed": 3,
+            "questions": [
+              {
+                "q": "An administrator wants a single FortiGate 100F to serve two independent tenants that must have completely separate routing tables, firewall policies, and administrator accounts, yet share the same physical appliance. Which FortiGate feature meets this requirement?",
+                "choices": [
+                  "Zones grouping several interfaces together",
+                  "Multiple firewall policy sequences per interface",
+                  "Virtual domains (VDOMs) in multi-VDOM mode",
+                  "SD-WAN member interfaces with per-member rules"
+                ],
+                "correctIndex": 2,
+                "explanation": "VDOMs partition a single FortiGate into logically isolated virtual firewalls — each VDOM has its own routing table, firewall policy list, address/service objects, and administrators, exactly matching a multi-tenant use case. Zones are just an interface-grouping label inside one VDOM and do not create routing/policy isolation. Multiple policy sequences still share one routing/config context. SD-WAN aggregates WAN links for path selection; it does not isolate tenants or split configuration."
+              },
+              {
+                "q": "A FortiGate is in NAT mode with central-NAT ENABLED. An outbound firewall policy from `port3` to `port1` is set to accept, but users are reporting no Internet access. Where must the administrator define the source NAT rule so packets get translated to the WAN IP?",
+                "choices": [
+                  "In the firewall policy itself, by enabling `nat enable` and setting a pool",
+                  "In `Policy & Objects > Central SNAT`, matching source/destination and specifying the IP pool",
+                  "In `System > Interfaces`, setting `secondary-IP` on `port1`",
+                  "In `Network > Static Routes`, adding a NAT flag to the default route"
+                ],
+                "correctIndex": 1,
+                "explanation": "When central NAT is enabled, per-policy NAT is disabled: the firewall policy only decides accept/deny, and translation is controlled by the Central SNAT rulebase (`config firewall central-snat-map`). The rule must match the same source/destination as the policy and reference an IP pool (or the outgoing interface IP). Enabling `nat` on the policy has no effect when central NAT is on. Secondary IPs and static routes do not perform address translation."
+              },
+              {
+                "q": "Two FortiGate 200F units run FGCP active-passive HA over `port10` as the heartbeat interface. The primary loses power. What must be true for the secondary to take over the primary role without administrator intervention?",
+                "choices": [
+                  "The two units must be configured in override mode with matching priorities",
+                  "The `session-pickup` feature must be disabled so stateful sessions do not confuse the new primary",
+                  "Link aggregation must be enabled on the heartbeat interface",
+                  "The units share the same HA group ID, run the same firmware, and the secondary detects heartbeat loss beyond the configured hello/dead intervals"
+                ],
+                "correctIndex": 3,
+                "explanation": "FGCP failover happens automatically when the secondary stops receiving heartbeat packets past the configured hello/dead thresholds, provided the cluster is validly formed: identical firmware, matching HA group ID, matching hardware model, and reachable heartbeat links. Override mode is optional and changes who wins re-election after a recovery — it is not required for basic takeover. Session pickup should be enabled (not disabled) if you want stateful failover. LAG on the heartbeat is unrelated; heartbeat resiliency is achieved by configuring multiple heartbeat interfaces with priorities."
+              },
+              {
+                "q": "Remote users must reach an internal RDP server through the FortiGate. The security team requires that traffic run over a full SSL VPN tunnel from FortiClient — no web-based portal, no bookmarks, and the client must receive an IP from a defined range. Which SSL VPN portal type should the administrator assign to the user group?",
+                "choices": [
+                  "Tunnel-mode portal with a configured tunnel IP pool",
+                  "Web-mode portal with RDP bookmarks",
+                  "Full-access portal with `tunnel-mode` disabled",
+                  "Web-only portal with an HTTPS bookmark"
+                ],
+                "correctIndex": 0,
+                "explanation": "Tunnel-mode portals deliver a routed SSL VPN: FortiClient establishes the tunnel, receives an address from the SSL VPN IP pool, and any allowed application (RDP included) travels natively over that tunnel — matching the requirement of no web portal and no bookmarks. Web-mode portals proxy applications through the browser via bookmarks (the opposite of the requirement). Full-access with tunnel-mode disabled degenerates back to web-mode. A web-only HTTPS bookmark cannot proxy RDP."
+              }
+            ]
+          },
+          "title": "Part 1 — Lightning Round"
+        },
+        {
+          "id": "c1-boss",
+          "type": "subboss",
+          "title": "Boss: Part 1",
+          "questionIds": [
+            "fcpfgt-001",
+            "fcpfgt-002",
+            "fcpfgt-003",
+            "fcpfgt-004"
+          ]
+        },
+        {
+          "id": "c1-chest",
+          "type": "chest",
+          "title": "Treasure Chest",
+          "rewardXp": 30,
+          "cosmeticKey": "chapter-1"
+        }
+      ]
+    },
+    {
+      "id": "ch2",
+      "title": "Part 2",
+      "tag": "part-2",
+      "nodes": [
+        {
+          "id": "c2-concept",
+          "type": "concept",
+          "title": "Part 2: Key Ideas",
+          "content": "Quick primer on Part 2. Tap to flip cards covering the most-asked exam ideas in this domain.",
+          "flashcards": [
+            {
+              "front": "Two sites use IPsec IKEv2 site-to-site VPN. Traffic between the LANs stops after a firmware upgrade, and diagnostics show Phase 1 comes up but Phase 2 fails. Which mismatch is the MOST likely cause?",
+              "back": "Phase 2 negotiates the child SA that actually carries the LAN-to-LAN traffic; the quick-mode selectors (local/remote subnets, protocol, port) must match exactly on both sides or Phase 2 will not establish even after Phase 1 succeeds. A wrong PSK, mismatched IKE version, or mismatched peer ID would break Phase 1 first (so it would never come up). The scenario explicitly says Phase 1 is up, so the failure is in Phase 2 negotiation — the classic selector-mismatch symptom."
+            },
+            {
+              "front": "An administrator wants FortiGate to authorize users transparently based on their Active Directory sign-in, without pushing an agent to each workstation. Which FSSO deployment method should be used?",
+              "back": "The Fortinet Single Sign-On Collector Agent (FSSO CA) is installed on a Windows server, subscribes to Domain Controller security event logs (event IDs 4768/4769/4770 or logon events), and forwards the resulting user-to-IP mappings to the FortiGate — completely agentless from the endpoint's perspective. FortiGate-only DC polling is possible but has scale/permission caveats and still requires DC access; the CA/DC-agent method is the recommended and most common form. FortiClient EMS SSO requires the endpoint agent. RADIUS SSO is a different mechanism and requires the RADIUS server to push accounting messages — it is not transparent from AD logon."
+            },
+            {
+              "front": "A firewall policy uses a web filter profile with both category-based blocking and URL-list overrides. To minimise CPU load on a busy FortiGate 100F while keeping category filtering, which inspection mode should the administrator prefer for the web filter profile?",
+              "back": "Flow-based inspection scans traffic as packets stream through the FortiGate — no full-object buffering, less memory pressure, and lower CPU cost — while still supporting FortiGuard URL categorisation and static URL lists. Proxy-based inspection buffers full transactions (needed for some deep features like SafeSearch header injection and full content archiving) but costs more CPU/RAM. Certificate inspection is a scope for SSL, not a substitute web-filter engine. Explicit-proxy mode is a deployment topology, not a performance win over flow-based."
+            },
+            {
+              "front": "An IPS sensor is applied to a firewall policy protecting an internal web server. The administrator wants to detect and block signatures targeting HTTP servers ONLY, at severity `high` or `critical`, without hand-picking individual signatures. Which sensor configuration achieves this?",
+              "back": "IPS filters are attribute-based groupings: an administrator picks protocol, target (client/server), OS, severity, etc., and the FortiGate expands that to the matching signature set automatically — perfect for 'HTTP + server + high/critical'. Setting action=block on that filter enforces the requirement. Outbreak prevention is a curated, small set of emergency signatures — not a substitute for a proper IPS filter. A default 'monitor' sensor logs but does not block. Rate-based signatures address flooding, not target-specific HTTP attacks."
+            }
+          ],
+          "source": "auto-derived"
+        },
+        {
+          "id": "c2-quiz1",
+          "type": "quiz",
+          "title": "Part 2 — Drill 1",
+          "questionIds": [
+            "fcpfgt-005",
+            "fcpfgt-006",
+            "fcpfgt-007",
+            "fcpfgt-008"
+          ]
+        },
+        {
+          "id": "c2-game",
+          "type": "minigame",
+          "gameType": "lightning",
+          "mode": "lightning-round",
+          "data": {
+            "secondsPerQuestion": 7,
+            "livesAllowed": 3,
+            "questions": [
+              {
+                "q": "Two sites use IPsec IKEv2 site-to-site VPN. Traffic between the LANs stops after a firmware upgrade, and diagnostics show Phase 1 comes up but Phase 2 fails. Which mismatch is the MOST likely cause?",
+                "choices": [
+                  "The pre-shared key differs between the two peers",
+                  "The IKE version is set to IKEv2 on one side and IKEv1 on the other",
+                  "The Phase 2 quick-mode selectors (local/remote subnets) do not match between the two peers",
+                  "The peer ID type differs (`address` vs `fqdn`)"
+                ],
+                "correctIndex": 2,
+                "explanation": "Phase 2 negotiates the child SA that actually carries the LAN-to-LAN traffic; the quick-mode selectors (local/remote subnets, protocol, port) must match exactly on both sides or Phase 2 will not establish even after Phase 1 succeeds. A wrong PSK, mismatched IKE version, or mismatched peer ID would break Phase 1 first (so it would never come up). The scenario explicitly says Phase 1 is up, so the failure is in Phase 2 negotiation — the classic selector-mismatch symptom."
+              },
+              {
+                "q": "An administrator wants FortiGate to authorize users transparently based on their Active Directory sign-in, without pushing an agent to each workstation. Which FSSO deployment method should be used?",
+                "choices": [
+                  "Polling mode running directly on the FortiGate against endpoint workstations",
+                  "Collector agent (FSSO CA) installed on a Windows server, monitoring DC security event logs",
+                  "FortiClient EMS with per-endpoint interactive login",
+                  "RADIUS single sign-on with per-user PAP authentication against the FortiGate LDAP server"
+                ],
+                "correctIndex": 1,
+                "explanation": "The Fortinet Single Sign-On Collector Agent (FSSO CA) is installed on a Windows server, subscribes to Domain Controller security event logs (event IDs 4768/4769/4770 or logon events), and forwards the resulting user-to-IP mappings to the FortiGate — completely agentless from the endpoint's perspective. FortiGate-only DC polling is possible but has scale/permission caveats and still requires DC access; the CA/DC-agent method is the recommended and most common form. FortiClient EMS SSO requires the endpoint agent. RADIUS SSO is a different mechanism and requires the RADIUS server to push accounting messages — it is not transparent from AD logon."
+              },
+              {
+                "q": "A firewall policy uses a web filter profile with both category-based blocking and URL-list overrides. To minimise CPU load on a busy FortiGate 100F while keeping category filtering, which inspection mode should the administrator prefer for the web filter profile?",
+                "choices": [
+                  "Proxy-based inspection, because it is required for URL categorisation",
+                  "Certificate inspection only, because it disables the web filter engine",
+                  "Explicit web proxy mode, because it always outperforms flow-based",
+                  "Flow-based inspection, because it processes packets in the kernel without buffering full HTTP transactions"
+                ],
+                "correctIndex": 3,
+                "explanation": "Flow-based inspection scans traffic as packets stream through the FortiGate — no full-object buffering, less memory pressure, and lower CPU cost — while still supporting FortiGuard URL categorisation and static URL lists. Proxy-based inspection buffers full transactions (needed for some deep features like SafeSearch header injection and full content archiving) but costs more CPU/RAM. Certificate inspection is a scope for SSL, not a substitute web-filter engine. Explicit-proxy mode is a deployment topology, not a performance win over flow-based."
+              },
+              {
+                "q": "An IPS sensor is applied to a firewall policy protecting an internal web server. The administrator wants to detect and block signatures targeting HTTP servers ONLY, at severity `high` or `critical`, without hand-picking individual signatures. Which sensor configuration achieves this?",
+                "choices": [
+                  "Add an IPS filter that selects protocol=HTTP, target=server, severity=high/critical, and set the action to block",
+                  "Enable global outbreak-prevention only and rely on it to cover HTTP threats",
+                  "Set the sensor's default action to monitor and hope the default signatures cover HTTP",
+                  "Disable all rate-based signatures so the engine focuses on HTTP"
+                ],
+                "correctIndex": 0,
+                "explanation": "IPS filters are attribute-based groupings: an administrator picks protocol, target (client/server), OS, severity, etc., and the FortiGate expands that to the matching signature set automatically — perfect for 'HTTP + server + high/critical'. Setting action=block on that filter enforces the requirement. Outbreak prevention is a curated, small set of emergency signatures — not a substitute for a proper IPS filter. A default 'monitor' sensor logs but does not block. Rate-based signatures address flooding, not target-specific HTTP attacks."
+              }
+            ]
+          },
+          "title": "Part 2 — Lightning Round"
+        },
+        {
+          "id": "c2-boss",
+          "type": "subboss",
+          "title": "Boss: Part 2",
+          "questionIds": [
+            "fcpfgt-005",
+            "fcpfgt-006",
+            "fcpfgt-007",
+            "fcpfgt-008"
+          ]
+        },
+        {
+          "id": "c2-chest",
+          "type": "chest",
+          "title": "Treasure Chest",
+          "rewardXp": 30,
+          "cosmeticKey": "chapter-2"
+        }
+      ]
+    },
+    {
+      "id": "ch3",
+      "title": "Part 3",
+      "tag": "part-3",
+      "nodes": [
+        {
+          "id": "c3-concept",
+          "type": "concept",
+          "title": "Microsoft 365 licensing: Key Ideas",
+          "content": "Microsoft 365 is sold in subscription plans that bundle productivity apps, security, and device management. MS-900 exams test which plan includes which features and the volume licensing options.",
+          "flashcards": [
+            {
+              "front": "Microsoft 365 Business vs Enterprise plans — key split?",
+              "back": "Business plans (Basic/Standard/Premium) are capped at 300 users. Enterprise plans (E1/E3/E5) have no user cap and include advanced compliance and security features."
+            },
+            {
+              "front": "What does Microsoft 365 E5 add over E3?",
+              "back": "E5 adds advanced security (Defender for Identity, Defender for Cloud Apps), advanced compliance (Purview), and Power BI Pro — roughly doubles the cost of E3."
+            },
+            {
+              "front": "Microsoft Volume Licensing vs Microsoft 365 subscription?",
+              "back": "Volume Licensing (EA, CSP) offers negotiated pricing, centralised management, and payment flexibility for large organisations; subscriptions are per-user/month via direct or partner channels."
+            },
+            {
+              "front": "Difference between Microsoft 365 and Office 365?",
+              "back": "Office 365 is the older brand for productivity apps + cloud services. Microsoft 365 adds Windows 10/11 Enterprise licences and advanced security/compliance tools."
+            }
+          ],
+          "source": "concept-library",
+          "sourceTag": "licensing"
+        },
+        {
+          "id": "c3-quiz1",
+          "type": "quiz",
+          "title": "Part 3 — Drill 1",
+          "questionIds": [
+            "fcpfgt-009",
+            "fcpfgt-011",
+            "fcpfgt-012",
+            "fcpfgt-010"
+          ]
+        },
+        {
+          "id": "c3-game",
+          "type": "minigame",
+          "gameType": "lightning",
+          "mode": "lightning-round",
+          "data": {
+            "secondsPerQuestion": 7,
+            "livesAllowed": 3,
+            "questions": [
+              {
+                "q": "A customer wants antivirus, IPS, application control, web filter, DNS filter, and anti-botnet all fed by FortiGuard updates on a single FortiGate. Which FortiGuard subscription bundle covers this superset in one SKU?",
+                "choices": [
+                  "FortiCare Essentials (hardware RMA + firmware updates only)",
+                  "FortiGuard AV-only subscription",
+                  "FortiGuard Unified Threat Protection (UTP) / Enterprise Protection bundle",
+                  "FortiGuard SD-WAN Overlay-as-a-Service"
+                ],
+                "correctIndex": 2,
+                "explanation": "FortiGuard's UTP / Enterprise Protection bundle is the multi-signature SKU that includes AV, IPS, application control, web filter, DNS filter, anti-botnet, plus IoT/OT signatures on newer bundles — one SKU rather than piecemeal AV/IPS/web-filter subscriptions. FortiCare covers hardware/firmware support, not signatures. A standalone AV subscription would only cover the antivirus engine. SD-WAN Overlay-as-a-Service is a separate cloud service for SD-WAN orchestration."
+              },
+              {
+                "q": "A FortiGate has two default routes: one via `port1` (ISP-A) with distance 10 and priority 5, another via `port2` (ISP-B) with distance 10 and priority 10. Both interfaces are up. What appears in the routing table and how is outbound traffic forwarded?",
+                "choices": [
+                  "Only the port1 route is installed because it has the lower distance",
+                  "Both routes are installed in the routing table (equal distance), and the port1 route is preferred for forwarding because it has the lower priority value",
+                  "Both routes are installed and traffic is load-balanced 50/50 by default across port1 and port2",
+                  "Neither route is installed; a tie on distance causes both to be dropped from FIB"
+                ],
+                "correctIndex": 1,
+                "explanation": "Administrative distance decides which routes make it into the routing table — equal distance means BOTH default routes are installed. Among equal-distance routes, FortiGate uses `priority` (lower is better) to pick which one is actually used for forwarding. So the port1 route (priority 5) wins over the port2 route (priority 10), with port2 sitting installed as a standby. ECMP load-balancing is not on by default across differing priorities; you would need equal priority AND ECMP enabled. Distance ties are not dropped — they are installed and disambiguated by priority."
+              },
+              {
+                "q": "The compliance team requires retention of one year of forward traffic logs plus event logs, indexed for search across dozens of FortiGates. Which log destination best meets this scale?",
+                "choices": [
+                  "Memory logs on each FortiGate, downloaded weekly by hand",
+                  "Disk logs on each FortiGate (internal HDD/SSD)",
+                  "Syslog to a generic syslog collector",
+                  "FortiAnalyzer receiving logs from every FortiGate, providing centralised long-term storage plus indexing, reports, and drill-down"
+                ],
+                "correctIndex": 3,
+                "explanation": "FortiAnalyzer is Fortinet's dedicated log analytics appliance/VM: it receives logs from many FortiGates, retains them long-term with configurable ADOM quotas, and provides indexed searching, alerting, dashboards, and FortiView drill-down — exactly the multi-device, long-retention use case. Memory logs are a small RAM ring buffer that is lost on reboot. Local disk logs are per-device and do not scale to dozens of devices with cross-search. Plain syslog stores lines but does not give the FortiGate-aware parsing, event correlation, or reports FortiAnalyzer does."
+              },
+              {
+                "q": "An administrator is enabling Security Fabric across a headquarters FortiGate and three branch FortiGates. Which statement correctly describes how the topology must be configured?",
+                "choices": [
+                  "Exactly one FortiGate is designated the Fabric root; each downstream FortiGate authorises with the root and reports upstream over the Fabric tunnel",
+                  "Every FortiGate must be a root; peers negotiate leader election on each reboot",
+                  "The Fabric requires FortiManager as the root — FortiGates cannot act as root themselves",
+                  "Downstream FortiGates connect to the root only through IPsec tunnels; Fabric-over-HTTPS is not supported"
+                ],
+                "correctIndex": 0,
+                "explanation": "A Security Fabric has exactly one root FortiGate; downstream FortiGates (and other Fabric-aware devices like FortiSwitch, FortiAP, FortiAnalyzer, FortiClient EMS) authorise into the fabric and report telemetry upstream to the root — that is the intended star-shaped topology. Multiple roots would break the single pane of glass. FortiManager can be added to a Fabric but is not required to be root — a FortiGate is normally the root. Fabric communication uses TCP/8013 (HTTPS-style) between devices; IPsec is not a requirement."
+              }
+            ]
+          },
+          "title": "Part 3 — Lightning Round"
+        },
+        {
+          "id": "c3-boss",
+          "type": "subboss",
+          "title": "Boss: Part 3",
+          "questionIds": [
+            "fcpfgt-009",
+            "fcpfgt-011",
+            "fcpfgt-012",
+            "fcpfgt-010"
+          ]
+        },
+        {
+          "id": "c3-chest",
+          "type": "chest",
+          "title": "Treasure Chest",
+          "rewardXp": 30,
+          "cosmeticKey": "chapter-3"
+        }
+      ]
+    }
+  ],
+  "finalBoss": {
+    "id": "final-boss",
+    "type": "finalboss",
+    "title": "Final Exam: Fortinet FCP – FortiGate 7.4 Administrator (FCP_FGT_AD-7.4)",
+    "questionCount": 15,
+    "timeMinutes": 23
+  },
+  "meta": {
+    "generatedAt": "2026-08-10T07:17:27.244Z",
+    "totalNodes": 16,
+    "totalQuestions": 12,
+    "nodeTypes": [
+      "concept",
+      "quiz",
+      "minigame",
+      "subboss",
+      "finalboss"
+    ]
+  }
+}

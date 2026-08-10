@@ -67,92 +67,92 @@
             "livesAllowed": 3,
             "questions": [
               {
-                "q": "A company has 10 GCP projects across 4 teams. The security team requires all outbound internet traffic to pass through a centralized proxy. Which architecture satisfies this while minimizing operational overhead?",
+                "q": "A company has 10 GCP projects across 4 teams. The security team requires all outbound internet traffic to pass through a single centralized proxy. Which architecture satisfies this requirement while minimizing operational overhead?",
                 "choices": [
-                  "Create individual VPC networks in each project with VPC peering to a centralized proxy project",
-                  "Deploy a Shared VPC with a host project containing the proxy.",
-                  "Configure a Cloud NAT gateway in each project to route outbound traffic through a shared IP range",
-                  "Use Cloud Interconnect to route all project traffic through an on-premises proxy before sending to the internet"
+                  "Give each project its own VPC and full-mesh VPC peer them to a proxy project, adding proxy routes in every peer.",
+                  "Configure a Cloud NAT gateway in each project sharing one external IP range so egress converges on the proxy.",
+                  "Create a Shared VPC in a host project, attach all service projects to it, and add a default route pointing to a proxy instance group.",
+                  "Provision a Cloud Interconnect back to the on-premises perimeter proxy and force every project's egress over it."
                 ],
-                "correctIndex": 1,
-                "explanation": "Shared VPC centralizes network resources in a host project. Service projects use the host project's VPC, including routes. A default route in the host VPC pointing to the proxy ensures all service project egress is inspected. VPC peering cannot propagate custom routes transitively. and attach all service projects to route traffic through it via a default route"
+                "correctIndex": 2,
+                "explanation": "Shared VPC centralizes networking in a host project: service projects consume its subnets, firewall rules and routes, so a single default 0.0.0.0/0 route pointing at the proxy transparently steers every project's egress. Full-mesh VPC peering does not propagate custom routes transitively, so a project two hops away from the proxy VPC would never see the route. Cloud NAT gateways only translate source addresses to the internet — they do not send traffic through an inspection proxy. Cloud Interconnect backhauls traffic to on-prem gear but keeps the network topology fragmented across projects and adds an unnecessary hybrid dependency for a purely GCP-native requirement."
               },
               {
-                "q": "A global fintech company needs a database for 50,000 transactions per second across 5 continents with strong consistency, ACID compliance, and P99 latency under 10ms. What is the best fit?",
+                "q": "A global fintech needs a database for 50,000 transactions per second across five continents with strong external consistency, ACID transactions, and p99 latency under 10 ms. Which service is the best fit?",
                 "choices": [
-                  "Bigtable with a multi-cluster routing policy and application-level conflict resolution",
-                  "Cloud Spanner with a multi-region configuration using the nam-eur-asia1 instance",
-                  "Cloud SQL with Multi-AZ read replicas deployed in each continent",
-                  "AlloyDB for PostgreSQL with cross-region replication"
+                  "Bigtable configured with multi-cluster routing and application-side conflict resolution.",
+                  "Cloud Spanner deployed in the nam-eur-asia1 multi-region configuration.",
+                  "Cloud SQL for PostgreSQL with cross-region read replicas in each continent.",
+                  "AlloyDB for PostgreSQL with asynchronous cross-region replication."
                 ],
                 "correctIndex": 1,
-                "explanation": "Cloud Spanner is the only fully managed relational database offering global strong consistency, horizontal scaling, and ACID transactions. The nam-eur-asia1 multi-region config places data across three continents. Cloud SQL does not scale horizontally for writes. Bigtable is eventually consistent."
+                "explanation": "Cloud Spanner is the only fully managed relational service on GCP that combines horizontal write scaling, ACID transactions and externally consistent reads across regions; the nam-eur-asia1 configuration spreads replicas across three continents while preserving global consistency. Bigtable is a wide-column store: it is eventually consistent when using multi-cluster routing and does not offer relational ACID semantics. Cloud SQL scales reads through replicas but writes remain confined to a single primary, so it cannot sustain 50k global writes/second. AlloyDB replicates asynchronously across regions, so remote replicas can lag — that violates the strong-consistency requirement."
               },
               {
-                "q": "A media company serves video globally and needs to terminate TLS as close to users as possible while routing to the nearest healthy backend. Which solution achieves this with minimal latency?",
+                "q": "A media company serves video globally and must terminate TLS as close to viewers as possible while routing to the nearest healthy backend behind a single IP. Which architecture delivers that with the least latency?",
                 "choices": [
-                  "Deploy Traffic Director with Envoy proxies in each region for intelligent request routing",
-                  "Use Cloud CDN with origin failover configured to multiple Cloud Storage backends",
-                  "Deploy regional HTTPS load balancers in each major region with Cloud DNS geolocation routing",
-                  "Configure a Global External HTTPS Load Balancer."
+                  "Deploy Traffic Director with Envoy sidecars in each region to control routing between clients and backends.",
+                  "Place regional External HTTPS load balancers in every major region and steer users with Cloud DNS geolocation policies.",
+                  "Front the origin with Cloud CDN configured for origin failover across multiple Cloud Storage buckets.",
+                  "Configure a Global External HTTPS Load Balancer with a single anycast IP, backed by regional backend services."
                 ],
                 "correctIndex": 3,
-                "explanation": "Global External HTTPS Load Balancer uses Google's global anycast network. TLS is terminated at the Google PoP closest to the user (hundreds of edge locations), then traffic travels Google's private backbone to the nearest healthy backend. This minimizes both handshake and transit latency. Google's anycast network terminates TLS at edge POPs worldwide"
+                "explanation": "The Global External HTTPS Load Balancer advertises one anycast IP from every Google edge; TLS is terminated at the nearest PoP and traffic then rides Google's private backbone to the closest healthy backend, minimizing both handshake and transit latency. Traffic Director is an xDS control plane for service meshes — it programs proxies but is not itself a global HTTPS frontend for internet clients. Regional load balancers with DNS geo-steering still terminate TLS in the destination region, so a client hits a distant PoP for the handshake and gets no anycast failover. Cloud CDN caches responses but requires a load balancer front end to accept and terminate TLS in the first place."
               },
               {
-                "q": "An IoT platform ingests from 1 million devices. Analytics, alerting, and archival services must each independently process every message without coupling the producer to consumers. What is the correct pattern?",
+                "q": "An IoT platform ingests events from one million devices. Analytics, alerting and archival services must each process every message independently, without coupling the device producers to any single consumer. Which pattern fits?",
                 "choices": [
-                  "Implement a Dataflow pipeline that reads from Cloud Storage and fans out to each service",
-                  "Deploy a central Cloud Function that receives IoT data and directly calls each downstream service API",
-                  "Publish to a single Pub/Sub topic and create separate pull subscriptions for each downstream service",
-                  "Use Cloud Tasks to create separate task queues for each downstream service"
+                  "Have each device call a central Cloud Function that fans out synchronous requests to every downstream service.",
+                  "Use Cloud Tasks with a queue per downstream service, having devices push tasks into each queue directly.",
+                  "Publish to a single Pub/Sub topic and create a separate subscription for each downstream service.",
+                  "Land raw events in a Cloud Storage bucket and let each consumer poll the bucket for new files."
                 ],
                 "correctIndex": 2,
-                "explanation": "Pub/Sub fan-out pattern: one topic, multiple subscriptions. Each subscription maintains an independent cursor and backlog. If the analytics service falls behind, it does not affect alerting. This decouples producer from all consumers. Cloud Tasks is for task queues, not event fan-out."
+                "explanation": "Pub/Sub's fan-out model gives every subscription an independent copy of the topic's messages and its own cursor and backlog, so analytics falling behind can never starve the alerting subscription — precisely the decoupling the scenario needs. A synchronous Cloud Function fan-out couples producer latency to the slowest consumer and multiplies device retries whenever any consumer hiccups. Cloud Tasks is designed for HTTP-style task execution, not durable pub/sub fan-out, and would force devices to know about every consumer. Polling a Cloud Storage bucket adds minute-scale ingestion latency, per-request listing cost and no per-consumer cursor to guarantee each service sees every event exactly once."
               },
               {
-                "q": "A mobile game needs a database that auto-scales with user load, supports real-time synchronization to mobile clients, and handles offline data access with conflict resolution. Which GCP database is the best fit?",
+                "q": "A mobile game needs a database that auto-scales with users, pushes real-time updates to mobile clients, and handles offline access with conflict resolution. Which GCP database fits best?",
                 "choices": [
-                  "Cloud SQL with connection pooling via Cloud SQL Auth Proxy for mobile clients",
-                  "Datastore mode Firestore with a memcached caching layer for real-time updates",
-                  "Firestore in Native mode,.",
-                  "Bigtable with a client-side cache layer and custom sync protocol"
+                  "Cloud SQL for MySQL fronted by the Cloud SQL Auth Proxy so mobile clients can reach it directly.",
+                  "Firestore in Datastore mode with a Memorystore cache layer to serve reads.",
+                  "Firestore in Native mode using real-time listeners and the client SDK's offline persistence.",
+                  "Bigtable accessed through a custom mobile SDK with a client-side cache."
                 ],
                 "correctIndex": 2,
-                "explanation": "Firestore Native mode is purpose-built for mobile/web: real-time listeners push updates to clients via WebSocket, the client SDK caches data locally for offline reads/writes, and syncs with conflict resolution when connectivity returns. Bigtable has no mobile SDK. Cloud SQL requires persistent connections. using real-time listeners and the client SDK's built-in offline persistence"
+                "explanation": "Firestore Native mode is designed for mobile and web: real-time listeners push changes over WebSockets, and the client SDK caches data locally so writes queue when offline and reconcile via last-write-wins conflict resolution when connectivity returns. Cloud SQL has no push-to-client model, needs long-lived TCP connections that mobile networks cannot reliably hold, and is not intended for direct client access. Datastore mode has no real-time listener API — the mobile SDK is available only for Native mode — and a Memorystore front does nothing for offline writes. Bigtable has no mobile SDK, no listener protocol and no offline sync layer, so all three of the mobile requirements would have to be built from scratch."
               },
               {
-                "q": "A genomics company stores 100TB/month of raw sequencing data. Data must be immediately accessible for 30 days, retrievable within 1 hour for 1 year, and archived long-term thereafter. Which lifecycle policy minimizes cost?",
+                "q": "A genomics company stores 100 TB/month of raw sequencing data. Files must be immediately accessible for 30 days, retrievable within an hour for one year, and archived cheaply thereafter. Which lifecycle policy minimizes cost?",
                 "choices": [
-                  "Standard → Nearline after 30 days → Coldline after 365 days",
-                  "Standard → Nearline after 30 days → Archive after 395 days",
-                  "Nearline from day 1 → Archive after 365 days",
-                  "Standard → Coldline after 30 days → Archive after 365 days"
+                  "Standard for 30 days, then Nearline, then Coldline after 365 days for long-term archival.",
+                  "Skip Standard entirely by starting on Nearline from day 1, then move to Archive after 365 days.",
+                  "Standard for 30 days, then Nearline, then Archive after 395 days (30 + 365) for long-term archival.",
+                  "Standard for 30 days, then Coldline directly, then Archive after 365 days."
                 ],
-                "correctIndex": 1,
-                "explanation": "Standard (immediate access, 30 days) → Nearline (retrieval within hours, minimum 30-day storage, for months 1–13) → Archive (lowest cost, suitable for long-term cold storage after 13 months = 395 days). Coldline has 90-day minimum storage, making it more expensive for the 1-year window than Nearline."
+                "correctIndex": 2,
+                "explanation": "Nearline (30-day minimum, ms-scale access) matches the 'retrievable within an hour for one year' band cheaply, and moving to Archive at 395 days (30 + 365) hits the long-term-cold cost floor. Coldline has a 90-day minimum storage duration, so paying its early-delete fees during the 30-to-395 day window costs more than Nearline. Starting on Nearline from day 1 violates the immediate-access requirement in the first 30 days and forfeits the free Standard reads that period would enjoy. Skipping Nearline and moving straight from Standard to Coldline at day 30 pays the higher Coldline rate for a full year when Nearline would have been cheaper for that same access pattern."
               },
               {
-                "q": "A logistics Pub/Sub topic receives shipment events. The WMS and customer notification service must each process ALL shipment events independently. The WMS is currently backlogged. How should you design this?",
+                "q": "A logistics Pub/Sub topic delivers shipment events. The warehouse-management system (WMS) and the customer-notification service must each process every event independently, and the WMS is currently backlogged. How should the pipeline be designed?",
                 "choices": [
-                  "Use Pub/Sub Lite with separate partition assignments for WMS and the notification service",
-                  "Create two separate pull subscriptions on the same topic so each service maintains its own independent backlog",
-                  "Create a single pull subscription on the same topic shared between WMS and the notification service with client-side filtering",
-                  "Implement a Dataflow pipeline that reads one subscription and writes to two Cloud Storage buckets"
+                  "Share one pull subscription between the two services and filter messages on the client side.",
+                  "Create a separate pull subscription for each service on the same topic so each maintains its own backlog.",
+                  "Use Pub/Sub Lite with a fixed partition assignment for each service.",
+                  "Insert a Dataflow pipeline that reads one subscription and writes to two Cloud Storage buckets, one per service."
                 ],
                 "correctIndex": 1,
-                "explanation": "Two separate subscriptions on the same topic each receive a copy of every message. Each subscription has its own cursor and backlog. The WMS backlog does not affect the notification service subscription. A single shared subscription means only one consumer gets each message."
+                "explanation": "In Pub/Sub, each subscription is an independent copy of the topic's stream with its own cursor and backlog, so a slow WMS subscription cannot delay or drop deliveries to the notification-service subscription. A single shared subscription load-balances messages between competing consumers, meaning any given event is processed by only one of the two services, not both. Pub/Sub Lite trades global scalability and management overhead for a partition model built for high-throughput cost efficiency, and does not solve the independent-backlog requirement any better than plain Pub/Sub subscriptions. Fanning through Dataflow to Cloud Storage adds batch latency and cost for what a native pull subscription already provides."
               },
               {
-                "q": "A data science team runs daily batch ML feature engineering jobs on 200GB datasets in Cloud Storage. Jobs take 2 hours and run once per day. Which compute approach minimizes costs?",
+                "q": "A data-science team runs daily batch ML feature-engineering jobs on 200 GB Cloud Storage datasets. Each job takes about two hours and runs once per day. Which compute approach minimizes cost?",
                 "choices": [
-                  "Maintain a persistent Dataproc cluster sized for peak load with autoscaling enabled",
-                  "Create an ephemeral Dataproc cluster via workflow templates, run the job,.",
-                  "Use BigQuery ML for feature engineering to avoid cluster management overhead entirely",
-                  "Deploy a persistent Dataflow streaming pipeline that processes data continuously as it arrives"
+                  "Keep a persistent Dataproc cluster sized for peak load with autoscaling enabled.",
+                  "Use a Dataproc workflow template that creates an ephemeral cluster, runs the job and deletes it.",
+                  "Rewrite the pipeline as BigQuery ML SQL to avoid managing any cluster at all.",
+                  "Run a persistent Dataflow streaming pipeline that continuously processes files as they arrive."
                 ],
                 "correctIndex": 1,
-                "explanation": "Ephemeral Dataproc clusters: create before job, delete after. You pay only for the 2-hour processing window instead of 24/7. Dataproc workflow templates automate cluster creation → job submission → cluster deletion. Persistent clusters waste money sitting idle 22 hours/day. and delete the cluster when complete"
+                "explanation": "An ephemeral Dataproc cluster driven by a workflow template is created just before the job, runs the two-hour job, then is deleted — so you pay for two hours per day instead of twenty-four. A persistent cluster sits idle 22 hours a day and keeps billing for the master and worker VMs. BigQuery ML can be a good landing spot for some feature work, but rewriting a 200 GB Spark/PySpark pipeline in SQL is a substantial migration and is not a cost-minimising move by itself. A persistent streaming Dataflow pipeline is designed for continuous ingestion; for a once-a-day batch job it burns worker capacity 24×7 that it does not need."
               }
             ]
           },
@@ -264,92 +264,92 @@
             "livesAllowed": 3,
             "questions": [
               {
-                "q": "A company manages GCP resources using IaC and wants version-controlled, repeatable deployments using only native GCP capabilities without third-party tools. Which GCP-native IaC option should they use?",
+                "q": "A team wants Infrastructure-as-Code for GCP using only Google-supported native services — no third-party tooling. Which option satisfies that?",
                 "choices": [
-                  "Cloud Functions triggered by Cloud Storage events to create and configure resources on demand",
-                  "Config Connector, a Kubernetes operator that manages GCP resources using Kubernetes manifests",
-                  "Cloud Deployment Manager using YAML/Jinja2 or Python templates to define and deploy GCP resources declaratively",
-                  "Cloud Composer (Apache Airflow) with GCP operators for orchestrating resource creation workflows"
+                  "Cloud Functions triggered by Cloud Storage events that create resources imperatively.",
+                  "Config Connector: a Kubernetes operator that reconciles GCP resources from Kubernetes manifests.",
+                  "Cloud Composer DAGs orchestrating gcloud calls from Airflow operators.",
+                  "Cloud Deployment Manager (legacy) using YAML/Jinja2 or Python templates."
+                ],
+                "correctIndex": 1,
+                "explanation": "Config Connector is Google's supported, actively developed native IaC option: install the operator into a GKE cluster and every GCP resource is expressed as a Kubernetes CRD that Config Connector continuously reconciles. Cloud Functions can create resources, but that is imperative scripting with no desired-state reconciliation, no drift correction, and no dependency graph — it is not IaC in the meaningful sense. Cloud Composer running gcloud is likewise imperative orchestration, and Airflow is an Apache project, not native GCP. Cloud Deployment Manager is native but has been placed in maintenance mode with no new features and a formal deprecation path, so Google now points customers to Config Connector or Terraform."
+              },
+              {
+                "q": "A web app on Managed Instance Groups sees unpredictable spikes. The app takes 90 seconds to initialize. Which MIG configuration ensures new instances are ready before traffic hits them?",
+                "choices": [
+                  "Drive autoscaling from Pub/Sub queue depth combined with a 90-second bootstrap script that signals readiness at the end.",
+                  "Enable predictive autoscaling in OPTIMIZE_AVAILABILITY mode so instances are pre-provisioned before every expected spike.",
+                  "Set a 90-second initialization period on the autoscaling policy and pair it with a backend-service warm-up on the load balancer.",
+                  "Set the autoscaling cooldown period to 90 seconds and drive scaling from CPU utilization as the primary signal."
                 ],
                 "correctIndex": 2,
-                "explanation": "Cloud Deployment Manager is Google's native declarative IaC service. It uses YAML configuration with Jinja2/Python templates. Resources are defined as desired state; Deployment Manager handles create/update/delete. Config Connector requires GKE and is Kubernetes-centric. Terraform is third-party. Cloud Composer is workflow orchestration."
+                "explanation": "The autoscaler's initialization period tells the MIG not to count freshly created VMs against the target metric until the app has had time to become healthy, and the backend service's warm-up period tells the load balancer to withhold full traffic during that same window. Together they prevent traffic from reaching an instance that is still starting. Predictive autoscaling helps when traffic is periodic and predictable, but the scenario explicitly says the spikes are unpredictable — prediction based on the past does not apply. Pub/Sub queue depth is irrelevant to a synchronous web app; and a bootstrap script by itself does not stop the load balancer from routing traffic during those 90 seconds. Cooldown just throttles further scaling decisions — it does not delay traffic to the new instance."
               },
               {
-                "q": "A web app on Managed Instance Groups experiences unpredictable traffic spikes. The application server takes 90 seconds to initialize. You want new instances ready before traffic hits them. Which MIG configuration achieves this?",
+                "q": "A startup wants Kubernetes without managing node pools, worker nodes or cluster upgrades, and wants to pay only for pod requests. Which GKE option fits?",
                 "choices": [
-                  "Use predictive autoscaling with OPTIMIZE_AVAILABILITY mode to pre-provision instances before expected spikes",
-                  "Enable autoscaling based on Pub/Sub queue depth with a 90-second bootstrap script that signals readiness",
-                  "Configure a 90-second initialization period in the autoscaling policy and use HTTP load balancing utilization as the",
-                  "Set the autoscaling cooldown period to 90 seconds and use CPU utilization as the scaling metric"
+                  "Cloud Run on GKE for containerized workloads with no need for direct Kubernetes API access.",
+                  "GKE Standard with node auto-upgrade and node auto-repair enabled.",
+                  "GKE Autopilot, which manages nodes for you and bills per pod request.",
+                  "GKE Standard with an Autopilot-mode node pool attached to the cluster."
                 ],
                 "correctIndex": 2,
-                "explanation": "The backend service warmup period tells the load balancer not to send full traffic to instances that are still initializing. Set warmup to 90 seconds. The autoscaling policy's initialization period ensures new instances aren't counted as healthy until fully initialized. Together these prevent traffic from hitting unready instances during scale-out."
+                "explanation": "GKE Autopilot fully manages the node substrate — provisioning, upgrades, repairs and scaling — and prices per second by summed pod CPU/memory/ephemeral-storage requests, so idle node capacity is Google's problem, not yours. Cloud Run on GKE has been deprecated (superseded by Cloud Run and Cloud Run on Anthos), and even in its heyday it did not remove node-pool management from GKE. GKE Standard with node auto-upgrade still requires you to size and pay for node pools, so the 'pay only per pod' requirement is not met. There is no such thing as an 'Autopilot node pool' inside a Standard cluster — Autopilot is a cluster-wide mode, not a pool type."
               },
               {
-                "q": "A startup wants Kubernetes for containerized microservices without managing node pools, worker nodes, or cluster upgrades. They want to pay only for actual pod resource requests. Which GKE mode is best?",
+                "q": "A company requires that only container images passing security scanning AND signed by the security team may deploy to GKE production. Which combination enforces this at admission time?",
                 "choices": [
-                  "Cloud Run on GKE for containerized workloads that don't require direct Kubernetes API access",
-                  "GKE Standard with Autopilot node pools configured for all workload namespaces",
-                  "GKE Autopilot, which fully manages node infrastructure and charges only for",
-                  "GKE Standard with node auto-upgrade and node auto-repair enabled"
+                  "GKE admission webhooks that check Container Analysis scan results before allowing pods to start.",
+                  "Cloud Build gating that refuses to push an image if any scan finding is above a threshold.",
+                  "Binary Authorization policy requiring a KMS-signed security-team attestation on every image.",
+                  "Artifact Registry vulnerability scanning configured to auto-block critical CVEs during push."
                 ],
                 "correctIndex": 2,
-                "explanation": "GKE Autopilot removes all node management: Google provisions, upgrades, repairs, and scales nodes automatically. Billing is per pod's requested resources (CPU, memory, ephemeral storage) rounded to the second. There is no charge for idle node capacity. GKE Standard still requires users to manage node pools. There is no 'Autopilot node pools' concept in Standard."
+                "explanation": "Binary Authorization enforces its policy at pod admission time inside the GKE control plane: an image without a valid attestation from the required attestor is refused, no matter how it was pushed. A signed attestation is only created after the vulnerability scan passes, so the AND requirement is expressed as a single policy that GKE evaluates on every pod. GKE admission webhooks based only on scan results miss the signing requirement — anyone with kubectl and a passing scan could still deploy. Cloud Build gates and Artifact Registry auto-block only fire in the build/push path, so an image deployed directly to the cluster (or promoted from another registry) bypasses them entirely."
               },
               {
-                "q": "A company requires that only container images passing security scanning AND signed by the security team can deploy to GKE production. Which combination enforces this policy at the admission level?",
+                "q": "A production e-commerce app on GKE went down when all its nodes lived in us-central1-a and that zone failed. Which configuration prevents future single-zone failures?",
                 "choices": [
-                  "Configure GKE admission webhooks to reject containers that have not been signed by the security team, using Container Analysis scan results",
-                  "Enable Container Analysis API and block deployments via a Cloud Build gate that checks scan results",
-                  "Configure Binary Authorization with a policy requiring a security-team KMS-signed attestation created after",
-                  "Use Artifact Registry vulnerability scanning with auto-blocking of critical CVEs during the push phase"
-                ],
-                "correctIndex": 2,
-                "explanation": "Binary Authorization enforces at pod admission time (not build time). The policy requires that images have a specific attestation signed by the security team's KMS key. Cloud Build creates the attestation only after vulnerability scanning passes. If someone bypasses CI and tries to deploy directly, GKE rejects the unsigned image. GKE enforces the policy at pod admission"
-              },
-              {
-                "q": "A production e-commerce app on GKE experienced downtime when all nodes were in us-central1-a during a zone outage. What configuration prevents single-zone failure?",
-                "choices": [
-                  "Deploy separate GKE clusters in different zones with a central global HTTP load balancer for cross-zone routing",
-                  "Enable GKE Autopilot which automatically distributes workloads across all available zones",
-                  "Configure Pod Disruption Budgets to prevent more than 50% of pods from being unavailable simultaneously",
-                  "Create a regional GKE cluster distributing nodes across us-central1-a/b/c with pod anti-affinity rules spreading"
-                ],
-                "correctIndex": 3,
-                "explanation": "A regional GKE cluster runs the control plane and nodes across 3 zones. Combined with pod anti-affinity rules (topologyKey: topology.kubernetes.io/zone), replicas are spread across zones. A single zone failure affects only 1/3 of replicas, maintaining availability. PDBs protect against voluntary disruptions, not zone failures."
-              },
-              {
-                "q": "An SRE team has a 99.9% availability SLO for an API service. They want to be alerted when error budget is being consumed dangerously fast. What alerting approach should they configure?",
-                "choices": [
-                  "Set up a Pub/Sub notification when the 30-day error rate exceeds the SLO threshold",
-                  "Deploy a custom Dataflow pipeline to calculate rolling error budget consumption and alert via Cloud Tasks",
-                  "Configure a burn rate alert",
-                  "Configure an alert that fires when error rate exceeds 0.1% for 5 consecutive minutes"
-                ],
-                "correctIndex": 2,
-                "explanation": "Burn rate alerting is the SRE-recommended approach. A 14.4x burn rate means the service would exhaust the entire monthly error budget in 2 hours. This signals a severe incident requiring immediate action. Simple error-rate threshold alerts (option A) miss the budget-consumption context and generate false positives during low-traffic periods."
-              },
-              {
-                "q": "A genomics team runs 8-12 hour ML training jobs and wants to use preemptible resources to minimize costs without losing training progress on preemption. What approach is correct?",
-                "choices": [
-                  "Use preemptible VMs with a startup script that monitors for preemption notices and migrates to another Spot VM automatically",
-                  "Use Spot VMs with automatic restart enabled and accept the job restarting from the beginning",
-                  "Run the training job on standard VMs during off-peak hours when preemptible VM availability is highest",
-                  "Implement checkpointing in the ML training code to save model state to Cloud Storage every 30 minutes."
-                ],
-                "correctIndex": 3,
-                "explanation": "Checkpointing + Spot VMs is the standard pattern for long-running ML jobs. Save model weights and optimizer state to Cloud Storage periodically. On preemption, a new VM starts from the last checkpoint, losing at most 30 minutes of work instead of hours. This combines low Spot VM pricing with resilience. Live migration isn't supported for preemptible VMs. then use Spot VMs; restart from the last checkpoint if preempted"
-              },
-              {
-                "q": "A healthcare company needs to prevent data exfiltration from BigQuery and Cloud Storage even if IAM credentials are compromised. Which control provides a security perimeter that blocks API calls from outside?",
-                "choices": [
-                  "Create a VPC Service Controls perimeter around BigQuery and Cloud Storage with an access policy blocking",
-                  "Configure Organization Policy constraints to prevent public access to BigQuery and Cloud Storage",
-                  "Apply IAM deny policies at the organization level to block external data transfer operations",
-                  "Enable Cloud DLP inspection within a VPC perimeter to scan all BigQuery exports and Cloud Storage downloads"
+                  "Create a regional GKE cluster spread across three zones and add pod anti-affinity so replicas land on different zones.",
+                  "Enable GKE Autopilot mode and assume its scheduler will automatically distribute pods evenly across the region's zones.",
+                  "Add Pod Disruption Budgets that keep no more than 50% of pods unavailable at once, so a zone loss cannot break majority.",
+                  "Run one GKE cluster per zone with a global HTTP(S) load balancer in front of them for cross-zone request routing."
                 ],
                 "correctIndex": 0,
-                "explanation": "VPC Service Controls creates a security perimeter around GCP services. Even with valid credentials, API calls from outside the perimeter (e.g., from a compromised credential used on an external network) are denied. This prevents data exfiltration scenarios where an attacker steals a service account key and attempts to exfiltrate from their own network."
+                "explanation": "A regional GKE cluster spreads its control plane across three zones and lets you place node pools across those same zones; combined with a pod anti-affinity rule keyed on topology.kubernetes.io/zone, replicas are pinned to different zones so any one zone can fail and the service stays up. Autopilot uses a regional control plane but does not by itself guarantee per-workload zone spread — it obeys whatever affinity/anti-affinity you set. PDBs limit voluntary disruptions (like node drains); an involuntary zone failure ignores them. Running one cluster per zone works but is far heavier than a single regional cluster with anti-affinity and duplicates all the operational overhead (upgrades, IAM, config)."
+              },
+              {
+                "q": "An SRE team has a 99.9% availability SLO for an API. They want alerts when the error budget is being consumed dangerously fast — not when random blips flap over the 5-minute error rate. Which alert should they configure?",
+                "choices": [
+                  "A 30-day error-rate threshold that pages Pub/Sub when the rate exceeds the SLO objective.",
+                  "A Dataflow pipeline that computes error-budget burn and pushes alerts through Cloud Tasks.",
+                  "A burn-rate alert combining a short (1 h) window and a long (6 h) window on the SLO's SLI.",
+                  "A Cloud Monitoring alert that fires when the error rate stays above 0.1% for 5 minutes."
+                ],
+                "correctIndex": 2,
+                "explanation": "Multi-window burn-rate alerting is the SRE Workbook pattern for SLO-driven paging: the short window (about 1 hour) reacts quickly to a bad incident, the long window (about 6 hours) suppresses transient blips, and the burn multiplier tells you how fast the error budget is being consumed relative to the SLO period. Comparing the raw 30-day error rate to the SLO is too coarse: by the time it trips, the budget is already spent. A Dataflow-plus-Cloud-Tasks pipeline is an over-engineered reimplementation of what SLO burn-rate alerting already does natively. A fixed 0.1%/5-minute threshold ignores traffic volume entirely — the same 0.1% is trivial during peak hours and devastating during a low-traffic window."
+              },
+              {
+                "q": "A genomics team runs 8–12 hour ML training jobs and wants to use cheap preemptible resources without losing training progress on preemption. Which approach is correct?",
+                "choices": [
+                  "Have a startup script watch for the preemption notice and live-migrate the job to another Spot VM.",
+                  "Run on Spot VMs with automatic restart, accepting that jobs restart from the beginning.",
+                  "Schedule jobs on standard VMs during off-peak hours when preemptible availability is highest.",
+                  "Add periodic checkpointing to Cloud Storage in the training code and run on Spot VMs."
+                ],
+                "correctIndex": 3,
+                "explanation": "Periodic checkpointing to Cloud Storage plus Spot VMs is the standard cheap-training pattern: on preemption a replacement VM resumes from the last checkpoint, so worst-case loss is one checkpoint interval rather than the whole run. Live migration does not exist for Spot/preemptible VMs — the 30-second termination notice is exactly that, a notice — so any 'migrate to another Spot' scheme silently loses work. Accepting restarts from the beginning is the pattern that Spot VMs are cheap enough to make tempting, but for 8–12 hour runs it burns money on repeated work every preemption. Running on standard VMs off-peak forfeits the very Spot discount the question is trying to capture."
+              },
+              {
+                "q": "A healthcare company must prevent BigQuery and Cloud Storage data exfiltration even if valid IAM credentials are stolen. Which control provides a security perimeter that blocks unauthorized API calls from outside?",
+                "choices": [
+                  "A VPC Service Controls perimeter around BigQuery and Cloud Storage restricting requests to authorized networks.",
+                  "Organization Policy constraints that prevent public access to BigQuery and Cloud Storage buckets.",
+                  "IAM deny policies at the organization node that forbid external data-transfer operations.",
+                  "Cloud DLP inspection inside a VPC perimeter that scans BigQuery exports and GCS downloads."
+                ],
+                "correctIndex": 0,
+                "explanation": "VPC Service Controls draws a service-level boundary around GCP APIs: even a valid credential is refused unless the request originates from an authorized network (VPC, on-prem via Private Service Connect, or an ingress rule). That defeats the classic exfiltration pattern where an attacker uses a stolen key from their own laptop. Public-access Org Policy constraints only stop resources from being made anonymously readable — a stolen key is not anonymous. IAM deny policies apply to identities and specific method names; they do not distinguish 'from inside the perimeter' from 'from anywhere on the internet'. DLP inspection can classify data being moved but cannot by itself block calls from an outside credential — you would still need the perimeter."
               }
             ]
           },
@@ -466,92 +466,92 @@
             "livesAllowed": 3,
             "questions": [
               {
-                "q": "A microservices application stores secrets across environment variables, Kubernetes secrets, and config files. The security team needs centralized storage, automatic rotation, and audit logging for all secrets. What should you implement?",
+                "q": "A microservices app scatters secrets across env vars, Kubernetes Secrets and config files. The security team wants centralized storage, rotation, and audit logging. What should you implement?",
                 "choices": [
-                  "Deploy HashiCorp Vault on GKE as a sidecar to each service for dynamic secret generation and renewal",
-                  "Migrate all secrets to Secret Manager.",
-                  "Store secrets in Firestore with field-level CMEK encryption and restrict access via Firebase Security Rules",
-                  "Use Cloud KMS to encrypt secrets and store encrypted values in Cloud Storage with IAM access control"
+                  "Deploy HashiCorp Vault on GKE as a sidecar per service for dynamic secret issuance.",
+                  "Move everything into Secret Manager and read secrets at runtime via its client libraries.",
+                  "Store secrets in Firestore with field-level CMEK encryption and restrict access with Firebase Security Rules.",
+                  "Encrypt secrets with Cloud KMS and store the ciphertext blobs in Cloud Storage with per-object IAM."
                 ],
                 "correctIndex": 1,
-                "explanation": "Secret Manager is the GCP-native secrets management service. It provides: centralized storage, version management, automatic rotation via Cloud Functions triggers, and Cloud Audit Logs for every access. Application code uses the Secret Manager API or client libraries to fetch secrets at runtime. This eliminates scattered secret storage. use Secret Manager's rotation integration with Cloud Functions for automatic rotation, and enable Cloud Audit Logs for all secret access"
+                "explanation": "Secret Manager is the GCP-native secrets vault: it centralizes secret storage, supports versioning and rotation (natively or via Cloud Functions integrations), and every access shows up in Cloud Audit Logs — so applications fetch secrets at runtime via the client library rather than baking them into images or Kubernetes Secrets. HashiCorp Vault is powerful but is a self-managed system to operate and monitor; the question asks for a solution, and Secret Manager is the managed one. Firestore is a document database, not a secrets manager — Firebase Security Rules do not integrate with GCP IAM at the service-account level, and there is no version/rotation model out of the box. Storing KMS-encrypted blobs in GCS reproduces some of what Secret Manager provides but leaves rotation, versioning and audit plumbing as bespoke work."
               },
               {
-                "q": "A CISO needs a unified view of security findings, misconfigurations, vulnerabilities, and compliance posture across all GCP projects in the organization. What service provides this?",
+                "q": "A CISO wants one place to see security findings, misconfigurations, vulnerabilities and compliance posture across every GCP project in the org. Which service provides this?",
                 "choices": [
-                  "Create a Cloud Monitoring dashboard at the organization level aggregating metrics and logs from all projects into a centralized workspace",
-                  "Enable Security Command Center (SCC) Premium at the organization level for continuous scanning.",
-                  "Deploy Forseti Security Scanner on a dedicated GKE cluster to scan all project configurations",
-                  "Configure BigQuery log sinks from all projects and build custom queries to detect security findings"
+                  "A Cloud Monitoring dashboard at the organization level aggregating metrics and logs from every project.",
+                  "Security Command Center (SCC) Premium enabled at the organization level with continuous scanning.",
+                  "Forseti Security Scanner running on a dedicated GKE cluster and scanning every project.",
+                  "BigQuery log sinks from every project combined with custom SQL to detect security findings."
                 ],
                 "correctIndex": 1,
-                "explanation": "Security Command Center (SCC) Premium: scans continuously for misconfigurations (Security Health Analytics), integrates with Container Threat Detection, Event Threat Detection, and Web Security Scanner. Maps findings to compliance frameworks (PCI DSS, HIPAA, CIS). Provides a single pane across the entire organization. Forseti is deprecated; Cloud Monitoring doesn't provide security intelligence. threat intelligence, compliance mapping, and unified findings dashboard"
+                "explanation": "Security Command Center Premium is Google's org-wide security posture and threat product: Security Health Analytics continuously scans for misconfigurations, Event Threat Detection and Container Threat Detection surface active threats, and findings are mapped to CIS, PCI, HIPAA and other frameworks — all in one console. Cloud Monitoring dashboards aggregate metrics, not security findings, and have no built-in threat intelligence. Forseti is the community predecessor to much of SCC's functionality and is no longer actively maintained by Google. BigQuery log sinks plus custom SQL is exactly the roll-your-own solution SCC exists to obviate — you would spend engineering time rebuilding scanners and mapping."
               },
               {
-                "q": "An analytics company has unpredictable ad-hoc analyst queries and predictable overnight ETL batch jobs in BigQuery. How should they optimize costs?",
+                "q": "An analytics company has unpredictable ad-hoc analyst queries and predictable overnight ETL batch jobs in BigQuery. How should they optimize cost?",
                 "choices": [
-                  "Use on-demand pricing for all queries since it is always cheaper than reservations for mixed workloads",
-                  "Buy BigQuery Editions (Standard or Enterprise) slot reservations for ETL workloads in a dedicated reservation;.",
-                  "Enable BigQuery BI Engine for all analyst queries to reduce slot consumption via in-memory acceleration",
-                  "Purchase flat-rate slots for all workloads to eliminate unpredictable on-demand costs entirely"
+                  "Put every workload on on-demand pricing because it is always cheaper for mixed traffic.",
+                  "Buy BigQuery Editions slot reservations for the ETL workload and leave analyst queries on on-demand.",
+                  "Enable BI Engine reservations for all analyst queries to accelerate them with in-memory caching.",
+                  "Buy flat-rate reserved slots covering every workload to make monthly spend predictable."
                 ],
                 "correctIndex": 1,
-                "explanation": "BigQuery Editions slot reservations: buy committed capacity for predictable ETL workloads where you know the slot usage pattern. Assign slots to a dedicated reservation for ETL jobs. Analyst ad-hoc queries use on-demand billing (pay per TB scanned) since their volume is unpredictable. This hybrid approach optimizes cost for each workload type. use on-demand for analyst queries"
+                "explanation": "The classic hybrid pattern is reservations for what is predictable and on-demand for what is not: reservations amortize a fixed baseline cost over the ETL workload where you know the slot draw, while analyst ad-hoc queries stay on on-demand pricing so you pay only for actual bytes scanned during their bursty use. Putting everything on on-demand is not 'always cheaper' — for a steady heavy workload, reservations are dramatically less expensive per slot-hour. BI Engine caches hot data for dashboard-style queries but is not a general cost tool for arbitrary ad-hoc queries. Reserving slots for the analyst workload also would leave slots unused whenever analysts are quiet, wasting the commitment."
               },
               {
-                "q": "A retailer has 50 stable n2-standard-8 VMs running 24/7 for their catalog service, plus 200 additional VMs needed only during the 3-month holiday season. How should they optimize compute costs?",
+                "q": "A retailer has 50 stable n2-standard-8 VMs running 24×7 and needs 200 additional VMs only during a 3-month holiday season. How should they minimize compute cost?",
                 "choices": [
-                  "Buy 1-year CUDs for the stable 50 VMs (37% discount)",
-                  "Use Sustained Use Discounts (SUDs) on stable VMs by running them continuously to receive automatic 30% discounts",
-                  "Buy 3-year Committed Use Discounts for all 250 VMs to maximize discount regardless of seasonal variation",
-                  "Purchase Spot VMs for all 250 VMs to achieve 60-90% savings over on-demand pricing"
+                  "Buy 1-year Committed Use Discounts for the 50 stable VMs and run the 200 seasonal VMs on Spot.",
+                  "Rely on Sustained Use Discounts alone by leaving all 250 VMs running continuously.",
+                  "Buy 3-year Committed Use Discounts for all 250 VMs to maximize the discount rate.",
+                  "Run all 250 VMs on Spot to capture the deepest per-hour discount."
                 ],
                 "correctIndex": 0,
-                "explanation": "CUDs are for predictable, stable baseline workloads — the 50 permanent VMs get 37% (1-year) or 57% (3-year) discount. Spot VMs at 60-91% discount are ideal for the seasonal 200 VMs since they're temporary and interruptible batch-style workloads. Buying CUDs for seasonal VMs wastes committed spend during the 9 off-months."
+                "explanation": "CUDs pay off when a workload is predictable and always on, which fits the 50 stable VMs precisely; Spot VMs are 60–90% cheaper than on-demand and are appropriate for transient, interruptible workloads like the holiday burst. SUDs alone are automatic but shallower than CUDs and give you no discount for the seasonal VMs, which don't run enough of the year to benefit either way. Buying CUDs for the seasonal 200 wastes the commitment for the nine off-months. Running the stable catalog service on Spot risks unpredictable preemption on a workload that is not designed for it and forfeits the CUD savings."
               },
               {
-                "q": "A media streaming company serves 4K video globally. They need edge caching, DDoS protection, and routing to the nearest healthy origin. Which Google Cloud architecture achieves all three?",
+                "q": "A media streaming company serves 4K video globally and needs edge caching, DDoS protection and routing to the nearest healthy origin. Which architecture provides all three natively?",
                 "choices": [
-                  "Deploy Cloud Storage buckets in each region with Cloud DNS latency-based routing and Cloudflare CDN for edge caching",
-                  "Regional HTTPS Load Balancers in each geographic market with Cloud CDN and Security Command Center for DDoS alerts",
-                  "Use Cloud Interconnect to connect to CDN providers and route DDoS traffic through external scrubbing centers",
-                  "Global External HTTPS Load Balancer with Cloud CDN enabled on the backend bucket for edge caching."
+                  "Regional Cloud Storage buckets fronted by Cloudflare CDN with Cloud DNS latency routing.",
+                  "Regional HTTPS load balancers in each market plus Security Command Center for DDoS alerting.",
+                  "Cloud Interconnect links to external DDoS scrubbing providers plus a third-party CDN.",
+                  "A Global External HTTPS Load Balancer with Cloud CDN enabled and Cloud Armor Adaptive Protection."
                 ],
                 "correctIndex": 3,
-                "explanation": "Global HTTPS LB + Cloud CDN + Cloud Armor is the standard Google three-tier defense: CDN caches video segments at Google edge PoPs (reduces origin load), Cloud Armor provides DDoS mitigation and WAF at the edge, and the Global LB routes to the nearest healthy origin. All three services are natively integrated on the same infrastructure. and Cloud Armor with adaptive protection for DDoS mitigation"
+                "explanation": "The GCP-native three-tier answer is a Global HTTPS Load Balancer for anycast routing to the closest healthy origin, Cloud CDN for edge caching of video segments, and Cloud Armor Adaptive Protection for L3/L4 and L7 DDoS mitigation at Google's edge — all one integrated stack. Third-party CDNs and external scrubbing add integration surface and split responsibility. Regional load balancers plus latency DNS give you neither anycast failover nor Google-edge DDoS absorption. Security Command Center surfaces findings; it is not an in-line DDoS mitigation, so relying on it for protection leaves your origin exposed."
               },
               {
-                "q": "A backend Python service shows unexpected CPU spikes in production. The team needs to identify which functions consume the most CPU without significant performance overhead. What tool should they use?",
+                "q": "A backend Python service is spiking CPU in production. You need to see which functions are burning the most CPU without adding meaningful overhead. Which tool fits?",
                 "choices": [
-                  "Use Cloud Debugger to capture production state snapshots at suspected hotspot locations",
-                  "Enable Cloud Profiler, which continuously profiles production traffic at under 1% overhead.",
-                  "Deploy Cloud Trace to instrument all function calls and identify high-duration spans",
-                  "Add Python cProfile instrumentation despite its high overhead, and output profiles to Cloud Storage for batch analysis"
+                  "Use Cloud Debugger to capture production snapshots at the suspected hotspots.",
+                  "Enable Cloud Profiler, which samples production continuously at under 1% overhead.",
+                  "Instrument Cloud Trace on every function call and analyse the longest spans.",
+                  "Add Python's cProfile in production and export the profiles to Cloud Storage nightly."
                 ],
                 "correctIndex": 1,
-                "explanation": "Cloud Profiler: continuous always-on profiling for production systems. Uses statistical sampling with <1% CPU overhead (statistical profiler, not instrumenting every call). Profiles appear as flame graphs in Cloud Console showing relative CPU time per function/call stack. Cloud Trace measures request latency per span, not CPU consumption per function. collecting CPU and heap profiles visualized as flame graphs"
+                "explanation": "Cloud Profiler is a statistical sampling profiler designed to run continuously in production: it samples call stacks, tags them by CPU and memory, and renders flame graphs — all at under 1% CPU overhead, which is the constraint the question makes explicit. Cloud Debugger (now retired) captured state at breakpoints and never produced aggregate CPU-time views. Cloud Trace measures request-level latency across services, not per-function CPU time — a slow span could be waiting on I/O with no CPU at all. cProfile is deterministic and has such high overhead that Python's own documentation warns against running it in production."
               },
               {
-                "q": "A GKE cluster has pods with resource requests set too high, wasting node capacity and inflating costs. You want to automatically right-size pod requests based on actual usage. What Kubernetes component achieves this?",
+                "q": "A GKE cluster has pods with resource requests set far higher than actual usage, wasting node capacity. You want to automatically right-size the requests based on real usage. Which component fits?",
                 "choices": [
-                  "Enable Horizontal Pod Autoscaler (HPA) with custom metrics to scale pod requests based on resource usage patterns",
-                  "Configure Cluster Autoscaler with a bin-packing scaling strategy to fill nodes more efficiently",
-                  "Use GKE Node Auto Provisioning to create optimally sized node pools for the current workload mix",
-                  "Deploy Vertical Pod Autoscaler (VPA) in Auto mode to continuously observe usage and adjust CPU/memory requests"
+                  "Horizontal Pod Autoscaler with custom metrics that scales replicas on observed usage.",
+                  "Cluster Autoscaler configured with a bin-packing strategy so nodes fill more tightly.",
+                  "GKE Node Auto Provisioning that spawns node pools sized for the current workload.",
+                  "Vertical Pod Autoscaler in Auto mode, which continuously updates CPU/memory requests."
                 ],
                 "correctIndex": 3,
-                "explanation": "VPA (Vertical Pod Autoscaler) in Auto mode continuously monitors pod resource usage and automatically updates requests and limits. Pods are evicted and restarted with right-sized requests. This directly reduces over-provisioned CPU/memory requests, improving bin-packing and reducing node count. HPA scales replicas horizontally; it doesn't resize individual pods."
+                "explanation": "The Vertical Pod Autoscaler observes historical usage and, in Auto mode, evicts pods and restarts them with recomputed requests and limits — directly attacking the over-requested-CPU/memory problem in the question. HPA scales the number of replicas; it does not resize any individual pod's requests. Cluster Autoscaler decides how many nodes to run based on unscheduled pods; it does not shrink pod requests, so an over-requested pod keeps its wasted headroom. Node Auto Provisioning picks node shapes to match pod requests, so it will happily provision oversized nodes for the current oversized requests — it treats the requests as ground truth."
               },
               {
-                "q": "A company wants events from Cloud Storage, Pub/Sub messages, BigQuery jobs, and Cloud Audit Logs to route to Cloud Run services and Cloud Functions via a unified event bus. What service provides this?",
+                "q": "A company wants events from Cloud Storage, Pub/Sub, BigQuery jobs and Cloud Audit Logs to reach Cloud Run and Cloud Functions through a unified, standards-based event bus. Which service provides this?",
                 "choices": [
-                  "Implement separate Pub/Sub topics for each event source with push subscriptions to trigger Cloud Run",
-                  "Use Cloud Scheduler with Pub/Sub topics to poll each service and route events to target services",
-                  "Deploy a Cloud Functions orchestrator as a unified dispatcher that subscribes to all event sources and routes events to targets",
-                  "Configure Eventarc, which provides a unified event bus routing events from GCP services."
+                  "Separate Pub/Sub topics per event source with push subscriptions targeting each service.",
+                  "A Cloud Scheduler + Pub/Sub loop that polls each service on a fixed cadence.",
+                  "A Cloud Functions dispatcher that subscribes to all sources and re-emits events to each target.",
+                  "Eventarc, which routes events from GCP sources to Cloud Run, Cloud Functions and GKE in CloudEvents format."
                 ],
                 "correctIndex": 3,
-                "explanation": "Eventarc is Google's unified event routing service. It supports 90+ GCP event sources (Cloud Storage triggers, Audit Logs, Pub/Sub, and custom HTTP events) and delivers them to Cloud Run, Cloud Functions, or GKE workflows using the open CloudEvents specification. It eliminates the need to build custom event routing infrastructure. Pub/Sub, and custom sources to Cloud Run, Cloud Functions, and GKE via CloudEvents format"
+                "explanation": "Eventarc is Google's managed event router: it consumes events from Cloud Audit Logs (which covers most GCP services), Cloud Storage, Pub/Sub and third-party sources, and delivers them in the CNCF CloudEvents format to Cloud Run, Cloud Functions and GKE workflows. Building this yourself out of per-source Pub/Sub topics recreates the schema-normalization and routing plumbing Eventarc already provides. Cloud Scheduler is a cron service, not an event bus, and polling is the anti-pattern event-driven architectures exist to remove. A hand-rolled Cloud Functions dispatcher is exactly the fragile fan-out layer that led Google to build Eventarc."
               }
             ]
           },
@@ -634,92 +634,92 @@
             "livesAllowed": 3,
             "questions": [
               {
-                "q": "A team wants a CI pipeline that builds a Docker image, runs unit tests, scans for vulnerabilities, and pushes a signed image to Artifact Registry, triggered on every Git commit. What is the GCP-native implementation?",
+                "q": "A team wants a CI pipeline that builds a Docker image, runs unit tests, scans for vulnerabilities, and pushes a signed image to Artifact Registry — triggered on every Git commit. What is the GCP-native implementation?",
                 "choices": [
-                  "Deploy a Jenkins master on Compute Engine with GCP-specific plugins to orchestrate the pipeline",
-                  "Configure Cloud Composer DAGs to orchestrate Docker builds, tests, and registry pushes on a commit webhook",
-                  "Define a cloudbuild.yaml with sequential build.",
-                  "Use Cloud Functions triggered by Cloud Source Repositories push events to run each CI step in sequence"
+                  "Run a Jenkins master on Compute Engine and orchestrate the pipeline with GCP-specific plugins.",
+                  "Cloud Composer DAGs on a commit webhook that orchestrate Docker build/test/push steps.",
+                  "A cloudbuild.yaml with sequential build/test/scan/sign steps and a Cloud Build trigger on repository push.",
+                  "Cloud Functions triggered by Cloud Source Repositories push events running each CI stage."
                 ],
                 "correctIndex": 2,
-                "explanation": "Cloud Build is the GCP-native CI service. cloudbuild.yaml defines sequential steps: docker build, run tests, gcloud artifacts docker images scan, then sign the image. Cloud Build triggers fire automatically on repository events (push, PR). Cloud Build has native integration with Artifact Registry, Container Analysis, and Binary Authorization. test, scan, and sign steps; create a Cloud Build trigger linked to the source repository for automatic execution on commit"
+                "explanation": "Cloud Build is the native GCP CI service: cloudbuild.yaml defines ordered steps (docker build, tests, gcloud artifacts docker images scan, attestation signing), and a Cloud Build trigger fires on every push. It is integrated with Artifact Registry, Container Analysis and Binary Authorization end-to-end. Jenkins works but is self-managed and third-party — the opposite of what 'GCP-native' asks for. Cloud Composer is an Airflow-based workflow orchestrator built for data pipelines, not CI. Cloud Functions can run individual stages, but stitching together a real CI pipeline out of Functions ends up recreating what Cloud Build already provides."
               },
               {
-                "q": "A platform team manages GCP policies and Kubernetes configurations across 15 GKE clusters. They want a single Git repository as the source of truth with configurations automatically applied to all clusters. What capability enables this?",
+                "q": "A platform team manages GCP policies and Kubernetes configurations across 15 GKE clusters. They want a single Git repository as the source of truth, automatically applied to every cluster. Which capability enables that?",
                 "choices": [
-                  "Use Cloud Deployment Manager to apply Kubernetes YAML files from a Git repository to all clusters",
-                  "Deploy Anthos Config Management with Config Sync.",
-                  "Configure Helm with a centralized chart repository and use ArgoCD ApplicationSets to sync across all clusters",
-                  "Use Cloud Build triggers to detect Git changes and run kubectl apply commands against all 15 clusters"
+                  "Cloud Deployment Manager applying Kubernetes YAML from a Git repo to every cluster.",
+                  "Config Sync (part of Anthos Config Management), which continuously reconciles cluster state from a Git repository.",
+                  "Helm with a central chart repository and ArgoCD ApplicationSets syncing across clusters.",
+                  "Cloud Build triggers running kubectl apply against all 15 clusters on every Git change."
                 ],
                 "correctIndex": 1,
-                "explanation": "Anthos Config Management (ACM) Config Sync: each cluster runs a Config Sync agent that continuously watches the Git repository. Any change to the repo is automatically applied to all registered clusters within seconds. Supports hierarchical configuration (root sync + namespace-level repo syncs). This is the GCP-native GitOps solution for multi-cluster management. which continuously reconciles cluster state from a Git repository supporting namespace and cluster-scoped configurations"
+                "explanation": "Config Sync installs an in-cluster agent that continuously watches a Git repository and reconciles the cluster to match it, with support for root sync plus per-namespace RepoSyncs — the GCP-native, fleet-wide GitOps model. Cloud Deployment Manager does not manage cross-cluster Kubernetes GitOps and is in maintenance mode. Helm plus ArgoCD ApplicationSets can achieve the same shape but is a third-party stack when the question asks for a native capability. Cloud Build triggers running kubectl apply are imperative CI operations with no drift reconciliation — if someone mutates a cluster between commits, that drift persists until the next Git change."
               },
               {
-                "q": "A GKE deployment was updated with a new container image that immediately started crashing. It has been failing for 5 minutes and must be rolled back to the last working version immediately. What is the fastest solution?",
+                "q": "A GKE Deployment was rolled to a new image that immediately started crashing. It has been failing for five minutes and must be rolled back to the last working version as fast as possible. What is the fastest recovery?",
                 "choices": [
-                  "Manually update the image tag in the Deployment spec using kubectl edit and save the change",
-                  "Use kubectl delete deployment to immediately remove the broken deployment, then roll back by applying the previous version with kubectl apply",
-                  "Edit the Deployment manifest in Git to revert the image tag and let the CI/CD pipeline re-apply it",
-                  "Run kubectl rollout undo deployment/<name> which immediately rolls back to the previous ReplicaSet without Git or"
+                  "Edit the manifest in Git to revert the image tag and wait for CI/CD to redeploy.",
+                  "kubectl delete the Deployment, then kubectl apply the previous manifest.",
+                  "kubectl edit the Deployment image tag directly and save.",
+                  "kubectl rollout undo deployment/<name> to restore the previous ReplicaSet immediately."
                 ],
                 "correctIndex": 3,
-                "explanation": "kubectl rollout undo immediately restores the previous ReplicaSet (Kubernetes keeps rollout history). No Git commit, no CI/CD pipeline wait required. Kubernetes starts the old pods while terminating the new broken pods. This is the fastest recovery path. kubectl delete (option B) causes downtime during the gap between delete and re-apply."
+                "explanation": "Kubernetes keeps ReplicaSet history for every Deployment, and 'kubectl rollout undo' instantly switches back to the previous ReplicaSet — no Git commit, no CI wait, no downtime beyond the rolling swap. Reverting in Git and waiting for CI is correct in principle but adds pipeline latency exactly when you least want it. Deleting the Deployment causes a hard outage window during the gap between delete and re-apply. Manually kubectl edit-ing the image works, but you have to know the exact previous tag and get the syntax right under pressure — rollout undo does the same thing with one command and no chance of typos."
               },
               {
-                "q": "A developer needs to run a video transcoding job requiring 32GB RAM and up to 75 minutes to complete, triggered by Pub/Sub when new video files arrive in Cloud Storage. Which compute option supports these requirements?",
+                "q": "A developer needs to run a video-transcoding job that requires 32 GB of RAM and takes up to 75 minutes, triggered by Pub/Sub when new video files land in Cloud Storage. Which compute option supports both requirements?",
                 "choices": [
-                  "App Engine Flexible Environment with a custom runtime configured for 32GB RAM instances",
-                  "Cloud Run with minimum-instances=1 to ensure the instance is always warm for video processing",
-                  "Cloud Run which supports up to 32GB RAM and 60-minute request timeouts;.",
-                  "Cloud Functions 2nd gen which supports up to 32GB RAM and 60-minute timeouts for all runtimes"
-                ],
-                "correctIndex": 2,
-                "explanation": "Cloud Run supports up to 32GB memory and 60-minute request timeout per request (as of 2024). Configure a Pub/Sub push subscription targeting the Cloud Run URL; each message triggers a transcoding job. Cloud Functions 2nd gen has a maximum 60-minute timeout but supports 32GB RAM. However, Cloud Run is the preferred choice for CPU-intensive, long-running container workloads. configure a Pub/Sub push subscription to trigger the Cloud Run service"
-              },
-              {
-                "q": "An SRE team is formalizing SLOs for a payment API. The product team agrees that 99.95% of valid payment requests over a 30-day rolling window should succeed with HTTP 2xx. How should the SLI be expressed?",
-                "choices": [
-                  "SLI = (1 - error_rate) for all HTTP responses including valid payment requests that return 4xx client errors; SLO = SLI >= 99.95% over the 30-day window",
-                  "SLI = count(HTTP 2xx responses) / count(all valid payment requests); SLO = SLI ≥ 99.95% over the 30-day window",
-                  "SLI = count(requests under 200ms) / count(total requests); SLO = SLI ≥ 99.95% to capture both availability and latency",
-                  "SLI = uptime_minutes / total_minutes_in_30_days; SLO = SLI ≥ 99.95% as a time-based availability metric"
+                  "App Engine Flexible Environment with a custom runtime sized for 32 GB memory.",
+                  "Cloud Run jobs, which support up to 32 GB memory and per-job execution times measured in hours.",
+                  "Cloud Run services with min-instances=1 to guarantee the container stays warm for the transcoding call.",
+                  "Cloud Functions 2nd gen, which supports 32 GB RAM and one-hour timeouts on all runtimes."
                 ],
                 "correctIndex": 1,
-                "explanation": "The SLI should directly reflect the user-facing behavior agreed upon: successful payment requests. Count HTTP 2xx responses divided by all valid payment requests. 4xx errors caused by bad client input are typically excluded (they're not service failures). Latency SLIs are separate. Time-based availability (uptime) is a weaker proxy than request-based availability."
+                "explanation": "Cloud Run jobs (as opposed to Cloud Run services) are designed for finite, long-running batch work: up to 32 GB memory and execution times that comfortably cover a 75-minute transcoding pass; a Pub/Sub push subscription can trigger the job via Eventarc when files arrive. App Engine Flexible can hit 32 GB but is a heavier deployment target and is being wound down by Google. Cloud Run services are gated by a per-request timeout that is well under 75 minutes, so a 75-minute request would be killed mid-flight. Cloud Functions 2nd gen supports 32 GB, but its per-request timeout for HTTP-triggered functions still tops out below 75 minutes — the wrong runtime for a job of this length."
               },
               {
-                "q": "An SRE team wants to be alerted within 1 hour if the 30-day error budget for a 99.9% SLO is being consumed at a rate that would exhaust it in under 3 days. What alert should be configured?",
+                "q": "An SRE team is writing SLOs for a payment API. Product agreed that 99.95% of valid payment requests over a 30-day rolling window should succeed with HTTP 2xx. How should the SLI be expressed?",
                 "choices": [
-                  "Configure a multi-window burn rate alert",
-                  "Deploy a Dataflow job to calculate real-time burn rate and publish to a Pub/Sub topic for alerting",
-                  "Set a fixed threshold alert that fires when the 30-day cumulative error budget falls below 50%",
-                  "Create an alert that fires when the error rate over the past 5 minutes exceeds 0.1%"
+                  "SLI = 1 − error_rate on all HTTP responses, including client 4xx; SLO = SLI ≥ 99.95% over 30 days.",
+                  "SLI = count(HTTP 2xx responses) / count(valid payment requests); SLO = SLI ≥ 99.95% over the 30-day window.",
+                  "SLI = count(requests under 200 ms) / count(total requests); SLO = SLI ≥ 99.95% to combine availability and latency.",
+                  "SLI = uptime_minutes / total_minutes_in_30_days; SLO = SLI ≥ 99.95% as time-based availability."
+                ],
+                "correctIndex": 1,
+                "explanation": "The SLI must reflect the user-facing behaviour the SLO promises — successful payments — so it is a ratio of successful (HTTP 2xx) responses to valid payment requests. Client 4xx errors are usually excluded because they represent bad client input, not service failure; conflating them with server errors punishes the service for user mistakes. A single-metric SLI cannot mix availability and latency without hiding one behind the other; latency belongs to its own separate SLO. Time-based availability (uptime minutes) is a weaker proxy than request-based availability — a service can be 'up' the whole minute while returning errors for many of the requests inside it."
+              },
+              {
+                "q": "An SRE team wants to be paged within an hour if the 30-day error budget for a 99.9% SLO is being consumed fast enough to exhaust in under three days. Which alert should they configure?",
+                "choices": [
+                  "A multi-window burn-rate alert combining a short (1 h) window and a long (6 h) window with a 10× burn threshold.",
+                  "A Dataflow job that computes real-time burn rate and publishes alerts through Pub/Sub.",
+                  "A fixed threshold that fires when the 30-day cumulative error budget drops below 50%.",
+                  "A Cloud Monitoring alert that fires when the past-5-minute error rate exceeds 0.1%."
                 ],
                 "correctIndex": 0,
-                "explanation": "Multi-window burn rate alerting from the SRE Workbook: a 10x burn rate on a 99.9% SLO would consume the monthly budget in 72 hours (3 days). The short window (1h) detects fast burns quickly; the long window (6h) suppresses single-spike false positives. Requiring both conditions reduces alert noise. Simple threshold alerts (option A) don't account for budget consumption rate."
+                "explanation": "The SRE Workbook multi-window burn-rate alert is exactly this shape: a short window (about 1 hour) catches the incident quickly, a long window (about 6 hours) suppresses transient spikes, and a 10× burn rate on a 99.9% SLO would consume the monthly budget in 72 hours — the alerting boundary in the question. Reimplementing burn-rate computation on Dataflow is an operational tax with no benefit — Cloud Monitoring SLOs already expose burn-rate signals. A cumulative-budget threshold trips much later than a burn-rate signal — by 50% consumption on day 10 you have already burned through fast; the question wants an early signal. A raw 0.1%-in-5-minutes rule is traffic-agnostic and generates noise during low-traffic periods."
               },
               {
-                "q": "A company running Cloud SQL MySQL needs RPO of 4 hours and RTO of 2 hours. A DBA accidentally dropped a critical table. What Cloud SQL configuration enables recovery meeting these requirements?",
+                "q": "A company running Cloud SQL for MySQL has an RPO of 4 hours and an RTO of 2 hours. A DBA accidentally dropped a critical table. Which Cloud SQL configuration lets them recover within those objectives?",
                 "choices": [
-                  "Enable Cloud SQL automated backups with 1-hour frequency and restore from the most recent backup",
-                  "Enable Cloud SQL Point-In-Time Recovery (PITR) with binary logging;.",
-                  "Configure a Cloud SQL read replica and promote it as a disaster recovery target; restore from the last binary log backup to the replica",
-                  "Configure a Cloud SQL high-availability instance which automatically fails over to the standby within minutes"
+                  "Automated backups every hour and restore the most recent full backup.",
+                  "Point-In-Time Recovery (PITR) with binary logging: clone the instance to a timestamp just before the drop.",
+                  "A read replica that is promoted as a DR target, then rolled forward from binary-log backups.",
+                  "A Cloud SQL HA instance whose standby automatically fails over within minutes."
                 ],
                 "correctIndex": 1,
-                "explanation": "PITR enables recovery to any second within the backup retention window using binary (transaction) logs. To recover from an accidental DROP, identify the timestamp just before the accidental operation and clone the instance to that point. Clone time is typically well under 2 hours (RTO). The 4-hour RPO means you need logs retained at least 4 hours — PITR typically retains 7 days. recover to a timestamp 4 hours before the accidental drop by cloning the instance"
+                "explanation": "PITR uses binary transaction logs to reconstruct the database to any second within the retention window: clone the instance to the moment just before the accidental DROP, then swing traffic — comfortably under a 2-hour RTO, and with hourly resolution well inside the 4-hour RPO. Restoring only from automated backups is coarser than PITR and might lose everything between the last backup and the drop. Promoting a read replica does not help: replication faithfully forwarded the DROP statement, so the replica is missing the table too. HA fails over between replicas that share the same data — the dropped table is dropped on both sides."
               },
               {
-                "q": "A company wants to validate that their Cloud SQL multi-region setup actually performs failover correctly during zone outages. The SRE team wants to proactively test this in production during low-traffic periods. What is the chaos engineering approach?",
+                "q": "An SRE team wants to prove that Cloud SQL HA actually fails over correctly during zone outages. They want to test in production during a low-traffic window. What is the chaos-engineering approach?",
                 "choices": [
-                  "Use Cloud SQL's built-in test failover button in Cloud Console during a low-traffic maintenance window",
-                  "Wait for a real zone outage and use the post-incident review to identify failover gaps",
-                  "Create a staging environment mirroring production and test all failure scenarios there only",
-                  "Deliberately trigger a Cloud SQL failover during low-traffic hours while monitoring SLIs."
+                  "Trigger a Cloud SQL HA failover during low-traffic hours while monitoring SLIs and application behaviour.",
+                  "Wait for a real zone outage and use the post-incident review to identify failover gaps.",
+                  "Test only in a staging environment that mirrors production traffic.",
+                  "Run Cloud SQL's built-in test failover during a maintenance window without watching SLIs."
                 ],
-                "correctIndex": 3,
-                "explanation": "Chaos engineering principle: proactively inject failures in controlled conditions to validate resilience assumptions. Deliberately triggering a Cloud SQL HA failover (via the Cloud SQL API or Console) while observing SLIs validates the actual RTO in production. This reveals gaps (e.g., connection pool behavior, DNS TTL issues) that staging cannot replicate. Simply using the test button (option B) is acceptable but less thorough than full SLI monitoring during the test. verify traffic reroutes within the expected RTO, and document any gaps found"
+                "correctIndex": 0,
+                "explanation": "Chaos engineering is proactive fault injection under controlled conditions with instrumentation in place: firing a Cloud SQL HA failover during low-traffic hours while watching connection pools, latency, error rates and reconnection behaviour exposes the real RTO and reveals subtle issues (DNS TTL, driver reconnect, connection-pool warm-up) that staging cannot reproduce. Waiting for a real outage means you learn everything the hard way, exactly what chaos engineering aims to avoid. Staging alone rarely mirrors production traffic mix, connection counts or client SDK versions accurately enough. Firing the test failover without monitoring SLIs tells you the API succeeded but leaves the actual user-facing impact unmeasured."
               }
             ]
           },
@@ -758,7 +758,7 @@
     "timeMinutes": 27
   },
   "meta": {
-    "generatedAt": "2026-07-03T14:50:26.485Z",
+    "generatedAt": "2026-08-10T07:17:27.245Z",
     "totalNodes": 26,
     "totalQuestions": 61,
     "nodeTypes": [

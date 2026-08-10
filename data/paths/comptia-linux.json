@@ -50,25 +50,70 @@
         {
           "id": "c1-game",
           "type": "minigame",
-          "gameType": "match-pair",
-          "mode": "match-pair",
+          "gameType": "lightning",
+          "mode": "lightning-round",
           "data": {
-            "pairs": [
+            "secondsPerQuestion": 7,
+            "livesAllowed": 3,
+            "questions": [
               {
-                "left": "A sysadmin runs a Bash script and it exits with code 127. They open the script a",
-                "right": "Command not found"
+                "q": "A Bash loop `for f in *.log; do gzip $f; done` fails on filenames that contain spaces. Which fix quotes the variable so gzip sees each filename as a single argument?",
+                "choices": [
+                  "`for f in *.log; do gzip ${f}; done` — brace form; still unquoted, so word-splitting on spaces remains",
+                  "`for f in \"*.log\"; do gzip $f; done` — quotes prevent GLOB expansion; the literal string `*.log` becomes the only iterated value",
+                  "`for f in *.log; do gzip '$f'; done` — single quotes pass the literal characters `$f` to gzip, not the variable value",
+                  "`for f in *.log; do gzip \"$f\"; done` — double-quoted expansion keeps each filename (spaces included) as one shell word"
+                ],
+                "correctIndex": 3,
+                "explanation": "Only `\"$f\"` (double-quoted parameter expansion) protects filenames with spaces from being split into multiple arguments. `${f}` clarifies where the variable name ends but still expands unquoted, so word-splitting kicks in. `\"*.log\"` prevents glob expansion — the loop iterates the LITERAL string `*.log` once, not the matching files. `'$f'` passes the literal three-character string `$f` to gzip; single quotes suppress variable expansion entirely."
               },
               {
-                "left": "A Bash function is defined to check connectivity and return 0 on success or 1 on",
-                "right": "check_connectivity; result=$?"
+                "q": "A Bash script exits with status code 127. What does exit code 127 specifically mean in Bash?",
+                "choices": [
+                  "`Command not found` — Bash could not locate the requested executable in PATH (typo or missing binary)",
+                  "`Permission denied` — Bash found the executable but the user lacks execute permission (exit 126 is the actual code for that)",
+                  "`Segmentation fault` — a SIGSEGV kill produces status 139 (128+11), not 127",
+                  "Successful exit — status 0 signals success; non-zero always signals an error"
+                ],
+                "correctIndex": 0,
+                "explanation": "In Bash, 127 is the well-defined status for `command not found` — typo in the command name, missing binary, or wrong PATH. `Permission denied on an executable file` is 126 (found but not executable). A segfault is reported as 128 + signal number = 139 for SIGSEGV, not 127. Exit code 0 means success by convention; anything non-zero means an error, but the specific code 127 always means \"not found\"."
               },
               {
-                "left": "A script is failing intermittently in production. To debug it, an administrator ",
-                "right": "bash -x script.sh"
+                "q": "A Bash script must check that `/var/log/app.log` exists AND is a regular file (not a directory, symlink target that vanished, socket, or block device) before it reads from it. Which conditional test fits?",
+                "choices": [
+                  "`[ -x /var/log/app.log ]` — tests EXECUTABILITY, unrelated to file-type filtering",
+                  "`[ -e /var/log/app.log ]` — tests EXISTENCE but does not distinguish regular files from directories/sockets/devices",
+                  "`[ -d /var/log/app.log ]` — tests for a DIRECTORY, which is the opposite of what we want",
+                  "`[ -f /var/log/app.log ]` — tests that the path exists AND that stat() reports it as a regular file"
+                ],
+                "correctIndex": 3,
+                "explanation": "`[ -f PATH ]` is the classical regular-file predicate: it returns true if the path both exists AND `stat()` reports it as a regular file (mode `S_IFREG`). `[ -e PATH ]` is the pure existence check and does not filter by type — directories, sockets, char/block devices and FIFOs all pass. `[ -d PATH ]` is the directory predicate — the opposite of what the scenario needs. `[ -x PATH ]` checks the effective UID has execute permission; it has nothing to do with file type filtering. (For symlinks, `-f` follows the link and returns true only if the target is a regular file, which is usually what a log-reading script wants.)"
+              },
+              {
+                "q": "A Bash function `check_connectivity` returns 0 on success or 1 on failure. What is the correct way to CAPTURE that return code into a shell variable?",
+                "choices": [
+                  "`result=check_connectivity()` — Bash treats this as an ASSIGNMENT of the literal string `check_connectivity()`, the function is not run",
+                  "`check_connectivity; result=$?` — runs the function and then reads `$?`, which holds the exit status of the last command",
+                  "`result=$(check_connectivity)` — captures STDOUT, not the exit code; `result` ends up with any text the function printed",
+                  "`export result; check_connectivity` — declares `result` as an environment variable before the function runs; nothing writes to it"
+                ],
+                "correctIndex": 1,
+                "explanation": "`$?` is Bash's built-in variable holding the exit status of the last foreground command or function, so `check_connectivity; result=$?` runs the function and captures its return code. `result=check_connectivity()` is not a call at all — Bash sees a variable assignment of a literal string with `()` glued on and never invokes the function. `result=$(check_connectivity)` runs the function in a subshell and captures its STDOUT, so `result` holds any echoed text rather than the exit code. `export result; check_connectivity` merely marks `result` for export; nothing writes to it."
+              },
+              {
+                "q": "A bash script fails intermittently in production. To debug, the administrator wants to see every command EXECUTED with variables expanded and prefixed with `+`. Which invocation enables that trace mode?",
+                "choices": [
+                  "`bash -e script.sh` — enables errexit so the script aborts on the FIRST command that returns non-zero; useful as a safety belt but prints no trace of what ran",
+                  "`bash -v script.sh` — echoes each raw source line to stderr as it is READ from disk (before variable expansion), so you see the code but not the runtime values",
+                  "`bash -x script.sh` — enables xtrace: every command is echoed to stderr prefixed with `+` after parameter expansion but before execution, so you see actual values",
+                  "`bash -n script.sh` — enables noexec; the shell parses the script and reports any syntax error but never actually runs a command from it (dry-run parse)"
+                ],
+                "correctIndex": 2,
+                "explanation": "`bash -x` enables xtrace: each command is printed to stderr with a `+ ` prefix AFTER parameter and command substitution but BEFORE execution, so the actual expanded values are visible. `bash -v` prints the RAW source lines as they are read — helpful for parse errors but shows the unexpanded form. `bash -e` (errexit) aborts on the first failing command and prints nothing extra, so it is a safety mode, not a trace mode. `bash -n` (noexec) walks the syntax and reports parse errors without ever running the script."
               }
             ]
           },
-          "title": "Bash — Match the Pair"
+          "title": "Bash — Lightning Round"
         },
         {
           "id": "c1-boss",
@@ -136,25 +181,59 @@
         {
           "id": "c2-game",
           "type": "minigame",
-          "gameType": "match-pair",
-          "mode": "match-pair",
+          "gameType": "lightning",
+          "mode": "lightning-round",
           "data": {
-            "pairs": [
+            "secondsPerQuestion": 7,
+            "livesAllowed": 3,
+            "questions": [
               {
-                "left": "A sysadmin wants a new systemd service called 'appd' to start automatically at m",
-                "right": "WantedBy=multi-user.target"
+                "q": "A sysadmin has written a new systemd service unit `appd.service` and wants `systemctl enable appd` to start the service automatically when the system reaches `multi-user.target`. Which directive belongs in the [Install] section of the unit?",
+                "choices": [
+                  "`WantedBy=multi-user.target` — enable creates a symlink in multi-user.target.wants/ so the target pulls it in",
+                  "`After=multi-user.target` — only orders start-up, no autostart symlink is created",
+                  "`Requires=multi-user.target` — declares a dependency but does not register the unit with a target",
+                  "`RequiredBy=multi-user.target` — not a valid [Install] directive on any released systemd version"
+                ],
+                "correctIndex": 0,
+                "explanation": "`WantedBy=multi-user.target` in the [Install] section is what `systemctl enable` looks for: it creates the symlink `/etc/systemd/system/multi-user.target.wants/appd.service`, so when systemd reaches multi-user.target the unit is pulled in and started. `After=` belongs in [Unit] and only orders start-up relative to another unit — it never causes autostart. `Requires=` also belongs in [Unit]; it declares a hard dependency but again does not register the unit with a target for enablement. `RequiredBy=` is not a recognised directive on shipping systemd releases (only `WantedBy=` and `RequiredBy=` documentation confusion — the actual [Install] keys are `WantedBy`, `Also`, `Alias`, `DefaultInstance`)."
               },
               {
-                "left": "After rebooting a system, an administrator notices that a custom service file at",
-                "right": "systemctl daemon-reload &&"
+                "q": "A systemd unit with `Type=forking` fails to start; the journal shows `Timeout waiting for PID file`. What is the MOST likely misconfiguration in the unit file?",
+                "choices": [
+                  "The unit's `PIDFile=` directive is missing or points to a path the daemon never writes",
+                  "`Type=simple` should be used instead — forking mode is deprecated in current systemd releases",
+                  "The `ExecStart=` binary is missing from disk, which produces this timeout instead of an execve error",
+                  "`[Install] WantedBy=` is not set, and systemd refuses to start units that are not enabled to a target"
+                ],
+                "correctIndex": 0,
+                "explanation": "When `Type=forking` is set, systemd starts the initial process, expects it to fork, expects the parent to exit, and then waits for the daemon's PID file to appear so it can track the surviving child. A missing or mistyped `PIDFile=` produces exactly the observed `Timeout waiting for PID file` error. `Type=simple` (not forking) is the systemd-preferred style but is not deprecated — traditional daemons that fork legitimately still need `forking`. A missing ExecStart binary raises `status=203/EXEC` immediately, not a PID-file timeout. `[Install] WantedBy=` only affects whether `systemctl enable` creates a symlink; it does not gate manual starts."
               },
               {
-                "left": "A systemd service 'webapp' keeps failing. Running 'systemctl status webapp' show",
-                "right": "journalctl -u webapp -n"
+                "q": "After rebooting a system, an administrator notices that a custom service file at `/etc/systemd/system/myapp.service` was edited on disk but systemd still uses the OLD contents. Which command tells systemd to re-read unit files from disk without restarting the service?",
+                "choices": [
+                  "`systemctl reset-failed myapp` — clears the FAILED state flag; does not re-read unit files",
+                  "`systemctl reload myapp` — asks the SERVICE (via SIGHUP or ExecReload=) to reload its own config, not systemd itself",
+                  "`systemctl daemon-reload` — re-parses every unit file from disk and rebuilds systemd's in-memory dependency graph",
+                  "`systemctl restart myapp` — restarts the process using systemd's CACHED copy of the old unit file"
+                ],
+                "correctIndex": 2,
+                "explanation": "`systemctl daemon-reload` is the exact command for this scenario: it re-reads every unit file from disk (including your edited `myapp.service`), rebuilds the dependency graph and applies the new configuration to the systemd manager. `systemctl restart` alone uses the CACHED unit that daemon-reload has not yet refreshed, so the edits are ignored. `systemctl reload` sends the service its own `ExecReload=` (or SIGHUP) so the running daemon rereads ITS config file — not systemd's unit. `reset-failed` only clears the FAILED marker so the next start attempt is allowed; it does not refresh unit files."
+              },
+              {
+                "q": "A systemd service `webapp` shows `Active: failed (Result: exit-code)`. Which command shows the process's own stdout/stderr as captured by systemd so the administrator can see WHY it exited?",
+                "choices": [
+                  "`cat /var/log/webapp.log` — assumes the service writes to that file; many modern services log to stdout, which is captured by the journal instead",
+                  "`dmesg | grep webapp` — dmesg is the kernel ring buffer; it does not contain userspace stdout/stderr",
+                  "`systemctl show webapp` — prints the unit's PROPERTIES (ExecStart, Restart, etc.) in key=value form; no runtime logs",
+                  "`journalctl -u webapp -n 100 --no-pager` — pulls the last 100 journal entries for the webapp UNIT, including stdout/stderr that systemd captured"
+                ],
+                "correctIndex": 3,
+                "explanation": "systemd captures every unit's stdout and stderr into the journal, tagged with the unit name. `journalctl -u webapp -n 100` (or `-e` to jump to the end) is the exact query for a failed unit's own runtime output, including the last few lines that immediately preceded the failure. `systemctl show webapp` prints property key=value pairs (ExecStart, Restart, MainPID) — no log data. `dmesg` is the kernel ring buffer; userspace stdout does not go there. Assuming `/var/log/webapp.log` exists is only correct if the daemon opens that file itself — many packaged services now rely on journald."
               }
             ]
           },
-          "title": "Systemd — Match the Pair"
+          "title": "Systemd — Lightning Round"
         },
         {
           "id": "c2-boss",
@@ -335,92 +414,92 @@
             "livesAllowed": 3,
             "questions": [
               {
-                "q": "A user account 'jsmith' needs to be locked immediately without deleting the account or its data. Which command achieves this?",
+                "q": "A security policy requires that the account `jsmith` be prevented from logging in with a password RIGHT NOW, without deleting the account, its home directory or its data. Which command achieves that?",
                 "choices": [
-                  "usermod -L jsmith",
-                  "passwd -e jsmith",
-                  "userdel -r jsmith",
-                  "chage -I -1 jsmith"
-                ],
-                "correctIndex": 0,
-                "explanation": "usermod -L locks the account by prepending '!' to the password hash in /etc/shadow, preventing password-based login. userdel -r deletes the account and home directory. passwd -e forces the user to change their password at next login rather than locking the account. chage -I -1 sets the inactivity period but does not immediately lock the account."
-              },
-              {
-                "q": "An administrator runs 'chage -l alice' and sees 'Password expires: Mar 01, 2026'. It is currently April. Alice can still log in with her password. What is the most likely reason?",
-                "choices": [
-                  "PAM is configured to ignore password expiry on this system",
-                  "The account has INACTIVE days set to a high value allowing grace logins",
-                  "The /etc/shadow file has a different expiry than chage reports",
-                  "Alice's SSH key authentication bypasses password expiry checks"
+                  "`chage -I -1 jsmith` — sets password inactivity to -1 which disables the inactivity feature, it does not lock the account",
+                  "`usermod -L jsmith` — prefixes the /etc/shadow password hash with `!`, so no password can match",
+                  "`passwd -e jsmith` — expires the password so the user MUST change it on next login, but they can still log in",
+                  "`userdel -r jsmith` — deletes the user AND their home directory, which the policy explicitly forbids"
                 ],
                 "correctIndex": 1,
-                "explanation": "The INACTIVE field in /etc/shadow defines a grace period in days after password expiry during which the user can still log in (but is forced to change the password). If INACTIVE is set to a large number, the user can continue logging in past the expiry date. PAM does enforce shadow expiry by default on standard configurations. chage reads directly from /etc/shadow so they match. SSH key authentication bypasses passwords entirely, but the question implies password login is working."
+                "explanation": "`usermod -L jsmith` (equivalent to `passwd -l`) locks the account by prepending `!` to the hash in /etc/shadow, so no supplied password can ever match — the account and its data are untouched. `passwd -e` only marks the password as expired: the user is forced to set a new one on next login but is not actually blocked. `chage -I -1` explicitly disables the inactivity feature, which is the opposite of locking. `userdel -r` removes the user entry AND the home directory, which violates the requirement to keep the data intact."
               },
               {
-                "q": "After running 'useradd -m -s /bin/bash -G wheel devuser', the administrator checks /etc/passwd and sees devuser's primary group is 'devuser', not 'wheel'. Why?",
+                "q": "`chage -l alice` prints `Password expires: Mar 01, 2026`. It is now late April 2026 and Alice can still log in with her password. What is the MOST likely reason her expired password is still accepted?",
                 "choices": [
-                  "The wheel group does not exist on this system so useradd fell back to the default group",
-                  "The -G flag sets the primary group, which was overridden by useradd defaults",
-                  "useradd creates a private primary group matching the username by default;.",
-                  "The -m flag overrides group assignment and creates a new group"
-                ],
-                "correctIndex": 2,
-                "explanation": "By default, useradd creates a new primary group with the same name as the user (user private group scheme). The -G flag specifies supplementary groups, not the primary group. To set the primary group, you must use -g. So devuser's primary group is 'devuser' and 'wheel' is a supplementary group. If wheel didn't exist, useradd would error, not fall back silently. The -m flag only controls home directory creation. G adds supplementary groups"
-              },
-              {
-                "q": "A system is configured with UEFI firmware. During boot, the administrator needs to interrupt the GRUB2 menu to boot an older kernel. Which file contains the GRUB2 menu timeout setting?",
-                "choices": [
-                  "/etc/default/grub",
-                  "/boot/grub2/grubenv",
-                  "/etc/grub.d/40_custom",
-                  "/boot/grub2/grub.cfg"
+                  "The `INACTIVE` field in /etc/shadow grants a grace period after expiry during which the password still works (with a forced change)",
+                  "PAM has been reconfigured to ignore /etc/shadow expiry — the default `pam_unix` configuration would normally block her",
+                  "`chage` reads a different source than /etc/shadow, so the tool's report is out of date compared to the real hash file",
+                  "SSH public-key authentication bypasses password expiry — even though the scenario says she is entering a password"
                 ],
                 "correctIndex": 0,
-                "explanation": "/etc/default/grub contains the GRUB_TIMEOUT and other configurable settings that are used as input by grub2-mkconfig to generate grub.cfg. The grub.cfg file is auto-generated and should not be edited directly. /etc/grub.d/40_custom is used for adding custom menu entries. grubenv stores boot environment variables like the saved default entry."
+                "explanation": "The `INACTIVE` field (column 7 in /etc/shadow) sets how many days AFTER the password expiry the account still accepts logins, forcing a password change on entry. Set it to a large value and the user keeps working past the printed expiry date. `pam_unix` on a default system honours shadow expiry, so \"PAM ignores expiry\" is not the default explanation. `chage` reads /etc/shadow directly, so its report cannot be stale compared to shadow. SSH public-key auth would bypass expiry, but the scenario explicitly says Alice logs in with her password, so keys are not what is happening."
               },
               {
-                "q": "A GRUB2 boot entry fails and the system drops to the GRUB rescue prompt. The administrator types 'ls' and sees '(hd0) (hd0,gpt1) (hd0,gpt2)'. Which sequence of commands boots the system?",
+                "q": "After `useradd -m -s /bin/bash -G wheel devuser`, /etc/passwd shows devuser's PRIMARY group as `devuser`, not `wheel`. Why?",
                 "choices": [
-                  "boot (hd0,gpt2)/vmlinuz root=/dev/sda2",
-                  "set root=(hd0,gpt2)",
-                  "insmod normal; normal",
-                  "grub-install (hd0); update-grub; boot"
-                ],
-                "correctIndex": 1,
-                "explanation": "From the GRUB rescue prompt, you must set the root device, load the kernel with 'linux', load the initrd, then run 'boot'. The set root command points GRUB to the boot partition. grub-install and update-grub require a running OS. 'insmod normal; normal' is used from the GRUB shell (not rescue) to load the normal module if GRUB modules are available but GRUB's normal mode failed to load. initrd /initrd.img; boot"
-              },
-              {
-                "q": "A production system's GRUB2 boot menu shows two kernel entries. The older kernel is currently booting. An administrator wants to permanently set the newer kernel as the default. After updating /etc/default/grub with GRUB_DEFAULT=0, what must be run?",
-                "choices": [
-                  "grub2-install /dev/sda",
-                  "systemctl reboot",
-                  "grub2-mkconfig -o",
-                  "update-grub && reboot"
-                ],
-                "correctIndex": 2,
-                "explanation": "After modifying /etc/default/grub, grub2-mkconfig regenerates the active grub.cfg from the templates in /etc/grub.d/ and the settings in /etc/default/grub. Without running this command, grub.cfg is unchanged and the setting has no effect. systemctl reboot just reboots without updating GRUB. grub2-install reinstalls the GRUB bootloader to the MBR/EFI partition, which is not needed here. update-grub is a Debian/Ubuntu wrapper equivalent to grub2-mkconfig but uses different output path syntax."
-              },
-              {
-                "q": "A developer needs to give a script the ability to read files owned by root in /etc/ssl/private without giving the user root access. The script is at /opt/readcert.sh and is owned by root. Which permission configuration achieves this with least privilege?",
-                "choices": [
-                  "chmod 4755 /opt/readcert.sh to set the SUID bit so it runs as root",
-                  "Add the developer to the root group and chmod 640 /etc/ssl/private",
-                  "Set sticky bit on /etc/ssl/private with chmod +t",
-                  "Create a dedicated group, add both root and the developer to it."
+                  "The wheel group is missing on this box, so useradd silently fell back to a default private group",
+                  "`-G` sets the primary group, so useradd overrode it with the passwd defaults from /etc/login.defs",
+                  "`-m` implies primary-group creation and takes precedence over any group flag on the same command line",
+                  "`useradd` creates a user-private primary group named after the user by default; `-G wheel` only adds wheel as a SUPPLEMENTARY group"
                 ],
                 "correctIndex": 3,
-                "explanation": "Creating a dedicated group (e.g., sslreaders), adding the developer's user to it, changing the group ownership of /etc/ssl/private to sslreaders, and setting permissions to 640 or 750 provides access with least privilege. SUID on a shell script is ignored by Linux for security reasons. Adding the developer to the root group grants broad root-group access across the system, violating least privilege. The sticky bit on a directory only affects deletion, not read access. and chmod 640 /etc/ssl/private with group ownership"
+                "explanation": "By default (`USERGROUPS_ENAB yes` in /etc/login.defs), `useradd` creates a private group named after the user and makes it the primary group. `-G` is exclusively for SUPPLEMENTARY groups; the primary is set with lowercase `-g`. If `wheel` did NOT exist, useradd would fail with an error rather than fall back silently — so option A is wrong. `-m` controls whether the home directory is created and copied from /etc/skel; it does not touch group assignment. So `devuser` is the primary group, and `wheel` is a supplementary group as requested."
               },
               {
-                "q": "An administrator needs to set a file permission of rwxr-x--- (owner: rwx, group: r-x, other: none) using chmod with numeric notation. Which command is correct?",
+                "q": "On a UEFI-booted system running GRUB2, the administrator wants to change the boot-menu timeout so the user has more time to pick an older kernel entry. Which file should they edit and then regenerate grub.cfg from?",
                 "choices": [
-                  "chmod 755 /opt/script.sh",
-                  "chmod 750 /opt/script.sh",
-                  "chmod 740 /opt/script.sh",
-                  "chmod 754 /opt/script.sh"
+                  "`/boot/grub2/grub.cfg` — the compiled menu; editing it directly is overwritten on the next grub2-mkconfig",
+                  "`/etc/grub.d/40_custom` — for adding CUSTOM menu entries, not for changing global settings like the timeout",
+                  "`/boot/grub2/grubenv` — a key/value environment file that stores `saved_entry`, not the timeout",
+                  "`/etc/default/grub` — holds `GRUB_TIMEOUT=` and friends, consumed by grub2-mkconfig when it rebuilds grub.cfg"
+                ],
+                "correctIndex": 3,
+                "explanation": "`/etc/default/grub` is where you set `GRUB_TIMEOUT=`, `GRUB_DEFAULT=`, `GRUB_CMDLINE_LINUX=` and similar knobs; `grub2-mkconfig -o /boot/grub2/grub.cfg` then bakes them into the actual menu. `/boot/grub2/grub.cfg` IS the compiled menu and is stamped as auto-generated — hand edits are wiped on the next `grub2-mkconfig` run. `/etc/grub.d/40_custom` is the drop-in for hand-authored menu entries (rescue images, extra distros); it does not hold the timeout. `/boot/grub2/grubenv` is a small block-aligned env file that stores runtime state such as `saved_entry`, not menu configuration."
+              },
+              {
+                "q": "GRUB2 dropped the system to the `grub rescue>` prompt. `ls` reports `(hd0) (hd0,gpt1) (hd0,gpt2)`, where /boot lives on `(hd0,gpt2)`. Which sequence of commands boots the running system to userspace?",
+                "choices": [
+                  "`insmod normal` then `normal` — that only works from the FULL GRUB shell once modules load; from `grub rescue>` you need the rescue-mode sequence",
+                  "`grub-install (hd0); update-grub; boot` — `grub-install` and `update-grub` require a booted OS and cannot run from the rescue prompt",
+                  "`boot (hd0,gpt2)/vmlinuz root=/dev/sda2` — GRUB rescue has no `boot IMAGE` form; you must first set root, load linux and initrd, then run boot",
+                  "`set prefix=(hd0,gpt2)/grub2; set root=(hd0,gpt2); insmod normal; normal` — sets prefix/root, loads the normal module, then hands off to the standard GRUB menu"
+                ],
+                "correctIndex": 3,
+                "explanation": "From `grub rescue>` the rescue shell only has a tiny built-in command set; the recovery pattern is to tell it where GRUB's modules live (`set prefix=(hd0,gpt2)/grub2`), set root, then load `insmod normal` and enter normal mode, which finds grub.cfg and boots as usual. Option A skips the required prefix/root setup and cannot find `normal.mod` on its own. Option B calls tools (`grub-install`, `update-grub`) that need a running Linux userspace — you are trying to get there. Option C uses a syntax `boot IMAGE` that GRUB2 does not accept; the correct hand-boot sequence is `linux ...; initrd ...; boot` — a single `boot IMAGE` line is not valid."
+              },
+              {
+                "q": "A production system's GRUB2 menu has two kernel entries. The administrator edits `/etc/default/grub` and sets `GRUB_DEFAULT=0` so the newer kernel becomes the default. What must be run for the change to take effect?",
+                "choices": [
+                  "`grub2-install /dev/sda` — reinstalls the bootloader to the MBR; does not rebuild grub.cfg from /etc/default/grub",
+                  "`systemctl reboot` — reboots the machine but reads the OLD grub.cfg because it was never regenerated",
+                  "`grub2-mkconfig -o /boot/grub2/grub.cfg` — rebuilds grub.cfg from /etc/default/grub and /etc/grub.d/*, applying the new setting",
+                  "`update-grub && reboot` — `update-grub` is the Debian/Ubuntu wrapper name; on RHEL/CentOS it is `grub2-mkconfig`"
+                ],
+                "correctIndex": 2,
+                "explanation": "`grub2-mkconfig -o /boot/grub2/grub.cfg` (RHEL/CentOS) or `grub-mkconfig -o /boot/grub/grub.cfg` (some Debian derivatives) reads /etc/default/grub together with the scriptlets in /etc/grub.d/*, and writes a new grub.cfg. That is the step that translates `GRUB_DEFAULT=0` into a real change in the boot menu. `grub2-install` reinstalls the boot loader binary to the disk MBR/EFI partition — not the same as regenerating grub.cfg. `systemctl reboot` would just reboot with the stale grub.cfg. `update-grub` is Debian/Ubuntu's wrapper for grub-mkconfig — the intent is right but the tool is not available on RHEL/CentOS."
+              },
+              {
+                "q": "A developer's script at `/opt/readcert.sh` (owned by root) must read files in `/etc/ssl/private` (root-owned) WITHOUT giving the developer full root access. Which configuration best satisfies least-privilege?",
+                "choices": [
+                  "Dedicated group `sslreaders`: add the developer to it, chgrp the key directory to it, set mode 750 on the directory (640 on files inside)",
+                  "`chmod 4755 /opt/readcert.sh` — set SUID so the script always runs as root; Linux, however, ignores SUID on interpreted scripts as a well-known race-condition mitigation",
+                  "Add the developer to the `root` group and set `/etc/ssl/private` to 640 — but the root group grants access to root-group-owned files scattered across the entire system, not just SSL keys",
+                  "`chmod +t /etc/ssl/private` — set the sticky bit on the directory; sticky only prevents non-owners from DELETING files inside, it has no effect at all on read permission"
+                ],
+                "correctIndex": 0,
+                "explanation": "Least privilege is a dedicated group: create `sslreaders`, add just the developer, change group ownership on `/etc/ssl/private` (and the key files inside it), then `chmod 750` on the directory and `640` on the files. The developer gets exactly the reads they need and nothing else. Setting SUID on a shell script is a common trap — the Linux kernel deliberately ignores the SUID bit on interpreted scripts to close a well-known race window, so `chmod 4755` does nothing useful. Adding a user to the `root` group grants read access to every root-group-owned file on the box, far beyond `/etc/ssl/private`. The sticky bit on a directory only prevents users from deleting files they do not own; it has no effect on read permission."
+              },
+              {
+                "q": "Which numeric-notation `chmod` sets `/opt/script.sh` to `rwxr-x---` (owner rwx, group r-x, other no access)?",
+                "choices": [
+                  "`chmod 755 /opt/script.sh` — sets other=r-x (5), granting world execute which the requirement forbids",
+                  "`chmod 750 /opt/script.sh` — owner=rwx (7), group=r-x (5), other=--- (0), matching the requirement exactly",
+                  "`chmod 740 /opt/script.sh` — sets group=r-- (4), stripping execute from the group which the requirement requires",
+                  "`chmod 754 /opt/script.sh` — sets other=r-- (4), granting world read which the requirement forbids"
                 ],
                 "correctIndex": 1,
-                "explanation": "The permission rwxr-x--- breaks down as: owner (rwx = 4+2+1 = 7), group (r-x = 4+0+1 = 5), other (--- = 0). This gives 750. chmod 754 would set other to r-- (4), adding unwanted read access. chmod 755 sets other to r-x (5). chmod 740 sets group to r-- (4), removing execute from group."
+                "explanation": "Decoding `rwxr-x---`: owner rwx=4+2+1=7, group r-x=4+0+1=5, other ---=0, so the mode is `750`. `755` adds r-x for other, which the requirement forbids. `740` strips execute from the group (`r--` = 4). `754` grants read to other (`r--` = 4), also forbidden. Only `750` matches the exact rwx pattern given."
               }
             ]
           },
@@ -455,7 +534,7 @@
     "timeMinutes": 27
   },
   "meta": {
-    "generatedAt": "2026-07-03T14:50:26.465Z",
+    "generatedAt": "2026-08-10T07:17:27.227Z",
     "totalNodes": 25,
     "totalQuestions": 61,
     "nodeTypes": [

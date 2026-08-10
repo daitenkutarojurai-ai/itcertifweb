@@ -1,0 +1,384 @@
+{
+  "packId": "aws-dbs-c01",
+  "title": "AWS Certified Database Specialty (DBS-C01)",
+  "brandName": "Amazon Web Services",
+  "brandColor": "#60a5fa",
+  "chapters": [
+    {
+      "id": "ch1",
+      "title": "Part 1",
+      "tag": "part-1",
+      "nodes": [
+        {
+          "id": "c1-concept",
+          "type": "concept",
+          "title": "AWS Lambda: Key Ideas",
+          "content": "Lambda runs your code in response to events (API call, S3 upload, EventBridge schedule, SQS message). No servers to manage. You pay for invocations and execution time. The exam tests limits, cold starts, triggers, and the IAM execution role.",
+          "flashcards": [
+            {
+              "front": "Lambda execution limits — memory, time, payload?",
+              "back": "Memory: 128 MB - 10 GB (CPU scales with memory). Timeout: max 15 minutes. Sync invocation payload: 6 MB. Async invocation payload: 256 KB. Deployment package (zipped): 50 MB direct upload, 250 MB via S3, 10 GB via container image."
+            },
+            {
+              "front": "Cold start — what is it and how do you minimize it?",
+              "back": "First invocation of an idle function takes 100 ms - 2 s extra to load the runtime and your code. Mitigations: provisioned concurrency (pre-warmed instances), smaller deployment packages, native-compiled runtimes (Go, Rust), keeping connections out of the handler so they're reused across invocations."
+            },
+            {
+              "front": "Sync vs async vs poll-based invocation.",
+              "back": "Sync (API Gateway, ALB): caller waits for result. Async (S3, SNS, EventBridge): Lambda queues and retries on failure. Poll-based (SQS, Kinesis, DynamoDB Streams): Lambda pulls records, processes in batches, manages retries via the source. Each has different retry semantics — read the docs."
+            },
+            {
+              "front": "How does Lambda get permissions to call other AWS services?",
+              "back": "Each function has an IAM execution role. The role's policies say what the function CAN do (read S3, write DynamoDB, decrypt KMS). Lambda assumes the role on every invocation and exposes temporary credentials to your code via the SDK."
+            }
+          ],
+          "source": "concept-library",
+          "sourceTag": "lambda"
+        },
+        {
+          "id": "c1-quiz1",
+          "type": "quiz",
+          "title": "Part 1 — Drill 1",
+          "questionIds": [
+            "dbs-001",
+            "dbs-002",
+            "dbs-003",
+            "dbs-004"
+          ]
+        },
+        {
+          "id": "c1-game",
+          "type": "minigame",
+          "gameType": "lightning",
+          "mode": "lightning-round",
+          "data": {
+            "secondsPerQuestion": 7,
+            "livesAllowed": 3,
+            "questions": [
+              {
+                "q": "A gaming company stores real-time leaderboards for 40 million players. Each write updates a single player's score and each read fetches the top 100 scores for a game session. The workload sees single-digit-millisecond latency requirements at 250,000 requests per second with unpredictable spikes. Which database service best fits these requirements?",
+                "choices": [
+                  "Aurora PostgreSQL with a materialized view of the top scores refreshed every 5 seconds by a scheduled Lambda",
+                  "Amazon RDS for MySQL with a read replica per Region and application-side sharding by player_id ranges",
+                  "Amazon MemoryDB for Redis using sorted sets (ZADD/ZRANGE) with Multi-AZ replication for durability",
+                  "Amazon DocumentDB with a compound index on game_id and score, backed by an in-cluster cache layer"
+                ],
+                "correctIndex": 2,
+                "explanation": "MemoryDB for Redis provides in-memory, single-digit-millisecond performance and native sorted-set commands (ZADD/ZRANGE) that model leaderboards perfectly, plus Multi-AZ durability so it can be the primary store rather than just a cache. Aurora with materialized views cannot refresh fast enough to serve real-time top-N and adds relational overhead. RDS MySQL with manual sharding shifts complexity to the app and still can't meet the latency ceiling under spikes. DocumentDB is document-oriented and lacks a native ranked-set primitive."
+              },
+              {
+                "q": "A company runs a self-managed PostgreSQL 14 database on EC2 that is 3.2 TB in size and cannot tolerate more than 5 minutes of downtime during the migration to Amazon Aurora PostgreSQL. The source has heavy ongoing write activity. Which migration approach minimizes downtime?",
+                "choices": [
+                  "Use AWS DMS with a full-load-plus-CDC task from the EC2 PostgreSQL instance to the Aurora target, then cut over after CDC lag drains to near zero",
+                  "Take a pg_dump of the source, restore it into Aurora with pg_restore, and repoint the application after restore completes",
+                  "Create an Aurora cluster from a manual EBS snapshot of the EC2 instance's data volume and start the cluster from that snapshot",
+                  "Enable logical replication from the source to Aurora using pglogical, without AWS DMS, and cut over once replicas are caught up"
+                ],
+                "correctIndex": 0,
+                "explanation": "AWS DMS with a full-load-plus-CDC task snapshots the source and then continuously applies changes captured from the write-ahead log, so cutover only requires stopping writes long enough for the last few CDC events to drain — well under 5 minutes for a healthy pipeline. pg_dump/pg_restore requires a write freeze for the entire dump-and-restore window, which for 3.2 TB is hours. Aurora cannot be built from an EBS snapshot of a self-managed instance — it only accepts RDS snapshots or dumps. Native pglogical works but is operationally heavier than DMS and provides no advantage that DMS+CDC doesn't already offer here."
+              },
+              {
+                "q": "An Amazon Aurora MySQL cluster serves an application that opens and closes short-lived database connections for every HTTP request from a fleet of AWS Lambda functions. During traffic spikes the writer instance runs out of max_connections and the application sees frequent connection errors. What is the MOST effective remediation?",
+                "choices": [
+                  "Increase the writer instance size until max_connections is high enough to accept every concurrent Lambda invocation directly",
+                  "Move the workload to Aurora Serverless v2 so the connection pool is managed automatically as capacity units scale",
+                  "Enable the Aurora cluster endpoint's failover feature to distribute Lambda connections across the reader replicas",
+                  "Put Amazon RDS Proxy in front of the cluster and have the Lambda functions connect through the proxy endpoint"
+                ],
+                "correctIndex": 3,
+                "explanation": "RDS Proxy pools and multiplexes database connections between many application clients (like a Lambda fleet) and a limited number of backend connections, which is the standard fix for connection exhaustion caused by short-lived clients. Sizing up buys headroom but does not solve the underlying churn and is expensive. Aurora Serverless v2 scales compute but not the connection-per-client problem — a huge Lambda fleet still exhausts backend connections. The cluster endpoint always points at the writer; only the reader endpoint round-robins, and it wouldn't help writes either way."
+              },
+              {
+                "q": "A DynamoDB table stores IoT sensor readings with partition key device_id and sort key event_ts. A query for the last 24 hours of readings for a single device returns quickly, but a query that filters events across ALL devices for a given tenant_id runs a full scan and is far too slow. What is the LEAST expensive way to accelerate the tenant query without changing the base table schema?",
+                "choices": [
+                  "Enable DynamoDB Accelerator (DAX) in front of the table so the scan hits the DAX cluster's cache instead of the table",
+                  "Create a global secondary index (GSI) with tenant_id as the partition key and event_ts as the sort key and query the GSI",
+                  "Provision on-demand capacity mode on the base table so the scan can burst without throttling",
+                  "Add a local secondary index (LSI) on tenant_id and query the LSI with a Query operation for the tenant"
+                ],
+                "correctIndex": 1,
+                "explanation": "A GSI lets you query DynamoDB by an attribute that is not the base table's partition key. A GSI with tenant_id as the partition key and event_ts as the sort key turns the tenant query into an efficient Query (log-N) instead of a Scan. DAX caches Query/GetItem results but not full Scans meaningfully, and Scan itself remains O(N) work. On-demand capacity removes throttling but does not reduce the cost or latency of scanning the whole table. LSIs must share the base partition key (device_id) — they cannot be created on tenant_id, and only exist at table creation."
+              }
+            ]
+          },
+          "title": "Part 1 — Lightning Round"
+        },
+        {
+          "id": "c1-boss",
+          "type": "subboss",
+          "title": "Boss: Part 1",
+          "questionIds": [
+            "dbs-001",
+            "dbs-002",
+            "dbs-003",
+            "dbs-004"
+          ]
+        },
+        {
+          "id": "c1-chest",
+          "type": "chest",
+          "title": "Treasure Chest",
+          "rewardXp": 30,
+          "cosmeticKey": "chapter-1"
+        }
+      ]
+    },
+    {
+      "id": "ch2",
+      "title": "Part 2",
+      "tag": "part-2",
+      "nodes": [
+        {
+          "id": "c2-concept",
+          "type": "concept",
+          "title": "Compliance frameworks: Key Ideas",
+          "content": "Compliance is the discipline of mapping your controls to an external framework (PCI, HIPAA, SOC 2, GDPR, ISO 27001) and proving it to an auditor. Most exam questions test which framework owns which scope, not the minutiae of each clause.",
+          "flashcards": [
+            {
+              "front": "PCI DSS — what's the scope?",
+              "back": "Payment Card Industry Data Security Standard. Applies to anyone who stores, processes, or transmits cardholder data (PAN, expiry, CVV). 12 high-level requirements: firewalls, no defaults, encrypted storage, encrypted transmission, antivirus, secure dev, restrict access, MFA, log, test, policy. Required by Visa/Mastercard, not by law."
+            },
+            {
+              "front": "HIPAA vs HITRUST — what's the difference?",
+              "back": "HIPAA is U.S. law for protected health information (PHI) — sets the legal requirements but is high-level on technical controls. HITRUST CSF is a certifiable framework that operationalizes HIPAA (plus ISO, NIST, PCI) into specific testable controls. Healthcare orgs are legally HIPAA-bound; many also pursue HITRUST cert to prove diligence."
+            },
+            {
+              "front": "SOC 2 — what's it certify?",
+              "back": "American Institute of CPAs report on a SaaS company's controls across five trust criteria: security, availability, processing integrity, confidentiality, privacy. Type I = controls designed at a point in time. Type II = controls operated effectively over 6-12 months. Enterprise customers ask for the Type II as proof you're not making it up."
+            },
+            {
+              "front": "GDPR — what does it require beyond US-style privacy laws?",
+              "back": "European General Data Protection Regulation. Requires explicit consent (not pre-ticked), right to access / deletion / portability, 72-hour breach notification, data protection officer (for large processors), data minimization, and Privacy Impact Assessments for high-risk processing. Fines: up to 4% of global revenue. Applies to anyone processing EU residents' data, regardless of company location."
+            }
+          ],
+          "source": "concept-library",
+          "sourceTag": "compliance"
+        },
+        {
+          "id": "c2-quiz1",
+          "type": "quiz",
+          "title": "Part 2 — Drill 1",
+          "questionIds": [
+            "dbs-005",
+            "dbs-006",
+            "dbs-008",
+            "dbs-007"
+          ]
+        },
+        {
+          "id": "c2-game",
+          "type": "minigame",
+          "gameType": "lightning",
+          "mode": "lightning-round",
+          "data": {
+            "secondsPerQuestion": 7,
+            "livesAllowed": 3,
+            "questions": [
+              {
+                "q": "A fintech customer must retain 7 years of point-in-time backups for a production Amazon RDS for PostgreSQL database to satisfy an auditor. Automated backups on RDS retain only up to 35 days. What is the recommended way to meet the 7-year retention requirement with the LEAST operational effort?",
+                "choices": [
+                  "Take a manual RDS snapshot every day with an EventBridge rule and delete snapshots older than 2555 days with a scheduled Lambda",
+                  "Enable cross-Region automated backup replication to a secondary Region and rely on that Region's 35-day retention window",
+                  "Register the RDS instance with AWS Backup and use a backup plan with lifecycle rules that transition to cold storage and expire after 7 years",
+                  "Turn on continuous export of the transaction logs to S3 with a Lifecycle policy that transitions objects to Glacier Deep Archive after 90 days"
+                ],
+                "correctIndex": 2,
+                "explanation": "AWS Backup centrally manages RDS backups with backup plans that support cold-storage transitions and expiration up to years — exactly the long-retention use case, with the least operational effort. Rolling your own EventBridge + Lambda works but re-invents what AWS Backup already provides. Cross-Region automated backup replication is a DR feature — the target retention window is still capped like the source. RDS does not support continuous transaction-log export to S3 as a supported feature (only automated snapshots and PITR), so that option is not real."
+              },
+              {
+                "q": "A social-graph application stores users, their friends, and the friend-of-friend relationships. The most common queries are \"find all friends within 3 hops of user X who live in the same city\" and \"suggest new friends based on shared interests.\" Query latency must stay under 100 ms even at billions of edges. Which database service best fits this workload?",
+                "choices": [
+                  "Amazon Neptune with the Gremlin query language and a property graph model",
+                  "Amazon DynamoDB with an adjacency-list pattern and a GSI per relationship direction",
+                  "Amazon Aurora PostgreSQL with recursive Common Table Expressions over a friends table",
+                  "Amazon DocumentDB with a nested-array friends field and a per-interest secondary index"
+                ],
+                "correctIndex": 0,
+                "explanation": "Neptune is a purpose-built graph database whose query engines (Gremlin, openCypher, SPARQL) traverse multi-hop relationships in near-constant time relative to the touched edges, which is exactly what \"friends within N hops\" needs at scale. DynamoDB adjacency lists can model graphs but multi-hop traversals require multiple round-trips and quickly blow past 100 ms. Recursive CTEs on Aurora work at small scale but degrade sharply on billions of edges. DocumentDB stores nested arrays but has no graph-traversal engine — you would end up doing the traversal in application code."
+              },
+              {
+                "q": "An Aurora MySQL cluster's writer instance recently failed over to a reader. The failover took approximately 90 seconds — much longer than the expected 30-second window. The DBA reviews Performance Insights and finds a single long-running transaction that had been open for 40 minutes at the time of failover. What is the MOST likely cause of the extended failover time?",
+                "choices": [
+                  "The reader replica was in a different Availability Zone and cross-AZ promotion always adds significant time",
+                  "The Aurora cluster endpoint DNS TTL was not honored by the client, so the client kept connecting to the failed writer",
+                  "The cluster had only one reader, and Aurora had to provision a new writer instance from the shared storage volume during failover",
+                  "The promoted reader had to roll back the long-running open transaction before accepting writes, which extended the failover window"
+                ],
+                "correctIndex": 3,
+                "explanation": "When a reader is promoted to writer, it must first roll back any in-flight transactions from the old writer before it can safely accept new writes; a 40-minute open transaction produces a large undo pile that takes considerable time to roll back, which is the classic cause of unexpectedly long Aurora failovers. Cross-AZ promotion adds only a few seconds on Aurora because storage is shared. Client-side DNS caching affects the client's perception of failover time but not the cluster-reported failover duration. Aurora does not \"provision a new writer\" during failover — it promotes an existing reader; if none exists, it launches a new instance, but the question states a reader was promoted."
+              },
+              {
+                "q": "A regulated healthcare application requires that ALL database credentials used by application servers be rotated automatically every 30 days without downtime, and that no static credentials appear in application configuration or environment variables. The database is Amazon RDS for PostgreSQL. Which approach meets these requirements with the LEAST custom code?",
+                "choices": [
+                  "Store the database password in AWS Systems Manager Parameter Store as a SecureString and update it every 30 days with a scheduled Lambda that rewrites the value",
+                  "Store the database credentials in AWS Secrets Manager with automatic rotation enabled on a 30-day schedule and have the application fetch them via the Secrets Manager SDK",
+                  "Store the credentials in an encrypted S3 object with a Lifecycle policy that expires the object every 30 days, forcing the operator to upload a new one",
+                  "Enable RDS Proxy with IAM authentication and let the proxy generate short-lived tokens; store a long-lived master password in a KMS-encrypted file on the application servers"
+                ],
+                "correctIndex": 1,
+                "explanation": "AWS Secrets Manager natively supports automatic rotation for RDS credentials using Lambda rotation templates that AWS provides — no custom code and no application downtime because the rotation strategy alternates between two active credential versions. Parameter Store SecureString does not do automatic credential rotation for RDS out of the box. S3 lifecycle expiring an object is not credential rotation. RDS Proxy with IAM auth does eliminate application-side passwords, but the described design still keeps a long-lived master password on the app servers, which violates the \"no static credentials\" requirement."
+              }
+            ]
+          },
+          "title": "Part 2 — Lightning Round"
+        },
+        {
+          "id": "c2-boss",
+          "type": "subboss",
+          "title": "Boss: Part 2",
+          "questionIds": [
+            "dbs-005",
+            "dbs-006",
+            "dbs-008",
+            "dbs-007"
+          ]
+        },
+        {
+          "id": "c2-chest",
+          "type": "chest",
+          "title": "Treasure Chest",
+          "rewardXp": 30,
+          "cosmeticKey": "chapter-2"
+        }
+      ]
+    },
+    {
+      "id": "ch3",
+      "title": "Part 3",
+      "tag": "part-3",
+      "nodes": [
+        {
+          "id": "c3-concept",
+          "type": "concept",
+          "title": "Observability and monitoring: Key Ideas",
+          "content": "Observability is metrics + logs + traces — the three pillars. You need all three to debug a production incident: metrics tell you something is wrong, logs tell you what happened, traces tell you where in the call graph the problem lives.",
+          "flashcards": [
+            {
+              "front": "Metrics vs logs vs traces — what does each tell you?",
+              "back": "Metrics: numeric time-series, cheap to store, perfect for dashboards and alerts ('p99 latency = 800 ms'). Logs: discrete events with context, expensive at scale, perfect for forensics. Traces: causally-linked spans showing a request's full path through services."
+            },
+            {
+              "front": "What's the difference between an alert and a notification?",
+              "back": "An alert is a condition that fires when a metric crosses a threshold (CPU > 80% for 5 min). The notification is the resulting message (email, Slack, PagerDuty page). One alert can fan out to many notifications. Tuning alerts is harder than wiring notifications."
+            },
+            {
+              "front": "What is an SLI / SLO / SLA?",
+              "back": "SLI (indicator): the metric you actually measure ('% of requests under 200 ms'). SLO (objective): the internal target ('99.9% of requests under 200 ms over 28 days'). SLA (agreement): the contractual promise to customers, usually weaker than the SLO so you have buffer."
+            },
+            {
+              "front": "Why structured logs?",
+              "back": "Plain-text logs are unparseable at scale. Structured logs (JSON, with timestamp + level + service + request_id + key fields) are indexable, queryable, and join-able across services. Most platforms auto-extract fields from JSON without configuration."
+            }
+          ],
+          "source": "concept-library",
+          "sourceTag": "monitoring"
+        },
+        {
+          "id": "c3-quiz1",
+          "type": "quiz",
+          "title": "Part 3 — Drill 1",
+          "questionIds": [
+            "dbs-009",
+            "dbs-010",
+            "dbs-011",
+            "dbs-012"
+          ]
+        },
+        {
+          "id": "c3-game",
+          "type": "minigame",
+          "gameType": "lightning",
+          "mode": "lightning-round",
+          "data": {
+            "secondsPerQuestion": 7,
+            "livesAllowed": 3,
+            "questions": [
+              {
+                "q": "An Amazon RDS for SQL Server instance is showing high CPU utilization during business hours. The DBA needs to identify which specific SQL statements and wait events are consuming the most database time over the last 7 days, correlated with load. Which native AWS feature provides this analysis with the LEAST setup?",
+                "choices": [
+                  "Enable Amazon RDS Performance Insights on the instance and use the dashboard's Top SQL and Top Wait Events views",
+                  "Turn on Enhanced Monitoring at 1-second granularity and analyze the process-level CPU counters in CloudWatch Logs",
+                  "Export the SQL Server error log to CloudWatch Logs and run Logs Insights queries to aggregate query durations",
+                  "Attach the SQL Server DMV_wait_stats output to a self-managed Grafana dashboard fed by a Lambda that polls every minute"
+                ],
+                "correctIndex": 0,
+                "explanation": "Performance Insights is the AWS-native tool for exactly this: it captures DB load broken down by SQL statement and by wait event on a rolling multi-day retention (7 days free, up to 2 years paid) with no code changes. Enhanced Monitoring shows OS-level metrics (per-process CPU, memory) but not SQL text or wait breakdowns. The SQL Server error log doesn't record query execution stats. Rolling a Grafana pipeline over DMVs is possible but has by far the most setup and does not correlate load the way Performance Insights already does."
+              },
+              {
+                "q": "An organization runs a mission-critical Aurora PostgreSQL cluster in eu-west-1. Regulatory requirements demand that a fully functional read/write replica be available in us-east-1 within 1 minute of an eu-west-1 Regional outage, with an RPO of under 1 second. Which architecture meets these requirements?",
+                "choices": [
+                  "A cross-Region Aurora read replica created from the eu-west-1 writer, promoted to a standalone cluster during failover using a manual API call",
+                  "Cross-Region automated backup replication with a Lambda that provisions a fresh Aurora cluster in us-east-1 from the latest snapshot during a Regional outage",
+                  "An Aurora Global Database with a secondary cluster in us-east-1 and managed planned failover configured for cross-Region promotion",
+                  "A pair of Aurora clusters kept in sync via AWS DMS full-load-plus-CDC in both directions, with Route 53 health-check-based failover between them"
+                ],
+                "correctIndex": 2,
+                "explanation": "Aurora Global Database is purpose-built for this: it replicates from the primary Region to secondary Regions via dedicated storage-layer replication with typical lag under 1 second (RPO), and managed planned failover promotes a secondary cluster to primary in under a minute (RTO). A cross-Region read replica has higher lag and manual promotion is slower and heavier. Rebuilding from cross-Region snapshots is a DR pattern with an RTO of many minutes to hours. Bidirectional DMS pipelines are complex, do not guarantee sub-second RPO, and create conflict-resolution problems that violate the mission-critical requirement."
+              },
+              {
+                "q": "A DynamoDB table backing an e-commerce cart is provisioned with 4,000 write capacity units. One partition key value — the flagship product's cart_id — receives 60% of all writes during a flash sale, causing hot-partition throttling even though average utilization is well below capacity. What is the MOST effective schema change to eliminate the hot partition?",
+                "choices": [
+                  "Switch the table from provisioned to on-demand capacity mode so per-partition throttling no longer applies during traffic spikes",
+                  "Enable DynamoDB Accelerator (DAX) in front of the table so hot-key writes are absorbed by the DAX write-through cache",
+                  "Add a GSI on the cart_id attribute so writes to the flagship key are automatically spread across the GSI's partitions",
+                  "Introduce write sharding by appending a random suffix (0-N) to the flagship cart_id and rolling up results on read across all shards"
+                ],
+                "correctIndex": 3,
+                "explanation": "Write sharding — appending a random suffix like cart_id#0..N to the hot key so writes distribute across N logical partitions — is the canonical DynamoDB pattern for eliminating hot partitions caused by a single key. On-demand capacity still enforces the per-partition limit (roughly 1,000 WCU) so a single hot key can still throttle. DAX is a read-through cache; writes are pass-through and inherit the base table's per-partition limits. A GSI does not spread writes on the same key across more partitions — it just creates another index whose partition key you would need to change, so it is not a fix in isolation."
+              },
+              {
+                "q": "A compliance policy requires that any RDS snapshot shared with another AWS account, or copied to another Region, remains encrypted end-to-end with a customer-managed KMS key that never leaves the source account's control. Which approach satisfies the policy?",
+                "choices": [
+                  "Encrypt the snapshot with the default aws/rds AWS-managed key and share it directly with the destination account, which will decrypt it on import",
+                  "Encrypt the snapshot with a customer-managed KMS key, grant the destination account kms:CreateGrant on that key, and share the encrypted snapshot",
+                  "Copy the snapshot to the destination Region unencrypted first, then re-encrypt it in the destination Region with a new customer-managed KMS key",
+                  "Export the snapshot to Amazon S3 with server-side encryption using SSE-S3 and grant the destination account cross-account access to the S3 bucket"
+                ],
+                "correctIndex": 1,
+                "explanation": "RDS supports sharing encrypted snapshots across accounts only when the snapshot is encrypted with a customer-managed KMS key (not aws/rds) and the destination account is granted access via a KMS grant (kms:CreateGrant) on that key — this keeps key control in the source account while allowing the destination to decrypt. The AWS-managed aws/rds key cannot be shared across accounts. Copying unencrypted first violates the end-to-end encryption requirement and RDS blocks unencrypted copies of encrypted snapshots anyway. Exporting to S3 with SSE-S3 replaces KMS with S3-managed encryption, losing customer control over the key."
+              }
+            ]
+          },
+          "title": "Part 3 — Lightning Round"
+        },
+        {
+          "id": "c3-boss",
+          "type": "subboss",
+          "title": "Boss: Part 3",
+          "questionIds": [
+            "dbs-009",
+            "dbs-010",
+            "dbs-011",
+            "dbs-012"
+          ]
+        },
+        {
+          "id": "c3-chest",
+          "type": "chest",
+          "title": "Treasure Chest",
+          "rewardXp": 30,
+          "cosmeticKey": "chapter-3"
+        }
+      ]
+    }
+  ],
+  "finalBoss": {
+    "id": "final-boss",
+    "type": "finalboss",
+    "title": "Final Exam: AWS Certified Database Specialty (DBS-C01)",
+    "questionCount": 15,
+    "timeMinutes": 23
+  },
+  "meta": {
+    "generatedAt": "2026-08-10T07:17:27.190Z",
+    "totalNodes": 16,
+    "totalQuestions": 12,
+    "nodeTypes": [
+      "concept",
+      "quiz",
+      "minigame",
+      "subboss",
+      "finalboss"
+    ]
+  }
+}

@@ -60,78 +60,78 @@
                 "q": "A company is deploying Microsoft Sentinel and needs to ingest Azure Active Directory sign-in logs and audit logs. Which component must be configured in Sentinel to enable this data ingestion?",
                 "choices": [
                   "The Microsoft Entra ID data connector in Microsoft Sentinel",
-                  "A diagnostic setting on the Entra ID tenant sending logs to Log Analytics — forwards raw logs; it does not use the native Microsoft Sentinel data connector with pre-built analytics and schema mapping",
+                  "A diagnostic setting on the Entra ID tenant sending logs to Log Analytics directly",
                   "An Azure Monitor action group forwarding Entra ID alerts to the Sentinel workspace",
                   "A Logic App playbook triggered by Entra ID audit events"
                 ],
                 "correctIndex": 0,
-                "explanation": "The Microsoft Entra ID (formerly Azure AD) data connector in Sentinel enables ingestion of sign-in logs, audit logs, provisioning logs, and risk events into the Log Analytics workspace backing Sentinel. While this connector does use diagnostic settings under the hood, the data connector UI in Sentinel is the correct management interface that enables and configures this integration end-to-end. Logic App playbooks respond to Sentinel incidents, they are not data ingestion mechanisms. Azure Monitor action groups send notifications and trigger automations based on metric alerts, not log stream forwarding."
+                "explanation": "The Microsoft Entra ID data connector in Sentinel is the supported management interface for ingesting sign-in, audit, provisioning, and risk logs into the Log Analytics workspace backing Sentinel — it configures the diagnostic settings and schemas end-to-end and enables Sentinel-native content packs. Raw diagnostic settings alone push logs into Log Analytics but bypass the connector's schema mapping and Sentinel content. Action groups send notifications, not log streams. Playbooks respond to incidents; they do not ingest logs."
               },
               {
                 "q": "A security analyst is investigating a potential brute-force attack in Microsoft Sentinel. They want to identify all failed sign-in attempts from a specific IP address in the last 24 hours from the SigninLogs table. Which KQL query correctly retrieves this information?",
                 "choices": [
-                  "`SigninLogs | where TimeGenerated >= ago(24h) | where ResultType != 0 | where IPAddress == '203.0.113.5' | project TimeGenerated, UserPrincipalName, ResultDescription`",
-                  "`SigninLogs | where TimeGenerated >= ago(24h) | where ResultType != 0 | where IPAddress == '203.0.113.5' | count by UserPrincipalName, ResultType`",
-                  "`SigninLogs | filter TimeGenerated > now(-24h) | where Status == 'Failure' and SourceIP = '203.0.113.5' | project User, Time, FailureReason`",
-                  "`SecurityEvent | where TimeGenerated >= ago(24h) | where EventID == 4625 | where IpAddress == '203.0.113.5' | project Account, TargetUserName, LogonType`"
+                  "`SigninLogs | where TimeGenerated >= ago(24h) | where ResultType != 0 | where IPAddress == '203.0.113.5' | count`",
+                  "`SigninLogs | where TimeGenerated >= ago(24h) | where ResultType != 0 | where IPAddress == '203.0.113.5' | count by UserPrincipalName`",
+                  "`SigninLogs | where TimeGenerated >= ago(24h) | where ResultType != 0 | where IPAddress == '203.0.113.5' | project TimeGenerated, UserPrincipalName, ResultType`",
+                  "`SecurityEvent | where TimeGenerated >= ago(24h) | where EventID == 4625 | where IpAddress == '203.0.113.5' | project Account, TargetUserName, LogonType, WorkstationName`"
                 ],
-                "correctIndex": 0,
-                "explanation": "Option C uses correct KQL syntax: `ago(24h)` for time filtering, `ResultType != 0` to identify failed sign-ins (ResultType 0 = success in SigninLogs), the correct `IPAddress` field name, and `project` to display relevant columns for investigation. Option A only returns a count and misses detailed fields needed for an investigation. Option B uses invalid KQL (`filter`, `now(-24h)`, `Status`, `SourceIP`, and `=` instead of `==`). Option D queries the SecurityEvent table (Windows Security events) which is for on-premises/VM events, not Entra ID cloud sign-in logs. UserPrincipalName, IPAddress, ResultType, ResultDescription`"
+                "correctIndex": 2,
+                "explanation": "Option 3 uses correct KQL syntax and the right table: `ago(24h)` for the time filter, `ResultType != 0` (ResultType 0 = success in SigninLogs), the actual `IPAddress` column name, and `project` to expose the fields an analyst needs for triage. Option 1 uses correct syntax but only counts — losing per-event detail. Option 2 uses invalid KQL (`filter`, `now(-24h)`, incorrect `Status`/`SourceIP` field names, single `=`). Option 4 queries SecurityEvent — Windows Security events from on-prem VMs — instead of the cloud Entra ID sign-in stream."
               },
               {
                 "q": "A security operations team wants Microsoft Sentinel to automatically isolate a compromised VM from the network whenever a high-severity incident is created involving that VM. Which Sentinel feature enables this automated response?",
                 "choices": [
-                  "A Sentinel playbook (Logic App) triggered on incident creation that calls the Azure VM REST API to isolate the compromised VM by removing its network interface",
-                  "A Sentinel hunting query saved as a bookmark — flags a potentially compromised VM for analyst review; it does not automatically isolate the VM from the network in response to the incident",
-                  "A Sentinel workbook displaying VM isolation status for each incident on an operations dashboard for analysts to manually trigger remediation",
-                  "An analytics rule with a scheduled query that emails the security team when a high-severity incident is detected — requires manual action after the incident notification rather than automated isolation"
+                  "A Sentinel playbook (Logic App) triggered on incident creation that calls the Azure VM API to isolate the VM",
+                  "A Sentinel hunting query saved as a bookmark for the affected VM for later manual review",
+                  "A Sentinel workbook displaying VM isolation status for analysts to trigger",
+                  "An analytics rule with a scheduled query that emails the security team when a high-severity incident is detected"
                 ],
                 "correctIndex": 0,
-                "explanation": "Sentinel playbooks are Azure Logic Apps that can be triggered automatically on incident creation events. A playbook can call Azure REST APIs or use Azure Logic App connectors to perform actions such as applying an NSG to isolate a VM. This is Sentinel's SOAR (Security Orchestration, Automation, and Response) capability. Analytics rules create incidents from query results but do not automate responses. Workbooks visualize data but perform no automated actions. Hunting queries and bookmarks are investigation aids that require manual analyst review."
+                "explanation": "Sentinel playbooks (Azure Logic Apps) can be triggered automatically on incident creation via automation rules and can call Azure REST APIs — for example, applying an isolation NSG or removing the VM's NIC — implementing Sentinel's SOAR response pattern. Analytics rules generate incidents from queries but do not perform automated actions on their own. Workbooks visualize data and are not automation runtimes. Hunting queries and bookmarks are investigation aids that require manual action."
               },
               {
                 "q": "A security analyst is using Microsoft Sentinel's threat hunting capability. They have written a KQL query that successfully identifies suspicious PowerShell execution patterns in DeviceProcessEvents data. What should the analyst do to preserve this query for the team and track the matching events for a potential investigation?",
                 "choices": [
-                  "Save the query as a Sentinel Hunting Query and add Bookmarks to the individual suspicious events for inclusion in an incident",
-                  "Save the query as a Sentinel Workbook page — creates an interactive dashboard for the team; it does not save the query as a reusable hunting item with bookmarks for individual suspicious events",
-                  "Save the query as a Logic App trigger condition to automate response when the suspicious pattern is detected at runtime",
-                  "Convert the query directly into a high-severity Analytics Rule that creates a new incident for each pattern match"
+                  "Save the query as a Sentinel Hunting Query and Bookmark suspicious events into an incident",
+                  "Save the query as a Sentinel Workbook page with the KQL rendered as a query tile",
+                  "Save the query as a Logic App trigger condition on incoming events",
+                  "Convert the query directly into a high-severity Analytics Rule"
                 ],
                 "correctIndex": 0,
-                "explanation": "Sentinel Hunting Queries are saved KQL queries in the Hunting section that security analysts use proactively. After running a hunting query, analysts can add Bookmarks to specific result rows they want to track. Bookmarks preserve the event context and can be added to incidents for formal investigation. Workbooks are designed for visualization and reporting dashboards, not for hunting workflow management. Converting directly to an analytics rule might not be appropriate if the pattern has too many false positives and requires human judgment. Logic App triggers operate on incident/alert events, not on ad-hoc query results."
+                "explanation": "Sentinel Hunting Queries store saved KQL that analysts use proactively. After running one, analysts can attach Bookmarks to specific result rows, preserving the entity context and letting those rows be added to an incident for formal investigation. Workbooks are dashboards for visualization, not for the hunting/bookmark workflow. Converting to an analytics rule prematurely can flood the SOC with false positives before the pattern is understood. Logic App triggers act on incidents/alerts, not on ad-hoc query results."
               },
               {
                 "q": "A security engineer needs to configure Azure Sentinel to generate an incident whenever three or more failed Azure sign-in events from the same IP address occur within a 10-minute window. Which Sentinel analytics rule type should be used?",
                 "choices": [
-                  "Near real-time (NRT) rule that queries the SigninLogs table at 1-minute intervals without a time window aggregation",
-                  "Microsoft Security rule that automatically creates incidents from Microsoft 365 Defender alerts that match the IP",
-                  "Scheduled query rule with a KQL query using the `summarize` operator, a 10-minute query window, and a 3-event threshold",
-                  "Fusion rule, which correlates low-fidelity alerts from multiple sources using machine learning correlations"
+                  "Near real-time (NRT) rule that queries SigninLogs at 1-minute intervals",
+                  "Microsoft Security rule that ingests Microsoft 365 Defender alerts matching the IP",
+                  "Scheduled query rule with `summarize`, 10-minute window, and a 3-event threshold",
+                  "Fusion rule that correlates low-fidelity alerts from multiple sources with machine learning"
                 ],
                 "correctIndex": 2,
-                "explanation": "A Scheduled query rule allows you to write a custom KQL query with time window aggregation (e.g., `summarize FailedAttempts=count() by IPAddress | where FailedAttempts >= 3`), set the query frequency (every 10 minutes) and the lookback window (10 minutes), and define the alert threshold. This is the correct tool for custom threshold-based detection logic. Fusion rules use ML-based correlation of existing alerts and cannot be customized with specific threshold logic. Microsoft Security rules import alerts from integrated Microsoft services (like Defender XDR) rather than performing custom queries. NRT rules support near-real-time alerting but still require aggregation logic to count events, and alone do not define thresholds. and an alert threshold of 3 or more"
+                "explanation": "Scheduled query rules give you custom KQL with time-window aggregation (`summarize FailedAttempts=count() by IPAddress | where FailedAttempts >= 3`), configurable query frequency and lookback window, and an alert threshold — exactly the levers needed for '3 or more failures from one IP in 10 minutes'. Fusion rules use ML to correlate existing alerts and cannot be tuned with an explicit threshold. Microsoft Security rules relay alerts from integrated Microsoft services rather than running custom KQL. NRT rules alert in near-real-time on the last minute of data but do not natively express a windowed threshold."
               },
               {
                 "q": "A security team is investigating a Sentinel incident. The incident was triggered by an analytics rule that detected anomalous Azure resource deletion activity. The team wants to understand the full scope of the attack — which user initiated the deletions, from which IP, and which resources were affected. Which data source and Sentinel capability best supports this investigation?",
                 "choices": [
-                  "Use the Sentinel Investigation graph to visualize entities (accounts, IPs, resources) and pivot through related alerts and the activity timeline",
-                  "Run a Sentinel workbook report filtered to the incident's time range — displays alert activity and metrics in a dashboard; does not support interactive entity pivoting or activity investigation across the graph",
-                  "Query the AzureDiagnostics table in Log Analytics for resource-level metrics and performance counters across the subscription's deployments",
-                  "Review the Defender for Cloud Secure Score recommendations related to the subscription to identify potential misconfigurations in the workloads"
+                  "Use Sentinel's Investigation graph to visualize entities and pivot into the AzureActivity table",
+                  "Run a Sentinel workbook report filtered to the incident's time range",
+                  "Query the AzureDiagnostics table in Log Analytics for resource-level metrics and performance counters",
+                  "Review Defender for Cloud Secure Score recommendations related to the subscription"
                 ],
                 "correctIndex": 0,
-                "explanation": "Sentinel's Investigation graph automatically maps the entities (user accounts, IP addresses, Azure resources) extracted from the incident's alerts and bookmarks, allowing analysts to visually explore relationships and pivot to related events. The AzureActivity table records all Azure Resource Manager operations including who performed them, from which IP, and which resources were affected. AzureDiagnostics captures resource-level telemetry and logs, not control-plane management operations. Secure Score recommendations are configuration assessments, not forensic investigation tools. Workbooks display aggregated data visualizations but are not optimized for incident-level entity investigation. IPs, resources) related to the incident, and drill into the AzureActivity table for detailed operation records"
+                "explanation": "Sentinel's Investigation graph auto-maps the entities extracted from the incident's alerts and bookmarks — user accounts, IP addresses, resources — and lets analysts pivot into related events. Combined with the AzureActivity table (control-plane operations: who, from where, what changed), it directly answers the who/where/what questions. AzureDiagnostics captures resource-level telemetry, not management operations. Secure Score recommendations describe configuration posture, not forensic timelines. Workbooks are aggregation dashboards — not designed for interactive entity pivoting."
               },
               {
                 "q": "A security engineer needs to configure Microsoft Sentinel to automatically respond to phishing alerts by disabling the compromised user account in Microsoft Entra ID. The response should happen within minutes of the alert being triggered. Which Sentinel component implements this?",
                 "choices": [
-                  "A Sentinel Workbook with a manual investigation workflow for the SOC team to follow when a Microsoft Graph phishing alert is triggered — requires human action; not automatic response",
-                  "A Sentinel Fusion rule correlating phishing email alerts with subsequent suspicious Microsoft account sign-ins — Fusion detects multi-stage attacks but does not trigger playbook actions automatically",
-                  "A Sentinel Analytics Rule with a built-in response action to disable user accounts matching phishing alerts — Analytics Rules trigger automation rules or playbooks; they have no built-in account-disable action",
-                  "A Sentinel Automation Rule triggering a Playbook (Logic App) that calls the Microsoft Graph API to disable the targeted user account when a phishing alert fires"
+                  "A Sentinel Workbook showing a manual investigation workflow for the SOC team to follow",
+                  "A Sentinel Fusion rule correlating phishing email alerts with subsequent suspicious sign-ins",
+                  "A Sentinel Analytics Rule with a built-in response action to disable user accounts",
+                  "A Sentinel Automation Rule triggering a Playbook that calls Microsoft Graph to disable the user"
                 ],
                 "correctIndex": 3,
-                "explanation": "Sentinel Automation Rules can be triggered when an incident is created or updated, and they can invoke a Playbook (Azure Logic App). The Logic App calls the Microsoft Graph API (specifically the `Update user` API setting `accountEnabled: false`) to disable the compromised account. This chain — incident creation → Automation Rule → Playbook → Graph API call — is the standard SOAR response pattern in Sentinel. Fusion rules create multi-stage attack incidents but have no automated response capability. Analytics Rules generate incidents but do not natively support direct entity actions like disabling accounts. Workbooks are dashboards and require manual analyst action."
+                "explanation": "Sentinel Automation Rules run when incidents are created or updated and can invoke a Playbook (Azure Logic App). The Logic App calls Microsoft Graph — specifically the Update user API with accountEnabled: false — to disable the compromised account. This incident → Automation Rule → Playbook → Graph call is the standard SOAR response chain in Sentinel. Fusion rules identify multi-stage attacks but do not trigger playbooks by themselves. Analytics rules generate incidents but have no built-in disable-user action. Workbooks are dashboards for humans, not automation runtimes."
               }
             ]
           },
@@ -228,68 +228,68 @@
               {
                 "q": "A security engineer is reviewing the Microsoft Defender for Cloud Secure Score for a subscription. The score is 42%. The highest-impact recommendation is 'Enable MFA for accounts with owner permissions on your subscription.' What does addressing this recommendation indicate in terms of the Secure Score?",
                 "choices": [
-                  "The Secure Score will not change until recommendations across the subscription's security controls are fully remediated",
-                  "The Secure Score will increase by the recommendation's maximum score contribution when all impacted resources are remediated",
-                  "The Secure Score will immediately jump to 100% because owner MFA is the most heavily weighted control in the framework",
-                  "The Secure Score will increase by 1 point for each individual VM remediated under this recommendation cycle"
+                  "The Secure Score does not change until every recommendation across all controls is remediated",
+                  "The Secure Score increases by the recommendation's full contribution once all resources are healthy",
+                  "The Secure Score immediately jumps to 100% because owner MFA is the most heavily weighted control",
+                  "The Secure Score increases by 1 point for each individual owner remediated under this recommendation"
                 ],
                 "correctIndex": 1,
-                "explanation": "Secure Score improvements are calculated per security control — each control has a maximum score contribution. When all unhealthy resources within a control are remediated, the full score contribution of that control is added to the Secure Score. Partial remediation within a control contributes proportionally. The score will not jump to 100% from a single recommendation. Secure Score improves progressively as controls are addressed — you don't need all controls completed before any score change. Points are not awarded per resource but rather per control completion."
+                "explanation": "Secure Score is calculated per security control: each control has a maximum score contribution, and remediating every unhealthy resource within a control awards that control's full contribution — partial remediation contributes proportionally. Improvement is progressive: you do not need every other control complete for this one to raise the score. A single recommendation does not push the score to 100%. Points accrue per control completion, not per individual resource."
               },
               {
                 "q": "A security engineer is configuring Microsoft Defender for Cloud's regulatory compliance dashboard for a subscription. The company must demonstrate compliance with the CIS Microsoft Azure Foundations Benchmark. Which action enables this assessment in Defender for Cloud?",
                 "choices": [
-                  "Assign the 'CIS Microsoft Azure Foundations Benchmark' Azure Policy initiative — enforces compliance rules at the policy level but does not render the Defender for Cloud regulatory compliance dashboard",
-                  "Configure a Log Analytics workspace and create a custom workbook importing each CIS benchmark control as a query tile and chart",
-                  "Deploy the Azure Security Center MMA agent on each VM and enable endpoint protection assessments via Defender for Servers Plan 2",
-                  "Enable the Defender for Cloud Enhanced Security features (paid tier) and navigate to the Regulatory Compliance dashboard to add the CIS standard"
+                  "Assign the 'CIS Microsoft Azure Foundations Benchmark' Azure Policy initiative to the subscription only",
+                  "Configure a Log Analytics workspace and create a custom workbook importing each CIS control",
+                  "Deploy the Azure Security Center MMA agent on each VM and enable endpoint protection assessments",
+                  "Enable Enhanced Security features and add CIS as a standard on the Regulatory Compliance dashboard"
                 ],
                 "correctIndex": 3,
-                "explanation": "Defender for Cloud's Regulatory Compliance dashboard allows you to add industry standards and regulatory frameworks (including CIS Azure Foundations Benchmark) from the dashboard interface. This requires Defender for Cloud Enhanced Security features (formerly Standard tier). While the compliance dashboard uses Azure Policy assignments under the hood, the correct user workflow is through the Regulatory Compliance settings in Defender for Cloud. Creating a custom Log Analytics workbook is a manual approach that doesn't integrate with Defender for Cloud's native compliance scoring. The Azure Security Center agent (MMA/AMA) is for resource monitoring, not regulatory compliance framework assignments."
+                "explanation": "Adding a standard on Defender for Cloud's Regulatory Compliance dashboard is the correct workflow to render CIS Azure Foundations Benchmark compliance, and it requires the Enhanced Security (paid) tier. Assigning the CIS policy initiative alone applies the checks in Azure Policy but does not surface the Defender for Cloud compliance dashboard experience. A custom Log Analytics workbook is a manual approach that does not integrate with Defender for Cloud's compliance scoring. The MMA agent covers resource monitoring, not regulatory-compliance framework assignments."
               },
               {
                 "q": "A security team wants to enable Microsoft Defender for Servers Plan 2 on all virtual machines across multiple subscriptions. The organization uses a management group hierarchy. What is the most efficient way to enable this at scale?",
                 "choices": [
-                  "Deploy a custom Azure Policy that installs the MMA agent — extends agent coverage but does not enable Defender for Servers Plan 2 across the full management group level in Microsoft Defender for Cloud",
-                  "Enable Defender for Servers Plan 2 at the management group level in Microsoft Defender for Cloud environment settings",
-                  "Create a separate Log Analytics workspace per subscription and link each workspace to Defender for Cloud individually",
-                  "Navigate to each individual VM in the Azure portal and enable the Defender for Servers extension manually"
+                  "Deploy a custom Azure Policy that installs the MMA agent across every VM in the hierarchy",
+                  "Enable Defender for Servers Plan 2 at the management group level in Defender for Cloud",
+                  "Create a separate Log Analytics workspace per subscription and link each to Defender for Cloud",
+                  "Enable the Defender for Servers extension manually on each VM through the Azure portal"
                 ],
                 "correctIndex": 1,
-                "explanation": "Defender for Cloud environment settings can be configured at the management group level, enabling Defender plans (including Defender for Servers) across all subscriptions within the management group hierarchy in a single operation. This is the most efficient approach for multi-subscription deployments. Enabling Defender per VM or per subscription individually is possible but not scalable. Deploying a custom policy for the MMA agent is the legacy approach and does not automatically enable all Defender for Servers capabilities. Creating separate workspaces per subscription increases cost and complexity without adding security value."
+                "explanation": "Defender for Cloud environment settings can be scoped at the management group level, turning on Defender for Servers (Plan 2) across every subscription inside the hierarchy in one action — the intended path for multi-subscription rollout. Per-VM or per-subscription enablement works but does not scale. A custom MMA-installer policy predates modern AMA-based deployment and does not enable the Defender for Servers plan itself. Creating separate workspaces per subscription raises cost and complexity without adding security value."
               },
               {
                 "q": "A company using Microsoft Defender for Cloud receives a recommendation to 'Remediate vulnerabilities in security configurations on your machines.' The recommendation shows 15 unhealthy resources. A security engineer applies a quick-fix remediation to all 15 resources. How does Defender for Cloud reflect this change?",
                 "choices": [
-                  "The recommendation is immediately removed from the Secure Score calculation and the 15 resources show as healthy",
+                  "The recommendation is immediately removed from the Secure Score calculation and the resources show as healthy",
                   "Defender for Cloud re-evaluates the resources within the next assessment cycle (typically up to 30 minutes)",
                   "Defender for Cloud removes the recommendation permanently and it will not reappear if the configuration drifts back",
-                  "The resources remain unhealthy until a manual scan is triggered by the security engineer in the portal"
+                  "The resources remain unhealthy until a manual scan is triggered by the security engineer"
                 ],
                 "correctIndex": 1,
-                "explanation": "After applying remediation, Defender for Cloud does not immediately reflect the changes — it re-evaluates resources during its regular assessment cycle, which typically takes up to 30 minutes. Once re-assessed, the resources that meet the recommendation's criteria show as healthy and the Secure Score is updated. The recommendation remains visible in the dashboard even after full remediation (it would show 0 unhealthy resources). If configuration drifts back to a non-compliant state, the recommendation will reappear. No manual scan trigger is required; re-assessment happens automatically. after which the resources show as healthy and the Secure Score updates accordingly"
+                "explanation": "Defender for Cloud re-evaluates recommendations on a periodic assessment cycle — typically up to 30 minutes — so remediated resources do not flip to healthy the instant a fix is applied. Once re-assessed they show as healthy and Secure Score updates. Recommendations remain visible even when fully remediated (showing 0 unhealthy resources), and if configuration drifts back to non-compliant, the recommendation reappears. There is no manual-scan step required — assessment happens automatically."
               },
               {
                 "q": "An organization running workloads on Azure has enabled Microsoft Defender for Cloud. The security team receives an alert: 'A process that is not usually observed has been executed on a VM.' This alert was generated without any signature matching. Which Defender for Cloud capability generated this alert?",
                 "choices": [
-                  "Adaptive Application Controls (AAC) machine learning-based behavioral analysis detecting anomalous process execution",
-                  "Just-in-Time VM access detecting unauthorized management port access attempts on the protected VM fleet at runtime",
-                  "File Integrity Monitoring (FIM) detecting changes to critical system files on Windows and Linux servers continuously",
-                  "Vulnerability Assessment scanning using the Qualys or Microsoft TVM integration for known CVE entries on the host"
+                  "Adaptive Application Controls, which build a behavioral allowlist of processes per VM",
+                  "Just-in-Time VM access detecting unauthorized management-port access attempts",
+                  "File Integrity Monitoring (FIM) detecting changes to critical system files continuously",
+                  "Vulnerability Assessment scanning using Qualys or Microsoft TVM integration for CVEs"
                 ],
                 "correctIndex": 0,
-                "explanation": "Adaptive Application Controls in Defender for Cloud use machine learning to build a baseline of applications and processes that normally run on a VM. When a process outside this learned allowlist is executed, Defender for Cloud generates an alert. This is behavioral, not signature-based detection. Vulnerability Assessment identifies known CVEs and misconfigurations but does not detect runtime process anomalies. File Integrity Monitoring alerts on changes to specific monitored files (e.g., /etc/passwd), not arbitrary process execution. JIT VM Access manages port-level access and would not generate a 'process executed' alert."
+                "explanation": "Adaptive Application Controls in Defender for Cloud learn a per-VM baseline of processes that normally run there; when a process outside that allowlist executes, Defender for Cloud raises an alert — behavioral, not signature-based, matching the question. Vulnerability Assessment identifies known CVEs and misconfigurations, not runtime process anomalies. FIM alerts on changes to specific monitored files, not arbitrary process launches. JIT VM Access manages port-level access and does not observe process execution."
               },
               {
                 "q": "A subscription owner enables Microsoft Defender for Cloud at the Free (foundational CSPM) tier. Two specific capabilities REQUIRE upgrading to the enhanced security (paid) tier on the affected resource type. Which TWO capabilities require the paid tier?",
                 "choices": [
-                  "Continuous secure-score computation across resources at the foundational tier — included in the free CSPM plan and does not require an upgrade",
-                  "Just-in-Time (JIT) VM access — included with Defender for Servers (paid Defender plan)",
-                  "Adaptive Network Hardening — included with Defender for Servers (paid plan), uses network telemetry to recommend NSG tightening",
-                  "Free security recommendations against the Microsoft Cloud Security Benchmark — included in the foundational CSPM plan"
+                  "Continuous secure-score computation across resources at the foundational tier",
+                  "Just-in-Time (JIT) VM access",
+                  "Adaptive Network Hardening",
+                  "Free security recommendations against the Microsoft Cloud Security Benchmark"
                 ],
                 "correctIndex": 1,
-                "explanation": "JIT VM access and adaptive application controls are part of Defender for Servers (paid). Secure score visualization and continuous export are available with the free Defender for Cloud baseline."
+                "explanation": "JIT VM access and Adaptive Network Hardening are both part of Defender for Servers, which is a paid Defender plan on top of the foundational CSPM tier. Continuous secure-score computation and free recommendations against the Microsoft Cloud Security Benchmark are included in the foundational (free) Defender for Cloud plan, so no upgrade is required for them."
               }
             ]
           },
@@ -382,46 +382,46 @@
               {
                 "q": "A company wants to prevent all public internet access to an Azure Storage account while still allowing access from specific Azure Virtual Networks and a single on-premises IP address. Which combination of storage account settings achieves this?",
                 "choices": [
-                  "Enable the storage account firewall, add the selected VNet subnets as allowed networks, and include the on-premises IP in the allowed range",
-                  "Configure a Service Endpoint — routes storage traffic over the Azure backbone from the VNet; it does not allow on-premises networks or specific public IPs as additional allowed sources",
-                  "Create a Private Endpoint for the storage account and configure private DNS so the storage FQDN resolves to the assigned private IP",
-                  "Apply a Network Security Group to the storage account resource group blocking inbound internet traffic from public IP ranges"
+                  "Enable the storage account firewall, add the selected VNet subnets and the on-premises IP as allowed",
+                  "Configure a Service Endpoint on the VNet subnets so storage traffic flows over the Azure backbone",
+                  "Create a Private Endpoint for the account and configure private DNS to resolve to the private IP",
+                  "Apply a Network Security Group to the storage account's resource group blocking internet ingress"
                 ],
                 "correctIndex": 0,
-                "explanation": "The storage account firewall (under Networking settings) allows you to restrict access by specifying allowed VNet subnets (via Service Endpoints) and specific public IP ranges, while denying all other traffic. This directly meets both the VNet and on-premises IP requirements in a single configuration. Private Endpoints provide private access from the VNet but require additional DNS configuration and do not natively allow a specific on-premises IP without also combining firewall rules. NSGs cannot be applied to storage accounts directly — they apply to NICs and subnets, not PaaS services. Service Endpoints alone + disabling public access would block the on-premises IP, which still needs to connect over the internet. and add the on-premises IP as an allowed IP range"
+                "explanation": "The storage account firewall (Networking > Firewalls and virtual networks) lets you set the default action to Deny and then allow both selected VNet subnets (via Service Endpoints) and specific public IP ranges — meeting the VNet-and-on-prem-IP requirement in a single configuration. Service Endpoints alone allow VNet traffic but do not accommodate an additional on-premises public IP. A Private Endpoint provides private access from within the VNet but does not natively include an on-prem IP allowlist without additional VPN/ExpressRoute connectivity. NSGs cannot be applied to PaaS storage accounts — they attach to NICs and subnets."
               },
               {
                 "q": "A company stores highly sensitive data in an Azure Storage account. The security team wants to ensure that deleted blobs and the storage account itself cannot be permanently deleted or modified for a minimum of 90 days, even by a global administrator. Which features should be enabled?",
                 "choices": [
-                  "Configure blob versioning and enable change feed — records object changes and retains versions for recovery; does not enforce a locked immutable retention period that prevents deletion for 90 days",
-                  "Enable Azure Backup for the storage account with a 90-day retention policy in a Recovery Services vault",
-                  "Enable soft-delete for blobs with a 90-day retention period and configure lifecycle management policies",
-                  "Enable immutable blob storage with a time-based retention policy locked to 90 days,."
+                  "Configure blob versioning and enable change feed for the storage account",
+                  "Enable Azure Backup for the storage account with a 90-day retention policy in a Recovery vault",
+                  "Enable immutable blob storage with a locked 90-day retention plus a CanNotDelete lock on the account",
+                  "Enable soft-delete for blobs with a 90-day retention and configure lifecycle policies"
                 ],
-                "correctIndex": 3,
-                "explanation": "Immutable blob storage with a locked time-based retention policy prevents blobs from being overwritten or deleted for the defined retention period, and once locked, not even administrators can shorten the policy or delete the blobs. A Resource Lock (CanNotDelete) on the storage account prevents accidental or unauthorized deletion of the account itself. Soft-delete allows blobs to be recovered within a retention window but does not prevent deletion — it only retains a copy. Blob versioning and change feed help with auditability and recovery but do not enforce immutability. Azure Backup provides recovery capabilities but does not prevent deletion of the source data. and enable Resource Lock (Delete) on the storage account"
+                "correctIndex": 2,
+                "explanation": "Immutable blob storage with a locked time-based retention policy prevents blobs from being overwritten or deleted for the retention window, and once the policy is locked not even administrators can shorten it. A CanNotDelete resource lock on the storage account itself prevents deletion of the account. Soft-delete only preserves a recoverable copy — a user with sufficient permissions can still permanently purge. Blob versioning and change feed help with auditability and recovery but do not enforce immutability. Azure Backup provides recovery but does not stop a privileged administrator from deleting both the data and the backup."
               },
               {
                 "q": "A developer accidentally committed an Azure Storage account access key to a public GitHub repository. The security team was notified by Microsoft Defender for Cloud. What should be the FIRST action the security team takes?",
                 "choices": [
-                  "Apply a delete-lock to the Azure storage account — prevents accidental deletion but does not revoke or rotate the exposed access key used by the attacker to authenticate to the account",
+                  "Apply a delete-lock to the Azure storage account to prevent further changes",
                   "Rotate both access keys in the Azure portal immediately to invalidate the exposed key",
-                  "Delete the storage account and recreate it with a new name to eliminate the data exposure",
-                  "File a security incident report and schedule a review meeting with the development team for the following week"
+                  "Delete the storage account and recreate it with a new name to eliminate exposure",
+                  "File a security incident report and schedule a review meeting for the following week"
                 ],
                 "correctIndex": 1,
-                "explanation": "The immediate priority is to revoke the exposed credential before a threat actor can use it. Rotating (regenerating) both access keys in the Azure portal immediately invalidates the leaked key. Azure Storage accounts have two keys so that one can be rotated while the other remains active for applications to use. Filing a report first delays remediation during a live credential exposure window. Applying a read-only lock would prevent legitimate operations but does not invalidate the exposed key — an attacker with the key can still read data. Deleting the account risks data loss and is disproportionate to the situation."
+                "explanation": "The immediate priority is to revoke the leaked credential before an attacker uses it. Rotating both keys in the portal invalidates the exposed key; the storage account has two keys precisely so one can be rotated while apps switch over to the other. Filing a report first delays remediation during a live exposure window. A resource lock stops the account from being deleted but does not invalidate the exposed key — an attacker with it can still read data. Deleting and recreating the account risks data loss and is disproportionate."
               },
               {
                 "q": "A security engineer is creating a Shared Access Signature (SAS) token for an Azure Storage account to allow a partner application to upload files to a specific container for the next 48 hours. Which SAS type and configuration should be used to follow the principle of least privilege?",
                 "choices": [
-                  "Account SAS with read, write, and list permissions on all services — grants access to the entire Azure storage account across all containers and services, not scoped to one specific blob container",
-                  "User Delegation SAS using the storage account access key with full blob service permissions",
-                  "Service SAS scoped to the specific Blob container with write-only permission.",
+                  "Account SAS with read, write, and list permissions on all storage services and containers",
+                  "User Delegation SAS using the storage account access key with full blob permissions",
+                  "Service SAS scoped to the container, write-only, 48-hour expiry, with a signed IP restriction",
                   "Account SAS signed with the storage account access key granting all object-level permissions"
                 ],
                 "correctIndex": 2,
-                "explanation": "A Service SAS scoped to the specific container with only write permission and a 48-hour expiry follows least privilege — the partner can upload files but cannot read, list, or delete existing content. Adding a signed IP restriction further reduces the attack surface. An Account SAS grants access across multiple services and storage account resources, violating least privilege. A User Delegation SAS is actually the most secure type (uses Entra ID credentials, not storage keys) but the question specifies it using an access key, which is a contradiction. Account SAS with full object permissions is overly permissive. a 48-hour expiry, and a signed IP range limited to the partner's IP"
+                "explanation": "A Service SAS scoped to a single container with only the write permission, a 48-hour expiry, and a signed IP restriction to the partner's egress IP satisfies least privilege — the partner can upload but cannot read, list, or delete existing content. Account SAS grants access across services and containers, over-scoping the token. Option B is self-contradictory: a genuine User Delegation SAS is signed with an Entra ID user key, not the storage account access key. An Account SAS with all object-level permissions is even broader than option A."
               }
             ]
           },
@@ -599,29 +599,29 @@
                   "Set the Device platforms condition to exclude 'Windows' and 'macOS'"
                 ],
                 "correctIndex": 2,
-                "explanation": "Legacy authentication protocols are covered by the 'Exchange ActiveSync clients' and 'Other clients' options in the Client apps condition. 'Browser' and 'Mobile apps and desktop clients' (modern auth) are separate client app categories and do not target legacy protocols. Sign-in risk policies address risky sign-ins, not the protocol type. Device platform conditions filter by OS and would not reliably block legacy auth."
+                "explanation": "Legacy authentication protocols (SMTP, IMAP, POP3, older MAPI) fall under the 'Exchange ActiveSync clients' and 'Other clients' categories in the Client apps condition — selecting these lets a Conditional Access policy target them directly. 'Browser' and 'Mobile apps and desktop clients' cover modern-auth flows, not the legacy protocols. Sign-in risk policies react to risk signals but do not classify by protocol. Device-platform conditions filter by OS, which does not correspond to legacy authentication."
               },
               {
                 "q": "An organization has a user population that includes highly privileged administrators and regular employees. The security team wants to require phishing-resistant MFA for all administrator sign-ins but only require standard MFA for regular users signing in from outside the corporate network. Which approach best meets this requirement?",
                 "choices": [
-                  "Two Conditional Access policies: admins require authentication strength 'Phishing-resistant MFA'; users outside trusted locations require standard MFA",
-                  "A single Conditional Access policy requiring FIDO2 for all users — applies phishing-resistant MFA uniformly but does not distinguish between privileged admin and standard user outside-office scenarios",
-                  "Enable the Security Defaults baseline — applies a uniform MFA requirement across the directory; it does not require different authentication strengths for admins versus standard users outside office hours",
-                  "An Identity Protection sign-in risk policy that requires MFA when a sign-in is rated medium or higher risk for users in the tenant"
+                  "A single Conditional Access policy requiring FIDO2 for every user in the tenant",
+                  "Enable the Security Defaults baseline uniformly for the whole tenant",
+                  "Two Conditional Access policies: phishing-resistant MFA for admins, standard MFA off-network",
+                  "An Identity Protection sign-in risk policy that requires MFA at medium or higher risk"
                 ],
-                "correctIndex": 0,
-                "explanation": "Two separate Conditional Access policies allow different authentication strength requirements for different user populations. The admin policy uses the 'Phishing-resistant MFA' authentication strength (covering FIDO2, Windows Hello, certificate-based auth). The second policy uses location conditions to trigger standard MFA only for non-admins outside the corporate network. Requiring FIDO2 for all users is impractical for regular employees. Sign-in risk policies only trigger at high risk, not proactively for all admin sign-ins. Security Defaults cannot be granularly customized to apply different requirements to different user groups. and one targeting non-admins with location condition requiring standard MFA"
+                "correctIndex": 2,
+                "explanation": "Two Conditional Access policies let you apply different authentication-strength requirements to different populations: the admin-scoped policy uses the 'Phishing-resistant MFA' authentication strength (covering FIDO2, Windows Hello, certificate-based sign-in), and a second policy uses a location condition to require standard MFA only for non-admins signing in from outside the corporate network. Requiring FIDO2 for every user is impractical and does not scope standard MFA to off-network sign-ins. Sign-in-risk policies only fire on risky sign-ins, so routine admin activity is missed. Security Defaults applies one uniform MFA baseline and cannot be tailored per group."
               },
               {
                 "q": "A security engineer is configuring a Conditional Access policy that requires all users accessing Microsoft 365 apps from unmanaged devices to complete MFA. However, the policy should not apply to service accounts or break-glass emergency administrator accounts. What is the recommended approach?",
                 "choices": [
-                  "In the Conditional Access policy's 'Exclude' section, add the specific service accounts and break-glass account group to the users exclusion list",
-                  "Create separate Conditional Access policies for service accounts and break-glass accounts, each with different MFA requirements, rather than a single exclusion",
-                  "Apply the policy to a custom security group containing the user population, manually removing service accounts and break-glass accounts from the group quarterly",
-                  "Set the policy assignment to 'All users' with no exclusions — break-glass accounts will be locked out if they cannot complete MFA, and service accounts may fail authentication"
+                  "Add the specific service accounts and break-glass group to the Conditional Access 'Exclude' list",
+                  "Create separate Conditional Access policies for service accounts and break-glass accounts",
+                  "Apply the policy to a security group and remove service / break-glass accounts quarterly",
+                  "Set the policy assignment to 'All users' with no exclusions"
                 ],
                 "correctIndex": 0,
-                "explanation": "Conditional Access policies include an explicit 'Exclude' section where you can specify individual users, groups, or directory roles to be exempt from the policy. Adding service accounts and break-glass accounts to the exclusion list ensures they are never blocked by the policy. Creating separate policies for all service accounts is operationally complex and error-prone. Using Named Locations to trust IPs is useful for location-based exclusions but service accounts may operate from dynamic or various IPs. Manual group management is error-prone and relies on a periodic process rather than a persistent, auditable exclusion."
+                "explanation": "The Conditional Access 'Exclude' section is the designed mechanism for keeping specific users, groups, or directory roles out of a policy — pointing it at a small break-glass group and the known service account principals produces an auditable, persistent exception. Separate policies for exceptions add operational burden and drift risk. Manual quarterly group cleanup is error-prone and non-auditable between reviews. Leaving 'All users' with no exclusions is the mistake the question is guarding against: break-glass accounts get locked out and service principals fail interactive MFA."
               },
               {
                 "q": "A company needs to perform quarterly access reviews to ensure that only employees who still require access to a sensitive Azure resource group retain their role assignments. Which feature should be used to automate this process?",
@@ -632,51 +632,51 @@
                   "Azure Policy compliance evaluations with RBAC audit mode"
                 ],
                 "correctIndex": 2,
-                "explanation": "Entra ID Governance Access Reviews enable periodic reviews of role assignments and group memberships, with auto-removal of access when reviewers do not respond or deny access. PIM handles role activation and time-bounding but does not schedule periodic reviews of existing standing assignments. Azure Policy evaluates resource configuration compliance, not identity access rights. JIT VM access in Defender for Cloud manages port-level access to VMs, not broad resource group RBAC."
+                "explanation": "Entra ID Governance Access Reviews schedule periodic reviews of role assignments and group memberships, with auto-removal of access when reviewers deny or fail to respond. PIM handles role activation and time-bounding but does not re-attest existing standing assignments on a schedule. Azure Policy evaluates resource-configuration compliance, not identity access rights. JIT VM access in Defender for Cloud governs port-level access to VMs, not resource-group RBAC."
               },
               {
                 "q": "A security engineer needs to review who has been assigned the 'Owner' role at the subscription level and ensure that role assignments are reviewed every 6 months with auto-removal for non-responding reviewers. Which combination of features achieves this?",
                 "choices": [
-                  "Set up a monthly Azure Advisor recommendation review — provides cost and performance optimisation suggestions for the subscription; it does not perform access reviews of assigned Owner role memberships",
-                  "Configure a PIM time-bound role activation for the Owner role requiring approval on a 6-month cadence",
-                  "Write an Azure Policy that evaluates Owner role assignments on a 6-month cadence and flags non-compliant assignments",
-                  "Create an Entra ID Governance Access Review for the Owner role on the subscription scope with semi-annual recurrence"
+                  "Set up a monthly Azure Advisor review of subscription role assignments",
+                  "Configure a PIM time-bound Owner role activation on a 6-month cadence",
+                  "Write an Azure Policy that evaluates Owner role assignments and flags non-compliant ones",
+                  "Create an Entra ID Governance Access Review for Owner every 6 months with auto-remove"
                 ],
                 "correctIndex": 3,
-                "explanation": "Entra ID Governance Access Reviews support reviewing Azure resource role assignments (including subscription-scoped Owner assignments), can be scheduled to recur every 6 months, and when 'Auto-apply results to resource' is enabled with 'Remove access' for non-responding reviewers, access is automatically revoked if reviewers don't approve it. PIM time-bound activation manages how long roles can be active after activation, not periodic recertification of standing assignments. Azure Policy evaluates configuration compliance but cannot revoke role assignments or automate access reviews. Azure Advisor provides optimization recommendations, not identity governance workflows. set recurrence to every 6 months, and enable 'Auto-apply results to resource' with the action set to 'Remove access'"
+                "explanation": "Entra ID Governance Access Reviews support Azure resource role scopes (including subscription-level Owner), recurrence on a 6-month cadence, and 'Auto-apply results — Remove access' for non-responses — exactly what the question describes. PIM time-bound activation controls how long a role stays active after activation; it does not periodically re-attest standing assignments. Azure Policy can flag issues but cannot revoke role assignments or drive an access-review workflow. Azure Advisor produces cost/performance recommendations, not identity governance."
               },
               {
                 "q": "A security team needs to regularly review and attest that all external (guest) users across all Microsoft 365 groups have appropriate access. The review should happen monthly, and any guest account not actively approved should have their membership removed automatically. Which feature should be configured?",
                 "choices": [
-                  "Use Microsoft Entra PIM to require monthly role activation — limits the duration of privileged access; it does not create a structured periodic access review process for external guest accounts",
-                  "Set user account expiration dates on each guest account to 30 days in Entra ID B2B collaboration settings under the cross-tenant access policies in the tenant",
-                  "Configure a Conditional Access policy requiring guest users to re-authenticate monthly with multi-factor authentication and a compliant device for access",
-                  "Configure an Entra ID Governance Access Review targeting 'Guest users in Microsoft 365 groups' on a monthly recurrence with auto-apply removing unreviewed access"
+                  "Use Microsoft Entra PIM to require monthly role activation for guest users",
+                  "Set user account expiration dates on each guest account under B2B collaboration settings",
+                  "Configure an Entra ID Governance Access Review over guest M365 group memberships, monthly",
+                  "Configure a Conditional Access policy requiring guest users to re-authenticate monthly with MFA"
                 ],
-                "correctIndex": 3,
-                "explanation": "Entra ID Governance Access Reviews can target specifically 'Guest users' in 'All Microsoft 365 Groups,' configured to run monthly. With auto-apply results enabled and the action set to 'Remove access' for non-responses, any guest not explicitly approved by a reviewer or by themselves is automatically removed from the group. Conditional Access policies do not remove group memberships — they only control sign-in access requirements. PIM manages privileged role activations, not guest group memberships. B2B account expiration dates set a hard cutoff date but require manual management per account, lack review workflow, and don't scale to ongoing attestation."
+                "correctIndex": 2,
+                "explanation": "Entra ID Governance Access Reviews support 'Guest users' in 'All Microsoft 365 Groups' as a review target, monthly recurrence, and 'Auto-apply results — Remove access' for non-responses — the review is scheduled monthly and non-approved guests are automatically stripped from every group they no longer need. Conditional Access does not remove group memberships; it only gates sign-in. PIM is scoped to privileged roles, not guest group memberships. B2B account expiration is a hard per-account cutoff without a review workflow and does not scale to ongoing attestation across many groups."
               },
               {
                 "q": "A security engineer is configuring Azure Key Vault for a production workload. The organization's security policy requires that accidentally deleted key vault objects must be recoverable for 90 days, and that no one — including subscription owners — can permanently purge them during that period. Which Key Vault settings must be enabled?",
                 "choices": [
                   "Enable soft-delete with 90-day retention AND enable purge protection",
-                  "Enable Key Vault logging to a Log Analytics workspace — audits delete operations after the fact; it does not prevent purge of deleted secrets or enforce a recovery window against permanent deletion",
+                  "Enable Key Vault diagnostic logging to a Log Analytics workspace",
                   "Enable private endpoint for the Key Vault and disable public network access",
                   "Enable soft-delete only, with a retention period of 90 days"
                 ],
                 "correctIndex": 0,
-                "explanation": "Soft-delete retains deleted Key Vault objects (keys, secrets, certificates) for a configurable retention period (7-90 days). However, without purge protection, a user with sufficient permissions can still permanently purge the soft-deleted objects. Enabling purge protection prevents any purge operations during the retention window — even by subscription owners — enforcing the full retention period. Soft-delete alone does not satisfy the 'no one can purge' requirement. Private endpoints and logging are security best practices but do not prevent purging of deleted objects."
+                "explanation": "Soft-delete keeps deleted keys, secrets, and certificates for the configured retention period (7-90 days), but without purge protection a caller with the right permissions can still issue a purge and permanently remove them. Purge protection blocks any purge operation during the retention window — even for subscription owners — which is exactly the 'no one can permanently delete' requirement. Soft-delete alone does not stop a purge. Private endpoints and diagnostic logging are useful defense-in-depth controls but neither prevents purging of already-deleted objects."
               },
               {
                 "q": "A security engineer is reviewing Azure Key Vault access control. The organization has historically used Key Vault Access Policies but is evaluating switching to Azure RBAC for Key Vault data plane authorization. What is the primary advantage of using Azure RBAC over Access Policies for Key Vault?",
                 "choices": [
-                  "Azure RBAC allows granting access to individual secrets, keys, and certificates within a vault, while Access Policies only apply vault-wide",
-                  "Azure RBAC supports conditional access integration for Key Vault data plane operations, while Access Policies do not natively support conditions",
-                  "Azure RBAC for Key Vault is required when using customer-managed keys with Azure Storage encryption",
-                  "Access Policies have a 1024 entry limit per vault, while Azure RBAC has no such limitation per vault, and RBAC supports deny assignments"
+                  "Access Policies have a 1024-entry limit per vault, while Azure RBAC has no such limit and supports deny",
+                  "Azure RBAC supports Conditional Access integration for Key Vault data plane, Access Policies do not",
+                  "Azure RBAC lets you grant access to individual secrets, keys, and certificates within a vault",
+                  "Azure RBAC for Key Vault is required when using customer-managed keys with Azure Storage encryption"
                 ],
-                "correctIndex": 0,
-                "explanation": "Azure RBAC for Key Vault data plane allows granular role assignments at the individual key, secret, or certificate level (not just vault-wide), enabling fine-grained access control such as granting read access to a single secret. Key Vault Access Policies only support vault-level permissions. While the 1024-entry limit for access policies is a real constraint, RBAC's primary advantage is the per-object granularity. Conditional Access integration is a benefit of RBAC but is secondary to granularity. Customer-managed keys for Storage can work with either access policies or RBAC."
+                "correctIndex": 2,
+                "explanation": "The headline advantage of Azure RBAC for Key Vault is object-level granularity — you can grant read access to a single secret or key, not just the whole vault. Access Policies only support vault-wide permission sets. The 1024-entry limit for Access Policies is real, but the primary architectural advantage is fine-grained scoping. Conditional Access integration is a useful RBAC benefit but secondary to granularity. Customer-managed keys for Storage encryption can be granted through either Access Policies or RBAC, so RBAC is not required for that scenario."
               }
             ]
           },
@@ -711,7 +711,7 @@
     "timeMinutes": 27
   },
   "meta": {
-    "generatedAt": "2026-07-03T14:50:26.444Z",
+    "generatedAt": "2026-08-10T07:17:27.203Z",
     "totalNodes": 29,
     "totalQuestions": 61,
     "nodeTypes": [

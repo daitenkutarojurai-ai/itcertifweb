@@ -41,6 +41,7 @@
           "questionIds": [
             "prometheus-pca-012",
             "prometheus-pca-001",
+            "prometheus-pca-013",
             "prometheus-pca-003",
             "prometheus-pca-009"
           ]
@@ -97,21 +98,43 @@
                 ],
                 "correctIndex": 3,
                 "explanation": "`sum by (cluster) (...)` keeps the listed labels and aggregates across everything else — exactly the requirement. The label filter `{condition=\"true\"}` is applied at selection time so only ready pods are summed. `sum without (cluster)` does the opposite, discarding `cluster` and keeping every other label. The `count(...) by (cluster, namespace)` option counts series rather than summing values and still retains `namespace`. The `avg by (pod, cluster) ... / count(...)` option preserves `pod`, computes an average, and divides by an unrelated count — wrong on every level."
+              },
+              {
+                "q": "An engineer writes `rate(http_requests_total[5m])` for a counter but sees the value briefly go negative after a service restart. What does Prometheus actually do, and what is the likely explanation?",
+                "choices": [
+                  "`rate()` automatically handles counter resets, so a restart is accounted for; a transient negative usually reflects out-of-order or misaligned samples rather than normal reset handling.",
+                  "`rate()` cannot be negative; the metric must be a gauge.",
+                  "You must manually subtract the previous value to handle resets.",
+                  "Counters never reset, so the data is corrupt."
+                ],
+                "correctIndex": 0,
+                "explanation": "`rate()` (and `increase()`) are designed to detect counter resets — when a counter drops to zero on restart, the function treats it as a reset rather than a huge negative delta, so normal restarts do not produce negative rates. A brief negative typically points to out-of-order/misaligned samples or scrape timing artifacts. You do not manually handle resets, counters do reset on restart, and the metric is genuinely a counter (not a gauge)."
+              },
+              {
+                "q": "A service exposes latency as a classic histogram metric `http_request_duration_seconds`, and you must chart the 95th-percentile request latency over the last five minutes. Which PromQL expression is correct?",
+                "choices": [
+                  "`quantile(0.95, http_request_duration_seconds)`",
+                  "`avg(http_request_duration_seconds) * 0.95`",
+                  "`histogram_quantile(0.95, sum(rate(http_request_duration_seconds_bucket[5m])) by (le))`",
+                  "`topk(0.95, http_request_duration_seconds_count)`"
+                ],
+                "correctIndex": 2,
+                "explanation": "For a classic histogram you compute quantiles from the `_bucket` series: take `rate()` of the buckets, aggregate by the `le` label, and pass to `histogram_quantile(0.95, ...)`. The `quantile()` aggregation operates over instant-vector samples across series, not histogram buckets; multiplying an average by 0.95 is meaningless; and `topk` selects top series, not a percentile."
+              },
+              {
+                "q": "A query `sum(rate(node_cpu_seconds_total{mode=\"idle\"}[5m])) by (instance)` returns idle CPU seconds, but the team wants percent CPU busy per instance. Which expression is correct?",
+                "choices": [
+                  "`100 * (1 - avg by (instance)(rate(node_cpu_seconds_total{mode=\"idle\"}[5m])))`",
+                  "`100 - node_cpu_seconds_total{mode=\"idle\"}`",
+                  "`sum(node_cpu_seconds_total) * 100`",
+                  "`rate(node_cpu_seconds_total[5m]) / 100`"
+                ],
+                "correctIndex": 0,
+                "explanation": "Averaging the idle-mode rate per instance across CPUs gives the fraction of time CPUs were idle; `1 - that` is the busy fraction, and multiplying by 100 yields percent busy — hence `100 * (1 - avg by (instance)(rate(...idle...[5m])))`. Subtracting a raw counter from 100 mixes units, summing the raw counter is not a rate or a percentage, and dividing a rate by 100 is meaningless here."
               }
             ]
           },
           "title": "Promql — Lightning Round"
-        },
-        {
-          "id": "c1-boss",
-          "type": "subboss",
-          "title": "Boss: Promql",
-          "questionIds": [
-            "prometheus-pca-012",
-            "prometheus-pca-001",
-            "prometheus-pca-003",
-            "prometheus-pca-009"
-          ]
         },
         {
           "id": "c1-chest",
@@ -161,7 +184,16 @@
             "prometheus-pca-002",
             "prometheus-pca-008",
             "prometheus-pca-010",
-            "prometheus-pca-005",
+            "prometheus-pca-014",
+            "prometheus-pca-005"
+          ]
+        },
+        {
+          "id": "c2-quiz2",
+          "type": "quiz",
+          "title": "Mixed Topics — Drill 2",
+          "questionIds": [
+            "prometheus-pca-020",
             "prometheus-pca-006"
           ]
         },
@@ -186,6 +218,17 @@
                 "explanation": "The Pushgateway exists precisely for service-level batch jobs whose lifetime is shorter than the scrape interval — the job pushes its final values to the Pushgateway and Prometheus scrapes the Pushgateway as if it were any other target. Annotations do not change scrape interval behaviour. remote_write goes from Prometheus to a long-term storage receiver, not from a job to Prometheus, and 'agent mode' is the receiver-side concept. Holding `/metrics` open with a sleep is the anti-pattern the Pushgateway was designed to avoid; it also pollutes job exit codes and Kubernetes lifecycle expectations."
               },
               {
+                "q": "A batch job runs to completion in seconds and Prometheus never scrapes it in time. Which component is intended for this case, and what is the key caution?",
+                "choices": [
+                  "Scrape the job directly with a very short scrape_interval.",
+                  "Push metrics to the Pushgateway, which holds them for Prometheus to scrape — but it is only for service-level batch jobs, not a general push proxy, and stale pushed metrics persist until deleted.",
+                  "Use the Alertmanager to receive the metrics.",
+                  "Store the metrics in the job's local file for later import."
+                ],
+                "correctIndex": 1,
+                "explanation": "The Pushgateway exists so ephemeral/batch jobs can push their metrics to a location Prometheus then scrapes. The documented cautions: it is meant for service-level batch jobs (not as a general-purpose push gateway or to make Prometheus push-based), and because it retains the last pushed value, stale metrics linger until explicitly deleted. Shortening scrape_interval cannot reliably catch a seconds-long job, Alertmanager handles alerts not metric ingestion, and a local file is not scrapeable by Prometheus."
+              },
+              {
                 "q": "Using Kubernetes service discovery, an operator wants to scrape ONLY the pods that carry the annotation `prometheus.io/scrape=\"true\"` and rewrite the target `__address__` to combine the pod IP with a port advertised through another annotation. Which relabel-config combination matches this intent?",
                 "choices": [
                   "A `drop` action on `__meta_kubernetes_pod_label_scrape` matching `true`, followed by a `labelmap` of `__meta_kubernetes_pod_(.+)` to `pod_$1`",
@@ -197,7 +240,18 @@
                 "explanation": "The documented pattern for opt-in pod scraping is exactly this pair: a `keep` step matching the annotation source label so only annotated pods survive target discovery, and a `replace` step that constructs `__address__` from the pod IP and the port annotation. The `drop`/`labelmap` option does the opposite of `keep` (it removes matching targets) and never rewrites the address. The `__address__` `keep`/`hashmod` option misuses `hashmod` (which is for sharding across replicas, not for filtering by IP) and never reads the annotation. The `replace`+`labeldrop` option rewrites `job` but never enforces the opt-in filter, so every pod still gets scraped."
               },
               {
-                "q": "Which statement is correct about Prometheus 2.x local TSDB storage and retention?",
+                "q": "In a Prometheus scrape config using Kubernetes service discovery, you want to keep only pods with the annotation `prometheus.io/scrape: \"true\"`. Which relabeling action accomplishes this?",
+                "choices": [
+                  "A `labelmap` action on the annotation.",
+                  "A `replace` action that renames the target.",
+                  "A `hashmod` action to shard the targets.",
+                  "A `keep` action in relabel_configs that matches the annotation meta-label against `true`."
+                ],
+                "correctIndex": 3,
+                "explanation": "During target relabeling, a `keep` action retains only targets whose source labels (here the `__meta_kubernetes_pod_annotation_prometheus_io_scrape` meta-label) match the regex `true`, dropping all others. `labelmap` copies label names by pattern, `hashmod` is for sharding targets across Prometheus instances, and `replace` rewrites a label value — none of which filter targets by annotation."
+              },
+              {
+                "q": "An SRE team sizing disk for a Prometheus 2.x server needs to understand how the local time-series database stores samples and enforces retention before setting flags. Which statement is correct about Prometheus 2.x local TSDB storage and retention?",
                 "choices": [
                   "The default retention is 15 days; older blocks are removed by the retention enforcer based on `--storage.tsdb.retention.time`, with `--storage.tsdb.retention.size` being opt-in",
                   "By default, samples are retained for 30 days; `--storage.tsdb.retention.time` can only shorten that window, never extend it",
@@ -206,6 +260,17 @@
                 ],
                 "correctIndex": 0,
                 "explanation": "The Prometheus default retention is 15 days, configured via `--storage.tsdb.retention.time`; size-based retention via `--storage.tsdb.retention.size` is opt-in and the two combine with whichever limit triggers first. The 30-day claim is incorrect. The TSDB does NOT write samples directly to immutable blocks — samples land in the in-memory head block backed by the WAL on disk, and the WAL is replayed on EVERY startup (clean or unclean) to recover the head. Local storage is explicitly documented as short-to-medium term; long-term retention is the use case Thanos / Cortex / Mimir address via remote_write and object storage."
+              },
+              {
+                "q": "An operator wants Prometheus to keep 30 days of local data but is concerned about disk usage. Which statement about the local TSDB is accurate?",
+                "choices": [
+                  "Retention can only be set by number of samples, not by time.",
+                  "The TSDB writes each sample as an individual file on disk.",
+                  "Prometheus stores data indefinitely and cannot delete it.",
+                  "Retention is controlled by `--storage.tsdb.retention.time` (and/or a size limit), and old blocks are compacted and eventually deleted past the window."
+                ],
+                "correctIndex": 3,
+                "explanation": "Local retention is governed by `--storage.tsdb.retention.time` (with an optional `retention.size` cap); the TSDB compacts data into blocks and deletes blocks older than the retention window to bound disk usage. Retention is time- (or size-) based, not only sample-count; Prometheus does delete old data; and it does not write one file per sample — samples are batched into compressed blocks."
               },
               {
                 "q": "An HTTP server library wants the server itself to compute pre-aggregated request-latency percentiles per handler and expose them so Prometheus can scrape them directly, without anyone running `histogram_quantile()` at query time. Which Prometheus metric type matches that requirement?",
@@ -219,48 +284,15 @@
                 "explanation": "Summary is the metric type that exposes quantiles computed CLIENT-SIDE: each scrape returns time series like `http_request_latency{quantile=\"0.99\"}` already containing the percentile value. Histograms work the opposite way — they expose cumulative bucket counts under `_bucket{le=\"...\"}` and percentiles must be derived at query time via `histogram_quantile()`. Counters only express monotonic totals and cannot represent percentiles directly. Gauges can move up or down but the Prometheus client libraries do not expose a built-in quantile workflow on gauges; the `quantile` label is reserved for summaries."
               },
               {
-                "q": "A team needs Alertmanager to send `severity=critical` alerts to PagerDuty and `severity=warning` alerts to Slack, while folding multiple firing alerts sharing the same `service` label into a single notification per channel. Which Alertmanager features should be combined to satisfy these requirements?",
+                "q": "A developer instruments a service and must choose between a Histogram and a Summary for request latency, needing accurate percentiles aggregated across many instances. Which choice and reason is correct?",
                 "choices": [
-                  "A single global `receiver` with `repeat_interval: 0` so each instance is delivered individually, plus `inhibit_rules` to deduplicate notifications",
-                  "Two independent Prometheus servers — one scrapes only critical signals and pushes to PagerDuty, the other scrapes warnings and pushes to Slack",
-                  "A `route` tree that branches on `severity` with a different `receiver` per branch, and `group_by: [service]` on the parent route so alerts sharing a service are collapsed into one notification",
-                  "A single `route` with `continue: false` and webhook receivers that themselves filter on `severity` inside the destination service rather than in Alertmanager"
+                  "Summary, because its client-side quantiles can be averaged across instances.",
+                  "Either one; they are functionally identical.",
+                  "Histogram, because its buckets can be aggregated server-side across instances and percentiles computed with histogram_quantile.",
+                  "Gauge, because latency is a point-in-time value."
                 ],
                 "correctIndex": 2,
-                "explanation": "Routing on `severity` is exactly what Alertmanager's nested `route` tree is for: each branch maps to its own receiver, so critical → PagerDuty and warning → Slack. Grouping is handled by `group_by` on the route, which collapses alerts sharing the listed labels into a single notification per group. A single receiver with `repeat_interval: 0` and `inhibit_rules` mixes two different concepts — inhibit silences alerts when another is firing, not for routing. Splitting into two Prometheus servers solves nothing — routing is an Alertmanager concern. Pushing filtering logic into downstream services bypasses Alertmanager's deduplication, grouping, and silencing entirely."
-              },
-              {
-                "q": "What is the documented purpose of a Prometheus recording rule?",
-                "choices": [
-                  "It runs alongside an alerting rule and decides whether the alert should fire by evaluating a Boolean condition each evaluation interval",
-                  "It instructs the scraper to record every raw sample into long-term storage so historical queries can hit a denser dataset",
-                  "It replays the WAL into the in-memory head block so newly scraped samples become queryable within the next evaluation interval",
-                  "It precomputes the result of a frequently-used or expensive PromQL expression and stores it as a new time series so subsequent queries become cheap"
-                ],
-                "correctIndex": 3,
-                "explanation": "Recording rules pre-evaluate a PromQL expression on a schedule and persist the result as a new time series (conventionally named `level:metric:operations`), trading a small amount of write cost for fast cheap reads in dashboards and alerts. Alerting rules — not recording rules — evaluate Boolean conditions to fire alerts (they live in the same `*.rules.yml` files but are a separate construct). Sample density is controlled by the scrape interval, not by recording rules. WAL replay is a startup recovery mechanism inside the TSDB, not a user-facing rule."
-              },
-              {
-                "q": "Which statement best reflects the design and conventional deployment of `node_exporter`?",
-                "choices": [
-                  "It is a sidecar container injected by the Prometheus Operator that wraps the Linux kernel's eBPF metrics into Prometheus textual format",
-                  "It is a daemon that runs on each host and exposes hardware and OS-level metrics on `/metrics`, with per-collector flags such as `--collector.filesystem` to enable or disable individual collectors",
-                  "It is a remote_write target — Prometheus pushes node samples into it for long-term storage and federation across regions",
-                  "It is a Grafana plugin that converts CPU and memory dashboards into Prometheus recording rules at render time"
-                ],
-                "correctIndex": 1,
-                "explanation": "`node_exporter` is the canonical Prometheus exporter for *NIX hosts: it runs as a process (typically a systemd service or DaemonSet) on each host and exposes hardware and OS metrics (CPU, memory, disk, network, filesystem, hwmon, etc.) on a `/metrics` HTTP endpoint. Individual collectors are toggled with `--collector.<name>` / `--no-collector.<name>` flags. It is not a sidecar wrapper around eBPF, not a remote_write receiver (those are Prometheus-side storage adapters), and is unrelated to Grafana — exporters expose data, dashboards consume it."
-              },
-              {
-                "q": "A central Prometheus needs to ingest only a curated subset of pre-aggregated series (all metrics whose names match `:cluster:*`) from each of 10 regional Prometheus servers. Which approach matches the documented Prometheus federation pattern?",
-                "choices": [
-                  "Configure each regional Prometheus with `remote_write` pointing at the central server and rely on relabeling on the central side to drop everything outside `:cluster:*`",
-                  "Install Thanos sidecars on every Prometheus and expose a single `Query` API; the central Prometheus then queries Thanos instead of scraping the regions",
-                  "Configure a scrape job on the central Prometheus that hits each regional `/federate` endpoint with `match[]` query parameters selecting only the `:cluster:*` series",
-                  "Have each regional Prometheus push a daily snapshot of its TSDB to object storage; the central Prometheus mounts the snapshots into its data directory at boot"
-                ],
-                "correctIndex": 2,
-                "explanation": "Hierarchical federation works exactly like a normal scrape, but the target is another Prometheus's `/federate` endpoint and the `params: match[]` selector restricts which series are exported. This is the documented Prometheus-native way to roll aggregated metrics up to a higher tier. `remote_write` is a viable alternative architecture but is NOT what 'federation' refers to — and pushing everything just to filter centrally is wasteful. Thanos is an external project (it provides global query, but isn't the documented federation pattern). Snapshotting and mounting TSDB blocks is not a supported live ingestion path."
+                "explanation": "Histograms expose bucket counts that are additive, so you can aggregate them across instances (sum by le) and compute percentiles server-side with `histogram_quantile`. Summary quantiles are computed client-side per instance and cannot be meaningfully averaged/aggregated across instances. Histograms and Summaries are not identical, and a gauge does not capture a latency distribution."
               }
             ]
           },
@@ -271,9 +303,14 @@
           "type": "subboss",
           "title": "Boss: Mixed Topics",
           "questionIds": [
+            "prometheus-pca-019",
             "prometheus-pca-007",
+            "prometheus-pca-018",
+            "prometheus-pca-017",
             "prometheus-pca-011",
-            "prometheus-pca-004"
+            "prometheus-pca-022",
+            "prometheus-pca-004",
+            "prometheus-pca-016"
           ]
         },
         {
@@ -294,9 +331,9 @@
     "timeMinutes": 23
   },
   "meta": {
-    "generatedAt": "2026-07-03T14:50:26.502Z",
+    "generatedAt": "2026-08-10T07:17:27.272Z",
     "totalNodes": 11,
-    "totalQuestions": 12,
+    "totalQuestions": 22,
     "nodeTypes": [
       "concept",
       "quiz",
