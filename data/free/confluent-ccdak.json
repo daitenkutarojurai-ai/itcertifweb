@@ -1,0 +1,256 @@
+{
+  "meta": {
+    "id": "confluent-ccdak",
+    "name": "Confluent Certified Developer for Apache Kafka (CCDAK)",
+    "vendor": "Confluent",
+    "version": "1.0.0",
+    "question_count": 12,
+    "last_updated": "2026-08-10",
+    "notes": "[initial release: 12 questions covering the Confluent CCDAK exam — Producer API (acks, idempotence), Consumer API (poll loop, offset commits, consumer groups), broker durability (min.insync.replicas, ISR, unclean leader election), delivery semantics (at-most-once / at-least-once / exactly-once), Kafka Streams (KStream vs KTable, stateful joins), Kafka Connect (source vs sink, converters), Schema Registry (BACKWARD/FORWARD/FULL compatibility), log cleanup (compaction vs deletion, tombstones), rebalance triggers and static membership, partition-key hashing, transactions and transactional.id; balanced answer positions 3A/3B/3C/3D via post-authoring shuffle; developer-lens phrasing throughout]"
+  },
+  "questions": [
+    {
+      "id": "confluent-ccdak-001",
+      "question": "A Kafka producer must never lose an acknowledged message even if the current partition leader fails. Which producer configuration provides the strongest durability guarantee?",
+      "options": [
+        "acks=0 with retries=Integer.MAX_VALUE",
+        "acks=1 with retries=Integer.MAX_VALUE and linger.ms=0",
+        "acks=all with min.insync.replicas=2 on a topic replicated three times",
+        "acks=all with min.insync.replicas=1 on a topic replicated three times"
+      ],
+      "correct": 2,
+      "explanation": "Durability requires acks=all on the producer AND a broker-side floor on how many replicas must be in-sync before an ack is issued. With acks=all and min.insync.replicas=2 on a replication-factor-3 topic, the leader will not acknowledge a write unless at least the leader plus one follower have persisted the record — so a single leader loss cannot lose an acknowledged message. acks=0 fires-and-forgets, acks=1 only waits for the leader (an unreplicated write can be lost when it fails), and min.insync.replicas=1 with acks=all still allows a lone in-sync leader to ack writes that a subsequent failover erases.",
+      "tags": [
+        "producer",
+        "durability",
+        "acks",
+        "min-insync-replicas",
+        "confluent-ccdak"
+      ],
+      "difficulty": "medium",
+      "_normalized": true
+    },
+    {
+      "id": "confluent-ccdak-002",
+      "question": "A topic has 6 partitions. A single consumer group is created with 10 consumer instances subscribed to the topic. What is the assignment behaviour under the default (RangeAssignor / CooperativeStickyAssignor) partition-assignment strategies?",
+      "options": [
+        "6 consumers each own exactly one partition; the remaining 4 stay idle until an owning consumer leaves or partitions are added",
+        "All 10 consumers each receive every partition and coordinate offsets among themselves",
+        "Kafka automatically rebalances the topic to 10 partitions to match the consumer count",
+        "The 10 consumers share the 6 partitions round-robin per record, so each consumer gets roughly 60% of records"
+      ],
+      "correct": 0,
+      "explanation": "A partition in Kafka is owned by at most one consumer within a consumer group at a time. With 6 partitions and 10 consumers, only 6 consumers can be assigned work — the other 4 are idle stand-bys and will only pick up partitions if an active consumer leaves the group or the topic is expanded. Kafka does not auto-scale partition counts to match consumers, and records are not fan-out replicated across consumers inside the same group.",
+      "tags": [
+        "consumer-group",
+        "partitions",
+        "rebalance",
+        "confluent-ccdak"
+      ],
+      "difficulty": "easy",
+      "_normalized": true
+    },
+    {
+      "id": "confluent-ccdak-003",
+      "question": "A Kafka Streams application needs to model 'the latest known email address per user_id' and join incoming order events against it. Which pair of abstractions is the natural fit?",
+      "options": [
+        "Represent both users and orders as KStream, then use a windowed stream-stream join",
+        "Represent both users and orders as KTable, then use a table-table join",
+        "Represent users as a KTable (keyed by user_id) and orders as a KStream, then use a stream-table join",
+        "Represent users as a GlobalKTable of the entire orders topic and orders as a KTable of the users topic"
+      ],
+      "correct": 2,
+      "explanation": "In Kafka Streams, a KStream is an unbounded log of independent events, while a KTable is a changelog interpreted as the latest value per key. 'Latest email per user' is a changelog — KTable — and orders are an event stream — KStream. A KStream-KTable join looks up the current KTable value for each incoming stream record's key, which is exactly the enrichment pattern here. Stream-stream joins are windowed and semantically wrong for point-in-time lookups; a GlobalKTable is a valid option but should hold the reference data (users), not the events (orders), so the last option has the abstractions swapped.",
+      "tags": [
+        "kafka-streams",
+        "kstream",
+        "ktable",
+        "joins",
+        "confluent-ccdak"
+      ],
+      "difficulty": "medium",
+      "_normalized": true
+    },
+    {
+      "id": "confluent-ccdak-004",
+      "question": "A Schema Registry subject is configured with compatibility level BACKWARD. Which schema evolution is allowed WITHOUT breaking compatibility?",
+      "options": [
+        "Add a new required field (no default) to the Avro record",
+        "Remove an existing field that has no default",
+        "Rename an existing field to a new identifier",
+        "Add a new optional field with a default value"
+      ],
+      "correct": 3,
+      "explanation": "BACKWARD compatibility means new consumers (using the new schema) can read records written with the OLD schema. Adding an optional field with a default is safe: old messages that lack the field are decoded using the default, and required-field promotions or field removals without defaults break that guarantee. Renames are treated as a delete-plus-add and are not backward compatible either. (Adding a required field without a default is FORWARD compatible, not backward.)",
+      "tags": [
+        "schema-registry",
+        "avro",
+        "backward-compatibility",
+        "confluent-ccdak"
+      ],
+      "difficulty": "medium",
+      "_normalized": true
+    },
+    {
+      "id": "confluent-ccdak-005",
+      "question": "A team enables the idempotent producer by setting enable.idempotence=true. Which additional producer settings does Kafka require (and enforce) so that idempotence actually holds end-to-end?",
+      "options": [
+        "acks=1, retries=0, and max.in.flight.requests.per.connection=1",
+        "acks=all, retries>0, and max.in.flight.requests.per.connection<=5",
+        "acks=0, retries=Integer.MAX_VALUE, and any max.in.flight.requests.per.connection",
+        "compression.type=snappy, batch.size=0, and transactional.id set to any non-empty value"
+      ],
+      "correct": 1,
+      "explanation": "When you set enable.idempotence=true, Kafka forces the durability preconditions that make idempotence meaningful: acks=all (so the write is fully replicated before the producer treats it as complete), retries greater than zero (so transient failures can retry with the same producer id + sequence number), and max.in.flight.requests.per.connection ≤ 5 (so the broker can deduplicate within its in-memory sequence window without reordering). acks=0 or acks=1 defeat replication guarantees; retries=0 defeats the retry-under-the-same-sequence guarantee; compression and transactional.id are unrelated preconditions.",
+      "tags": [
+        "producer",
+        "idempotence",
+        "delivery-semantics",
+        "confluent-ccdak"
+      ],
+      "difficulty": "hard",
+      "_normalized": true
+    },
+    {
+      "id": "confluent-ccdak-006",
+      "question": "A topic is configured with cleanup.policy=compact (log compaction only). Which statement about how records are retained is correct?",
+      "options": [
+        "Records are deleted after retention.ms elapses, regardless of key",
+        "Records with a null value are rejected by the broker as invalid",
+        "Only records younger than segment.ms are retained; older records are always deleted",
+        "For each key, only the LATEST value is retained indefinitely; older values for that key are eventually cleaned. Records with a null value act as tombstones marking the key for deletion"
+      ],
+      "correct": 3,
+      "explanation": "Log compaction keeps at least the latest record per key indefinitely and cleans older redundant records once background compaction runs. A record with a null value is a 'tombstone' — a signal that this key should ultimately be removed once the tombstone itself passes delete.retention.ms. Compaction alone does NOT delete by age (that requires cleanup.policy=delete or the combined 'delete,compact'), and null-valued records are the mechanism for deletion, not an error.",
+      "tags": [
+        "log-compaction",
+        "tombstones",
+        "topic-config",
+        "confluent-ccdak"
+      ],
+      "difficulty": "medium",
+      "_normalized": true
+    },
+    {
+      "id": "confluent-ccdak-007",
+      "question": "A developer is deploying Kafka Connect and needs to stream rows from a PostgreSQL database into a Kafka topic. Which connector shape and Connect worker mode should they configure?",
+      "options": [
+        "A source connector running in a Connect cluster",
+        "A sink connector running in a Connect cluster",
+        "A sink connector configured on the producer side of the Kafka broker",
+        "A source connector implemented as a Kafka Streams topology"
+      ],
+      "correct": 0,
+      "explanation": "In Kafka Connect, a source connector reads from an external system and writes into Kafka topics; a sink connector reads from Kafka topics and writes into an external system. Streaming database rows into a topic is a source connector (e.g., JDBC Source, Debezium). Connect workers run in their own cluster (standalone or distributed) — connectors do not run 'on the broker', and Kafka Streams is a client library for stream processing, not a Connect deployment mode.",
+      "tags": [
+        "kafka-connect",
+        "source-connector",
+        "sink-connector",
+        "confluent-ccdak"
+      ],
+      "difficulty": "easy",
+      "_normalized": true
+    },
+    {
+      "id": "confluent-ccdak-008",
+      "question": "A consumer runs with enable.auto.commit=true and the default auto.commit.interval.ms. The application polls a batch, begins processing, and the JVM crashes mid-batch before the auto-commit fires. On restart, what does the same consumer see?",
+      "options": [
+        "It resumes exactly where it crashed because the broker durably tracks per-record acknowledgements",
+        "It re-processes some or all of the crashed batch, because the last committed offset is behind the last polled offset — this is at-least-once delivery",
+        "It skips the crashed batch entirely, because Kafka considers polled offsets as acknowledged — this is at-most-once delivery",
+        "It refuses to consume until the operator manually resets the group's committed offset"
+      ],
+      "correct": 1,
+      "explanation": "With auto-commit, Kafka periodically commits the offset of the LAST poll, not of each processed record. If the JVM crashes after poll but before the next commit, the committed offset trails the actually-processed offset, so on restart the consumer re-reads and re-processes the tail of the crashed batch — classic at-least-once. Skipping (at-most-once) would require committing BEFORE processing (e.g. by committing synchronously in the poll loop before doing work), and Kafka has no per-record ack channel that would allow exact resumption without duplicates.",
+      "tags": [
+        "consumer",
+        "offsets",
+        "auto-commit",
+        "delivery-semantics",
+        "confluent-ccdak"
+      ],
+      "difficulty": "medium",
+      "_normalized": true
+    },
+    {
+      "id": "confluent-ccdak-009",
+      "question": "A producer needs exactly-once semantics across a consume-transform-produce pattern (read from topic A, write to topic B, commit consumer offsets). Which producer configuration is REQUIRED for the transactions API to work correctly?",
+      "options": [
+        "enable.idempotence=true (implied when transactional.id is set) and a stable, unique transactional.id per logical producer instance",
+        "acks=1 and any client.id — transactions are enabled implicitly on first send",
+        "isolation.level=read_committed on the producer",
+        "acks=0 with transactional.id set, so producer sends bypass replication for lower latency"
+      ],
+      "correct": 0,
+      "explanation": "Kafka transactions require the producer to declare a stable transactional.id that survives restarts — that identifier is what allows the transaction coordinator to fence off zombie producers and finish or abort in-flight transactions after failure. Setting transactional.id implicitly enables idempotence and forces acks=all under the hood. isolation.level is a CONSUMER-side setting (it controls whether the consumer sees uncommitted records), not a producer setting, and acks=0 disables the very replication that transactions rely on.",
+      "tags": [
+        "transactions",
+        "exactly-once",
+        "producer",
+        "confluent-ccdak"
+      ],
+      "difficulty": "hard",
+      "_normalized": true
+    },
+    {
+      "id": "confluent-ccdak-010",
+      "question": "A producer sends records to a topic with 4 partitions. Some records carry a non-null key, others carry a null key. How does the default partitioner in modern Kafka clients decide which partition each record lands on?",
+      "options": [
+        "All records land on partition 0 unless a partition is set explicitly by the caller",
+        "Records with a non-null key are hashed to a partition (same key ⇒ same partition); records with a null key are batched to a partition selected via the sticky partitioner for higher throughput",
+        "Records with a null key are rejected by the broker",
+        "Every record is routed round-robin across the 4 partitions regardless of key"
+      ],
+      "correct": 1,
+      "explanation": "The default producer partitioner in modern Kafka clients (the DefaultPartitioner, backed by the sticky partitioner) hashes non-null keys deterministically — this is what guarantees that all records for the same key land on the same partition and preserve per-key order. For null-key records, the sticky partitioner picks one partition and keeps sending to it until the current batch is full, producing bigger batches and better throughput than pure round-robin. Null keys are accepted (they are how you write key-less events), and neither 'always partition 0' nor 'always round-robin' matches the current behaviour.",
+      "tags": [
+        "producer",
+        "partitioner",
+        "keys",
+        "confluent-ccdak"
+      ],
+      "difficulty": "medium",
+      "_normalized": true
+    },
+    {
+      "id": "confluent-ccdak-011",
+      "question": "Under heavy autoscaling, a consumer group experiences frequent rebalances every time a pod restarts, causing latency spikes. Which mechanism, added in modern Kafka clients, most directly reduces these transient rebalances?",
+      "options": [
+        "Setting max.poll.interval.ms to a lower value so slow consumers are ejected faster",
+        "Enabling enable.auto.commit=false on every consumer",
+        "Reducing the topic's replication.factor to 1 so partition ownership is easier to reassign",
+        "Setting a group.instance.id on each consumer (static group membership) so short absences do NOT trigger a rebalance"
+      ],
+      "correct": 3,
+      "explanation": "Static group membership assigns each consumer a stable group.instance.id. When a consumer with a static id disconnects, the group coordinator keeps its partition assignment reserved until session.timeout.ms expires, so a quick pod restart within that window rejoins WITHOUT triggering a full group rebalance. Lowering max.poll.interval.ms would evict slow consumers even faster (making things worse), commit strategy has no effect on rebalance frequency, and dropping replication factor doesn't stop rebalances — it just harms durability.",
+      "tags": [
+        "rebalance",
+        "static-membership",
+        "group-instance-id",
+        "confluent-ccdak"
+      ],
+      "difficulty": "hard",
+      "_normalized": true
+    },
+    {
+      "id": "confluent-ccdak-012",
+      "question": "A team uses Confluent Schema Registry with Avro. Producers serialise records via the KafkaAvroSerializer. What is written on the wire for each Kafka message value?",
+      "options": [
+        "A magic byte, a 4-byte schema ID assigned by the registry, then the Avro-binary payload — the consumer looks up the schema by ID and caches it",
+        "The full Avro schema JSON followed by the binary-encoded record — the consumer parses the embedded schema per message",
+        "The Avro record serialised as pretty-printed JSON, with the schema stored only client-side",
+        "A base64-encoded Protobuf envelope wrapping the Avro payload"
+      ],
+      "correct": 0,
+      "explanation": "The Confluent Schema Registry wire format writes a magic byte (0x00) followed by a 4-byte schema ID (the id the registry returned when the schema was registered), then the Avro-encoded payload. The consumer's deserialiser reads the ID, fetches the corresponding schema from the registry (caching the result), and decodes the payload — so the schema is transmitted once via the registry, not embedded per message. Full-schema embedding, JSON payload, and base64/Protobuf wrapping are all inconsistent with what the KafkaAvroSerializer actually emits.",
+      "tags": [
+        "schema-registry",
+        "avro",
+        "wire-format",
+        "confluent-ccdak"
+      ],
+      "difficulty": "hard",
+      "_normalized": true
+    }
+  ]
+}
