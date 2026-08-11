@@ -115,6 +115,29 @@ up when there's time.
 - Each reworked pack: bump nothing structural, just rewrite prose;
   re-verify the page at 360 / 768 / 1440.
 
+**Pending list (established 2026-08-11 — this was never tracked, which
+is why the item kept getting skipped).** The tell is which markup
+generation a page uses, since the deep-lesson rework always came with
+the newer markup:
+
+- **Reworked (22)** — carry the deep shape: per-lesson `.lesson-block`
+  with `.lesson-intro` · `.lesson-bullets` · "Concrete example" ·
+  `.lesson-takeaway` · `.lesson-quiz`. All AWS, all Kubernetes, ccna,
+  security+, az-104, az-305, az-500, gcp-pca, gcp-pde, docker-dca,
+  terraform-associate, ccnp-security, rhcsa, ms-900, sc-900.
+- **Still pending (6)** — old `.module-block` markup, takeaways and
+  mini-quiz only at *module* level, no per-lesson intro/example:
+  1. `comptia-linux` (37 lessons) ← next, per the Linux-first order
+  2. `comptia-a-plus` (31 lessons)
+  3. `fortinet-nse4` (23 lessons)
+  4. `az-900-fundamentals` (19 lessons)
+  5. `comptia-pentest-plus` (19 lessons)
+  6. `gcp-ace` (17 lessons)
+- Reference implementation to copy the shape from: `aws-saa-c03`.
+- Note their existing prose is technically sound — what it lacks is the
+  per-lesson framing and worked examples, not accuracy. Rework, don't
+  rewrite from scratch.
+
 ### UX-7 — Career-finder quiz ✅ DONE 2026-05-20
 
 - **Shipped:** new self-contained page at `/career-quiz/` — a
@@ -349,6 +372,36 @@ courses URLs all resolve, no duplicate IDs on key pages.
      (this ties into the long-standing "light theme for the quai"
      style polish note — but here the ask is just legible dark-theme
      text, not a new theme).
+
+### UX-15 — Course module CSS missing repo-wide ✅ DONE 2026-08-11
+
+- **Found while scoping UX-6.** 26 of the 28 `learning/<id>/index.html`
+  pages rendered their "Course Modules" section with no card chrome at
+  all: `.module-block`, `.lesson`, `.lesson-title`, `.study-note`,
+  `.exam-tip`, `.module-card`, `.module-topics`, `.topic-chip` and
+  friends had **no CSS rule anywhere in the repo** — not in
+  `src/styles/*.css`, not in the pages' own inline `<style>`. Module
+  titles, lesson titles and callouts all collapsed into one
+  undifferentiated wall of body text on the site's biggest SEO pages.
+- **Root cause:** the 28 pages were authored across four markup
+  generations, and each generation's inline `<style>` shipped only part
+  of the module CSS. Only `ms-900` and `sc-900` ever carried the full
+  set.
+- **Fix:** new shared `learning/course-modules.css`, linked from all 28
+  pages. It supplies the missing rules for every generation:
+  - Gen A — `.module-block` accordions + `.lesson` / `.study-note`
+    (amber) / `.exam-tip` (indigo) callouts. Ported from the ms-900
+    styling that was already proven in production.
+  - Gen B/C — `.module-card` chrome, `.module-num`, `.module-desc`,
+    `.module-dur` (pinned to the card corner on desktop, back in flow
+    ≤560px), `.module-topics` + `.topic-chip` / `.topic-tag` pills.
+  - Loaded from `<head>`, so page inline `<style>` still wins on
+    conflict — ms-900 / sc-900 are byte-identical in render.
+- **Verified** at 360 / 768 / 1440 on one page per generation
+  (comptia-linux, aws-saa-c03, aws-ans-c01) via CDP device emulation.
+  Re-ran the unstyled-class audit: 0 pages left with unstyled module
+  classes (was 26). `npm test` 265/265, `npm run audit-content` green.
+- No cache bump: new asset only, linked at the current `?v=135`.
 
 ---
 
