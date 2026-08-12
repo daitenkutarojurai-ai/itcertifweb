@@ -1,0 +1,241 @@
+{
+ "meta": {
+  "id": "gcp-pcde",
+  "name": "Google Professional Cloud DevOps Engineer",
+  "vendor": "Google",
+  "version": "1.0.0",
+  "question_count": 12,
+  "last_updated": "2026-08-12",
+  "notes": "Initial release — 12 scenario questions covering the PCDE exam domains: SRE principles (SLIs/SLOs/error budgets), CI/CD with Cloud Build + Artifact Registry + Cloud Deploy, deployment strategies (canary, blue/green, rolling), incident management, and service performance (Cloud Monitoring, Cloud Logging, Cloud Trace, Cloud Profiler). Correct positions balanced 3/3/3/3."
+ },
+ "questions": [
+  {
+   "id": "gcppcde-001",
+   "question": "Your team runs a payments API on GKE. You want an availability metric that reflects the ratio of successful requests to total valid requests, so you can define a monthly reliability target for it. In Cloud Monitoring, what should you define first?",
+   "options": [
+    "A service-level objective (SLO) with a threshold of 99.9%",
+    "A service-level indicator (SLI) — good events over valid events",
+    "An error budget policy that halts feature launches at 25% burn",
+    "An alerting policy on the HTTP 5xx response-code count metric"
+   ],
+   "correct": 1,
+   "explanation": "SRE defines the SLI first — it is the measurement (successful requests / valid requests). The SLO is a target set on that SLI (e.g., 99.9%), and the error budget derives from the SLO (1 - SLO over the window). You cannot define an SLO without first having an SLI to measure, and alerting policies target metrics, not reliability commitments.",
+   "tags": [
+    "sre",
+    "sli-slo",
+    "gcp-pcde"
+   ],
+   "difficulty": "medium",
+   "_normalized": true
+  },
+  {
+   "id": "gcppcde-002",
+   "question": "Your service has a 99.5% availability SLO measured over a rolling 28-day window. Two weeks in, you have already burned 90% of the error budget from a single incident. Following Google SRE practice, what is the most appropriate next step?",
+   "options": [
+    "Raise the SLO to 99.9% so the budget accounts for the incident",
+    "Continue shipping features to hit quarterly roadmap commitments",
+    "Freeze risky feature launches and prioritize reliability work",
+    "Add more replicas immediately and mark the incident resolved"
+   ],
+   "correct": 2,
+   "explanation": "The point of an error budget is to make the reliability-vs-velocity trade explicit. When most of the budget is gone, the on-call SRE guidance is to pause risky changes and invest in reliability work (fixing the class of failure that consumed the budget, hardening rollouts, improving tests). Raising the SLO after the fact hides the miss, blind capacity increases do not address the failure mode, and shipping through a near-empty budget is exactly what the budget is meant to prevent.",
+   "tags": [
+    "error-budget",
+    "sre",
+    "gcp-pcde"
+   ],
+   "difficulty": "medium",
+   "_normalized": true
+  },
+  {
+   "id": "gcppcde-003",
+   "question": "You need a fully managed Google Cloud pipeline that promotes a container image through dev, staging, and production GKE clusters with approval gates between stages. Which service is designed for this?",
+   "options": [
+    "Cloud Deploy with a delivery pipeline and targets",
+    "Cloud Build with parallel triggers per environment",
+    "Artifact Registry remote repositories per environment",
+    "Config Sync applying manifests from a Git repository"
+   ],
+   "correct": 0,
+   "explanation": "Cloud Deploy is Google Cloud's managed continuous-delivery product. A delivery pipeline defines an ordered progression of targets (dev → staging → prod) with optional approval gates, automated promotion, and one-click rollback for GKE, Cloud Run, and GKE Enterprise. Cloud Build handles CI (building/testing the image), Artifact Registry stores the image, and Config Sync applies configuration from Git but does not model a promotion pipeline with gates.",
+   "tags": [
+    "cloud-deploy",
+    "ci-cd",
+    "gcp-pcde"
+   ],
+   "difficulty": "medium",
+   "_normalized": true
+  },
+  {
+   "id": "gcppcde-004",
+   "question": "You want to release a new revision of a Cloud Run service to 5% of traffic first, then progressively shift more traffic if error rates stay flat. Which built-in Cloud Run capability supports this?",
+   "options": [
+    "Traffic splitting between revisions with percentage tags",
+    "Two separate Cloud Run services fronted by a load balancer",
+    "A Cloud Deploy blue/green target with manual promotion",
+    "GKE Ingress with weighted backend service routing rules"
+   ],
+   "correct": 0,
+   "explanation": "Cloud Run supports revision-based traffic splitting natively: each deploy creates a new revision, and you assign any percentage of traffic to any revision (5/95, 25/75, etc.). This is the canonical way to canary a Cloud Run change. Running two services adds needless plumbing, a blue/green target flips 100% at once rather than progressively, and GKE Ingress does not front Cloud Run services.",
+   "tags": [
+    "cloud-run",
+    "canary",
+    "gcp-pcde"
+   ],
+   "difficulty": "easy",
+   "_normalized": true
+  },
+  {
+   "id": "gcppcde-005",
+   "question": "A Cloud Build pipeline publishes container images and now needs to sign them so an admission controller can verify their provenance before they run on GKE. Which Google Cloud service produces the attestations?",
+   "options": [
+    "Cloud Key Management Service creating a signing key",
+    "Artifact Registry vulnerability scanning with critical gate",
+    "Security Command Center posture policies on the project",
+    "Binary Authorization with attestors and signed attestations"
+   ],
+   "correct": 3,
+   "explanation": "Binary Authorization is the deploy-time gate that only admits images with valid attestations. Attestors verify signatures produced during the build (Cloud Build can create attestations using a KMS-backed key), and the GKE admission controller rejects images that lack them. KMS provides the underlying key material but does not itself model attestations, Artifact Registry scanning finds CVEs (a separate signal), and SCC surfaces posture findings rather than gating admission.",
+   "tags": [
+    "binary-authorization",
+    "supply-chain",
+    "gcp-pcde"
+   ],
+   "difficulty": "hard",
+   "_normalized": true
+  },
+  {
+   "id": "gcppcde-006",
+   "question": "You want an alert to fire when your service is consuming its 30-day error budget too quickly — specifically, when the 1-hour burn rate would exhaust the entire budget in less than 5 days if sustained. Which Cloud Monitoring alerting construct fits?",
+   "options": [
+    "A metric threshold alert on the HTTP 5xx count metric",
+    "An uptime check with a 60-second frequency across regions",
+    "A log-based metric alert on the string \"ERROR\" in stderr",
+    "An SLO burn-rate alert tied to the service's availability SLO"
+   ],
+   "correct": 3,
+   "explanation": "Cloud Monitoring exposes SLO burn-rate alerts specifically for this pattern: they fire when the fraction of the error budget being consumed per unit time exceeds a threshold, using a short lookback window for fast detection and often a longer one to suppress noise. Plain 5xx-count thresholds and uptime checks do not know about the SLO or the budget, and a log-based ERROR alert is a symptom trigger unrelated to budget burn.",
+   "tags": [
+    "burn-rate",
+    "monitoring",
+    "gcp-pcde"
+   ],
+   "difficulty": "hard",
+   "_normalized": true
+  },
+  {
+   "id": "gcppcde-007",
+   "question": "A latency regression appeared in your microservice after a deploy. You want to see, for a single slow request, how much time was spent in each downstream call (auth, database, cache) end-to-end. Which Google Cloud Observability service should you use?",
+   "options": [
+    "Cloud Logging with a filter on the request's trace ID",
+    "Cloud Trace showing a distributed-trace waterfall for the span",
+    "Cloud Profiler showing CPU flame graphs by function",
+    "Cloud Monitoring dashboard with p99 latency time series"
+   ],
+   "correct": 1,
+   "explanation": "Cloud Trace is the distributed-tracing product: for a given trace ID it renders a waterfall of spans (auth → DB → cache) with per-span duration — exactly the per-request breakdown you need. Cloud Profiler samples CPU/heap over time by function, not per-request. Cloud Monitoring aggregates latency across requests. Log filtering shows correlated log lines but not a timed span graph.",
+   "tags": [
+    "cloud-trace",
+    "observability",
+    "gcp-pcde"
+   ],
+   "difficulty": "easy",
+   "_normalized": true
+  },
+  {
+   "id": "gcppcde-008",
+   "question": "You are updating a GKE Deployment with 12 replicas and want zero downtime. You set strategy.type to RollingUpdate. Which pair of settings caps the number of pods above the desired count and the number of unavailable pods during the roll?",
+   "options": [
+    "minReadySeconds and progressDeadlineSeconds on the Deployment",
+    "revisionHistoryLimit and paused fields on the Deployment spec",
+    "maxSurge and maxUnavailable under the RollingUpdate strategy",
+    "podDisruptionBudget minAvailable and podAntiAffinity rules set"
+   ],
+   "correct": 2,
+   "explanation": "Under RollingUpdate, maxSurge caps how many pods above desired can be created during the roll, and maxUnavailable caps how many pods below desired can be unavailable at once — together they govern speed vs safety. minReadySeconds delays marking a pod ready, progressDeadlineSeconds fails the rollout after a timeout, and PodDisruptionBudget protects against voluntary evictions but is not part of the Deployment's rolling strategy itself.",
+   "tags": [
+    "gke",
+    "rolling-update",
+    "gcp-pcde"
+   ],
+   "difficulty": "medium",
+   "_normalized": true
+  },
+  {
+   "id": "gcppcde-009",
+   "question": "Your on-call engineer needs to correlate an application log line with the exact request that produced it, across 12 microservices. Which Cloud Logging field, populated automatically when OpenTelemetry propagates context, makes this correlation reliable?",
+   "options": [
+    "trace field on the LogEntry set to the projects/…/traces/ID form",
+    "logging.googleapis.com/spanId set on the LogEntry resource",
+    "labels.instance_id derived from the underlying GCE VM identity",
+    "resource.type of the LogEntry set to k8s_container consistently"
+   ],
+   "correct": 0,
+   "explanation": "Setting the LogEntry's trace field to projects/PROJECT/traces/TRACE_ID lets Logs Explorer link straight to the Cloud Trace waterfall for that request, and lets any query filter logs to one request across every service that participated. spanId is useful for a specific span but does not join a request across services on its own, instance_id ties a log to a VM (not a request), and resource.type describes the emitter type rather than the request.",
+   "tags": [
+    "cloud-logging",
+    "trace-correlation",
+    "gcp-pcde"
+   ],
+   "difficulty": "hard",
+   "_normalized": true
+  },
+  {
+   "id": "gcppcde-010",
+   "question": "During a Sev-1 outage your team is switching between chat, docs, and dashboards. Google SRE practice prescribes named on-call roles so the response stays coordinated. Which role owns the overall incident coordination, delegates work, and communicates status to stakeholders?",
+   "options": [
+    "Operations Lead running commands and applying fixes hands-on",
+    "Communications Lead broadcasting updates to external customers",
+    "Planning Lead scheduling the post-incident review and action items",
+    "Incident Commander coordinating the response and delegating work"
+   ],
+   "correct": 3,
+   "explanation": "In Google's incident-management framework the Incident Commander owns coordination — deciding priorities, delegating operational and communications work to the Operations and Communications Leads, and remaining the single point of accountability during the incident. Ops Lead executes remediation, Comms Lead handles stakeholder updates, and a planning role only appears in longer incidents to schedule the postmortem — none of them coordinate the response.",
+   "tags": [
+    "incident-response",
+    "sre",
+    "gcp-pcde"
+   ],
+   "difficulty": "medium",
+   "_normalized": true
+  },
+  {
+   "id": "gcppcde-011",
+   "question": "You want to identify which functions in a production Go service are consuming the most CPU, sampling continuously in production with negligible overhead. Which Google Cloud Observability service is purpose-built for this?",
+   "options": [
+    "Cloud Trace to view per-request span durations end-to-end",
+    "Cloud Monitoring uptime checks probing the service's endpoint",
+    "Cloud Profiler continuously sampling CPU and heap flame graphs",
+    "Error Reporting grouping stack traces by frequency of occurrence"
+   ],
+   "correct": 2,
+   "explanation": "Cloud Profiler is Google Cloud's continuous statistical profiler — it samples CPU, heap, and other resources in production with low overhead and renders flame graphs by function, which is exactly the CPU-hotspot view being asked for. Trace measures per-request latency across services, uptime checks probe availability from outside, and Error Reporting groups exceptions — none of them attribute CPU to functions.",
+   "tags": [
+    "cloud-profiler",
+    "observability",
+    "gcp-pcde"
+   ],
+   "difficulty": "easy",
+   "_normalized": true
+  },
+  {
+   "id": "gcppcde-012",
+   "question": "Your blameless postmortem template asks for an SRE-specific artefact that lists the concrete work needed to keep the same failure class from recurring, each item assigned to an owner with a due date. What is this called?",
+   "options": [
+    "The service-level agreement (SLA) attached to the incident",
+    "The action items list produced by the postmortem review",
+    "The runbook entry created for the on-call rotation to follow",
+    "The change-management ticket filed to revert the bad release"
+   ],
+   "correct": 1,
+   "explanation": "Google's postmortem template treats action items as first-class outputs: each is a concrete, owned, dated piece of follow-up work aimed at preventing recurrence — tracked to closure like any other engineering work. SLAs are contractual promises unrelated to remediation, runbooks are operational guidance rather than a follow-up ledger, and a change-management ticket may or may not exist for a given remediation.",
+   "tags": [
+    "postmortem",
+    "sre",
+    "gcp-pcde"
+   ],
+   "difficulty": "easy",
+   "_normalized": true
+  }
+ ]
+}
