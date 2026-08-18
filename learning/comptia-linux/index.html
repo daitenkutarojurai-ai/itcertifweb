@@ -105,6 +105,12 @@
 .scenario-walkthrough-head { font-family: var(--font-mono); font-size: 11px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: #38bdf8; margin: 0 0 8px; }
 .scenario-walkthrough strong { color: #7dd3fc; }
 .scenario-walkthrough code { font-family: var(--font-mono); font-size: 0.88em; padding: 1px 5px; background: rgba(255,255,255,0.05); border-radius: 4px; color: #bae6fd; }
+.lesson-intro { margin: 6px 0 12px; font-size: 15px; line-height: 1.7; color: var(--text-secondary); }
+.lesson-intro strong { color: var(--text); }
+.lesson-intro code { font-family: var(--font-mono); font-size: 0.9em; padding: 1px 5px; background: rgba(255,255,255,0.05); border-radius: 4px; }
+.lesson-takeaway { margin: 14px 0 0; padding: 12px 16px; background: rgba(16, 185, 129, 0.06); border-left: 3px solid #34d399; border-radius: 8px; font-size: 14px; line-height: 1.65; color: var(--text-secondary); }
+.lesson-takeaway strong { color: #6ee7b7; }
+.lesson-takeaway code { font-family: var(--font-mono); font-size: 0.9em; padding: 1px 5px; background: rgba(255,255,255,0.05); border-radius: 4px; color: #a7f3d0; }
 </style>
 </head>
 <body>
@@ -176,7 +182,9 @@
 
           <div class="lesson">
             <div class="lesson-title">Linux Distributions &amp; Architecture</div>
-            <h4>Kernel, Shell, Userspace &amp; FHS</h4>
+            <p class="lesson-intro">
+              Linux+ never asks "what is a kernel" outright — it asks where a file <em>belongs</em>, or which command family a distro uses. Both are the same question in disguise: do you hold the <strong>kernel / shell / userspace</strong> split and the <strong>FHS</strong> tree in your head? Learn the layout once and half the "which path?" and "which tool?" answers become mechanical.
+            </p>
             <ul>
               <li>The <strong>Linux kernel</strong> manages hardware resources: CPU scheduling, memory management, device drivers, and system calls</li>
               <li>The <strong>shell</strong> (bash, zsh, sh) is the user-facing interpreter that parses commands and communicates with the kernel via system calls</li>
@@ -185,11 +193,18 @@
               <li>Major distro families: <strong>Red Hat</strong> (RHEL, CentOS, Fedora, Rocky, AlmaLinux) — RPM/DNF; <strong>Debian</strong> (Ubuntu, Mint) — DEB/APT; <strong>SUSE</strong> (openSUSE, SLES) — RPM/Zypper; <strong>Arch</strong> — Pacman</li>
             </ul>
             <div class="study-note">The Linux+ exam tests cross-distro knowledge. Understand both RPM-based and DEB-based package managers. RHEL derivatives dominate enterprise environments, so RPM/DNF commands get heavier exam weight.</div>
+            <div class="scenario-walkthrough">
+              <div class="scenario-walkthrough-head">💻 Concrete example — placing a new service by the FHS</div>
+              You ship an in-house daemon <code>billingd</code> to a Rocky Linux fleet and have to decide where each file goes. <strong>The binary</strong> is not needed to boot single-user, so it goes to <code>/usr/sbin/billingd</code>, not <code>/sbin</code>. <strong>Its config</strong> goes to <code>/etc/billingd/billingd.conf</code> — everything under <code>/etc</code> is host-specific and gets backed up. <strong>Its runtime data</strong> (spool, queue, growing state) goes to <code>/var/lib/billingd/</code>, because <code>/var</code> is the branch that is expected to change size. <strong>Its logs</strong> go to <code>/var/log/billingd/</code>, or straight to the journal if the unit just writes to stdout. What you must <em>not</em> do is drop it in <code>/usr/bin</code> with state files beside it: that breaks the read-only-<code>/usr</code> assumption many hardened builds rely on, and RPM packaging will reject it in a lint check.
+            </div>
+            <div class="lesson-takeaway"><strong>Key takeaway:</strong> <code>/etc</code> = configuration, <code>/var</code> = data that grows, <code>/usr</code> = shipped software, <code>/proc</code> and <code>/sys</code> = kernel views that exist only in memory. Distro family then tells you the tool family: Red&nbsp;Hat → RPM/DNF, Debian → DEB/APT, SUSE → RPM/Zypper.</div>
           </div>
 
           <div class="lesson">
             <div class="lesson-title">BIOS/UEFI Boot Process &amp; GRUB2</div>
-            <h4>Boot Sequence</h4>
+            <p class="lesson-intro">
+              A machine that will not boot is the highest-stakes scenario on the exam and in the job, and the fix always depends on <em>how far it got</em>. No firmware screen is hardware; a <code>grub rescue&gt;</code> prompt means GRUB lost its modules; a kernel panic means GRUB did its job and the kernel could not mount root. This lesson pins each symptom to its link in the chain.
+            </p>
             <ul>
               <li><strong>BIOS/UEFI</strong> performs POST (Power-On Self-Test), initializes hardware, then loads the bootloader from MBR (BIOS) or EFI partition (UEFI)</li>
               <li><strong>GRUB2</strong> (GRand Unified Bootloader v2) is the standard Linux bootloader — loads the kernel and initramfs into memory</li>
@@ -208,14 +223,17 @@
             </ul>
             <div class="exam-tip">The exam tests the grub.cfg location — it is <code>/boot/grub2/grub.cfg</code> on RHEL/CentOS systems. Always regenerate with <code>grub2-mkconfig</code> after editing <code>/etc/default/grub</code>. Editing grub.cfg directly is wrong — changes are overwritten on update.</div>
             <div class="scenario-walkthrough">
-              <div class="scenario-walkthrough-head">💻 Worked scenario — GRUB2 rescue recovery</div>
+              <div class="scenario-walkthrough-head">💻 Concrete example — GRUB2 rescue recovery</div>
               A disk swap leaves the server at a <code>grub rescue&gt;</code> prompt. <strong>Recovery sequence:</strong> (1) <code>ls</code> to list detected partitions — look for the one containing <code>/boot/grub2/</code> (e.g. <code>(hd0,gpt2)</code>); (2) <code>set root=(hd0,gpt2)</code>; (3) <code>set prefix=(hd0,gpt2)/boot/grub2</code>; (4) <code>insmod normal</code> then <code>normal</code> — GRUB loads its full menu; (5) boot into the OS, then fix permanently: edit <code>/etc/default/grub</code> as needed and run <code>grub2-mkconfig -o /boot/grub2/grub.cfg</code>. Verify: <code>grep menuentry /boot/grub2/grub.cfg</code> shows the boot entries.
             </div>
+            <div class="lesson-takeaway"><strong>Key takeaway:</strong> in rescue mode the two variables that matter are <code>root</code> (which partition) and <code>prefix</code> (where GRUB's modules live) — set both, <code>insmod normal</code>, and you are back. Persist nothing by editing <code>grub.cfg</code>: edit <code>/etc/default/grub</code> and regenerate.</div>
           </div>
 
           <div class="lesson">
             <div class="lesson-title">Systemd Boot Targets</div>
-            <h4>Targets Replace SysV Runlevels</h4>
+            <p class="lesson-intro">
+              Targets are where "boot into a smaller system" happens — the recovery lever you pull when a service, a bad <code>/etc/fstab</code> line, or a lost root password blocks a normal boot. The exam's trap is the difference between <em>now</em> and <em>next boot</em>: <code>isolate</code> switches the running system, <code>set-default</code> changes what comes back after a reboot.
+            </p>
             <ul>
               <li><code>poweroff.target</code> — runlevel 0, system halt</li>
               <li><code>rescue.target</code> — runlevel 1 / single-user mode; minimal services, root shell for recovery</li>
@@ -227,11 +245,18 @@
               <li><code>systemctl isolate rescue.target</code> — switch to rescue mode immediately (non-persistent)</li>
             </ul>
             <div class="study-note">To boot into a specific target temporarily, append <code>systemd.unit=rescue.target</code> to the kernel command line in GRUB. This is the standard recovery technique for forgotten root passwords alongside <code>rd.break</code>.</div>
+            <div class="scenario-walkthrough">
+              <div class="scenario-walkthrough-head">💻 Concrete example — a bad fstab line locks you out</div>
+              A colleague adds an NFS mount to <code>/etc/fstab</code> and reboots; the host now stops at "Give root password for maintenance". <strong>What happened:</strong> the mount unit failed and <code>local-fs.target</code> never completed, so systemd dropped to <code>emergency.target</code>. <strong>Recovery:</strong> (1) reboot, press <kbd>e</kbd> in GRUB and append <code>systemd.unit=rescue.target</code> to the <code>linux</code> line — rescue mounts the local filesystems it can and gives you a root shell; (2) <code>journalctl -xb | grep -i mount</code> or <code>systemctl --failed</code> names the failing unit; (3) fix the <code>/etc/fstab</code> entry, or add <code>nofail,x-systemd.device-timeout=10</code> so a dead NFS server can never again block boot; (4) <code>systemctl daemon-reload &amp;&amp; mount -a</code> proves it before you trust it; (5) <code>systemctl default</code> continues into the normal target without a reboot.
+            </div>
+            <div class="lesson-takeaway"><strong>Key takeaway:</strong> <code>systemctl isolate</code> = now, <code>systemctl set-default</code> = every boot, <code>systemd.unit=…</code> on the kernel line = this boot only. Any fstab entry for a remote or optional device should carry <code>nofail</code>.</div>
           </div>
 
           <div class="lesson">
             <div class="lesson-title">initramfs &amp; Early Userspace</div>
-            <h4>Purpose of initramfs</h4>
+            <p class="lesson-intro">
+              The initramfs exists to solve one chicken-and-egg problem: the kernel needs a driver to reach the root filesystem, and that driver lives <em>on</em> the root filesystem. Every "worked fine until we changed the storage / added encryption / moved the disk" failure traces back to an initramfs that no longer carries the module or the key it needs.
+            </p>
             <ul>
               <li>The <strong>initramfs</strong> (initial RAM filesystem) is a compressed cpio archive loaded into memory at boot before the real root filesystem is mounted</li>
               <li>It provides the minimal tools needed to: load kernel modules for storage controllers, set up LVM/RAID, unlock encrypted volumes, and mount the real root filesystem</li>
@@ -245,11 +270,18 @@
               <li><code>lsinitrd /boot/initramfs-$(uname -r).img | less</code> — inspect initramfs contents (RHEL)</li>
             </ul>
             <div class="exam-tip">If a system fails to boot after adding an encrypted disk or new storage controller, rebuilding the initramfs with <code>dracut --force</code> (RHEL) or <code>update-initramfs -u</code> (Debian) is often the fix. The exam tests which tool to use per distro family.</div>
+            <div class="scenario-walkthrough">
+              <div class="scenario-walkthrough-head">💻 Concrete example — P2V migration panics on the new controller</div>
+              A physical RHEL server is imaged into a VM that presents disks over <code>virtio</code>. First boot ends in <em>"Kernel panic — not syncing: VFS: Unable to mount root fs"</em>. <strong>Why:</strong> the original initramfs was built on hardware with a MegaRAID controller, so it contains <code>megaraid_sas</code> and no <code>virtio_blk</code> — the kernel simply cannot see the new disk. <strong>Fix:</strong> (1) boot the VM from the RHEL ISO in <em>Troubleshooting → Rescue</em>; (2) <code>chroot /mnt/sysroot</code>; (3) <code>dracut --force --add-drivers "virtio_blk virtio_pci virtio_scsi" /boot/initramfs-$(uname -r).img $(uname -r)</code>; (4) confirm before rebooting with <code>lsinitrd /boot/initramfs-*.img | grep virtio</code>; (5) exit and reboot. Same class of failure, same fix, after adding a LUKS volume — the initramfs needs the crypt modules and the <code>/etc/crypttab</code> entry baked in.
+            </div>
+            <div class="lesson-takeaway"><strong>Key takeaway:</strong> anything the kernel needs <em>before</em> root is mounted must be inside the initramfs. Rebuild it after storage-driver, LVM/RAID or LUKS changes — <code>dracut --force</code> on RHEL, <code>update-initramfs -u</code> on Debian — and verify with <code>lsinitrd</code> rather than hoping.</div>
           </div>
 
           <div class="lesson">
             <div class="lesson-title">Kernel Modules</div>
-            <h4>Module Management Commands</h4>
+            <p class="lesson-intro">
+              Modules are how a single kernel image supports hardware it has never met. The exam splits this into two halves that look alike but are not: loading a module <em>right now</em> (<code>modprobe</code>, <code>rmmod</code>) versus making that choice <em>survive a reboot</em> (files under <code>/etc/modprobe.d/</code> and <code>/etc/modules-load.d/</code>). Blacklisting is the classic hardening question.
+            </p>
             <ul>
               <li><code>lsmod</code> — list currently loaded kernel modules and their dependencies</li>
               <li><code>modinfo MODULE</code> — display module metadata: description, author, parameters, filename</li>
@@ -266,6 +298,11 @@
               <li>Modules to load at boot: list names in <code>/etc/modules-load.d/*.conf</code> files</li>
             </ul>
             <div class="study-note">Use <code>modprobe</code> over <code>insmod</code> in almost all cases — modprobe resolves dependencies automatically. <code>insmod</code> requires the full path and won't load required dependencies first.</div>
+            <div class="scenario-walkthrough">
+              <div class="scenario-walkthrough-head">💻 Concrete example — a CIS benchmark says "disable USB storage"</div>
+              An auditor flags that any technician with physical access can plug in a USB drive and copy data off a kiosk host. <strong>Do it in three steps:</strong> (1) unload it now — <code>modprobe -r usb_storage</code> (fails if a stick is mounted; unmount first); (2) make it stick — create <code>/etc/modprobe.d/cis-usb-storage.conf</code> containing <code>install usb_storage /bin/true</code> <em>and</em> <code>blacklist usb_storage</code>: <code>blacklist</code> alone only stops automatic alias-based loading, while the <code>install … /bin/true</code> line also defeats an explicit <code>modprobe usb_storage</code>; (3) rebuild the initramfs (<code>dracut --force</code>) so an early-boot copy of the module cannot reintroduce it. <strong>Verify:</strong> <code>lsmod | grep usb_storage</code> is empty and <code>modprobe usb_storage &amp;&amp; lsmod | grep usb_storage</code> still shows nothing.
+            </div>
+            <div class="lesson-takeaway"><strong>Key takeaway:</strong> <code>modprobe</code> resolves dependencies, <code>insmod</code> does not. Runtime changes die at reboot — persistence lives in <code>/etc/modprobe.d/*.conf</code> (options, blacklists) and <code>/etc/modules-load.d/*.conf</code> (load at boot).</div>
           </div>
 
           <div class="module-takeaways">
@@ -300,7 +337,9 @@
 
           <div class="lesson">
             <div class="lesson-title">RPM-Based Package Management</div>
-            <h4>rpm Command Essentials</h4>
+            <p class="lesson-intro">
+              <code>rpm</code> is not how you install software day to day — <code>dnf</code> is. What <code>rpm</code> gives you is the <em>local database</em>: which package owns this file, what did this package ship, and has anything on disk drifted from what the vendor signed. Those are forensic questions, and they are exactly the ones Linux+ asks.
+            </p>
             <ul>
               <li><code>rpm -ivh package.rpm</code> — install a package (<code>-i</code>) with verbose output (<code>-v</code>) and progress bar (<code>-h</code>)</li>
               <li><code>rpm -Uvh package.rpm</code> — upgrade a package (installs if not present)</li>
@@ -313,11 +352,18 @@
               <li><code>rpm --import /etc/pki/rpm-gpg/RPM-GPG-KEY-redhat-release</code> — import a GPG signing key</li>
             </ul>
             <div class="exam-tip"><code>rpm -V</code> output codes: <code>S</code>=file size changed, <code>M</code>=mode changed, <code>5</code>=MD5 checksum mismatch, <code>U</code>=user ownership changed. A dot (<code>.</code>) means no change. This is a frequently tested command on the Linux+ exam.</div>
+            <div class="scenario-walkthrough">
+              <div class="scenario-walkthrough-head">💻 Concrete example — proving a binary was tampered with</div>
+              Monitoring reports that <code>sshd</code> on one host behaves differently from the rest of the fleet. <strong>Investigate with the RPM database:</strong> (1) <code>rpm -qf /usr/sbin/sshd</code> → <code>openssh-server-8.7p1-38.el9</code>, so the file is vendor-owned; (2) <code>rpm -V openssh-server</code> prints <code>S.5....T.  /usr/sbin/sshd</code> — size changed, MD5 mismatch, mtime changed: the shipped binary is <em>not</em> the one on disk; (3) <code>rpm -qi openssh-server</code> confirms the signature and vendor of what <em>should</em> be there; (4) restore from the signed package with <code>dnf reinstall openssh-server</code>; (5) re-run <code>rpm -V openssh-server</code> — all dots, clean. Contrast the harmless case: <code>rpm -V openssh-server</code> showing <code>S.5....T.  c /etc/ssh/sshd_config</code>, where the leading <code>c</code> marks a config file you are <em>expected</em> to have edited.
+            </div>
+            <div class="lesson-takeaway"><strong>Key takeaway:</strong> <code>rpm -qf</code> (who owns this file), <code>rpm -ql</code> (what did this package ship), <code>rpm -V</code> (has it drifted) are the three query verbs worth memorising. In <code>-V</code> output a dot is "unchanged", <code>5</code> is a checksum mismatch, and a <code>c</code> flag means the file is config, so drift is expected.</div>
           </div>
 
           <div class="lesson">
             <div class="lesson-title">DNF / YUM Package Manager</div>
-            <h4>Common DNF Commands</h4>
+            <p class="lesson-intro">
+              DNF is <code>rpm</code> plus two things the exam cares about: <strong>dependency resolution</strong> and <strong>a transaction log you can reverse</strong>. That log is what turns "the update broke production" from an outage into a two-minute rollback, and <code>dnf history undo</code> is the answer to a whole family of scenario questions.
+            </p>
             <ul>
               <li><code>dnf install PACKAGE</code> — install a package and resolve dependencies</li>
               <li><code>dnf remove PACKAGE</code> — remove a package</li>
@@ -339,14 +385,17 @@
             </ul>
             <div class="exam-tip">Know the difference: <code>dnf update</code> refreshes and installs newer package versions; <code>dnf upgrade</code> is an alias. <code>dnf check-update</code> lists available updates without installing them. Also: <code>yum</code> is the legacy name — on modern RHEL 8+ systems it is a symlink to <code>dnf</code>.</div>
             <div class="scenario-walkthrough">
-              <div class="scenario-walkthrough-head">💻 Worked scenario — package lifecycle with history rollback</div>
+              <div class="scenario-walkthrough-head">💻 Concrete example — package lifecycle with history rollback</div>
               Task: identify which package provides <code>/usr/bin/iostat</code>, install it, verify, then roll it back. <strong>Walk:</strong> (1) <code>dnf provides /usr/bin/iostat</code> → shows <code>sysstat</code>; (2) <code>dnf install sysstat</code>; (3) <code>rpm -ql sysstat | grep iostat</code> confirms the binary is installed; (4) <code>dnf history</code> → note the transaction ID (e.g. 47); (5) <code>dnf history info 47</code> to inspect what was changed; (6) <code>dnf history undo 47</code> removes the package cleanly. This sequence also tests repos: if <code>dnf provides</code> returns nothing, <code>dnf repolist</code> and check that the right repo is enabled.
             </div>
+            <div class="lesson-takeaway"><strong>Key takeaway:</strong> when a scenario says "find the package that supplies command X", the answer is <code>dnf provides</code>. When it says "undo last night's update", the answer is <code>dnf history</code> then <code>dnf history undo &lt;id&gt;</code> — never a manual <code>rpm -e</code>, which leaves dependencies stranded.</div>
           </div>
 
           <div class="lesson">
             <div class="lesson-title">DEB-Based Package Management</div>
-            <h4>dpkg Command Essentials</h4>
+            <p class="lesson-intro">
+              The Debian side maps one-to-one onto the RHEL side — <code>dpkg</code> is the local database like <code>rpm</code>, <code>apt</code> is the resolver like <code>dnf</code> — with one asymmetry the exam leans on hard: <code>apt update</code> installs <em>nothing</em>. It only refreshes metadata. Half the trick questions in this domain hinge on that single fact, and on <code>remove</code> versus <code>purge</code>.
+            </p>
             <ul>
               <li><code>dpkg -i package.deb</code> — install a .deb package file</li>
               <li><code>dpkg -r PACKAGENAME</code> — remove a package (keeps config files)</li>
@@ -368,11 +417,18 @@
               <li>Repo sources: <code>/etc/apt/sources.list</code> and <code>/etc/apt/sources.list.d/*.list</code></li>
             </ul>
             <div class="exam-tip"><code>apt update</code> only refreshes the local package cache — it does NOT install any updates. <code>apt upgrade</code> installs the available updates. This two-step pattern is a classic exam question. Always run <code>apt update</code> before <code>apt install</code> on a freshly started system.</div>
+            <div class="scenario-walkthrough">
+              <div class="scenario-walkthrough-head">💻 Concrete example — a vendor .deb leaves the system half-installed</div>
+              You install a monitoring agent from a downloaded file: <code>dpkg -i agent_3.2_amd64.deb</code>. It exits with <em>"dependency problems — leaving unconfigured"</em>, and every later <code>apt install</code> now refuses to run. <strong>Why:</strong> <code>dpkg</code> unpacks a single file and does not fetch dependencies; the package is registered but unconfigured, and APT will not proceed while the database is inconsistent. <strong>Fix:</strong> (1) <code>apt --fix-broken install</code> — APT reads what <code>dpkg</code> recorded and pulls the missing libraries in; (2) confirm the state with <code>dpkg -l agent</code> — the leading code should now be <code>ii</code> (installed/installed), not <code>iU</code>; (3) if the agent later gets removed, use <code>apt purge agent</code> rather than <code>apt remove agent</code> so its <code>/etc/agent/</code> config and API token do not linger. <strong>Better next time:</strong> <code>apt install ./agent_3.2_amd64.deb</code> — the leading <code>./</code> makes APT handle the local file <em>with</em> dependency resolution.
+            </div>
+            <div class="lesson-takeaway"><strong>Key takeaway:</strong> <code>apt update</code> refreshes, <code>apt upgrade</code> installs — always a pair. <code>dpkg -i</code> never resolves dependencies; <code>apt install ./file.deb</code> does. <code>remove</code> keeps config files, <code>purge</code> deletes them.</div>
           </div>
 
           <div class="lesson">
             <div class="lesson-title">Zypper (SUSE) Package Manager</div>
-            <h4>Core Zypper Commands</h4>
+            <p class="lesson-intro">
+              Zypper is worth perhaps one or two marks, so treat it as a translation exercise rather than a new subject: SUSE ships RPM packages like RHEL but drives them with a different front end. Learn the verbs against the DNF column you already know, and the short aliases (<code>in</code>, <code>rm</code>, <code>up</code>, <code>se</code>, <code>lr</code>) that answer options like to show up in.
+            </p>
             <ul>
               <li><code>zypper install PACKAGE</code> (or <code>zypper in PACKAGE</code>) — install a package</li>
               <li><code>zypper remove PACKAGE</code> (or <code>zypper rm PACKAGE</code>) — remove a package</li>
@@ -384,11 +440,18 @@
               <li><code>zypper refresh</code> (or <code>zypper ref</code>) — refresh repository metadata</li>
             </ul>
             <div class="study-note">Zypper is SUSE/openSUSE-specific. The Linux+ exam may include one or two Zypper questions. Focus on the short-form aliases (<code>in</code>, <code>rm</code>, <code>up</code>, <code>se</code>, <code>lr</code>) as they appear in practical scenarios.</div>
+            <div class="scenario-walkthrough">
+              <div class="scenario-walkthrough-head">💻 Concrete example — the same task on all three families</div>
+              A runbook says "install nginx from the vendor repo and confirm the repo is trusted". Written three ways: <strong>RHEL</strong> — <code>dnf config-manager --add-repo https://vendor/rhel.repo</code>, <code>dnf repolist</code>, <code>dnf install nginx</code>. <strong>Debian</strong> — drop the source into <code>/etc/apt/sources.list.d/vendor.list</code>, <code>apt update</code>, <code>apt install nginx</code>. <strong>SUSE</strong> — <code>zypper addrepo https://vendor/sle vendor</code>, <code>zypper ref</code>, <code>zypper lr</code> to check the <em>GPG Check</em> column reads <code>Yes</code>, then <code>zypper in nginx</code>. Note where the refresh sits: APT needs an explicit <code>apt update</code>, Zypper does it with <code>ref</code>, DNF refreshes metadata on demand. That "which step refreshes?" difference is the exam's favourite way to test cross-distro fluency.
+            </div>
+            <div class="lesson-takeaway"><strong>Key takeaway:</strong> map Zypper onto what you already know — <code>zypper in/rm/up/se</code> = <code>dnf install/remove/update/search</code>, <code>zypper lr</code> = <code>dnf repolist</code>, <code>zypper ref</code> = <code>apt update</code>. Same RPM payload underneath, different front end.</div>
           </div>
 
           <div class="lesson">
             <div class="lesson-title">Compiling from Source</div>
-            <h4>The Classic Build Workflow</h4>
+            <p class="lesson-intro">
+              Compiling is what you do when no package exists — and the reason it stays on the syllabus is that it exposes the whole dependency model. <code>./configure</code> is a dependency checker; its error message names the missing piece, and translating that name into a <code>-devel</code> (RHEL) or <code>-dev</code> (Debian) package is the actual skill being tested.
+            </p>
             <ul>
               <li>Download source tarball: <code>wget https://example.com/app-1.0.tar.gz</code> then <code>tar -xzf app-1.0.tar.gz</code></li>
               <li><code>./configure</code> — checks for required build dependencies, sets compile options, generates <code>Makefile</code></li>
@@ -405,6 +468,11 @@
               <li>Missing header errors during <code>./configure</code> mean a <code>-devel</code> / <code>-dev</code> package is not installed</li>
             </ul>
             <div class="exam-tip">If <code>./configure</code> fails with "missing library", install the corresponding <code>-devel</code> package (RHEL) or <code>-dev</code> package (Debian). The <code>configure</code> script reports the exact missing dependency in its error output.</div>
+            <div class="scenario-walkthrough">
+              <div class="scenario-walkthrough-head">💻 Concrete example — from a failed ./configure to a working build</div>
+              You build a tool that needs TLS on a fresh RHEL 9 box. <code>./configure</code> stops with <em>"error: OpenSSL headers not found"</em>. <strong>Walk it:</strong> (1) the toolchain first — <code>dnf group install "Development Tools"</code> (Debian: <code>apt install build-essential</code>); (2) headers are shipped separately from the runtime library, so the fix is <code>dnf install openssl-devel</code>, <em>not</em> <code>openssl</code>, which is already installed — that distinction is the whole point of the question; (3) when the name is not obvious, ask the package manager: <code>dnf provides '*/ssl.h'</code>; (4) re-run <code>./configure --prefix=/usr/local</code>, then <code>make -j$(nproc)</code>, then <code>make install</code> as root; (5) confirm with <code>which app</code> → <code>/usr/local/bin/app</code>. <strong>Keep it uninstallable:</strong> the RPM database knows nothing about these files, so keep the unpacked source tree around for <code>make uninstall</code> — otherwise removal means deleting files by hand.
+            </div>
+            <div class="lesson-takeaway"><strong>Key takeaway:</strong> "missing header" always means a <code>-devel</code>/<code>-dev</code> package, never the runtime one. <code>./configure → make → make install</code>, default prefix <code>/usr/local</code>, and nothing you build this way appears in <code>rpm -qa</code> or <code>dpkg -l</code>.</div>
           </div>
 
           <div class="module-takeaways">
@@ -439,7 +507,9 @@
 
           <div class="lesson">
             <div class="lesson-title">User &amp; Group Administration</div>
-            <h4>User Account Commands</h4>
+            <p class="lesson-intro">
+              Accounts are three flat text files (<code>/etc/passwd</code>, <code>/etc/shadow</code>, <code>/etc/group</code>) and a handful of commands that edit them safely. Knowing the <em>field order</em> in each file is what lets you read a broken account at a glance — and the single most damaging flag in the whole domain is the <code>-a</code> you forget on <code>usermod -G</code>.
+            </p>
             <ul>
               <li><code>useradd USERNAME</code> — create a new user; add <code>-m</code> to create home dir, <code>-s /bin/bash</code> to set shell, <code>-u UID</code> for specific UID</li>
               <li><code>usermod -aG GROUP USERNAME</code> — add user to a supplementary group (<code>-a</code> is critical — appends instead of replacing)</li>
@@ -457,14 +527,17 @@
             </ul>
             <div class="exam-tip">The <code>-a</code> flag with <code>usermod -G</code> is critical. Running <code>usermod -G GROUP USER</code> without <code>-a</code> REPLACES all supplementary groups with only the specified group — this is a classic misconfiguration that locks users out of shared resources.</div>
             <div class="scenario-walkthrough">
-              <div class="scenario-walkthrough-head">💻 Worked scenario — service account with exact UID and group</div>
+              <div class="scenario-walkthrough-head">💻 Concrete example — service account with exact UID and group</div>
               Task: create <code>svc-monitor</code> with UID 3001, no interactive login, added to the <code>monitoring</code> group without disrupting other memberships. <strong>Walk:</strong> (1) <code>useradd -u 3001 -s /sbin/nologin svc-monitor</code>; (2) <code>groupadd monitoring</code> (if the group doesn't exist); (3) <code>usermod -aG monitoring svc-monitor</code> — the <code>-a</code> is mandatory, omitting it silently wipes all other supplementary groups; (4) verify: <code>id svc-monitor</code> shows UID=3001 and includes the monitoring GID; (5) <code>grep svc-monitor /etc/passwd</code> confirms the shell is <code>/sbin/nologin</code>. Attempting <code>su - svc-monitor</code> as root should say "This account is currently not available."
             </div>
+            <div class="lesson-takeaway"><strong>Key takeaway:</strong> <code>usermod -aG</code> appends, <code>usermod -G</code> replaces — the missing <code>-a</code> is the classic lockout. Service accounts get <code>-s /sbin/nologin</code>, and <code>id user</code> is how you prove membership rather than trusting the command exited 0.</div>
           </div>
 
           <div class="lesson">
             <div class="lesson-title">Password Policies &amp; PAM</div>
-            <h4>passwd and chage</h4>
+            <p class="lesson-intro">
+              Password rules land in two different places and the exam expects you to tell them apart: <strong>aging</strong> (how long a password lives) is per-account metadata in <code>/etc/shadow</code>, edited with <code>chage</code>; <strong>strength</strong> (how hard a password is) is enforced at the moment of change by a PAM module. Set the wrong one and the policy silently does nothing.
+            </p>
             <ul>
               <li><code>passwd USERNAME</code> — set or change a user's password; <code>passwd -l USERNAME</code> locks, <code>passwd -u USERNAME</code> unlocks</li>
               <li><code>chage -M 90 USERNAME</code> — set maximum password age to 90 days</li>
@@ -481,11 +554,18 @@
               <li><code>/etc/login.defs</code> — system-wide defaults: <code>PASS_MAX_DAYS</code>, <code>PASS_MIN_DAYS</code>, <code>PASS_WARN_AGE</code>, <code>UID_MIN</code>, <code>UID_MAX</code></li>
             </ul>
             <div class="study-note">PAM modules are evaluated in order within each service file. The four control flags are: <code>required</code> (must pass, continues), <code>requisite</code> (must pass, stops on fail), <code>sufficient</code> (if pass, no further required checks), <code>optional</code> (result ignored unless only module).</div>
+            <div class="scenario-walkthrough">
+              <div class="scenario-walkthrough-head">💻 Concrete example — "90-day rotation, 12-char minimum" from an audit</div>
+              The audit demands both rules, and the two halves are configured in different files. <strong>Aging, going forward:</strong> set <code>PASS_MAX_DAYS 90</code>, <code>PASS_MIN_DAYS 7</code>, <code>PASS_WARN_AGE 14</code> in <code>/etc/login.defs</code> — but note this applies only to accounts created <em>after</em> the edit. <strong>Existing accounts:</strong> must be updated one by one, e.g. <code>for u in $(awk -F: '$3&gt;=1000 &amp;&amp; $3&lt;65534 {print $1}' /etc/passwd); do chage -M 90 -m 7 -W 14 "$u"; done</code>, then spot-check with <code>chage -l alice</code>. Forgetting this second step is the single most common way the policy "does not apply". <strong>Complexity:</strong> set <code>minlen = 12</code> and <code>ucredit = -1</code>, <code>dcredit = -1</code>, <code>ocredit = -1</code> in <code>/etc/security/pwquality.conf</code> — a negative credit means "require at least one of this class". <strong>Prove it:</strong> as an ordinary user, <code>passwd</code> with <code>summer2026</code> is rejected for length and missing classes; as root it is only warned about, because root bypasses pwquality.
+            </div>
+            <div class="lesson-takeaway"><strong>Key takeaway:</strong> <code>/etc/login.defs</code> sets defaults for <em>future</em> accounts; <code>chage</code> fixes the ones that already exist. Complexity comes from <code>pam_pwquality</code> via <code>/etc/security/pwquality.conf</code>, and root is exempt from it — always test policy as a normal user.</div>
           </div>
 
           <div class="lesson">
             <div class="lesson-title">Standard Linux Permissions</div>
-            <h4>chmod, chown, chgrp</h4>
+            <p class="lesson-intro">
+              Nine bits, three commands, one arithmetic trick. The exam almost never asks "what does 755 mean" directly — it gives you a symptom (a user cannot <code>cd</code> into a directory, a script will not run, a new file came out world-readable) and expects you to work backwards to the bit or the <code>umask</code> that caused it.
+            </p>
             <ul>
               <li>Permission bits: <strong>owner (u)</strong>, <strong>group (g)</strong>, <strong>others (o)</strong>; each has read (r=4), write (w=2), execute (x=1)</li>
               <li><code>chmod 755 file</code> — numeric: owner rwx (7), group r-x (5), others r-x (5)</li>
@@ -502,11 +582,18 @@
               <li>Set persistently in <code>/etc/bashrc</code> or <code>~/.bashrc</code></li>
             </ul>
             <div class="exam-tip">For umask calculation: subtract the umask from the base permissions. File base = 666, directory base = 777. umask 027 on a file: 666 - 027 = 640 (rw-r-----). This subtraction method is what the exam tests.</div>
+            <div class="scenario-walkthrough">
+              <div class="scenario-walkthrough-head">💻 Concrete example — "she has read access but still gets Permission denied"</div>
+              <code>alice</code> is in the <code>finance</code> group and <code>/srv/reports/q3.csv</code> is <code>-rw-r----- root finance</code>, yet <code>cat /srv/reports/q3.csv</code> fails. <strong>Diagnose upward, not at the file:</strong> <code>ls -ld /srv/reports</code> shows <code>drwxr----- root finance</code> — read on a directory lets you <em>list</em> names, but you need <strong>execute</strong> to traverse into it and open anything inside. <strong>Fix:</strong> <code>chmod 750 /srv/reports</code> (or <code>chmod g+x</code>), which is why directories are 750/755 while their files are 640/644. <strong>Second half:</strong> reports alice creates there come out <code>rw-r--r--</code>, readable by the whole box, because her shell's <code>umask</code> is <code>022</code>. Set <code>umask 027</code> in <code>/etc/profile.d/finance-umask.sh</code> and new files land at 640 — 666 minus 027. <strong>Verify:</strong> <code>sudo -u alice cat /srv/reports/q3.csv</code> succeeds, and <code>sudo -u alice touch /srv/reports/x &amp;&amp; ls -l /srv/reports/x</code> shows <code>-rw-r-----</code>.
+            </div>
+            <div class="lesson-takeaway"><strong>Key takeaway:</strong> on a directory, <code>x</code> means "traverse" — without it nothing inside is reachable no matter how the file itself is set. New-file defaults come from <code>umask</code>: 666 minus the mask for files, 777 minus it for directories.</div>
           </div>
 
           <div class="lesson">
             <div class="lesson-title">Special Permission Bits</div>
-            <h4>SUID, SGID, and Sticky Bit</h4>
+            <p class="lesson-intro">
+              Three extra bits exist because the owner/group/other triad cannot express everything: <strong>SUID</strong> lets an unprivileged user run something as its owner, <strong>SGID on a directory</strong> forces group inheritance, and <strong>sticky</strong> stops people deleting each other's files in a shared writable directory. Each solves one specific problem — the exam tests whether you pick the right one.
+            </p>
             <ul>
               <li><strong>SUID (Set User ID)</strong> — on an executable: the process runs as the file owner, not the invoking user. Example: <code>/usr/bin/passwd</code> runs as root. Set with <code>chmod 4755 file</code> or <code>chmod u+s file</code></li>
               <li><strong>SGID (Set Group ID)</strong> — on an executable: process runs with the file's group. On a <strong>directory</strong>: new files/directories inherit the directory's group (not the creator's primary group). Set with <code>chmod 2755 file</code> or <code>chmod g+s dir</code></li>
@@ -514,11 +601,18 @@
               <li>Display: <code>ls -l</code> shows <code>s</code> in place of <code>x</code> for SUID/SGID, <code>t</code> in place of <code>x</code> for sticky bit in others position</li>
             </ul>
             <div class="exam-tip">SUID on a <strong>directory</strong> has no standard effect — it is SGID on directories that causes group inheritance. The exam tests SGID on directories specifically as a mechanism for shared project directories where all files should belong to the project group.</div>
+            <div class="scenario-walkthrough">
+              <div class="scenario-walkthrough-head">💻 Concrete example — a shared project directory that actually stays shared</div>
+              Team <code>devs</code> needs <code>/srv/project</code> where everyone can read and edit each other's files, but nobody can delete a colleague's work. <strong>Build it:</strong> (1) <code>chgrp devs /srv/project</code>; (2) <code>chmod 2770 /srv/project</code> — the leading <strong>2</strong> is SGID, so every file created inside is owned by group <code>devs</code> instead of the creator's private group, which is what stops the "I made it, only I can read it" problem; (3) <code>chmod +t /srv/project</code> adds the sticky bit → mode <code>3770</code>, so a user can only delete files they own; (4) <code>setfacl -d -m g:devs:rwx /srv/project</code> if you also want inherited <em>permissions</em>, since SGID only inherits the group, not the mode. <strong>Verify:</strong> <code>ls -ld /srv/project</code> shows <code>drwxrws--T</code>; as <code>bob</code>, <code>touch f &amp;&amp; ls -l f</code> shows group <code>devs</code>, and <code>rm</code> on alice's file is refused. <strong>Security note:</strong> hunt for the opposite mistake with <code>find / -perm -4000 -type f 2&gt;/dev/null</code> — an unexpected SUID root binary is a privilege-escalation path.
+            </div>
+            <div class="lesson-takeaway"><strong>Key takeaway:</strong> SUID (4) = run as the file's owner, meaningful on executables only. SGID (2) = inherit the group, most useful on directories. Sticky (1) = only the owner may delete, as on <code>/tmp</code>. Read them out of <code>ls -l</code> as <code>s</code> and <code>t</code> replacing <code>x</code>.</div>
           </div>
 
           <div class="lesson">
             <div class="lesson-title">Access Control Lists (ACLs)</div>
-            <h4>setfacl and getfacl</h4>
+            <p class="lesson-intro">
+              ACLs are the escape hatch for the case standard permissions cannot express: <em>one extra user</em> or <em>a second group</em> on a file that already has an owner and a group. The exam's favourite trap is the <strong>mask</strong> — you grant <code>rwx</code>, <code>getfacl</code> still reports the user as effectively read-only, and nothing about the <code>setfacl</code> command was wrong.
+            </p>
             <ul>
               <li><code>getfacl file</code> — display the full ACL for a file or directory</li>
               <li><code>setfacl -m u:USERNAME:rwx file</code> — grant a specific user rwx on a file</li>
@@ -534,6 +628,11 @@
               <li>Filesystem must be mounted with ACL support; ext4 and XFS support ACLs natively; check with <code>tune2fs -l /dev/sdX | grep "Default mount"</code></li>
             </ul>
             <div class="study-note">The ACL mask acts as a maximum effective permission ceiling for all named users and groups (but NOT the file owner or other). Even if you grant a user rwx via ACL, the mask can reduce the effective permission to just read. Run <code>getfacl</code> to see effective permissions after mask application.</div>
+            <div class="scenario-walkthrough">
+              <div class="scenario-walkthrough-head">💻 Concrete example — one auditor, read-only, without touching the group</div>
+              <code>/srv/project</code> belongs to group <code>devs</code> at mode <code>2770</code>. An external auditor needs read access for a month — adding them to <code>devs</code> would grant write, and changing the group would break the team. <strong>Use an ACL:</strong> (1) <code>setfacl -m u:auditor:rx /srv/project</code> — <code>rx</code>, because without <code>x</code> they cannot traverse the directory; (2) <code>setfacl -R -m u:auditor:r /srv/project</code> for the existing files; (3) <code>setfacl -d -m u:auditor:r /srv/project</code> so files created <em>later</em> inherit the grant — without <code>-d</code> the auditor loses access to everything written next week. <strong>The mask trap:</strong> <code>getfacl</code> may show <code>user:auditor:r-x</code> followed by <code>#effective:r--</code>, meaning the mask is clipping it; <code>setfacl -m mask::rx /srv/project</code> lifts the ceiling. <strong>Verify:</strong> <code>ls -ld /srv/project</code> now ends in <code>+</code>, and <code>sudo -u auditor ls /srv/project</code> works while <code>sudo -u auditor touch /srv/project/x</code> is denied. <strong>Cleanup after the engagement:</strong> <code>setfacl -R -x u:auditor /srv/project</code>.
+            </div>
+            <div class="lesson-takeaway"><strong>Key takeaway:</strong> <code>-m</code> modifies, <code>-x</code> removes one entry, <code>-b</code> wipes them all, <code>-d</code> sets the default that new files inherit. The mask caps every named user and group (never the owner), so always read <code>#effective:</code> in <code>getfacl</code> before believing a grant. A trailing <code>+</code> in <code>ls -l</code> is the only hint an ACL exists.</div>
           </div>
 
           <div class="module-takeaways">
@@ -568,7 +667,9 @@
 
           <div class="lesson">
             <div class="lesson-title">Partitioning: fdisk, parted &amp; gdisk</div>
-            <h4>Partition Table Types</h4>
+            <p class="lesson-intro">
+              Picking a partitioning tool is really picking a <em>partition table</em>, and that choice is forced by two facts about the machine: disk size and firmware. Over 2&nbsp;TB, or booting UEFI, means GPT — and GPT is what <code>gdisk</code> and <code>parted</code> are for. Reach for <code>fdisk</code> only on small legacy MBR disks.
+            </p>
             <ul>
               <li><strong>MBR (Master Boot Record)</strong> — legacy; max 4 primary partitions or 3 primary + 1 extended (with logical partitions); max disk size 2 TB</li>
               <li><strong>GPT (GUID Partition Table)</strong> — modern; supports up to 128 partitions per disk; required for disks over 2 TB; used with UEFI</li>
@@ -578,11 +679,18 @@
               <li><code>lsblk</code> — list block devices and partition layout; <code>blkid</code> — show UUIDs and filesystem types</li>
             </ul>
             <div class="exam-tip">Use <code>fdisk</code> for MBR disks up to 2 TB. For GPT or disks larger than 2 TB, use <code>gdisk</code> or <code>parted</code>. The exam will present scenarios requiring you to identify the correct partitioning tool based on disk size and UEFI vs BIOS context.</div>
+            <div class="scenario-walkthrough">
+              <div class="scenario-walkthrough-head">💻 Concrete example — a new 4 TB disk that only shows 2 TB</div>
+              A 4&nbsp;TB disk is attached and partitioned with <code>fdisk</code>, but the resulting partition tops out around 2&nbsp;TB. <strong>Why:</strong> MBR addresses sectors with 32 bits — at 512-byte sectors that ceiling is 2&nbsp;TiB, and the rest of the disk is simply unaddressable. <strong>Redo it as GPT:</strong> (1) <code>lsblk</code> and <code>parted /dev/sdb print</code> to confirm the current label reads <code>msdos</code>; (2) <code>parted /dev/sdb mklabel gpt</code> — this discards the existing table, so confirm the disk is empty first; (3) <code>parted -a optimal /dev/sdb mkpart primary xfs 0% 100%</code>, where <code>-a optimal</code> aligns the start to the device's I/O boundary instead of an arbitrary sector; (4) <code>partprobe /dev/sdb</code> so the kernel re-reads the table without a reboot; (5) <code>lsblk /dev/sdb</code> now shows a ~4&nbsp;TB <code>sdb1</code>, and <code>blkid</code> gives you the UUID for <code>/etc/fstab</code>. <strong>The tell in exam wording:</strong> "the server boots UEFI" or any capacity above 2&nbsp;TB rules <code>fdisk</code> out before you read the answers.
+            </div>
+            <div class="lesson-takeaway"><strong>Key takeaway:</strong> MBR caps at 2&nbsp;TB and 4 primary partitions; GPT handles 128 partitions and is mandatory for UEFI boot. <code>lsblk</code> shows the layout, <code>blkid</code> gives the UUIDs you will need in <code>/etc/fstab</code>, and <code>partprobe</code> re-reads the table without a reboot.</div>
           </div>
 
           <div class="lesson">
             <div class="lesson-title">Filesystem Creation &amp; Mounting</div>
-            <h4>Creating Filesystems</h4>
+            <p class="lesson-intro">
+              A partition is just reserved space until you put a filesystem on it and attach it to the tree. Two details carry most of the exam weight here: mount by <strong>UUID</strong>, never by <code>/dev/sdb1</code> (device names shuffle when disks are added), and test every <code>/etc/fstab</code> edit with <code>mount -a</code> <em>before</em> you reboot — a typo there is an unbootable machine.
+            </p>
             <ul>
               <li><code>mkfs.ext4 /dev/sdX1</code> — format a partition as ext4; <code>-L LABEL</code> to add a volume label</li>
               <li><code>mkfs.xfs /dev/sdX1</code> — format as XFS (default on RHEL 7+)</li>
@@ -601,11 +709,18 @@
               <li><code>mount -a</code> — mount all entries in fstab that aren't already mounted (tests fstab syntax)</li>
             </ul>
             <div class="exam-tip">XFS filesystems cannot be shrunk — only grown. ext4 can be shrunk (offline only, with <code>e2fsck</code> first). The exam will present a scenario asking about resizing, and the correct answer depends on the filesystem type.</div>
+            <div class="scenario-walkthrough">
+              <div class="scenario-walkthrough-head">💻 Concrete example — mounting /var/log on its own volume, safely</div>
+              Runaway logs keep filling <code>/</code>, so <code>/var/log</code> moves to its own disk with <code>noexec,nosuid,nodev</code> hardening. <strong>Walk:</strong> (1) <code>mkfs.xfs -L varlog /dev/sdb1</code>; (2) mount it somewhere neutral first — <code>mount /dev/sdb1 /mnt</code> — and copy the existing data across with <code>rsync -aXS /var/log/ /mnt/</code> (<code>-X</code> preserves SELinux and extended attributes, which a plain <code>cp</code> would drop and SELinux would then block); (3) <code>umount /mnt</code>; (4) <code>blkid /dev/sdb1</code> → add <code>UUID=&lt;value&gt; /var/log xfs defaults,noexec,nosuid,nodev 0 0</code>; (5) <code>mount -a</code>, then <code>findmnt /var/log</code> to confirm the options actually applied; (6) <code>restorecon -Rv /var/log</code> and <code>systemctl restart rsyslog</code>. <strong>If umount says "target is busy":</strong> <code>lsof +D /var/log</code> or <code>fuser -vm /var/log</code> names the process holding it — stop that, do not reach for <code>umount -l</code>, which hides the problem rather than fixing it.
+            </div>
+            <div class="lesson-takeaway"><strong>Key takeaway:</strong> always <code>mount -a</code> after editing <code>/etc/fstab</code>, and always use <code>UUID=</code>. XFS grows online but <em>never</em> shrinks; ext4 shrinks only offline and only after <code>e2fsck -f</code>. "Device busy" is a job for <code>lsof</code>/<code>fuser</code>, not <code>-l</code>.</div>
           </div>
 
           <div class="lesson">
             <div class="lesson-title">LVM: Logical Volume Manager</div>
-            <h4>LVM Layer Architecture</h4>
+            <p class="lesson-intro">
+              LVM exists so "the disk is full" stops being an outage. It inserts a pool between disks and filesystems, which means capacity can be added while the service keeps running. The exam tests the <em>order of operations</em> more than the commands: growing goes LV first then filesystem, and shrinking goes filesystem first then LV — get it backwards and you truncate live data.
+            </p>
             <ul>
               <li><strong>PV (Physical Volume)</strong> — raw disks or partitions initialized for LVM use</li>
               <li><strong>VG (Volume Group)</strong> — pool of storage combining one or more PVs</li>
@@ -626,14 +741,17 @@
             </ul>
             <div class="exam-tip">To shrink an ext4 LV: unmount → <code>e2fsck -f</code> → <code>resize2fs</code> to new smaller size → <code>lvreduce</code>. XFS cannot be shrunk at all. The exam frequently tests this order-of-operations for both grow and shrink scenarios.</div>
             <div class="scenario-walkthrough">
-              <div class="scenario-walkthrough-head">💻 Worked scenario — LVM build and online extend</div>
+              <div class="scenario-walkthrough-head">💻 Concrete example — LVM build and online extend</div>
               Task: create a 10G XFS volume from two raw disks, mount it persistently, then extend by 5G. <strong>Walk:</strong> (1) <code>pvcreate /dev/sdb /dev/sdc</code>; (2) <code>vgcreate datavg /dev/sdb /dev/sdc</code>; (3) <code>lvcreate -L 10G -n datalv datavg</code>; (4) <code>mkfs.xfs /dev/datavg/datalv</code>; (5) <code>mkdir /data &amp;&amp; mount /dev/datavg/datalv /data</code>; (6) get the UUID with <code>blkid /dev/datavg/datalv</code>, then add to <code>/etc/fstab</code>: <code>UUID=&lt;value&gt; /data xfs defaults 0 0</code>; (7) <code>mount -a</code> to test. To extend: <code>lvextend -r -L +5G /dev/datavg/datalv</code> — the <code>-r</code> flag grows the LV and the XFS filesystem in one step. Confirm with <code>df -h /data</code> showing ~15G total.
             </div>
+            <div class="lesson-takeaway"><strong>Key takeaway:</strong> <code>pvcreate → vgcreate → lvcreate</code> going down, and <code>lvextend -r</code> (or <code>lvextend</code> then <code>resize2fs</code>/<code>xfs_growfs</code>) going up. If <code>vgs</code> shows no free extents, the answer is <code>vgextend</code> with a new PV first. Shrinking is ext4-only, offline, filesystem before LV.</div>
           </div>
 
           <div class="lesson">
             <div class="lesson-title">RAID with mdadm</div>
-            <h4>RAID Levels</h4>
+            <p class="lesson-intro">
+              RAID questions are arithmetic wearing a costume: given N disks and a level, how much usable capacity, and how many failures survived? Learn the two columns (usable = N−1 for RAID 5, N−2 for RAID 6, N/2 for RAID 1 and 10) and the rest is <code>mdadm</code> syntax plus one habit — checking <code>/proc/mdstat</code> before you believe an array is healthy.
+            </p>
             <ul>
               <li><strong>RAID 0</strong> (striping) — performance, no redundancy; min 2 disks; if one disk fails, all data is lost</li>
               <li><strong>RAID 1</strong> (mirroring) — full redundancy, 50% usable capacity; min 2 disks; can lose N-1 disks</li>
@@ -651,11 +769,18 @@
               <li><code>/etc/mdadm.conf</code> or <code>/etc/mdadm/mdadm.conf</code> — persist RAID config across reboots</li>
             </ul>
             <div class="study-note">Software RAID with mdadm is flexible and independent of hardware controllers. RAID 5 with 3 disks gives 2 disks of usable space. RAID 6 with 4 disks gives 2 disks of usable space. RAID 10 with 4 disks gives 2 disks of usable space — but RAID 10 is faster and more resilient for databases.</div>
+            <div class="scenario-walkthrough">
+              <div class="scenario-walkthrough-head">💻 Concrete example — replacing a failed disk in a RAID 5</div>
+              Monitoring reports a degraded array. <strong>Confirm and repair:</strong> (1) <code>cat /proc/mdstat</code> shows <code>[3/2] [U_U]</code> — three members, two up, the middle one gone; (2) <code>mdadm --detail /dev/md0</code> names the faulty device as <code>/dev/sdc</code>; (3) if it has not already been ejected, <code>mdadm --fail /dev/md0 /dev/sdc</code> then <code>mdadm --remove /dev/md0 /dev/sdc</code>; (4) swap the disk, copy the partition layout onto the replacement with <code>sfdisk -d /dev/sdb | sfdisk /dev/sdc</code> so the new member matches; (5) <code>mdadm --add /dev/md0 /dev/sdc</code> starts the rebuild — <code>cat /proc/mdstat</code> shows a progress bar and an ETA; (6) once it reads <code>[UUU]</code>, persist the config with <code>mdadm --detail --scan &gt;&gt; /etc/mdadm.conf</code> and rebuild the initramfs so the array assembles at boot. <strong>The exam's real question:</strong> during that rebuild the array has <em>no</em> remaining redundancy — a second failure loses everything, which is precisely the argument for RAID 6 or RAID 10 on large disks.
+            </div>
+            <div class="lesson-takeaway"><strong>Key takeaway:</strong> RAID 5 survives one failure (usable N−1), RAID 6 survives two (N−2), RAID 10 survives one per mirror and rebuilds fastest, RAID 0 survives nothing. <code>/proc/mdstat</code> is the status view; <code>--fail</code> → <code>--remove</code> → <code>--add</code> is the replacement sequence, and the config must be written to <code>mdadm.conf</code> to survive a reboot.</div>
           </div>
 
           <div class="lesson">
             <div class="lesson-title">Swap Space Management</div>
-            <h4>Creating and Managing Swap</h4>
+            <p class="lesson-intro">
+              Swap is the pressure-relief valve: it buys the kernel time to reclaim memory instead of invoking the OOM killer. Two practical points get tested — a <strong>swap file</strong> can be added to a running system with no repartitioning, and <strong>swappiness</strong> tunes how eagerly the kernel uses it, which matters on database hosts where paging is worse than a smaller cache.
+            </p>
             <ul>
               <li><code>mkswap /dev/sdX2</code> — format a partition as swap space</li>
               <li><code>swapon /dev/sdX2</code> — activate swap; <code>swapoff /dev/sdX2</code> — deactivate</li>
@@ -665,11 +790,19 @@
               <li><code>cat /proc/sys/vm/swappiness</code> — view swappiness (default 60); lower values reduce swap aggressiveness</li>
               <li><code>sysctl vm.swappiness=10</code> — set swappiness temporarily; persist in <code>/etc/sysctl.d/99-swap.conf</code></li>
             </ul>
+            <div class="exam-tip">A swap file must be mode <code>0600</code> and owned by root — <code>swapon</code> refuses or warns otherwise, because a world-readable swap file exposes whatever memory was paged out. Create it with <code>fallocate</code>, or with <code>dd</code> if the filesystem does not support <code>fallocate</code>.</div>
+            <div class="scenario-walkthrough">
+              <div class="scenario-walkthrough-head">💻 Concrete example — adding swap to a live VM being OOM-killed</div>
+              A 4&nbsp;GB VM keeps losing its application to the OOM killer during nightly batch runs, and the disk has no free partition. <strong>Add a 4 GB swap file without a reboot:</strong> (1) <code>free -h</code> and <code>swapon --show</code> confirm swap is 0; (2) <code>fallocate -l 4G /swapfile</code>; (3) <code>chmod 600 /swapfile</code> — skip this and <code>swapon</code> warns about insecure permissions; (4) <code>mkswap /swapfile</code>; (5) <code>swapon /swapfile</code>, then <code>swapon --show</code> lists it immediately; (6) persist with <code>/swapfile none swap sw 0 0</code> in <code>/etc/fstab</code>; (7) since this is a database host, lower the paging pressure: <code>echo 'vm.swappiness=10' &gt; /etc/sysctl.d/99-swap.conf &amp;&amp; sysctl --system</code>. <strong>Confirm the fix worked:</strong> <code>journalctl -k | grep -i "out of memory"</code> stays quiet through the next batch window.
+            </div>
+            <div class="lesson-takeaway"><strong>Key takeaway:</strong> the swap file recipe is <code>fallocate → chmod 600 → mkswap → swapon</code>, plus an fstab line to survive reboot. <code>swapon --show</code> and <code>free -h</code> verify it; <code>vm.swappiness</code> (default 60) is lowered toward 10 on latency-sensitive hosts and persisted under <code>/etc/sysctl.d/</code>.</div>
           </div>
 
           <div class="lesson">
             <div class="lesson-title">Disk Encryption with LUKS</div>
-            <h4>cryptsetup &amp; LUKS</h4>
+            <p class="lesson-intro">
+              LUKS protects data <em>at rest</em> — a stolen or RMA'd disk is unreadable without a key. The mental model is a two-step device stack: the raw partition holds a LUKS header, and unlocking it produces a <code>/dev/mapper/</code> device that you then format and mount like anything else. Everything the exam asks follows from that layering, including why the initramfs has to be rebuilt.
+            </p>
             <ul>
               <li><code>cryptsetup luksFormat /dev/sdX1</code> — initialize a LUKS encrypted container (destroys data)</li>
               <li><code>cryptsetup luksOpen /dev/sdX1 cryptdata</code> — unlock the container; creates <code>/dev/mapper/cryptdata</code></li>
@@ -680,6 +813,11 @@
               <li><code>/etc/crypttab</code> — maps LUKS devices to mapper names for auto-unlock at boot (with keyfile or passphrase prompt)</li>
             </ul>
             <div class="exam-tip">After adding a LUKS-encrypted device to <code>/etc/crypttab</code> and <code>/etc/fstab</code>, you must rebuild the initramfs (<code>dracut --force</code> on RHEL) so the initramfs includes the <code>cryptsetup</code> tools needed to unlock the device early in the boot process.</div>
+            <div class="scenario-walkthrough">
+              <div class="scenario-walkthrough-head">💻 Concrete example — an encrypted data volume that unlocks unattended</div>
+              Compliance requires <code>/secure</code> encrypted at rest, but the host must reboot without someone typing a passphrase. <strong>Build the stack bottom-up:</strong> (1) <code>cryptsetup luksFormat /dev/sdb1</code> and set a strong passphrase — this destroys any existing data; (2) add a keyfile so boot can be unattended: <code>dd if=/dev/urandom of=/root/.luks-secure bs=512 count=8</code>, <code>chmod 400 /root/.luks-secure</code>, <code>cryptsetup luksAddKey /dev/sdb1 /root/.luks-secure</code> — LUKS has 8 key slots, so passphrase and keyfile coexist; (3) <code>cryptsetup luksOpen /dev/sdb1 securedata</code>; (4) <code>mkfs.xfs /dev/mapper/securedata</code> — note you format the <em>mapper</em> device, never <code>/dev/sdb1</code>; (5) <code>/etc/crypttab</code>: <code>securedata UUID=&lt;luks-uuid&gt; /root/.luks-secure luks</code>, where the UUID comes from <code>cryptsetup luksUUID /dev/sdb1</code>; (6) <code>/etc/fstab</code>: <code>/dev/mapper/securedata /secure xfs defaults,_netdev 0 0</code>; (7) <code>dracut --force</code> so the crypt tooling is present early; (8) reboot and confirm with <code>lsblk</code> that <code>sdb1</code> carries a <code>crypt</code> child that is mounted. <strong>Caveat worth stating:</strong> a keyfile on the same machine protects against a stolen disk, not against a stolen server — that is the trade-off the scenario is really about.
+            </div>
+            <div class="lesson-takeaway"><strong>Key takeaway:</strong> <code>luksFormat</code> → <code>luksOpen</code> → <code>mkfs</code> on <code>/dev/mapper/&lt;name&gt;</code> → mount. <code>/etc/crypttab</code> handles the unlock and <code>/etc/fstab</code> the mount, in that order, and any crypt change must be followed by an initramfs rebuild.</div>
           </div>
 
           <div class="module-takeaways">
@@ -714,7 +852,9 @@
 
           <div class="lesson">
             <div class="lesson-title">The ip Command Suite</div>
-            <h4>Replacing Legacy net-tools</h4>
+            <p class="lesson-intro">
+              <code>ip</code> is the tool for <em>seeing and testing</em>, not for configuring. Everything it writes lives in the kernel and dies at the next reboot — which is exactly what makes it safe for a temporary route while you diagnose, and exactly why the answer to "make this permanent" is never <code>ip addr add</code>.
+            </p>
             <ul>
               <li>The <code>ip</code> command (from the <code>iproute2</code> package) replaces deprecated tools: <code>ifconfig</code>, <code>route</code>, <code>arp</code>, <code>netstat</code></li>
               <li><code>ip addr show</code> (or <code>ip a</code>) — display IP addresses on all interfaces</li>
@@ -727,11 +867,18 @@
               <li><code>ip neigh show</code> — display the ARP/neighbor cache</li>
             </ul>
             <div class="study-note">Changes made with the <code>ip</code> command are not persistent across reboots. For persistent configuration, use NetworkManager (<code>nmcli</code>) or edit interface config files in <code>/etc/NetworkManager/system-connections/</code>.</div>
+            <div class="scenario-walkthrough">
+              <div class="scenario-walkthrough-head">💻 Concrete example — reading a host's network state in four commands</div>
+              A server "cannot reach the backup network" and you have one SSH session to work out why. <strong>Read the stack from the bottom up:</strong> (1) <code>ip link show</code> — is the interface even up? <code>state DOWN</code> or missing <code>LOWER_UP</code> means a cable, a VLAN, or a driver problem, and nothing above it matters; (2) <code>ip -br addr show</code> — the brief form gives one line per interface; an address of <code>169.254.x.x</code> means DHCP never answered; (3) <code>ip route get 10.20.0.5</code> — better than reading the whole table, it tells you which interface and gateway the kernel <em>would</em> actually use for that destination, which is how you catch a missing static route; (4) <code>ip neigh show</code> — an entry stuck in <code>FAILED</code> for the gateway means ARP is unanswered, so the problem is layer 2, not routing. <strong>Test a hypothesis without committing to it:</strong> <code>ip route add 10.20.0.0/16 via 192.168.1.254</code>, confirm connectivity, then make it permanent with <code>nmcli connection modify … +ipv4.routes</code> — the temporary route disappears on reboot either way, so a wrong guess cannot strand the host.
+            </div>
+            <div class="lesson-takeaway"><strong>Key takeaway:</strong> <code>ip a</code> / <code>ip r</code> / <code>ip link</code> / <code>ip neigh</code> replace <code>ifconfig</code>, <code>route</code>, and <code>arp</code>; <code>ip route get &lt;dest&gt;</code> answers "which path would this actually take". Nothing <code>ip</code> writes survives a reboot — persistence belongs to NetworkManager.</div>
           </div>
 
           <div class="lesson">
             <div class="lesson-title">NetworkManager: nmcli &amp; nmtui</div>
-            <h4>nmcli Commands</h4>
+            <p class="lesson-intro">
+              NetworkManager owns the persistent side: profiles on disk that get reapplied at every boot. The one behaviour to internalise is that <code>nmcli connection modify</code> only edits the stored profile — nothing changes on the wire until you bring the connection back up, which is why a "correct" config can appear to do nothing.
+            </p>
             <ul>
               <li><code>nmcli connection show</code> — list all configured network connections</li>
               <li><code>nmcli connection show --active</code> — list only active connections</li>
@@ -750,14 +897,17 @@
               <li>Restart networking: <code>nmcli connection reload</code> then <code>nmcli connection up CONNECTION</code></li>
             </ul>
             <div class="scenario-walkthrough">
-              <div class="scenario-walkthrough-head">💻 Worked scenario — persistent static IP with nmcli</div>
+              <div class="scenario-walkthrough-head">💻 Concrete example — persistent static IP with nmcli</div>
               Task: configure <code>ens3</code> with static IP <code>10.0.1.50/24</code>, gateway <code>10.0.1.1</code>, DNS <code>1.1.1.1</code>, and set hostname to <code>server2.lab.local</code>. <strong>Walk:</strong> (1) <code>hostnamectl set-hostname server2.lab.local</code>; (2) <code>nmcli con mod ens3 ipv4.addresses 10.0.1.50/24 ipv4.gateway 10.0.1.1 ipv4.dns 1.1.1.1 ipv4.method manual</code>; (3) <code>nmcli con up ens3</code> to activate — the <code>mod</code> writes to disk but changes are only applied when the connection is brought up; (4) verify: <code>ip a show ens3</code> (IP assigned), <code>ip route show default</code> (gateway), <code>cat /etc/resolv.conf</code> (DNS), <code>hostname</code> (hostname). Critical: anything set via <code>ip addr add</code> instead of <code>nmcli</code> vanishes at the next reboot.
             </div>
+            <div class="lesson-takeaway"><strong>Key takeaway:</strong> <code>nmcli con mod</code> writes the profile, <code>nmcli con up</code> applies it — both steps, every time. Switching off DHCP needs <code>ipv4.method manual</code> alongside the address, and profiles live in <code>/etc/NetworkManager/system-connections/</code>. On a headless box with no muscle memory for the syntax, <code>nmtui</code> does the same job.</div>
           </div>
 
           <div class="lesson">
             <div class="lesson-title">DNS &amp; Name Resolution</div>
-            <h4>Key Files &amp; Tools</h4>
+            <p class="lesson-intro">
+              Name resolution is a chain of three files and the exam probes each link separately: <code>/etc/nsswitch.conf</code> decides <em>which sources</em> are consulted and in what order, <code>/etc/hosts</code> is the static source, and <code>/etc/resolv.conf</code> names the DNS servers. "Ping works by IP but not by name" is always a failure somewhere in that chain.
+            </p>
             <ul>
               <li><code>/etc/hosts</code> — static hostname-to-IP mappings; checked before DNS by default</li>
               <li><code>/etc/resolv.conf</code> — specifies DNS servers (<code>nameserver 8.8.8.8</code>) and search domains (<code>search example.com</code>)</li>
@@ -768,11 +918,18 @@
               <li><code>systemd-resolve --status</code> — show DNS configuration used by systemd-resolved</li>
             </ul>
             <div class="exam-tip">The order of name resolution is controlled by <code>/etc/nsswitch.conf</code>, not <code>/etc/resolv.conf</code>. If the exam asks how to make <code>/etc/hosts</code> take precedence over DNS, the answer is to check the <code>hosts:</code> line in <code>nsswitch.conf</code> — it must list <code>files</code> before <code>dns</code>.</div>
+            <div class="scenario-walkthrough">
+              <div class="scenario-walkthrough-head">💻 Concrete example — "dig works but ping doesn't"</div>
+              <code>ping app.lab.local</code> reports <em>Name or service not known</em>, yet <code>dig app.lab.local</code> returns the right A record. That contradiction is the diagnosis: <code>dig</code> talks to a DNS server directly, while <code>ping</code> goes through the <strong>NSS</strong> chain — so DNS is fine and the chain is broken. <strong>Walk it:</strong> (1) <code>grep ^hosts /etc/nsswitch.conf</code> — if <code>dns</code> is missing from the line, no ordinary program will ever consult DNS no matter how healthy it is; (2) <code>cat /etc/resolv.conf</code> — on a <code>systemd-resolved</code> host this should point at <code>127.0.0.53</code>, and the <em>real</em> upstream servers are shown by <code>resolvectl status</code>; (3) if the file was hand-edited, NetworkManager overwrites it on the next connection change — set the servers with <code>nmcli con mod ens3 ipv4.dns "10.0.1.1"</code> instead; (4) short names failing while FQDNs work points at a missing <code>search lab.local</code> line, set via <code>ipv4.dns-search</code>. <strong>Prove the fix through the same path the application uses:</strong> <code>getent hosts app.lab.local</code> — that goes through NSS exactly as <code>ping</code> does, unlike <code>dig</code>.
+            </div>
+            <div class="lesson-takeaway"><strong>Key takeaway:</strong> <code>dig</code> and <code>host</code> query DNS directly; <code>getent hosts</code> tests the resolution path applications actually take. Order lives in <code>/etc/nsswitch.conf</code>, servers in <code>/etc/resolv.conf</code> — and on a NetworkManager host, that file is generated, so edit the connection profile instead.</div>
           </div>
 
           <div class="lesson">
             <div class="lesson-title">Firewall: iptables, ufw &amp; firewalld</div>
-            <h4>iptables Fundamentals</h4>
+            <p class="lesson-intro">
+              Three front ends, one kernel underneath. What unites them on the exam is <strong>first match wins</strong> and the split between the running ruleset and the saved one — the two facts behind almost every firewall question, and behind the classic disaster of locking yourself out of a remote host with a rule you were about to fix.
+            </p>
             <ul>
               <li>Three main chains: <strong>INPUT</strong> (packets destined for the local system), <strong>OUTPUT</strong> (packets originating from local system), <strong>FORWARD</strong> (routed packets)</li>
               <li><code>iptables -L -n -v --line-numbers</code> — list all rules with line numbers and packet counts</li>
@@ -790,11 +947,18 @@
               <li><code>firewall-cmd --permanent --add-service=http</code> — allow HTTP; <code>--reload</code> applies permanent changes</li>
             </ul>
             <div class="exam-tip">iptables rules are evaluated top-to-bottom; the first matching rule wins. This means more specific rules must come before general rules. If you have a DROP rule at position 1 and an ACCEPT for SSH at position 2, SSH will be blocked. Use <code>--line-numbers</code> and <code>-I</code> (insert) for targeted rule placement.</div>
+            <div class="scenario-walkthrough">
+              <div class="scenario-walkthrough-head">💻 Concrete example — opening a service on firewalld without losing your session</div>
+              A new web app must be reachable on 8443/tcp, and SSH must stay open on a host you are connected to right now. <strong>Walk:</strong> (1) <code>firewall-cmd --get-active-zones</code> and <code>firewall-cmd --list-all</code> — establish which zone the interface is in before changing anything, since a rule added to the wrong zone does nothing at all; (2) <code>firewall-cmd --add-port=8443/tcp</code> — no <code>--permanent</code>, so it applies immediately and evaporates on reload; test the app now; (3) once it works, commit it: <code>firewall-cmd --permanent --add-port=8443/tcp</code> followed by <code>firewall-cmd --reload</code>. <strong>That two-step order is the safety net</strong> — the runtime rule proves the change is right, and if a permanent edit ever locks you out, a reboot reverts to the last known-good permanent set. <strong>Verify from outside:</strong> <code>nc -zv server 8443</code> from another host, not from the server itself, where loopback traffic bypasses the filter entirely. Same job on Ubuntu: <code>ufw allow 8443/tcp</code>, then <code>ufw status numbered</code>.
+            </div>
+            <div class="lesson-takeaway"><strong>Key takeaway:</strong> firewalld separates <em>runtime</em> from <em>permanent</em> — <code>--permanent</code> plus <code>--reload</code> is what persists. iptables evaluates top-down, first match wins, so <code>-I</code> (insert) places a rule ahead of a broad DROP where <code>-A</code> (append) would land uselessly behind it. Always test a port from another machine.</div>
           </div>
 
           <div class="lesson">
             <div class="lesson-title">SSH Configuration &amp; Key-Based Auth</div>
-            <h4>Generating &amp; Deploying SSH Keys</h4>
+            <p class="lesson-intro">
+              Key-based SSH is the one hardening step that makes a server both safer <em>and</em> easier to automate. The detail that trips people up is not the cryptography — it is the permissions: <code>sshd</code> silently refuses a key if <code>~/.ssh</code> or <code>authorized_keys</code> is group-writable, and the client-side error says nothing useful about why.
+            </p>
             <ul>
               <li><code>ssh-keygen -t ed25519 -C "comment"</code> — generate an Ed25519 key pair (recommended over RSA for new keys)</li>
               <li><code>ssh-keygen -t rsa -b 4096</code> — generate 4096-bit RSA key pair</li>
@@ -812,11 +976,18 @@
               <li><code>ClientAliveInterval 300</code> / <code>ClientAliveCountMax 2</code> — disconnect idle sessions after 10 minutes</li>
               <li>After editing <code>/etc/ssh/sshd_config</code>: <code>systemctl restart sshd</code></li>
             </ul>
+            <div class="scenario-walkthrough">
+              <div class="scenario-walkthrough-head">💻 Concrete example — switching a server to key-only auth without locking yourself out</div>
+              <strong>Order matters — prove the new path works before closing the old one:</strong> (1) on your workstation, <code>ssh-keygen -t ed25519 -C "ops@laptop"</code>; (2) <code>ssh-copy-id ops@server</code> while password auth is still enabled; (3) open a <em>second</em> terminal and confirm <code>ssh ops@server</code> now succeeds with no password prompt — keep the first session open as your lifeline; (4) only now edit <code>/etc/ssh/sshd_config</code>: <code>PasswordAuthentication no</code>, <code>PermitRootLogin no</code>; (5) <code>sshd -t</code> validates the syntax — a typo here plus a restart is how servers become unreachable; (6) <code>systemctl restart sshd</code>, then test from the second terminal before you close the first. <strong>When the key is ignored and it falls back to a password prompt,</strong> the cause is almost always permissions: <code>chmod 700 ~/.ssh</code>, <code>chmod 600 ~/.ssh/authorized_keys</code>, correct ownership — and <code>journalctl -u sshd</code> on the server states it plainly ("Authentication refused: bad ownership or modes"), while <code>ssh -v</code> on the client only shows the key being offered and declined. On RHEL, a home directory relabelled or restored from backup may also need <code>restorecon -R -v ~/.ssh</code>.
+            </div>
+            <div class="lesson-takeaway"><strong>Key takeaway:</strong> deploy and test the key <em>before</em> disabling passwords, and always <code>sshd -t</code> before restarting. <code>~/.ssh</code> is 700 and <code>authorized_keys</code> is 600 — anything looser is silently ignored. <code>ed25519</code> for new keys; the server's side of the story is in <code>journalctl -u sshd</code>.</div>
           </div>
 
           <div class="lesson">
             <div class="lesson-title">Network Troubleshooting</div>
-            <h4>Essential Diagnostic Commands</h4>
+            <p class="lesson-intro">
+              Troubleshooting is not a list of commands, it is an order of elimination: is the interface up, does the name resolve, does the route exist, is the port listening, does the packet arrive. Each rung has one tool, and picking the right rung first is what separates a two-minute diagnosis from an afternoon of guessing.
+            </p>
             <ul>
               <li><code>ping -c 4 HOST</code> — test basic connectivity; <code>ping -I eth0 HOST</code> — send from specific interface</li>
               <li><code>traceroute HOST</code> — show path packets take (hop-by-hop); <code>tracepath HOST</code> — similar but no root required</li>
@@ -828,6 +999,11 @@
               <li><code>nc -zv HOST PORT</code> — test if a TCP port is open (netcat); <code>nc -l 8080</code> — listen on port 8080</li>
             </ul>
             <div class="study-note"><code>ss -tulnp</code> is the modern replacement for <code>netstat -tulnp</code>. The flags: <code>-t</code> TCP, <code>-u</code> UDP, <code>-l</code> listening only, <code>-n</code> show numbers not names, <code>-p</code> show process info. The Linux+ exam may test either command.</div>
+            <div class="scenario-walkthrough">
+              <div class="scenario-walkthrough-head">💻 Concrete example — "the API is down" narrowed to one layer</div>
+              Clients get connection refused on <code>https://api.lab.local</code>. <strong>Climb the ladder, stopping at the first rung that fails:</strong> (1) <em>Does the name resolve?</em> <code>getent hosts api.lab.local</code> — if not, it is a DNS problem and nothing below matters; (2) <em>Is anything listening?</em> on the server, <code>ss -tulnp | grep 443</code> — <code>127.0.0.1:443</code> instead of <code>0.0.0.0:443</code> means the service is bound to loopback only, which looks healthy locally and is unreachable from anywhere else; (3) <em>Does the port answer from outside?</em> <code>nc -zv api.lab.local 443</code> from a client — <em>refused</em> means nothing is listening, while a <em>timeout</em> points at a firewall silently dropping instead of rejecting; (4) <em>Do packets even arrive?</em> <code>tcpdump -i any -n port 443</code> on the server while the client retries — SYNs with no SYN/ACK back means the host received them and the filter dropped them; total silence means they never got there, so look at routing or an upstream firewall; (5) <em>Is it TLS rather than the network?</em> <code>curl -vI https://api.lab.local</code> shows exactly where the handshake stops. <strong>Diagnosis:</strong> a SYN arriving with no reply, plus <code>0.0.0.0:443</code> in <code>ss</code>, is firewalld — check the zone.
+            </div>
+            <div class="lesson-takeaway"><strong>Key takeaway:</strong> <code>ss -tulnp</code> answers "is it listening, and on which address"; <code>nc -zv</code> distinguishes refused (nothing there) from timeout (dropped); <code>tcpdump</code> proves whether packets arrive at all; <code>curl -v</code> separates a TLS failure from a network one. Work the ladder in order rather than guessing.</div>
           </div>
 
           <div class="module-takeaways">
@@ -862,7 +1038,9 @@
 
           <div class="lesson">
             <div class="lesson-title">SELinux</div>
-            <h4>SELinux Modes &amp; Status</h4>
+            <p class="lesson-intro">
+              SELinux is the answer to "the permissions are right and it still won't work". It adds a second, label-based check on top of Unix modes, so a process can own a file and still be refused. The exam wants three reflexes: read the denial in the audit log, know that <code>chcon</code> is temporary while <code>semanage fcontext</code> is permanent, and never answer a scenario with "disable SELinux".
+            </p>
             <ul>
               <li><strong>Enforcing</strong> — SELinux policy is enforced; violations are blocked and logged</li>
               <li><strong>Permissive</strong> — violations are logged but NOT blocked; useful for troubleshooting and policy development</li>
@@ -890,14 +1068,17 @@
             </ul>
             <div class="exam-tip">After using <code>chcon</code> to change a file context, the change is temporary. A subsequent <code>restorecon</code> will reset it back to the default policy label. The correct permanent approach is <code>semanage fcontext</code> followed by <code>restorecon</code>. The exam tests this two-step workflow.</div>
             <div class="scenario-walkthrough">
-              <div class="scenario-walkthrough-head">💻 Worked scenario — SELinux deny-and-fix for nginx</div>
+              <div class="scenario-walkthrough-head">💻 Concrete example — SELinux deny-and-fix for nginx</div>
               Symptom: nginx returns 403 on files in <code>/data/web/</code> even though the Unix permissions are correct. <strong>Walk:</strong> (1) <code>getenforce</code> → Enforcing; (2) <code>grep AVC /var/log/audit/audit.log | tail -5</code> → shows a denial for <code>httpd_t</code> trying to read <code>/data/web</code>; (3) <code>audit2why &lt; /var/log/audit/audit.log</code> explains the cause: wrong SELinux file context; (4) fix permanently: <code>semanage fcontext -a -t httpd_sys_content_t "/data/web(/.*)?"</code>; (5) <code>restorecon -Rv /data/web/</code> applies the rule; (6) reload nginx and confirm the 403 is gone. If you had used <code>chcon -t httpd_sys_content_t /data/web</code> instead, the next <code>restorecon</code> run would silently revert it — permanent fix requires <code>semanage fcontext</code>.
             </div>
+            <div class="lesson-takeaway"><strong>Key takeaway:</strong> denials are in <code>/var/log/audit/audit.log</code> — find them with <code>ausearch -m AVC -ts recent</code> and explain them with <code>audit2why</code>. Wrong <em>label</em> → <code>semanage fcontext</code> then <code>restorecon</code>; blocked <em>behaviour</em> (outbound connections, non-standard ports) → a boolean, <code>setsebool -P</code>. Reach for <code>audit2allow</code> last, and read what it generates before installing it.</div>
           </div>
 
           <div class="lesson">
             <div class="lesson-title">AppArmor</div>
-            <h4>AppArmor Overview &amp; Status</h4>
+            <p class="lesson-intro">
+              AppArmor solves the same problem as SELinux on the Debian side, with a simpler model: profiles list <em>paths</em> a program may touch, rather than labels attached to inodes. Translate the vocabulary once — <code>complain</code> is permissive, <code>enforce</code> is enforcing — and your SELinux troubleshooting instincts carry straight across.
+            </p>
             <ul>
               <li>AppArmor is the MAC (Mandatory Access Control) framework used on Debian/Ubuntu systems (vs SELinux on RHEL)</li>
               <li><code>aa-status</code> — show AppArmor status: profiles loaded, enforcement mode per profile</li>
@@ -909,11 +1090,18 @@
               <li><code>aa-genprof /path/to/binary</code> — generate a new profile interactively by watching program behavior</li>
             </ul>
             <div class="study-note">AppArmor profiles are path-based (they restrict what files a program can access by pathname). SELinux is label-based (it uses extended attribute labels on files and processes). The Linux+ exam may ask which system uses which approach.</div>
+            <div class="scenario-walkthrough">
+              <div class="scenario-walkthrough-head">💻 Concrete example — nginx can't read a document root outside /var/www</div>
+              On Ubuntu, nginx is moved to serve <code>/srv/sites/app</code> and immediately returns 403 despite correct ownership. <strong>Walk:</strong> (1) <code>aa-status</code> confirms <code>/usr/sbin/nginx</code> is loaded in <em>enforce</em> mode; (2) <code>dmesg | grep -i apparmor</code> or <code>journalctl -k | grep DENIED</code> shows <code>apparmor="DENIED" operation="open" name="/srv/sites/app/index.html"</code> — the path is simply not in the profile; (3) confirm the diagnosis without editing anything: <code>aa-complain /usr/sbin/nginx</code>, retry, and the page loads while the denial is still logged; (4) fix it properly by adding <code>/srv/sites/app/** r,</code> to <code>/etc/apparmor.d/usr.sbin.nginx</code> (or to the <code>local/</code> include so a package update does not overwrite it); (5) <code>apparmor_parser -r /etc/apparmor.d/usr.sbin.nginx</code> reloads it; (6) <code>aa-enforce /usr/sbin/nginx</code> puts the profile back under enforcement and the site still works. <strong>The parallel to hold onto:</strong> complain mode is the diagnostic step, exactly like <code>setenforce 0</code> — and in both worlds leaving it there is the wrong answer.
+            </div>
+            <div class="lesson-takeaway"><strong>Key takeaway:</strong> AppArmor is path-based (Debian/Ubuntu), SELinux is label-based (RHEL). Profiles live in <code>/etc/apparmor.d/</code>; <code>aa-status</code> shows modes, <code>aa-complain</code> diagnoses, <code>apparmor_parser -r</code> reloads after an edit, <code>aa-enforce</code> restores enforcement.</div>
           </div>
 
           <div class="lesson">
             <div class="lesson-title">GPG Encryption &amp; Signing</div>
-            <h4>GPG Key Management</h4>
+            <p class="lesson-intro">
+              GPG covers two different guarantees and the exam expects you to keep them apart: <strong>encryption</strong> uses the recipient's <em>public</em> key so only they can read it, while <strong>signing</strong> uses your <em>private</em> key so anyone can prove it came from you unmodified. Package repositories rely on the second one, which is why <code>gpgcheck=1</code> belongs in this lesson too.
+            </p>
             <ul>
               <li><code>gpg --gen-key</code> — generate a new GPG key pair interactively</li>
               <li><code>gpg --list-keys</code> — list all keys in the public keyring</li>
@@ -930,11 +1118,19 @@
               <li><code>gpg --verify file.sig file</code> — verify a detached signature</li>
               <li>RPM uses GPG to sign packages — <code>rpm -K package.rpm</code> verifies the package signature</li>
             </ul>
+            <div class="exam-tip">Encrypt with the <strong>recipient's public</strong> key; sign with <strong>your own private</strong> key. A file can be both (<code>gpg --sign --encrypt</code>). If a question says "prove it has not been altered", the answer is a signature, not encryption.</div>
+            <div class="scenario-walkthrough">
+              <div class="scenario-walkthrough-head">💻 Concrete example — verifying a vendor package before installing it</div>
+              A vendor supplies <code>agent-3.2.rpm</code> plus a detached signature and a public key. <strong>Verify before you trust:</strong> (1) <code>gpg --import vendor-public.key</code>, then <code>gpg --list-keys</code> and check the fingerprint against the one published on the vendor's site over HTTPS — importing a key that arrived with the file proves nothing on its own; (2) <code>gpg --verify agent-3.2.rpm.sig agent-3.2.rpm</code> → <em>"Good signature from Vendor Ops"</em>; a <em>BAD signature</em> means the file is corrupt or tampered with, and stop there; (3) for RPM specifically, wire it into the package manager instead of checking by hand: <code>rpm --import /etc/pki/rpm-gpg/RPM-GPG-KEY-vendor</code>, then <code>rpm -K agent-3.2.rpm</code> → <code>digests signatures OK</code>; (4) keep <code>gpgcheck=1</code> in the <code>.repo</code> file so every future update from that repo is verified automatically — turning it off to "make the install work" is the wrong fix for an unimported key. <strong>The other direction:</strong> to send a config file containing secrets to that vendor, <code>gpg --encrypt -r "Vendor Ops" config.yml</code> — encrypted with <em>their</em> public key, so only their private key opens it.
+            </div>
+            <div class="lesson-takeaway"><strong>Key takeaway:</strong> encrypt with the recipient's public key, sign with your own private key, verify with <code>gpg --verify sig file</code>. For packages, import the vendor key and keep <code>gpgcheck=1</code>; <code>rpm -K</code> checks a single file.</div>
           </div>
 
           <div class="lesson">
             <div class="lesson-title">System Hardening</div>
-            <h4>PAM-Based Controls</h4>
+            <p class="lesson-intro">
+              Hardening on this exam is mostly one idea applied repeatedly: grant the narrowest privilege that still lets the job get done. In practice that means <code>sudoers</code> entries scoped to specific commands rather than blanket <code>ALL</code>, resource limits that stop one runaway process taking the host down, and lockout policies on failed logins.
+            </p>
             <ul>
               <li><code>/etc/pam.d/</code> — service-specific PAM configuration; <code>system-auth</code> and <code>password-auth</code> are key files on RHEL</li>
               <li><code>pam_pwquality.so</code> — enforces password complexity rules configured in <code>/etc/security/pwquality.conf</code></li>
@@ -951,11 +1147,18 @@
               <li>Restrict to specific commands: <code>carol ALL=(root) /usr/bin/dnf install, /usr/bin/dnf remove</code></li>
               <li>Include drop-in files: <code>/etc/sudoers.d/</code> — add separate files here rather than editing <code>/etc/sudoers</code> directly</li>
             </ul>
+            <div class="scenario-walkthrough">
+              <div class="scenario-walkthrough-head">💻 Concrete example — letting the deploy user restart one service, and only that</div>
+              CI needs to run <code>systemctl restart myapp</code> unattended. The lazy answer, <code>deploy ALL=(ALL) NOPASSWD: ALL</code>, hands out full root. <strong>Do it narrowly:</strong> (1) <code>visudo -f /etc/sudoers.d/deploy</code> — a drop-in file, so a distro upgrade to <code>/etc/sudoers</code> cannot clobber it, and <code>visudo</code> refuses to save a syntax error that would otherwise break sudo for everyone; (2) the rule: <code>deploy ALL=(root) NOPASSWD: /usr/bin/systemctl restart myapp, /usr/bin/systemctl status myapp</code>; (3) use absolute paths and no wildcard — <code>systemctl restart *</code> would let the user restart <em>any</em> unit, and an argument-less <code>/usr/bin/systemctl</code> would permit <code>systemctl mask sshd</code> too; (4) <code>chmod 0440 /etc/sudoers.d/deploy</code>, the mode sudo requires; (5) verify with <code>sudo -l -U deploy</code>, which lists exactly what is permitted, then confirm <code>sudo -u deploy sudo systemctl restart sshd</code> is refused. <strong>Pair it with a limit:</strong> <code>deploy hard nproc 512</code> in <code>/etc/security/limits.conf</code> keeps a runaway build from fork-bombing the host — check the running value with <code>ulimit -u</code>.
+            </div>
+            <div class="lesson-takeaway"><strong>Key takeaway:</strong> always <code>visudo</code>, always a drop-in under <code>/etc/sudoers.d/</code>, always absolute paths with explicit arguments — wildcards give away more than they look like they do. <code>sudo -l -U user</code> is how you audit the result; <code>faillock</code> and <code>/etc/security/limits.conf</code> cover lockouts and resource caps.</div>
           </div>
 
           <div class="lesson">
             <div class="lesson-title">Log Security &amp; Auditing</div>
-            <h4>Key Log Files</h4>
+            <p class="lesson-intro">
+              Logs answer "what happened"; the audit subsystem answers "who touched this file, when, and from where". They are separate systems with separate tools — <code>journalctl</code> and <code>/var/log/secure</code> on one side, <code>auditctl</code> and <code>ausearch</code> on the other — and the exam tests whether you reach for the right one for the question being asked.
+            </p>
             <ul>
               <li><code>/var/log/auth.log</code> (Debian) or <code>/var/log/secure</code> (RHEL) — authentication events: logins, sudo usage, SSH attempts</li>
               <li><code>/var/log/messages</code> (RHEL) or <code>/var/log/syslog</code> (Debian) — general system messages</li>
@@ -976,6 +1179,11 @@
               <li>Persistent rules: <code>/etc/audit/rules.d/audit.rules</code></li>
             </ul>
             <div class="exam-tip"><code>audit2allow</code> generates allow rules from denial messages but always review the output — it may create overly permissive rules. Use the minimum necessary permissions and apply the principle of least privilege. The exam may test whether you know <code>audit2why</code> (explains denials) vs <code>audit2allow</code> (generates allow policy).</div>
+            <div class="scenario-walkthrough">
+              <div class="scenario-walkthrough-head">💻 Concrete example — an account keeps getting locked out overnight</div>
+              <code>svc-deploy</code> is locked out most mornings and nobody knows why. <strong>Investigate:</strong> (1) <code>faillock --user svc-deploy</code> lists the failure times and the source addresses — a burst from one unfamiliar IP looks very different from three failures from the CI runner; (2) <code>lastb | head -20</code> corroborates from <code>/var/log/btmp</code>; (3) narrow it in the journal: <code>journalctl -u sshd --since "yesterday 22:00" --until "yesterday 23:59" | grep -i "failed\|invalid"</code>; (4) if the source is your own automation, the cause is usually a stale key or an expired password rather than an attack — <code>chage -l svc-deploy</code> settles that in one line; (5) clear the lock with <code>faillock --user svc-deploy --reset</code>. <strong>Then make the next occurrence answerable:</strong> <code>auditctl -w /etc/ssh/sshd_config -p wa -k sshd_cfg</code> flags any write to the SSH config, <code>ausearch -k sshd_cfg</code> retrieves those events with the <em>real</em> user behind a <code>sudo</code> (the <code>auid</code> field, which the journal does not give you), and the same rule in <code>/etc/audit/rules.d/audit.rules</code> makes it survive a reboot.
+            </div>
+            <div class="lesson-takeaway"><strong>Key takeaway:</strong> auth events are in <code>/var/log/secure</code> (RHEL) or <code>/var/log/auth.log</code> (Debian); <code>last</code> and <code>lastb</code> read the login databases. For file-level accountability use <code>auditctl -w … -k key</code> and <code>ausearch -k key</code>, persist the rule under <code>/etc/audit/rules.d/</code>, and remember <code>auid</code> is what identifies the human behind a <code>sudo</code>.</div>
           </div>
 
           <div class="module-takeaways">
@@ -1010,7 +1218,9 @@
 
           <div class="lesson">
             <div class="lesson-title">Bash Scripting Fundamentals</div>
-            <h4>Script Structure &amp; Variables</h4>
+            <p class="lesson-intro">
+              Linux+ does not ask you to write elegant code — it shows you a short script and asks what it does, or which line is wrong. That makes three things worth memorising cold: the special variables (<code>$?</code>, <code>$#</code>, <code>$@</code>, <code>$1</code>), the <code>test</code> operators (<code>-f</code> vs <code>-d</code>, <code>-eq</code> vs <code>=</code>), and why unquoted variables break the moment a path contains a space.
+            </p>
             <ul>
               <li>Always start with a shebang: <code>#!/bin/bash</code> (or <code>#!/usr/bin/env bash</code> for portability)</li>
               <li>Make executable: <code>chmod +x script.sh</code>; run with <code>./script.sh</code> or <code>bash script.sh</code></li>
@@ -1034,14 +1244,17 @@
             </ul>
             <div class="exam-tip"><code>$?</code> must be checked immediately after the command it refers to — the very next command overwrites it. A common pattern: <code>command; RC=$?; if [ $RC -ne 0 ]; then ...</code>. Also: <code>set -e</code> at the top of a script causes it to exit immediately on any non-zero return code.</div>
             <div class="scenario-walkthrough">
-              <div class="scenario-walkthrough-head">💻 Worked scenario — service health-check script</div>
+              <div class="scenario-walkthrough-head">💻 Concrete example — service health-check script</div>
               Task: write a script that checks if <code>nginx</code> and <code>sshd</code> are running, starts any that aren't, and logs results. <strong>Walk:</strong> Start with <code>#!/bin/bash</code> and <code>set -e</code> removed (we want the loop to continue on failure). Declare an array: <code>SERVICES=(nginx sshd)</code>. Loop: <code>for SVC in "${SERVICES[@]}"; do</code> — always quote array expansions. Check status: <code>if ! systemctl is-active --quiet "$SVC"; then</code> — <code>is-active --quiet</code> exits 0 (active) or non-zero (not), so <code>!</code> triggers on failure. Inside: <code>systemctl start "$SVC" &amp;&amp; echo "$(date '+%Y-%m-%d %T'): started $SVC" &gt;&gt; /var/log/svc-check.log</code>. Close with <code>fi; done</code>. Schedule via cron: add <code>*/5 * * * * root /usr/local/bin/svc-check.sh</code> to <code>/etc/cron.d/svc-check</code>.
             </div>
+            <div class="lesson-takeaway"><strong>Key takeaway:</strong> quote every variable expansion (<code>"$SVC"</code>, <code>"${ARR[@]}"</code>) — unquoted, a value with a space becomes two arguments. Test exit status with the command itself (<code>if ! systemctl is-active --quiet …</code>) rather than parsing its output, and capture <code>$?</code> on the very next line if you need it later. String comparison uses <code>=</code>, integers use <code>-eq</code>.</div>
           </div>
 
           <div class="lesson">
             <div class="lesson-title">Text Processing Toolkit</div>
-            <h4>Core Text Processing Commands</h4>
+            <p class="lesson-intro">
+              Every one of these tools does one thing to a stream of lines, and the skill being tested is <em>composition</em>: <code>grep</code> selects, <code>awk</code> and <code>cut</code> project columns, <code>sed</code> rewrites, <code>sort</code> and <code>uniq</code> aggregate. Read a pipeline left to right as a sentence and the exam's "what does this output?" questions stop being guesswork.
+            </p>
             <ul>
               <li><code>grep -E "pattern" file</code> — extended regex search; <code>-i</code> case-insensitive; <code>-r</code> recursive; <code>-v</code> invert match; <code>-l</code> filenames only; <code>-c</code> count matches</li>
               <li><code>grep -P "\d{3}-\d{4}" file</code> — Perl-compatible regex for complex patterns</li>
@@ -1056,11 +1269,18 @@
               <li><code>head -n 20 file</code> — first 20 lines; <code>tail -n 20 file</code> — last 20 lines; <code>tail -f /var/log/syslog</code> — follow a file live</li>
             </ul>
             <div class="study-note">Combining text processing tools with pipes is a core Linux skill. A common exam pattern: <code>cat /etc/passwd | awk -F: '$3 >= 1000 {print $1}' | sort</code> — list all regular users sorted alphabetically. Know how to chain <code>grep | awk | sort | uniq</code> pipelines.</div>
+            <div class="scenario-walkthrough">
+              <div class="scenario-walkthrough-head">💻 Concrete example — the top ten sources of failed SSH logins</div>
+              <strong>Build it one stage at a time, checking the output after each:</strong> <code>grep "Failed password" /var/log/secure</code> selects the interesting lines; <code>| awk '{print $(NF-3)}'</code> projects the IP — counting fields <em>from the end</em> with <code>NF</code> is what makes this robust, since the leading timestamp shifts column numbers around; <code>| sort | uniq -c</code> aggregates, and the <code>sort</code> is mandatory because <code>uniq</code> only collapses <em>adjacent</em> duplicates — the single most common mistake in this pipeline; <code>| sort -rn | head -10</code> ranks them. Full line: <code>grep "Failed password" /var/log/secure | awk '{print $(NF-3)}' | sort | uniq -c | sort -rn | head -10</code>. <strong>Two variations worth knowing:</strong> <code>awk '$1=="Aug" &amp;&amp; /Failed/ {c++} END {print c}'</code> does the select-and-count in one process, and <code>sed -i.bak 's/PermitRootLogin yes/PermitRootLogin no/' /etc/ssh/sshd_config</code> shows the rewrite side — note <code>-i.bak</code>, which keeps a backup, because a bare <code>sed -i</code> with a wrong pattern edits the original irreversibly.
+            </div>
+            <div class="lesson-takeaway"><strong>Key takeaway:</strong> always <code>sort</code> before <code>uniq -c</code>, then <code>sort -rn</code> to rank. <code>awk</code> beats <code>cut</code> when the delimiter is whitespace of varying width, and <code>NF</code> counts fields from the end. Use <code>sed -i.bak</code> rather than bare <code>-i</code> when editing files in place.</div>
           </div>
 
           <div class="lesson">
             <div class="lesson-title">Containers: Docker &amp; Podman</div>
-            <h4>Core Container Commands</h4>
+            <p class="lesson-intro">
+              Containers appear on Linux+ as an operations topic, not a development one: run an image, map a port, persist data in a volume, read the logs. The one architectural fact that carries marks is <strong>daemonless and rootless</strong> — Podman runs containers as the invoking user with no background daemon, which is why RHEL ships it in place of Docker.
+            </p>
             <ul>
               <li><code>docker run -d -p 8080:80 --name webserver nginx</code> — run nginx in background, map port 8080→80</li>
               <li><code>docker ps</code> — list running containers; <code>docker ps -a</code> — all containers including stopped</li>
@@ -1085,11 +1305,18 @@
               <li><code>docker build -t myapp:1.0 .</code> — build image from Dockerfile in current directory</li>
             </ul>
             <div class="exam-tip">Podman is <strong>daemonless</strong> — it does not require a background daemon process. This makes rootless containers possible (regular users can run containers without <code>sudo</code>). Docker requires the <code>docker</code> daemon running as root. The Linux+ exam specifically tests this architectural difference.</div>
+            <div class="scenario-walkthrough">
+              <div class="scenario-walkthrough-head">💻 Concrete example — a rootless nginx container that survives a reboot</div>
+              Serve <code>/srv/site</code> on port 8080 as an unprivileged user on RHEL. <strong>Walk:</strong> (1) <code>podman run -d --name web -p 8080:80 -v /srv/site:/usr/share/nginx/html:Z docker.io/library/nginx</code> — the <code>:Z</code> suffix tells Podman to relabel the bind mount for SELinux, and without it the container gets permission denied on files whose Unix permissions look perfectly fine; (2) note the port: rootless containers cannot bind below 1024, which is why this is 8080 and not 80 — publishing 80 would need <code>net.ipv4.ip_unprivileged_port_start</code> lowered or a reverse proxy in front; (3) <code>podman logs -f web</code> and <code>curl -I localhost:8080</code> confirm it serves; (4) make it persistent the systemd way rather than with a restart policy: <code>podman generate systemd --name web --files --new</code>, move the unit into <code>~/.config/systemd/user/</code>, then <code>systemctl --user enable --now container-web</code>; (5) <code>loginctl enable-linger $USER</code> so the user's services start at boot without a login session. <strong>Why this shape:</strong> no daemon, no root, and the container is supervised by the same init the rest of the host uses.
+            </div>
+            <div class="lesson-takeaway"><strong>Key takeaway:</strong> Podman is daemonless and rootless, Docker needs a root daemon; the CLI verbs are otherwise the same. Bind mounts on SELinux hosts need <code>:Z</code>; rootless containers cannot bind ports under 1024. <code>-d</code> detaches, <code>-p host:container</code> publishes, <code>-v host:container</code> persists, <code>podman logs</code> is the first place to look.</div>
           </div>
 
           <div class="lesson">
             <div class="lesson-title">Ansible Automation</div>
-            <h4>Inventory &amp; Ad-Hoc Commands</h4>
+            <p class="lesson-intro">
+              Ansible turns "SSH into forty boxes and run these commands" into one declarative file. Two properties carry the exam questions: it is <strong>agentless</strong> (SSH plus Python on the target, nothing installed), and it is <strong>idempotent</strong> — you describe the desired end state, so running the same playbook twice changes nothing the second time.
+            </p>
             <ul>
               <li>Inventory file (<code>/etc/ansible/hosts</code> or custom file with <code>-i</code>): groups of hosts in INI or YAML format</li>
               <li><code>ansible all -m ping</code> — test connectivity to all hosts in inventory</li>
@@ -1108,11 +1335,20 @@
               <li><code>ansible-playbook site.yml --limit webservers</code> — run only against a specific group</li>
             </ul>
             <div class="study-note">Ansible is agentless — it uses SSH to connect to managed nodes. No agent software is needed on managed hosts. Only Python must be installed on the target. Ansible is idempotent by design: running a playbook multiple times produces the same result.</div>
+            <div class="scenario-walkthrough">
+              <div class="scenario-walkthrough-head">💻 Concrete example — patching sshd across a fleet, safely</div>
+              <code>PermitRootLogin no</code> must be set on every web server. <strong>Walk:</strong> (1) prove reachability first — <code>ansible webservers -m ping</code> — a failure here is SSH or inventory, never the playbook; (2) write the play with a module rather than a shell command, because <code>lineinfile</code> is idempotent while <code>shell: sed -i …</code> is not:
+              <br><code>- hosts: webservers</code> / <code>&nbsp;&nbsp;become: yes</code> / <code>&nbsp;&nbsp;tasks:</code> / <code>&nbsp;&nbsp;- name: disable root SSH login</code> / <code>&nbsp;&nbsp;&nbsp;&nbsp;lineinfile: { path: /etc/ssh/sshd_config, regexp: '^#?PermitRootLogin', line: 'PermitRootLogin no', validate: 'sshd -t -f %s' }</code> / <code>&nbsp;&nbsp;&nbsp;&nbsp;notify: restart sshd</code>;
+              (3) the <code>validate</code> option is the safety catch — Ansible tests the candidate file with <code>sshd -t</code> and refuses to install it if the syntax is bad, so a typo cannot lock you out of forty hosts at once; (4) a <code>handler</code> restarts sshd only when the line actually changed, which is what keeps the run idempotent; (5) rehearse with <code>ansible-playbook harden.yml --check --diff</code> — it shows the exact diff without touching anything; (6) roll it out gradually with <code>--limit web01</code> before running the whole group. <strong>Read the recap line:</strong> <code>changed=1</code> on the first run and <code>changed=0</code> on the second is the proof that the play is idempotent.
+            </div>
+            <div class="lesson-takeaway"><strong>Key takeaway:</strong> agentless over SSH, idempotent by design — prefer a module (<code>lineinfile</code>, <code>package</code>, <code>service</code>) over <code>shell</code>, since only modules can report <code>changed</code> honestly. <code>--check --diff</code> is the dry run, <code>--limit</code> stages the blast radius, <code>-b</code>/<code>become</code> is privilege escalation.</div>
           </div>
 
           <div class="lesson">
             <div class="lesson-title">Troubleshooting Workflow</div>
-            <h4>Systematic Troubleshooting Steps</h4>
+            <p class="lesson-intro">
+              This lesson is the one that ties the other thirty-six together. Scenario questions rarely need an obscure command — they need the <em>order</em>: service state, then its logs, then the kernel's view, then resources. Following that sequence turns a vague "the server is slow" into a specific, provable cause, and it is exactly how the exam expects you to reason.
+            </p>
             <ul>
               <li><strong>Step 1 — Service status:</strong> <code>systemctl status servicename</code> — shows active/failed state, last 10 log lines, and exit code</li>
               <li><strong>Step 2 — Journal:</strong> <code>journalctl -xe -u servicename</code> — full journal with explanations; <code>journalctl --boot -1</code> — previous boot logs</li>
@@ -1129,6 +1365,11 @@
               <li>Cannot SSH to host: check firewall (<code>iptables -L</code> or <code>firewall-cmd --list-all</code>), sshd status, SELinux (<code>getenforce</code>), <code>ss -tlnp | grep 22</code></li>
             </ul>
             <div class="exam-tip">The Linux+ exam includes scenario-based troubleshooting questions. Always follow the systematic flow: status → logs → kernel → resources. The OOM (Out Of Memory) killer is a specific Linux kernel feature that kills processes to free memory under extreme memory pressure — look for it in <code>dmesg</code> or <code>/var/log/kern.log</code>, not just <code>/var/log/messages</code>.</div>
+            <div class="scenario-walkthrough">
+              <div class="scenario-walkthrough-head">💻 Concrete example — "the database is down" worked end to end</div>
+              <strong>Step 1 — state:</strong> <code>systemctl status postgresql</code> → <code>failed (Result: exit-code)</code>, and the excerpt shows <em>"could not write to file: No space left on device"</em>. That single line has already redirected the whole investigation away from the database. <strong>Step 2 — logs:</strong> <code>journalctl -xeu postgresql</code> confirms the write failures started at 03:14. <strong>Step 3 — resources:</strong> <code>df -h</code> shows <code>/var</code> at 100%. <strong>Step 4 — locate it:</strong> <code>du -xh /var --max-depth=2 | sort -rh | head</code> — the <code>-x</code> keeps <code>du</code> on one filesystem so it does not wander into mounts and mislead you — and points at <code>/var/log/journal</code> at 14&nbsp;GB. <strong>Step 5 — the trap:</strong> if someone already ran <code>rm</code> on a log that rsyslog still holds open, <code>df</code> stays full while <code>du</code> shows the space as free; <code>lsof +L1</code> lists deleted-but-open files and a service restart is what actually releases them. <strong>Step 6 — fix and prevent:</strong> <code>journalctl --vacuum-size=500M</code> reclaims immediately, <code>SystemMaxUse=500M</code> in <code>/etc/systemd/journald.conf</code> stops the recurrence, then <code>systemctl restart postgresql</code>. <strong>Step 7 — confirm:</strong> <code>systemctl is-active postgresql</code> and <code>df -h /var</code> together, because fixing the symptom without re-checking the cause is how the same ticket comes back tomorrow.
+            </div>
+            <div class="lesson-takeaway"><strong>Key takeaway:</strong> status → journal → dmesg → resources, in that order, and let each step narrow the next. <code>df</code> full while <code>du</code> disagrees means deleted-but-open files (<code>lsof +L1</code>); an <code>Out of memory: Killed process</code> line in <code>dmesg</code> means the OOM killer, not an application crash. Always verify the fix with the same command that showed the problem.</div>
           </div>
 
           <div class="module-takeaways">

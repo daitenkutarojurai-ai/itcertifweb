@@ -120,23 +120,49 @@ is why the item kept getting skipped).** The tell is which markup
 generation a page uses, since the deep-lesson rework always came with
 the newer markup:
 
-- **Reworked (22)** — carry the deep shape: per-lesson `.lesson-block`
+- **Reworked (23)** — carry the deep shape: per-lesson `.lesson-block`
   with `.lesson-intro` · `.lesson-bullets` · "Concrete example" ·
   `.lesson-takeaway` · `.lesson-quiz`. All AWS, all Kubernetes, ccna,
   security+, az-104, az-305, az-500, gcp-pca, gcp-pde, docker-dca,
-  terraform-associate, ccnp-security, rhcsa, ms-900, sc-900.
-- **Still pending (6)** — old `.module-block` markup, takeaways and
+  terraform-associate, ccnp-security, rhcsa, ms-900, sc-900,
+  comptia-linux.
+- **Still pending (5)** — old `.module-block` markup, takeaways and
   mini-quiz only at *module* level, no per-lesson intro/example:
-  1. `comptia-linux` (37 lessons) ← next, per the Linux-first order
-  2. `comptia-a-plus` (31 lessons)
-  3. `fortinet-nse4` (23 lessons)
-  4. `az-900-fundamentals` (19 lessons)
-  5. `comptia-pentest-plus` (19 lessons)
-  6. `gcp-ace` (17 lessons)
+  1. `comptia-a-plus` (31 lessons) ← next
+  2. `fortinet-nse4` (23 lessons)
+  3. `az-900-fundamentals` (19 lessons)
+  4. `comptia-pentest-plus` (19 lessons)
+  5. `gcp-ace` (17 lessons)
 - Reference implementation to copy the shape from: `aws-saa-c03`.
 - Note their existing prose is technically sound — what it lacks is the
   per-lesson framing and worked examples, not accuracy. Rework, don't
   rewrite from scratch.
+
+**✅ `comptia-linux` DONE 2026-08-18** — all 37 lessons across the 7
+modules got the deep-lesson pass, in place, without changing the
+`details.module-block` accordion layout (the item's brief is "the
+layout / architecture / design stay, the prose is the problem"):
+
+- `.lesson-intro` on every lesson — one paragraph of framing that says
+  what problem the lesson solves and how Linux+ frames it, rather than
+  restating the bullets underneath.
+- A **"💻 Concrete example"** worked scenario on every lesson (29 new,
+  the 8 pre-existing `Worked scenario` blocks renamed for consistency).
+  Each is a real failure or task walked step by step with verification
+  commands — e.g. P2V migration panicking on a missing `virtio` driver,
+  `dig` succeeding while `ping` fails (NSS chain), `df` full while `du`
+  disagrees (deleted-but-open files), rootless Podman needing `:Z`.
+- `.lesson-takeaway` on every lesson — the one-or-two-sentence rule to
+  carry into the exam.
+- Two new inline CSS rules only (`.lesson-intro`, `.lesson-takeaway`),
+  matching the page's existing callout palette — no shared CSS touched,
+  so no repo-wide `?v=` cache bump was needed.
+- Verified: 37/37 lessons carry all three blocks, HTML tag-balance
+  clean, `npm test` 265/265, `audit-content` green, and rendered at
+  360 × 800 / 768 × 1024 / 1440 × 900 with no horizontal overflow.
+- Kept the module-level `.module-quiz` CTA rather than adding a
+  per-lesson `.lesson-quiz` — 37 copies of the same study-mode link on
+  one page is noise, and the module CTA already covers it.
 
 ### UX-7 — Career-finder quiz ✅ DONE 2026-05-20
 
