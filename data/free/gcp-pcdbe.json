@@ -1,0 +1,127 @@
+{
+  "id": "gcp-pcdbe",
+  "title": "GCP Professional Cloud Database Engineer",
+  "description": "Practice questions for the Google Cloud Professional Cloud Database Engineer exam — Cloud SQL, Spanner, AlloyDB, Bigtable, Firestore, BigQuery, and DMS.",
+  "questions": [
+    {
+      "id": "q1",
+      "question": "A retail platform must serve OLTP traffic from customers in Europe, North America, and Asia with strong consistency and single-digit-millisecond writes locally, and it needs to survive a full regional outage. Which Google Cloud database is the best fit?",
+      "options": [
+        "A. Cloud SQL for PostgreSQL with cross-region read replicas",
+        "B. Cloud Spanner multi-region instance with a leader region per continent",
+        "C. Bigtable multi-cluster routing with eventual consistency",
+        "D. Firestore in Datastore mode with automatic multi-region replication"
+      ],
+      "correct": 1,
+      "explanation": "Cloud Spanner is the only Google Cloud OLTP database that offers globally strong consistency (via TrueTime) together with regional and multi-region configurations that survive a full-region loss. Cloud SQL cross-region replicas are asynchronous, so failover risks data loss and the replicas serve only reads. Bigtable multi-cluster routing is eventually consistent and is a wide-column store, not a relational OLTP engine. Firestore in Datastore mode replicates across regions but is optimised for document/entity workloads and does not provide the horizontal SQL scalability required here."
+    },
+    {
+      "id": "q2",
+      "question": "You are designing a Bigtable row key for a time-series workload that ingests millions of writes per second from IoT sensors. Which row-key design avoids hotspotting while preserving fast lookups per device?",
+      "options": [
+        "A. Use the current timestamp as the row key so rows sort chronologically",
+        "B. Use device_id only so every device gets its own row",
+        "C. Use a reverse-timestamp prefix (e.g. Long.MAX - timestamp) followed by device_id",
+        "D. Use a salted key of the form (hash(device_id) mod 128) # device_id # timestamp"
+      ],
+      "correct": 3,
+      "explanation": "Bigtable stores rows lexicographically across tablets, so any monotonically increasing prefix (timestamp or reverse-timestamp) funnels all writes into one tablet and creates a hot node. Salting the key with a bounded hash of the device_id spreads writes across tablets while the device_id and trailing timestamp still let you scan a single device efficiently. Using device_id alone (option B) would only be safe if devices produced roughly balanced write volume and never received bursty traffic, which the question rules out."
+    },
+    {
+      "id": "q3",
+      "question": "A Cloud SQL for PostgreSQL instance hosts your production database. The team needs a recovery point objective (RPO) of five minutes and the ability to restore the database to any second within the last seven days. Which configuration meets both requirements?",
+      "options": [
+        "A. Enable automated backups only, with a seven-day retention window",
+        "B. Enable automated backups plus point-in-time recovery, keeping seven days of transaction logs",
+        "C. Create manual on-demand backups every five minutes with a cron job",
+        "D. Use a high-availability configuration with a regional standby but no backups"
+      ],
+      "correct": 1,
+      "explanation": "Point-in-time recovery in Cloud SQL is powered by write-ahead-log archiving on top of automated backups; enabling it and retaining seven days of logs lets you restore to any second in that window, which satisfies both the granular RPO and the seven-day range. Backups alone only let you restore to snapshot boundaries. Cron-driven manual backups do not offer per-second granularity and would generate huge storage cost. A high-availability standby protects against zonal failure but a logical corruption is replicated to the standby, so it is not a substitute for PITR."
+    },
+    {
+      "id": "q4",
+      "question": "A team is designing a Cloud Spanner schema for orders that always belong to a customer. Queries almost always fetch a customer together with their recent orders. Which schema choice is most efficient?",
+      "options": [
+        "A. Store Customers and Orders in separate top-level tables and join on customer_id at query time",
+        "B. Interleave Orders in the parent Customers table so rows for one customer are co-located",
+        "C. Store orders as a repeated JSON column inside the Customers table",
+        "D. Shard the Orders table manually by hashing customer_id into 256 buckets"
+      ],
+      "correct": 1,
+      "explanation": "Spanner supports table interleaving, which physically co-locates child rows with their parent under the same root split. That turns a customer-plus-orders read into a single locality-preserving scan and lets Spanner keep transactions across the parent and child cheap. A plain foreign-key join works but reads may hit multiple splits. Storing orders as JSON destroys the ability to index and query orders efficiently and inflates row size. Manual sharding fights the platform — Spanner already splits data automatically based on load and size."
+    },
+    {
+      "id": "q5",
+      "question": "You must migrate a 4 TB on-premises Oracle 19c database to Google Cloud with minimal downtime, changing engines in the process. Which service should you use?",
+      "options": [
+        "A. Database Migration Service (DMS) for a heterogeneous Oracle-to-PostgreSQL migration to Cloud SQL",
+        "B. Storage Transfer Service to copy Oracle data files into a Cloud SQL for PostgreSQL bucket",
+        "C. gcloud sql import sql for a single logical dump imported into Cloud SQL for Oracle",
+        "D. Datastream to stream the Oracle CDC directly into Bigtable"
+      ],
+      "correct": 0,
+      "explanation": "Database Migration Service supports heterogeneous Oracle-to-PostgreSQL migrations to Cloud SQL and to AlloyDB, using Datastream under the hood to capture change data so the source stays online during the initial load and the cutover window is minimised. Storage Transfer Service moves objects, not live database state. There is no managed Cloud SQL for Oracle offering, so option C describes a product that does not exist. Datastream can stream Oracle CDC, but streaming it into Bigtable would require you to build the OLTP schema and query layer yourself, which is not a database migration."
+    },
+    {
+      "id": "q6",
+      "question": "A microservice needs sub-millisecond reads for a hot session-store keyed by session_id. The dataset fits in memory (about 20 GB) and can be lost on failure with no user impact. Which managed offering fits best?",
+      "options": [
+        "A. Firestore in Native mode with a composite index on session_id",
+        "B. Bigtable with SSD storage and a single-row-per-session schema",
+        "C. Memorystore for Redis (Basic tier), sized for 20 GB",
+        "D. Cloud Spanner with a session_id primary key"
+      ],
+      "correct": 2,
+      "explanation": "Memorystore for Redis is Google Cloud's managed in-memory key-value store and is the standard fit for an ephemeral session cache: it delivers sub-millisecond latency, and the Basic tier is intentionally single-node with no replication, matching the requirement that data loss on failure is acceptable. Firestore and Spanner are durable OLTP databases with millisecond-plus latency and higher cost per read. Bigtable can serve hot key-value lookups at scale but its per-read latency is single-digit millisecond, not sub-millisecond, and it is optimised for larger analytical or telemetry workloads."
+    },
+    {
+      "id": "q7",
+      "question": "You must guarantee that a Cloud SQL for MySQL instance uses customer-managed encryption keys and is never reachable from the public internet. Which combination of controls achieves this?",
+      "options": [
+        "A. Enable a customer-managed encryption key (CMEK) at instance creation and configure the instance with a private IP address only via Private Service Access",
+        "B. Rotate the Google-managed default encryption key monthly and add an authorized network of 0.0.0.0/0 with SSL required",
+        "C. Enable CMEK after the instance is created and disable public IP through the audit log",
+        "D. Use a firewall rule on the VPC that denies traffic to the Cloud SQL public IP"
+      ],
+      "correct": 0,
+      "explanation": "Cloud SQL CMEK must be selected when the instance is created — it cannot be enabled after the fact — and Private Service Access lets Cloud SQL live on an internal IP inside your VPC with no public endpoint, satisfying both requirements. Rotating the Google-managed key does not give the customer control of the key material, and 0.0.0.0/0 exposes the instance to the internet. You cannot toggle CMEK on an existing instance, and VPC firewall rules do not filter traffic to the Cloud SQL public IP because that endpoint is fronted by Google, not by your VPC network."
+    },
+    {
+      "id": "q8",
+      "question": "An analytics team's daily BigQuery query filters a 40 TB fact table by event_date and then aggregates by user_id. Which combination of table design changes will reduce cost the most?",
+      "options": [
+        "A. Partition the table by event_date and cluster by user_id",
+        "B. Cluster the table by event_date and shard it into one table per user_id",
+        "C. Store the table in a materialized view over the last 24 hours only",
+        "D. Convert the table into an external Cloud Storage table in Avro format"
+      ],
+      "correct": 0,
+      "explanation": "BigQuery bills on-demand queries by the bytes scanned, so time-partitioning on event_date lets the query prune to only the relevant day (or days), and clustering on user_id lets BigQuery skip blocks within each partition that do not contain the requested users. Sharding by user_id is an anti-pattern that fragments metadata and makes cross-user analysis expensive. A 24-hour materialized view only helps if every query targets exactly that horizon. An external Avro table pushes storage cost down but forces a full scan of the object for every query, which is dramatically more expensive at 40 TB."
+    },
+    {
+      "id": "q9",
+      "question": "A workload on Cloud Spanner shows a small subset of primary keys (a monotonically increasing customer_visit_id) receiving 80% of writes. TPS is capped and CPU is high on one split. What is the recommended fix?",
+      "options": [
+        "A. Add more nodes to the Spanner instance until CPU falls below 65%",
+        "B. Change the primary key to prepend a bit-reversed or hashed prefix so writes distribute across splits",
+        "C. Enable read-only replicas in other regions so writes are absorbed by them",
+        "D. Switch the instance from regional to multi-region so writes can spread across leaders"
+      ],
+      "correct": 1,
+      "explanation": "The symptom is a classic monotonic-key hotspot: because Spanner distributes rows by key range, an ever-increasing key concentrates every new write on the tail split. Bit-reversing or hashing a prefix of the key spreads inserts across splits, letting Spanner rebalance and scale linearly with nodes. Adding nodes does not help while the load is pinned to a single split. Read-only replicas serve reads only. Multi-region has a single write-leader per partition, so it does not eliminate a per-key hotspot — it can even make it worse by adding cross-region write latency."
+    },
+    {
+      "id": "q10",
+      "question": "A team runs PostgreSQL for a mixed transactional and reporting workload and wants managed HA, a Postgres-compatible engine, and up to 100x faster analytical queries on the same data without ETL. Which service best matches?",
+      "options": [
+        "A. Cloud SQL for PostgreSQL with a large machine type and a read replica",
+        "B. AlloyDB for PostgreSQL, which combines a transactional engine with a columnar accelerator",
+        "C. BigQuery with the Postgres wire-protocol connector",
+        "D. Cloud Spanner with the PostgreSQL dialect"
+      ],
+      "correct": 1,
+      "explanation": "AlloyDB is Google's fully-managed, PostgreSQL-compatible database that pairs a row-store transactional engine with an in-memory columnar accelerator, giving order-of-magnitude speed-ups on analytical queries against the same live tables without ETL to a separate warehouse. Cloud SQL for PostgreSQL scales vertically and offers replicas but does not have a columnar accelerator. BigQuery is a separate analytics warehouse, not a Postgres-compatible OLTP engine. Spanner's PostgreSQL dialect covers a subset of PostgreSQL syntax and targets globally-distributed OLTP, not mixed OLTP-plus-analytics on a single node."
+    }
+  ]
+}
