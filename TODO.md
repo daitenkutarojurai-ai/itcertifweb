@@ -125,14 +125,13 @@ the newer markup:
   `.lesson-takeaway` · `.lesson-quiz`. All AWS, all Kubernetes, ccna,
   security+, az-104, az-305, az-500, gcp-pca, gcp-pde, docker-dca,
   terraform-associate, ccnp-security, rhcsa, ms-900, sc-900,
-  comptia-linux.
-- **Still pending (5)** — old `.module-block` markup, takeaways and
+  comptia-linux, comptia-a-plus.
+- **Still pending (4)** — old `.module-block` markup, takeaways and
   mini-quiz only at *module* level, no per-lesson intro/example:
-  1. `comptia-a-plus` (31 lessons) ← next
-  2. `fortinet-nse4` (23 lessons)
-  3. `az-900-fundamentals` (19 lessons)
-  4. `comptia-pentest-plus` (19 lessons)
-  5. `gcp-ace` (17 lessons)
+  1. `fortinet-nse4` (23 lessons) ← next
+  2. `az-900-fundamentals` (19 lessons)
+  3. `comptia-pentest-plus` (19 lessons)
+  4. `gcp-ace` (17 lessons)
 - Reference implementation to copy the shape from: `aws-saa-c03`.
 - Note their existing prose is technically sound — what it lacks is the
   per-lesson framing and worked examples, not accuracy. Rework, don't
@@ -163,6 +162,40 @@ layout / architecture / design stay, the prose is the problem"):
 - Kept the module-level `.module-quiz` CTA rather than adding a
   per-lesson `.lesson-quiz` — 37 copies of the same study-mode link on
   one page is noise, and the module CTA already covers it.
+
+**✅ `comptia-a-plus` DONE 2026-08-25** — all 31 lessons across the 14
+modules (Core 1 + Core 2) got the deep-lesson pass in place, leaving
+the `details.module-block` accordion layout untouched:
+
+- `.lesson-intro` on every lesson — one paragraph naming the *decision*
+  the lesson is really about (field-replaceable vs soldered; which OSI
+  layer the device sits at; who patches what under shared
+  responsibility; RPO sets frequency, RTO sets restore method) rather
+  than restating the bullets below it.
+- A **"💻 Concrete example"** worked scenario on every lesson — a real
+  ticket walked Ticket → Walk → Verify with the commands and the
+  numbers: a 10 Gbps link negotiating at 1 Gbps on an 80 m Cat 6 run,
+  DDR5 that will not seat in a DDR4 board, `VT-x is not available`
+  because Hyper-V owns the extensions, a guest VLAN stranded on an
+  untagged trunk, four 4 TB drives scored across RAID 0/1/5/10, a BYOD
+  leaver wiped selectively via MAM, PSU sizing that explains the
+  reboots-under-load.
+- `.lesson-takeaway` on every lesson — the one-or-two-sentence rule to
+  carry into the exam.
+- Deliberately kept distinct from the 7 pre-existing **module-level**
+  "🖥 Field call" walkthroughs: those synthesise across a whole module,
+  so each new per-lesson example was written to a different scenario
+  (e.g. 6.2 got a Group Policy/`gpresult` case because the module-level
+  block already covers the SFC/DISM chain; 11.1 got PSK-vs-RADIUS
+  because the module block already covers the WEP audit).
+- Two new inline CSS rules only (`.lesson-intro`, `.lesson-takeaway`),
+  matching the palette the page already uses for `.scenario-walkthrough`
+  — no shared CSS touched, so no repo-wide `?v=` cache bump was needed.
+- Verified: 31/31 lessons carry intro + example + takeaway, HTML tag
+  balance clean (div/p/ul/li/details all matched), no unescaped
+  ampersands introduced, `npm test` 265/265, `audit-content` green, and
+  rendered headless at 360 × 800 / 768 × 1024 / 1440 × 900 with no
+  horizontal overflow and no JS errors.
 
 ### UX-7 — Career-finder quiz ✅ DONE 2026-05-20
 
