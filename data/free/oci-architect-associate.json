@@ -1,0 +1,127 @@
+{
+  "id": "oci-architect-associate",
+  "title": "Oracle Cloud Infrastructure 2024 Architect Associate (1Z0-1072-24)",
+  "description": "Practice questions for the Oracle Cloud Infrastructure Architect Associate exam — VCN design, IAM, compute, storage, block/object services, databases, load balancing, and high availability.",
+  "questions": [
+    {
+      "id": "q1",
+      "question": "You must design a highly available three-tier web application in a single OCI region. Web servers must survive the failure of an entire data-centre-level fault domain and remain reachable if one physical or logical facility inside the region goes offline. Which OCI placement strategy meets both requirements?",
+      "options": [
+        "A. Deploy every compute instance into one availability domain and rely on live migration to survive facility failures",
+        "B. Spread the web-tier instances across multiple availability domains within the region and across distinct fault domains inside each availability domain",
+        "C. Place all instances in a single fault domain of a single availability domain and use a regional load balancer for redundancy",
+        "D. Deploy the instances into different regions and use DNS traffic steering as the sole failover mechanism"
+      ],
+      "correct": 1,
+      "explanation": "Availability domains (ADs) are isolated data centres inside an OCI region, and fault domains are hardware groupings inside each AD that fail independently. Spreading instances across multiple ADs and multiple fault domains protects against both a facility-level outage and a rack/power failure inside one AD, which is exactly the intra-region HA pattern Oracle recommends. Option A gives no redundancy — live migration handles planned maintenance, not unplanned facility loss. Option C keeps every instance in one fault domain, so a single rack failure takes the whole tier down. Option D is multi-region DR, which the scenario explicitly scopes to a single region and does not by itself protect against an intra-region facility loss."
+    },
+    {
+      "id": "q2",
+      "question": "In a new OCI tenancy, a security team wants developers to be able to launch and manage compute instances only inside the compartment named Dev, without any ability to see or touch resources in the Prod compartment. Which IAM policy statement grants the minimum required access?",
+      "options": [
+        "A. Allow group Developers to manage all-resources in tenancy",
+        "B. Allow group Developers to manage instance-family in compartment Dev",
+        "C. Allow any-user to use instance-family in tenancy where request.user.groups='Developers'",
+        "D. Allow group Developers to inspect instance-family in compartment Prod"
+      ],
+      "correct": 1,
+      "explanation": "IAM policies in OCI are written against verbs (inspect / read / use / manage) and resource types, and they are scoped by compartment. `manage instance-family in compartment Dev` gives developers full lifecycle control over compute inside Dev only, with no visibility into Prod, which matches the least-privilege requirement. Option A grants tenancy-wide admin over every service — a huge over-grant. Option C is syntactically wrong for scoping to a group (group membership must be expressed with `Allow group <name>`, not `any-user` with a condition) and still targets the whole tenancy. Option D grants read-like access to the wrong compartment (Prod) and no ability at all to manage instances in Dev."
+    },
+    {
+      "id": "q3",
+      "question": "A workload running in a private subnet of a VCN needs to pull large container images from Oracle Cloud Infrastructure Object Storage without traversing the public internet and without adding a NAT gateway. Which VCN gateway satisfies the requirement?",
+      "options": [
+        "A. Internet Gateway attached to the private subnet's route table",
+        "B. Dynamic Routing Gateway (DRG) with a public peering connection",
+        "C. Service Gateway with a route rule to the All <region> Services in Oracle Services Network object",
+        "D. Local Peering Gateway pointing at the Object Storage VCN"
+      ],
+      "correct": 2,
+      "explanation": "A Service Gateway lets resources in a private subnet reach OCI public services (Object Storage, Autonomous Database, etc.) over the Oracle backbone using a private route, with no public IP and no NAT. You add a route rule targeting the `All <region> Services in Oracle Services Network` service CIDR label to the private subnet's route table. Option A requires the subnet to be public and defeats the private-only requirement. Option B is used for on-premises connectivity, not for reaching OCI services. Option D peers two customer VCNs — Object Storage is not exposed as a peerable VCN."
+    },
+    {
+      "id": "q4",
+      "question": "A batch-analytics team stores 200 TB of historical logs that are accessed at most once every few months, but when they are accessed the read must return within a few hours and no data can be lost. Which Object Storage tier is the most cost-effective while meeting the retrieval SLA?",
+      "options": [
+        "A. Standard storage tier with lifecycle rules to expire objects after 30 days",
+        "B. Infrequent Access storage tier with 90-day minimum retention",
+        "C. Archive storage tier, which requires a restore request before download",
+        "D. Block Volume with the Lower Cost performance tier"
+      ],
+      "correct": 2,
+      "explanation": "OCI Archive Storage is designed for long-term, rarely accessed data — it is roughly a tenth of the cost of Standard, offers the same 11 nines of durability, and requires an explicit restore that completes within four hours before the object can be downloaded. That matches the \"once every few months, hours-level retrieval\" pattern. Standard tier (A) is optimised for frequent access and is far more expensive per GB. Infrequent Access (B) is cheaper than Standard but still much more expensive than Archive and is intended for weekly-monthly access, not quarterly. Block Volume (D) is not object storage at all — it is attached storage priced per provisioned GB and cannot be shared across compute the way a bucket can."
+    },
+    {
+      "id": "q5",
+      "question": "You are running an internet-facing web application on a public OCI Load Balancer and want to protect it against SQL-injection and OWASP Top-10 attacks without changing the application. Which OCI service provides managed, rule-based Layer-7 protection in front of the load balancer?",
+      "options": [
+        "A. Network Security Groups (NSGs) with stateful ingress rules",
+        "B. OCI Web Application Firewall (WAF) with the managed protection rule sets",
+        "C. Cloud Guard with the Threat Detector recipe enabled",
+        "D. Bastion service with session recording"
+      ],
+      "correct": 1,
+      "explanation": "OCI Web Application Firewall is a managed, edge-based Layer-7 firewall that ships with Oracle-maintained protection rules covering the OWASP Top 10, bot management, and custom access controls, and it can be attached in front of a public load balancer or an origin server. NSGs (A) operate at Layer 3/4 and filter by 5-tuple only — they cannot inspect HTTP payloads. Cloud Guard (C) is a posture-management and threat-detection service that reports risky configurations and anomalous activity; it does not inline-filter application traffic. The Bastion service (D) provides short-lived SSH/RDP jump-host access to private resources and has nothing to do with Layer-7 filtering."
+    },
+    {
+      "id": "q6",
+      "question": "A stateless microservice runs on a fleet of VMs behind an OCI Flexible Load Balancer. Traffic doubles every weekday at 09:00 and drops back overnight. You want the fleet to scale out and back in automatically based on average CPU utilisation, with no custom scripting. Which OCI feature should you use?",
+      "options": [
+        "A. Manually resize the instance shape to a larger VM at 09:00 each day",
+        "B. Create an instance pool from an instance configuration and attach an autoscaling configuration with a metric-based policy",
+        "C. Create an OKE cluster and rely on the Kubernetes Horizontal Pod Autoscaler",
+        "D. Use Resource Manager to run a Terraform apply on a schedule that adds instances"
+      ],
+      "correct": 1,
+      "explanation": "Instance pools built from an instance configuration are the OCI construct that lets a group of identical VMs be launched, load-balancer-attached, and lifecycle-managed together. Attaching an autoscaling configuration with a metric-based policy (for example, average CPU > 70 % scales out, < 30 % scales in) delivers exactly the elastic behaviour described, with no custom scripting. Option A is manual and does not scale horizontally. Option C requires re-platforming a VM workload onto Kubernetes just to get autoscaling. Option D can create instances on a schedule but has no built-in metric-driven feedback loop and is not the intended pattern."
+    },
+    {
+      "id": "q7",
+      "question": "You are migrating an on-premises Oracle Database to OCI and want a fully managed service that patches itself, scales storage online, and offers automatic backups with no DBA effort — while still supporting standard Oracle SQL, PL/SQL, and existing OCI-attached applications. Which service best fits?",
+      "options": [
+        "A. Autonomous Database (ATP or ADW) with automatic patching and backups",
+        "B. A VM.Standard compute instance running Oracle Database installed from an RPM",
+        "C. Oracle NoSQL Database Cloud Service with table-level provisioned throughput",
+        "D. MySQL HeatWave Database Service with an analytics cluster"
+      ],
+      "correct": 0,
+      "explanation": "Autonomous Database (ATP for transactional or ADW for warehousing) is Oracle's self-driving, self-securing, self-repairing managed Oracle Database. Patching, backups, and online storage scaling are handled by the service, and it exposes standard SQL and PL/SQL so existing Oracle apps migrate with minimal changes. Option B is unmanaged — the customer still owns OS patching, DB patching, backup, and HA. Option C is a key-value / JSON document store, not the Oracle relational engine the migration requires. Option D is MySQL-compatible, not Oracle Database — a different engine that would require rewriting PL/SQL."
+    },
+    {
+      "id": "q8",
+      "question": "An OCI VCN in region eu-frankfurt-1 must connect privately to an on-premises data centre over the customer's ISP-provided private circuit, with dedicated bandwidth and no traversal of the public internet. Which combination of OCI components delivers this?",
+      "options": [
+        "A. Site-to-Site VPN over the Internet Gateway of the VCN",
+        "B. Service Gateway with a route to All <region> Services in Oracle Services Network",
+        "C. FastConnect virtual circuit terminated on a Dynamic Routing Gateway (DRG) attached to the VCN",
+        "D. Local Peering Gateway between the on-premises router and the VCN"
+      ],
+      "correct": 2,
+      "explanation": "FastConnect is OCI's dedicated private connectivity service — the customer (or a FastConnect partner) provisions a private virtual circuit that lands on a Dynamic Routing Gateway, which is then attached to the VCN so on-premises subnets and VCN subnets can route to each other over a private, bandwidth-guaranteed path with no internet exposure. Option A rides the public internet and offers no dedicated bandwidth. Option B is for reaching OCI public services from a private subnet, not for on-premises connectivity. Option D peers two OCI VCNs in the same region — it cannot terminate an on-premises circuit."
+    },
+    {
+      "id": "q9",
+      "question": "A stateful application writes small, latency-sensitive records to a Block Volume attached to a single VM. The team asks you to increase both IOPS and throughput without changing the volume size. Which action changes performance without a resize?",
+      "options": [
+        "A. Detach the volume and reattach it with the paravirtualized attachment type",
+        "B. Change the volume's performance level (for example, from Balanced to Higher Performance / Ultra High Performance)",
+        "C. Enable Object Storage lifecycle tiering on the Block Volume",
+        "D. Move the volume to the Archive storage tier"
+      ],
+      "correct": 1,
+      "explanation": "OCI Block Volumes support elastic performance: the same volume can be assigned Lower Cost, Balanced, Higher Performance, or Ultra High Performance levels, each of which raises the guaranteed IOPS-per-GB and throughput-per-GB without any capacity change and without detaching. Option A changes the attachment type (paravirtualized vs iSCSI) and only marginally affects performance, and it forces a detach. Option C confuses services — lifecycle tiering is an Object Storage feature and cannot be applied to Block Volumes. Option D is invalid because Archive is an Object Storage tier, not a Block Volume tier."
+    },
+    {
+      "id": "q10",
+      "question": "You need to give the compute instances in a specific compartment permission to read secrets from OCI Vault without embedding user API keys or long-lived credentials on the instances. Which mechanism should you use?",
+      "options": [
+        "A. Generate an API signing key on each instance and store it in the instance metadata",
+        "B. Create a dynamic group that matches those instances and write an IAM policy that grants the dynamic group read access to the required secrets",
+        "C. Add each instance's OCID to the Administrators group",
+        "D. Store the Vault master key in an environment variable baked into the custom image"
+      ],
+      "correct": 1,
+      "explanation": "Dynamic groups let you group OCI resources (typically compute instances or functions) by attributes such as compartment OCID or tag, and IAM policies can then grant that dynamic group access to other services via instance principals — no API keys, no static credentials, and rotation is handled automatically. Option A puts long-lived signing keys on every VM, exactly the anti-pattern instance principals were designed to eliminate. Option C over-privileges the instances to full tenancy admin and, in any case, only user identities belong in user groups. Option D bakes a shared secret into an image, which cannot be rotated safely and defeats the purpose of Vault."
+    }
+  ]
+}
