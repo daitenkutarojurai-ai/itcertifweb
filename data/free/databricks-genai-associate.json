@@ -1,0 +1,253 @@
+{
+  "meta": {
+    "id": "databricks-genai-associate",
+    "name": "Databricks Certified Generative AI Engineer Associate",
+    "vendor": "Databricks",
+    "version": "1.0.0",
+    "question_count": 12,
+    "last_updated": "2026-08-31",
+    "notes": "Initial Databricks Generative AI Engineer Associate pack — covers the six exam domains: designing applications (prompt patterns, chain composition), data preparation (chunking, embeddings, Delta ingestion), application development (LangChain chains + RAG + tool/agent calling), assembling and deploying (Mosaic AI Model Serving, Foundation Model APIs, Databricks Vector Search with Delta Sync indexes), governance (Unity Catalog for models, AI Guardrails / PII), and evaluation and monitoring (MLflow LLM evaluation, LLM-as-judge, Lakehouse Monitoring). Answer positions balanced 3/3/3/3 across A/B/C/D."
+  },
+  "questions": [
+    {
+      "id": "databricks-genai-assoc-001",
+      "question": "You are ingesting long technical PDFs into a RAG knowledge base. Users ask focused questions and you want retrieved chunks to preserve individual concept boundaries rather than cutting mid-sentence. Which chunking strategy is the best starting point?",
+      "options": [
+        "Recursive character splitting that first tries paragraph breaks, then sentences, then words, with a small chunk overlap.",
+        "A single chunk per document so the model always sees the entire PDF at query time.",
+        "Fixed-size splitting at exactly N characters with no overlap and no awareness of separators.",
+        "Splitting by page number only, one chunk per PDF page."
+      ],
+      "correct": 0,
+      "explanation": "Recursive character splitting (e.g. LangChain's `RecursiveCharacterTextSplitter`) tries a prioritised list of separators — usually double newlines, then single newlines, then sentence punctuation, then words — so chunks stop at natural boundaries and a small overlap preserves context across the cut. Sending the entire PDF as one chunk defeats retrieval and blows the context window on documents of any real length. Fixed-size splitting with no separator awareness routinely severs sentences and structures, degrading retrieval relevance. Page-only splitting is arbitrary — one concept may span pages while another page holds several unrelated sections — and cannot preserve concept boundaries.",
+      "tags": [
+        "data-preparation",
+        "chunking",
+        "recursive-splitter",
+        "databricks-genai-associate"
+      ],
+      "difficulty": "easy",
+      "_normalized": true
+    },
+    {
+      "id": "databricks-genai-assoc-002",
+      "question": "Your source documents live in a Unity Catalog Delta table and are updated hourly. You want a Databricks Vector Search index that automatically stays in sync with the Delta table as rows are inserted, updated or deleted. Which index type should you create?",
+      "options": [
+        "A Direct Access index that you must update by calling `upsert` from a job after every ingest run.",
+        "A Delta Sync index configured on the source Delta table so Databricks Vector Search re-embeds and updates entries automatically.",
+        "A regular Delta table with a `VECTOR` column type and no index — Databricks SQL will search it natively.",
+        "A Feature Store online table, because vector search reads from the online store rather than from an index."
+      ],
+      "correct": 1,
+      "explanation": "A Delta Sync index is the Databricks Vector Search index type that binds directly to a source Delta table: as rows change, the service re-embeds and updates the vector index for you (optionally computing the embeddings itself with a managed embedding endpoint). A Direct Access index is the opposite pattern — you own the upserts and it does not track the Delta source. Delta tables have no built-in `VECTOR` column type that Databricks SQL can search natively; approximate nearest-neighbour lookups need a Vector Search index. Feature Store online tables are for low-latency feature lookups keyed by primary key, not for approximate nearest-neighbour retrieval.",
+      "tags": [
+        "vector-search",
+        "delta-sync-index",
+        "retrieval",
+        "databricks-genai-associate"
+      ],
+      "difficulty": "medium",
+      "_normalized": true
+    },
+    {
+      "id": "databricks-genai-assoc-003",
+      "question": "Your assistant chatbot must always answer in a formal tone and refuse to discuss competitors, regardless of what the end user writes. Where should this instruction be placed to make the constraint most robust across turns?",
+      "options": [
+        "Appended to every user message so it is repeated on each turn.",
+        "In the model card / registry description so downstream consumers can read it.",
+        "In the system message (system prompt) sent with every chat completion request.",
+        "Baked into the vector store as an extra document so it can be retrieved when relevant."
+      ],
+      "correct": 2,
+      "explanation": "Persistent, role-defining behaviour belongs in the system message: chat models weight it as the highest-priority instruction and it is delivered on every turn without polluting the visible user transcript. Appending it to every user message works partially but confuses conversation history, wastes tokens, and lets a user overwrite or contradict it inline. Model-card descriptions are metadata for humans and are never seen by the model at inference. Storing the rule as a retrievable document only injects it when retrieval happens to surface it, which is unreliable for a constraint that must hold on every turn.",
+      "tags": [
+        "prompt-engineering",
+        "system-prompt",
+        "design",
+        "databricks-genai-associate"
+      ],
+      "difficulty": "easy",
+      "_normalized": true
+    },
+    {
+      "id": "databricks-genai-assoc-004",
+      "question": "Which LangChain composition most naturally expresses a Retrieval-Augmented Generation flow: take a user question, fetch relevant chunks from a Databricks Vector Search retriever, stuff them into a prompt template alongside the question, then send the result to a chat model?",
+      "options": [
+        "A single `PromptTemplate` object with no retriever — LangChain automatically calls Vector Search whenever the prompt contains a `{context}` placeholder.",
+        "An `Agent` with a Python REPL tool and no retriever, because agents replace RAG in LangChain.",
+        "A raw model call with the question only — the model will decide on its own whether to consult the vector index.",
+        "A chain such as `retriever | prompt | chat_model | output_parser` (LCEL) or `RetrievalQA`, which explicitly wires retrieval into the prompt."
+      ],
+      "correct": 3,
+      "explanation": "RAG in LangChain is expressed by explicitly composing a retriever with a prompt and a chat model — either through LangChain Expression Language (`retriever | prompt | chat_model | output_parser`) or a helper like `RetrievalQA` / `create_retrieval_chain`. `PromptTemplate` alone has no retrieval side effect; the `{context}` placeholder is only filled if a chain populates it. Agents are a different pattern (tool calling for actions) and do not implicitly replace RAG. Passing the question directly to the model performs no retrieval at all, so the model has no grounding beyond its training data.",
+      "tags": [
+        "langchain",
+        "rag",
+        "chains",
+        "databricks-genai-associate"
+      ],
+      "difficulty": "medium",
+      "_normalized": true
+    },
+    {
+      "id": "databricks-genai-assoc-005",
+      "question": "A team wants to call a proprietary Databricks-hosted foundation model (e.g. Meta Llama 3, DBRX) via a pay-per-token endpoint without provisioning or managing the underlying serving infrastructure. Which Mosaic AI Model Serving option fits?",
+      "options": [
+        "Foundation Model APIs pay-per-token endpoints, which expose Databricks-hosted base models via a standard chat/completions API without any infra management.",
+        "A custom model-serving endpoint you build by uploading the model weights into DBFS and running a Docker container yourself.",
+        "External Models, which is the only supported way to reach any generative model from a Databricks notebook.",
+        "Feature Serving endpoints, since Databricks reuses feature-store endpoints to host LLMs."
+      ],
+      "correct": 0,
+      "explanation": "Foundation Model APIs are Databricks-hosted base-model endpoints (Llama, DBRX, Mixtral, etc.) offered as pay-per-token or provisioned-throughput endpoints and reachable via an OpenAI-compatible chat/completions API — no cluster or Docker to run. Uploading weights and hand-rolling a container is the opposite of managed serving. External Models is for calling third-party providers (OpenAI, Anthropic, etc.) from Databricks with unified auth and logging — it is not the route to Databricks-hosted base models. Feature Serving endpoints serve low-latency features from an online store; they do not host LLMs.",
+      "tags": [
+        "mosaic-ai",
+        "foundation-model-apis",
+        "model-serving",
+        "databricks-genai-associate"
+      ],
+      "difficulty": "medium",
+      "_normalized": true
+    },
+    {
+      "id": "databricks-genai-assoc-006",
+      "question": "You want to score the quality of a RAG chatbot's answers on a benchmark of 500 questions. There are no gold answers to string-match against, so you decide to use another LLM as a grader. Which Databricks/MLflow feature is designed for this workflow?",
+      "options": [
+        "`spark.ml.evaluation.MulticlassClassificationEvaluator`, applied by treating each answer as a class label.",
+        "`mlflow.evaluate` with the `model_type='question-answering'` (or `text`) task and built-in / custom LLM-as-judge metrics such as `answer_relevance`, `faithfulness`, and `answer_correctness`.",
+        "The Databricks SQL `AI_QUERY` function called once per row, then eyeballing the results in a dashboard.",
+        "The MLflow Model Registry `compare` view, which auto-computes answer quality between two registered models."
+      ],
+      "correct": 1,
+      "explanation": "`mlflow.evaluate` supports LLM-focused task types and ships built-in LLM-as-judge metrics (relevance, faithfulness, correctness, toxicity, etc.); you can also plug in custom `EvaluationMetric` graders. It logs per-row scores and aggregate metrics to the MLflow run for reproducible evaluation. `MulticlassClassificationEvaluator` is a Spark ML classification metric — not usable for free-form generation. `AI_QUERY` calls a model from SQL but is not an evaluation harness. The Model Registry `compare` view surfaces run metadata; it does not compute answer quality on demand.",
+      "tags": [
+        "evaluation",
+        "mlflow-evaluate",
+        "llm-as-judge",
+        "databricks-genai-associate"
+      ],
+      "difficulty": "medium",
+      "_normalized": true
+    },
+    {
+      "id": "databricks-genai-assoc-007",
+      "question": "An assistant must decide when to call an external `lookup_order_status(order_id)` API vs answer from its own knowledge. You want the model itself to emit a structured request naming the tool and its arguments, which your code then executes and feeds back for the final answer. What is this pattern called?",
+      "options": [
+        "Prompt injection, because the tool description is inserted into the prompt.",
+        "Retrieval-augmented generation, because the tool result augments the context.",
+        "Function calling (also known as tool calling / tool use), where the model returns a structured tool invocation the application executes.",
+        "Fine-tuning, because the model must have been trained on the API surface to know it exists."
+      ],
+      "correct": 2,
+      "explanation": "This is function calling (or tool calling): the model is given tool schemas in the request, chooses whether to call one, and returns a structured message naming the tool and arguments; the application executes the tool and passes the result back on the next turn for the final natural-language answer. Prompt injection is an adversarial pattern where user text overrides system instructions — not a design pattern. RAG concerns fetching passages from a knowledge store, not invoking side-effectful APIs. Fine-tuning bakes behaviour into the model weights and is not required to expose tools; the tool schema is passed in at inference time.",
+      "tags": [
+        "agents",
+        "function-calling",
+        "tool-use",
+        "databricks-genai-associate"
+      ],
+      "difficulty": "medium",
+      "_normalized": true
+    },
+    {
+      "id": "databricks-genai-assoc-008",
+      "question": "Compliance requires that customer PII (emails, phone numbers) never leave your Mosaic AI Model Serving endpoint in either input or output. Which Databricks feature is designed to enforce that on the serving layer without rewriting the calling application?",
+      "options": [
+        "Unity Catalog row-level filters applied to the chat requests as they flow through the endpoint.",
+        "Delta Live Tables expectations attached to the serving endpoint's request log.",
+        "A CLUSTER POLICY that blocks the endpoint from returning strings containing an `@` character.",
+        "AI Guardrails on the Mosaic AI Model Serving endpoint (safety filter / PII detection), which inspect and can block or redact requests and responses."
+      ],
+      "correct": 3,
+      "explanation": "Mosaic AI Model Serving supports AI Guardrails — configurable safety filters that inspect prompts and responses and can block or redact categories such as PII, toxicity, or off-topic content, without touching the client code. Unity Catalog row filters govern table access, not chat traffic. Delta Live Tables expectations are dataset-quality rules on batch/streaming pipelines, not inline moderation for serving. Cluster policies restrict cluster configuration for compute; they cannot filter serving payloads and a naive `@` substring check would not reliably catch PII.",
+      "tags": [
+        "governance",
+        "ai-guardrails",
+        "pii",
+        "databricks-genai-associate"
+      ],
+      "difficulty": "medium",
+      "_normalized": true
+    },
+    {
+      "id": "databricks-genai-assoc-009",
+      "question": "A RAG chatbot is hitting peak-hours latency spikes because the underlying pay-per-token Foundation Model APIs endpoint queues traffic behind other tenants. You need predictable throughput and lower tail latency. What is the recommended Databricks change?",
+      "options": [
+        "Move the workload to a Provisioned Throughput Foundation Model endpoint sized for your peak QPS, which reserves capacity for your workload.",
+        "Add a Databricks SQL Serverless warehouse and route inference through `AI_QUERY` to smooth spikes.",
+        "Switch to a Direct Access vector index, which acts as an in-memory cache for the LLM response.",
+        "Increase the Spark cluster driver size on the notebook calling the endpoint."
+      ],
+      "correct": 0,
+      "explanation": "Foundation Model APIs come in two flavours: pay-per-token (shared, best-effort throughput) and Provisioned Throughput (a dedicated endpoint sized in tokens/sec that reserves GPU capacity for your workload and delivers predictable latency). Routing inference through SQL warehouses changes the caller, not the underlying LLM capacity, and adds a hop rather than removing contention. Vector indexes cache document embeddings, not LLM responses. Driver-node size on the caller has no effect on latency contention inside a shared serving endpoint.",
+      "tags": [
+        "model-serving",
+        "provisioned-throughput",
+        "scaling",
+        "databricks-genai-associate"
+      ],
+      "difficulty": "medium",
+      "_normalized": true
+    },
+    {
+      "id": "databricks-genai-assoc-010",
+      "question": "You are deploying an LLM chain as a Python model artifact. The organisation requires that permissions, lineage and versioning of the model be governed by Unity Catalog rather than the legacy workspace registry. How do you register the model correctly?",
+      "options": [
+        "Save it to DBFS and email the path — Unity Catalog only tracks tables, not models.",
+        "Set `mlflow.set_registry_uri('databricks-uc')` and register with a three-level name `catalog.schema.model_name`, so the model is a Unity Catalog object with UC grants and lineage.",
+        "Publish it to a public GitHub repository so Unity Catalog can import it via the Git connector.",
+        "Use the `%pip install my-model` magic in every notebook that needs the model."
+      ],
+      "correct": 1,
+      "explanation": "Unity Catalog models are registered by pointing MLflow's registry URI at `databricks-uc` and using a fully-qualified three-level name (`catalog.schema.model_name`), which places the model under Unity Catalog's permission model, lineage graph and cross-workspace sharing. DBFS is a plain filesystem — it does not provide model governance. GitHub is not a Databricks model registry backend. `%pip install` distributes Python packages, not managed model versions with permissions and lineage.",
+      "tags": [
+        "governance",
+        "unity-catalog",
+        "model-registry",
+        "databricks-genai-associate"
+      ],
+      "difficulty": "medium",
+      "_normalized": true
+    },
+    {
+      "id": "databricks-genai-assoc-011",
+      "question": "You need to pick an embedding model for a support-ticket RAG use case. Which choice best explains the primary trade-off you should weigh when comparing candidates?",
+      "options": [
+        "Vector dimensionality — 128-dim vectors are always more accurate than 1024-dim vectors because they are shorter to compare.",
+        "The order in which chunks were inserted into the vector index, because embeddings inherit that order.",
+        "Retrieval quality on your own data vs cost/latency and storage per vector — higher-dimensional or larger models often retrieve better but cost more to compute and store.",
+        "The colour of the model card in the marketplace, since Databricks uses card colour to indicate quality."
+      ],
+      "correct": 2,
+      "explanation": "The real trade-off is retrieval quality on your domain data against cost, latency and storage: larger / higher-dimensional embedding models often score better on retrieval benchmarks but are slower to generate at ingest and query time and consume more space in the vector index. Lower dimensionality is not automatically more accurate — quality depends on the model, not just vector length. Insertion order does not affect vector similarity; nearest-neighbour search is content-based. Model-card colour has no semantic meaning.",
+      "tags": [
+        "embeddings",
+        "design",
+        "trade-offs",
+        "databricks-genai-associate"
+      ],
+      "difficulty": "easy",
+      "_normalized": true
+    },
+    {
+      "id": "databricks-genai-assoc-012",
+      "question": "Your RAG chatbot sometimes answers a question with content that is not supported by the retrieved context (hallucination). Which metric, computed against the retrieved context and the generated answer, is designed to catch this specific failure mode?",
+      "options": [
+        "Latency p95, which measures how long the model takes to generate a response.",
+        "Perplexity of the base model on a held-out language-modelling corpus.",
+        "Retriever recall@k, which measures whether the correct passage appears in the top-k retrievals.",
+        "Faithfulness (also called groundedness) — the share of the answer's claims that are entailed by the retrieved context."
+      ],
+      "correct": 3,
+      "explanation": "Faithfulness / groundedness measures whether every claim in the generated answer is supported by the passages the model was given; it is the standard LLM-evaluation metric for hallucination in RAG and is available as a built-in LLM-as-judge metric in `mlflow.evaluate`. Latency p95 tells you nothing about correctness. Perplexity is a language-modelling metric on held-out text and does not use the retrieved context. Retriever recall@k evaluates the retriever, not the generator — even with perfect retrieval a model can still hallucinate around the passage.",
+      "tags": [
+        "evaluation",
+        "faithfulness",
+        "rag-metrics",
+        "databricks-genai-associate"
+      ],
+      "difficulty": "medium",
+      "_normalized": true
+    }
+  ]
+}
