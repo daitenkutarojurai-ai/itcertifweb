@@ -21,6 +21,34 @@ up when there's time.
 
 ---
 
+## 🚨 Deploy-gate incidents
+
+`.github/workflows/static.yml` runs `npm test` **and `npm run audit-content`**
+before deploying. A red audit means the push succeeds but the site never
+updates — silently. Log every incident here so the pattern stays visible.
+
+### DG-1 — Content added without wiring ✅ FIXED 2026-09-01
+
+`npm run audit-content` was red on `main`, so nothing had shipped since the
+two commits below landed:
+
+- `feat(pack): add databricks-genai-associate` — the 12-question bank was
+  registered in `data/index.json` but `npm run gen-paths` was never re-run,
+  so the pack had neither a learning path nor a `_skipped.json` entry.
+  Fix: re-ran the generator → a real 16-node / 3-chapter path.
+- `news: add oci-architect-professional-2026` — the page existed under
+  `news/` but was absent from the `data/news.json` feed, so it was
+  unreachable from `/news/`. Fix: added the feed entry (category `cloud`,
+  dated 2026-08-31, CTA pack `oci-architect-associate`).
+
+**Rule for future runs:** adding a pack means re-running `npm run gen-paths`;
+adding a `news/` page means adding its `data/news.json` entry — in the same
+commit. `npm test` + `npm run audit-content` must both be green *locally*
+before pushing; a green local audit is the only evidence the work will
+actually reach certquests.com.
+
+---
+
 ## P0 — UX overhaul (2026-05-20, HIGH priority)
 
 > Batch of UX defects + reworks reported by the owner on 2026-05-20.

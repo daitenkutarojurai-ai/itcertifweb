@@ -1,0 +1,383 @@
+{
+  "packId": "databricks-genai-associate",
+  "title": "Databricks Certified Generative AI Engineer Associate",
+  "brandName": "Databricks",
+  "brandColor": "#60a5fa",
+  "chapters": [
+    {
+      "id": "ch1",
+      "title": "Part 1",
+      "tag": "part-1",
+      "nodes": [
+        {
+          "id": "c1-concept",
+          "type": "concept",
+          "title": "ML Data Preparation: Key Ideas",
+          "content": "Data preparation transforms raw data into clean, well-structured features a model can learn from, and it is where most real ML effort is spent. AWS ML exams test feature engineering, encoding, scaling, dataset splits, and handling missing data and imbalance, often in a SageMaker context.",
+          "flashcards": [
+            {
+              "front": "How do you encode categorical variables for a model?",
+              "back": "One-hot encoding creates a binary column per category (best for nominal, unordered values); label/ordinal encoding maps categories to integers when order is meaningful. SageMaker's built-in transforms and Data Wrangler can apply these."
+            },
+            {
+              "front": "What is the difference between normalization and standardization?",
+              "back": "Normalization (min-max scaling) rescales values to a fixed range like 0-1; standardization rescales to zero mean and unit variance (z-score). Scaling prevents large-magnitude features from dominating distance- or gradient-based algorithms."
+            },
+            {
+              "front": "Why split data into train/validation/test sets?",
+              "back": "The training set fits the model, the validation set tunes hyperparameters and detects overfitting, and the held-out test set gives an unbiased estimate of generalization on unseen data."
+            },
+            {
+              "front": "How can you address class imbalance?",
+              "back": "Resample the data (oversample the minority class, e.g. SMOTE, or undersample the majority), apply class weights, or use metrics like precision/recall/F1 instead of raw accuracy so the rare class isn't ignored."
+            }
+          ],
+          "source": "concept-library",
+          "sourceTag": "data-preparation"
+        },
+        {
+          "id": "c1-quiz1",
+          "type": "quiz",
+          "title": "Part 1 — Drill 1",
+          "questionIds": [
+            "databricks-genai-assoc-001",
+            "databricks-genai-assoc-003",
+            "databricks-genai-assoc-002",
+            "databricks-genai-assoc-004"
+          ]
+        },
+        {
+          "id": "c1-game",
+          "type": "minigame",
+          "gameType": "lightning",
+          "mode": "lightning-round",
+          "data": {
+            "secondsPerQuestion": 7,
+            "livesAllowed": 3,
+            "questions": [
+              {
+                "q": "You are ingesting long technical PDFs into a RAG knowledge base. Users ask focused questions and you want retrieved chunks to preserve individual concept boundaries rather than cutting mid-sentence. Which chunking strategy is the best starting point?",
+                "choices": [
+                  "Recursive character splitting that first tries paragraph breaks, then sentences, then words, with a small chunk overlap.",
+                  "A single chunk per document so the model always sees the entire PDF at query time.",
+                  "Fixed-size splitting at exactly N characters with no overlap and no awareness of separators.",
+                  "Splitting by page number only, one chunk per PDF page."
+                ],
+                "correctIndex": 0,
+                "explanation": "Recursive character splitting (e.g. LangChain's `RecursiveCharacterTextSplitter`) tries a prioritised list of separators — usually double newlines, then single newlines, then sentence punctuation, then words — so chunks stop at natural boundaries and a small overlap preserves context across the cut. Sending the entire PDF as one chunk defeats retrieval and blows the context window on documents of any real length. Fixed-size splitting with no separator awareness routinely severs sentences and structures, degrading retrieval relevance. Page-only splitting is arbitrary — one concept may span pages while another page holds several unrelated sections — and cannot preserve concept boundaries."
+              },
+              {
+                "q": "Your source documents live in a Unity Catalog Delta table and are updated hourly. You want a Databricks Vector Search index that automatically stays in sync with the Delta table as rows are inserted, updated or deleted. Which index type should you create?",
+                "choices": [
+                  "A Direct Access index that you must update by calling `upsert` from a job after every ingest run.",
+                  "A Delta Sync index configured on the source Delta table so Databricks Vector Search re-embeds and updates entries automatically.",
+                  "A regular Delta table with a `VECTOR` column type and no index — Databricks SQL will search it natively.",
+                  "A Feature Store online table, because vector search reads from the online store rather than from an index."
+                ],
+                "correctIndex": 1,
+                "explanation": "A Delta Sync index is the Databricks Vector Search index type that binds directly to a source Delta table: as rows change, the service re-embeds and updates the vector index for you (optionally computing the embeddings itself with a managed embedding endpoint). A Direct Access index is the opposite pattern — you own the upserts and it does not track the Delta source. Delta tables have no built-in `VECTOR` column type that Databricks SQL can search natively; approximate nearest-neighbour lookups need a Vector Search index. Feature Store online tables are for low-latency feature lookups keyed by primary key, not for approximate nearest-neighbour retrieval."
+              },
+              {
+                "q": "Your assistant chatbot must always answer in a formal tone and refuse to discuss competitors, regardless of what the end user writes. Where should this instruction be placed to make the constraint most robust across turns?",
+                "choices": [
+                  "Appended to every user message so it is repeated on each turn.",
+                  "In the model card / registry description so downstream consumers can read it.",
+                  "In the system message (system prompt) sent with every chat completion request.",
+                  "Baked into the vector store as an extra document so it can be retrieved when relevant."
+                ],
+                "correctIndex": 2,
+                "explanation": "Persistent, role-defining behaviour belongs in the system message: chat models weight it as the highest-priority instruction and it is delivered on every turn without polluting the visible user transcript. Appending it to every user message works partially but confuses conversation history, wastes tokens, and lets a user overwrite or contradict it inline. Model-card descriptions are metadata for humans and are never seen by the model at inference. Storing the rule as a retrievable document only injects it when retrieval happens to surface it, which is unreliable for a constraint that must hold on every turn."
+              },
+              {
+                "q": "Which LangChain composition most naturally expresses a Retrieval-Augmented Generation flow: take a user question, fetch relevant chunks from a Databricks Vector Search retriever, stuff them into a prompt template alongside the question, then send the result to a chat model?",
+                "choices": [
+                  "A single `PromptTemplate` object with no retriever — LangChain automatically calls Vector Search whenever the prompt contains a `{context}` placeholder.",
+                  "An `Agent` with a Python REPL tool and no retriever, because agents replace RAG in LangChain.",
+                  "A raw model call with the question only — the model will decide on its own whether to consult the vector index.",
+                  "A chain such as `retriever | prompt | chat_model | output_parser` (LCEL) or `RetrievalQA`, which explicitly wires retrieval into the prompt."
+                ],
+                "correctIndex": 3,
+                "explanation": "RAG in LangChain is expressed by explicitly composing a retriever with a prompt and a chat model — either through LangChain Expression Language (`retriever | prompt | chat_model | output_parser`) or a helper like `RetrievalQA` / `create_retrieval_chain`. `PromptTemplate` alone has no retrieval side effect; the `{context}` placeholder is only filled if a chain populates it. Agents are a different pattern (tool calling for actions) and do not implicitly replace RAG. Passing the question directly to the model performs no retrieval at all, so the model has no grounding beyond its training data."
+              }
+            ]
+          },
+          "title": "Part 1 — Lightning Round"
+        },
+        {
+          "id": "c1-boss",
+          "type": "subboss",
+          "title": "Boss: Part 1",
+          "questionIds": [
+            "databricks-genai-assoc-001",
+            "databricks-genai-assoc-003",
+            "databricks-genai-assoc-002",
+            "databricks-genai-assoc-004"
+          ]
+        },
+        {
+          "id": "c1-chest",
+          "type": "chest",
+          "title": "Treasure Chest",
+          "rewardXp": 30,
+          "cosmeticKey": "chapter-1"
+        }
+      ]
+    },
+    {
+      "id": "ch2",
+      "title": "Part 2",
+      "tag": "part-2",
+      "nodes": [
+        {
+          "id": "c2-concept",
+          "type": "concept",
+          "title": "Cloud governance: Key Ideas",
+          "content": "Governance is the set of policies and guardrails that keep a cloud account safe and on-budget as it scales from one engineer to a hundred. Think tagging standards, budget alerts, organizational policies, and the multi-account strategy.",
+          "flashcards": [
+            {
+              "front": "Why use multiple accounts (an Organization) instead of one big account?",
+              "back": "Blast-radius isolation: a compromised prod account doesn't leak into dev. Billing clarity: per-team or per-environment cost reports. Quota independence: prod doesn't share API limits with sandbox. Service Control Policies (AWS) / management groups (Azure) enforce 'no one can disable CloudTrail' across the whole org."
+            },
+            {
+              "front": "What is a Service Control Policy (SCP)?",
+              "back": "An AWS Organizations policy that sets the maximum permissions any IAM identity in a member account can have. Even if a user's IAM policy grants `s3:*`, an SCP denying `s3:DeleteBucket` overrides it. SCPs are guardrails, not grants — they only restrict."
+            },
+            {
+              "front": "Tagging strategy — name three high-leverage tags.",
+              "back": "(1) Owner / team — who pays and who to page. (2) Environment (prod/staging/dev) — drives access controls and lifecycle. (3) Cost-center / project — for chargeback. Tags are free and infinitely valuable for cost allocation and automation; enforce them with policies."
+            },
+            {
+              "front": "What is a landing zone?",
+              "back": "A pre-baked multi-account setup with security baselines: org with master + audit + log-archive + workload accounts, CloudTrail / Config enabled everywhere, SSO wired up, network templates ready. AWS Control Tower / Azure Landing Zones / GCP setup automate this so you start on a safe foundation, not bare cloud."
+            }
+          ],
+          "source": "concept-library",
+          "sourceTag": "governance"
+        },
+        {
+          "id": "c2-quiz1",
+          "type": "quiz",
+          "title": "Part 2 — Drill 1",
+          "questionIds": [
+            "databricks-genai-assoc-005",
+            "databricks-genai-assoc-006",
+            "databricks-genai-assoc-007",
+            "databricks-genai-assoc-008"
+          ]
+        },
+        {
+          "id": "c2-game",
+          "type": "minigame",
+          "gameType": "lightning",
+          "mode": "lightning-round",
+          "data": {
+            "secondsPerQuestion": 7,
+            "livesAllowed": 3,
+            "questions": [
+              {
+                "q": "A team wants to call a proprietary Databricks-hosted foundation model (e.g. Meta Llama 3, DBRX) via a pay-per-token endpoint without provisioning or managing the underlying serving infrastructure. Which Mosaic AI Model Serving option fits?",
+                "choices": [
+                  "Foundation Model APIs pay-per-token endpoints, which expose Databricks-hosted base models via a standard chat/completions API without any infra management.",
+                  "A custom model-serving endpoint you build by uploading the model weights into DBFS and running a Docker container yourself.",
+                  "External Models, which is the only supported way to reach any generative model from a Databricks notebook.",
+                  "Feature Serving endpoints, since Databricks reuses feature-store endpoints to host LLMs."
+                ],
+                "correctIndex": 0,
+                "explanation": "Foundation Model APIs are Databricks-hosted base-model endpoints (Llama, DBRX, Mixtral, etc.) offered as pay-per-token or provisioned-throughput endpoints and reachable via an OpenAI-compatible chat/completions API — no cluster or Docker to run. Uploading weights and hand-rolling a container is the opposite of managed serving. External Models is for calling third-party providers (OpenAI, Anthropic, etc.) from Databricks with unified auth and logging — it is not the route to Databricks-hosted base models. Feature Serving endpoints serve low-latency features from an online store; they do not host LLMs."
+              },
+              {
+                "q": "You want to score the quality of a RAG chatbot's answers on a benchmark of 500 questions. There are no gold answers to string-match against, so you decide to use another LLM as a grader. Which Databricks/MLflow feature is designed for this workflow?",
+                "choices": [
+                  "`spark.ml.evaluation.MulticlassClassificationEvaluator`, applied by treating each answer as a class label.",
+                  "`mlflow.evaluate` with the `model_type='question-answering'` (or `text`) task and built-in / custom LLM-as-judge metrics such as `answer_relevance`, `faithfulness`, and `answer_correctness`.",
+                  "The Databricks SQL `AI_QUERY` function called once per row, then eyeballing the results in a dashboard.",
+                  "The MLflow Model Registry `compare` view, which auto-computes answer quality between two registered models."
+                ],
+                "correctIndex": 1,
+                "explanation": "`mlflow.evaluate` supports LLM-focused task types and ships built-in LLM-as-judge metrics (relevance, faithfulness, correctness, toxicity, etc.); you can also plug in custom `EvaluationMetric` graders. It logs per-row scores and aggregate metrics to the MLflow run for reproducible evaluation. `MulticlassClassificationEvaluator` is a Spark ML classification metric — not usable for free-form generation. `AI_QUERY` calls a model from SQL but is not an evaluation harness. The Model Registry `compare` view surfaces run metadata; it does not compute answer quality on demand."
+              },
+              {
+                "q": "An assistant must decide when to call an external `lookup_order_status(order_id)` API vs answer from its own knowledge. You want the model itself to emit a structured request naming the tool and its arguments, which your code then executes and feeds back for the final answer. What is this pattern called?",
+                "choices": [
+                  "Prompt injection, because the tool description is inserted into the prompt.",
+                  "Retrieval-augmented generation, because the tool result augments the context.",
+                  "Function calling (also known as tool calling / tool use), where the model returns a structured tool invocation the application executes.",
+                  "Fine-tuning, because the model must have been trained on the API surface to know it exists."
+                ],
+                "correctIndex": 2,
+                "explanation": "This is function calling (or tool calling): the model is given tool schemas in the request, chooses whether to call one, and returns a structured message naming the tool and arguments; the application executes the tool and passes the result back on the next turn for the final natural-language answer. Prompt injection is an adversarial pattern where user text overrides system instructions — not a design pattern. RAG concerns fetching passages from a knowledge store, not invoking side-effectful APIs. Fine-tuning bakes behaviour into the model weights and is not required to expose tools; the tool schema is passed in at inference time."
+              },
+              {
+                "q": "Compliance requires that customer PII (emails, phone numbers) never leave your Mosaic AI Model Serving endpoint in either input or output. Which Databricks feature is designed to enforce that on the serving layer without rewriting the calling application?",
+                "choices": [
+                  "Unity Catalog row-level filters applied to the chat requests as they flow through the endpoint.",
+                  "Delta Live Tables expectations attached to the serving endpoint's request log.",
+                  "A CLUSTER POLICY that blocks the endpoint from returning strings containing an `@` character.",
+                  "AI Guardrails on the Mosaic AI Model Serving endpoint (safety filter / PII detection), which inspect and can block or redact requests and responses."
+                ],
+                "correctIndex": 3,
+                "explanation": "Mosaic AI Model Serving supports AI Guardrails — configurable safety filters that inspect prompts and responses and can block or redact categories such as PII, toxicity, or off-topic content, without touching the client code. Unity Catalog row filters govern table access, not chat traffic. Delta Live Tables expectations are dataset-quality rules on batch/streaming pipelines, not inline moderation for serving. Cluster policies restrict cluster configuration for compute; they cannot filter serving payloads and a naive `@` substring check would not reliably catch PII."
+              }
+            ]
+          },
+          "title": "Part 2 — Lightning Round"
+        },
+        {
+          "id": "c2-boss",
+          "type": "subboss",
+          "title": "Boss: Part 2",
+          "questionIds": [
+            "databricks-genai-assoc-005",
+            "databricks-genai-assoc-006",
+            "databricks-genai-assoc-007",
+            "databricks-genai-assoc-008"
+          ]
+        },
+        {
+          "id": "c2-chest",
+          "type": "chest",
+          "title": "Treasure Chest",
+          "rewardXp": 30,
+          "cosmeticKey": "chapter-2"
+        }
+      ]
+    },
+    {
+      "id": "ch3",
+      "title": "Part 3",
+      "tag": "part-3",
+      "nodes": [
+        {
+          "id": "c3-concept",
+          "type": "concept",
+          "title": "Part 3: Key Ideas",
+          "content": "Quick primer on Part 3. Tap to flip cards covering the most-asked exam ideas in this domain.",
+          "flashcards": [
+            {
+              "front": "A RAG chatbot is hitting peak-hours latency spikes because the underlying pay-per-token Foundation Model APIs endpoint queues traffic behind other tenants. You need predictable throughput and lower tail latency. What is the recommended Databricks change?",
+              "back": "Foundation Model APIs come in two flavours: pay-per-token (shared, best-effort throughput) and Provisioned Throughput (a dedicated endpoint sized in tokens/sec that reserves GPU capacity for your workload and delivers predictable latency). Routing inference through SQL warehouses changes the caller, not the underlying LLM capacity, and adds a hop rather than removing contention. Vector indexes cache document embeddings, not LLM responses. Driver-node size on the caller has no effect on latency contention inside a shared serving endpoint."
+            },
+            {
+              "front": "You are deploying an LLM chain as a Python model artifact. The organisation requires that permissions, lineage and versioning of the model be governed by Unity Catalog rather than the legacy workspace registry. How do you register the model correctly?",
+              "back": "Unity Catalog models are registered by pointing MLflow's registry URI at `databricks-uc` and using a fully-qualified three-level name (`catalog.schema.model_name`), which places the model under Unity Catalog's permission model, lineage graph and cross-workspace sharing. DBFS is a plain filesystem — it does not provide model governance. GitHub is not a Databricks model registry backend. `%pip install` distributes Python packages, not managed model versions with permissions and lineage."
+            },
+            {
+              "front": "You need to pick an embedding model for a support-ticket RAG use case. Which choice best explains the primary trade-off you should weigh when comparing candidates?",
+              "back": "The real trade-off is retrieval quality on your domain data against cost, latency and storage: larger / higher-dimensional embedding models often score better on retrieval benchmarks but are slower to generate at ingest and query time and consume more space in the vector index. Lower dimensionality is not automatically more accurate — quality depends on the model, not just vector length. Insertion order does not affect vector similarity; nearest-neighbour search is content-based. Model-card colour has no semantic meaning."
+            },
+            {
+              "front": "Your RAG chatbot sometimes answers a question with content that is not supported by the retrieved context (hallucination). Which metric, computed against the retrieved context and the generated answer, is designed to catch this specific failure mode?",
+              "back": "Faithfulness / groundedness measures whether every claim in the generated answer is supported by the passages the model was given; it is the standard LLM-evaluation metric for hallucination in RAG and is available as a built-in LLM-as-judge metric in `mlflow.evaluate`. Latency p95 tells you nothing about correctness. Perplexity is a language-modelling metric on held-out text and does not use the retrieved context. Retriever recall@k evaluates the retriever, not the generator — even with perfect retrieval a model can still hallucinate around the passage."
+            }
+          ],
+          "source": "auto-derived"
+        },
+        {
+          "id": "c3-quiz1",
+          "type": "quiz",
+          "title": "Part 3 — Drill 1",
+          "questionIds": [
+            "databricks-genai-assoc-011",
+            "databricks-genai-assoc-009",
+            "databricks-genai-assoc-010",
+            "databricks-genai-assoc-012"
+          ]
+        },
+        {
+          "id": "c3-game",
+          "type": "minigame",
+          "gameType": "lightning",
+          "mode": "lightning-round",
+          "data": {
+            "secondsPerQuestion": 7,
+            "livesAllowed": 3,
+            "questions": [
+              {
+                "q": "A RAG chatbot is hitting peak-hours latency spikes because the underlying pay-per-token Foundation Model APIs endpoint queues traffic behind other tenants. You need predictable throughput and lower tail latency. What is the recommended Databricks change?",
+                "choices": [
+                  "Move the workload to a Provisioned Throughput Foundation Model endpoint sized for your peak QPS, which reserves capacity for your workload.",
+                  "Add a Databricks SQL Serverless warehouse and route inference through `AI_QUERY` to smooth spikes.",
+                  "Switch to a Direct Access vector index, which acts as an in-memory cache for the LLM response.",
+                  "Increase the Spark cluster driver size on the notebook calling the endpoint."
+                ],
+                "correctIndex": 0,
+                "explanation": "Foundation Model APIs come in two flavours: pay-per-token (shared, best-effort throughput) and Provisioned Throughput (a dedicated endpoint sized in tokens/sec that reserves GPU capacity for your workload and delivers predictable latency). Routing inference through SQL warehouses changes the caller, not the underlying LLM capacity, and adds a hop rather than removing contention. Vector indexes cache document embeddings, not LLM responses. Driver-node size on the caller has no effect on latency contention inside a shared serving endpoint."
+              },
+              {
+                "q": "You are deploying an LLM chain as a Python model artifact. The organisation requires that permissions, lineage and versioning of the model be governed by Unity Catalog rather than the legacy workspace registry. How do you register the model correctly?",
+                "choices": [
+                  "Save it to DBFS and email the path — Unity Catalog only tracks tables, not models.",
+                  "Set `mlflow.set_registry_uri('databricks-uc')` and register with a three-level name `catalog.schema.model_name`, so the model is a Unity Catalog object with UC grants and lineage.",
+                  "Publish it to a public GitHub repository so Unity Catalog can import it via the Git connector.",
+                  "Use the `%pip install my-model` magic in every notebook that needs the model."
+                ],
+                "correctIndex": 1,
+                "explanation": "Unity Catalog models are registered by pointing MLflow's registry URI at `databricks-uc` and using a fully-qualified three-level name (`catalog.schema.model_name`), which places the model under Unity Catalog's permission model, lineage graph and cross-workspace sharing. DBFS is a plain filesystem — it does not provide model governance. GitHub is not a Databricks model registry backend. `%pip install` distributes Python packages, not managed model versions with permissions and lineage."
+              },
+              {
+                "q": "You need to pick an embedding model for a support-ticket RAG use case. Which choice best explains the primary trade-off you should weigh when comparing candidates?",
+                "choices": [
+                  "Vector dimensionality — 128-dim vectors are always more accurate than 1024-dim vectors because they are shorter to compare.",
+                  "The order in which chunks were inserted into the vector index, because embeddings inherit that order.",
+                  "Retrieval quality on your own data vs cost/latency and storage per vector — higher-dimensional or larger models often retrieve better but cost more to compute and store.",
+                  "The colour of the model card in the marketplace, since Databricks uses card colour to indicate quality."
+                ],
+                "correctIndex": 2,
+                "explanation": "The real trade-off is retrieval quality on your domain data against cost, latency and storage: larger / higher-dimensional embedding models often score better on retrieval benchmarks but are slower to generate at ingest and query time and consume more space in the vector index. Lower dimensionality is not automatically more accurate — quality depends on the model, not just vector length. Insertion order does not affect vector similarity; nearest-neighbour search is content-based. Model-card colour has no semantic meaning."
+              },
+              {
+                "q": "Your RAG chatbot sometimes answers a question with content that is not supported by the retrieved context (hallucination). Which metric, computed against the retrieved context and the generated answer, is designed to catch this specific failure mode?",
+                "choices": [
+                  "Latency p95, which measures how long the model takes to generate a response.",
+                  "Perplexity of the base model on a held-out language-modelling corpus.",
+                  "Retriever recall@k, which measures whether the correct passage appears in the top-k retrievals.",
+                  "Faithfulness (also called groundedness) — the share of the answer's claims that are entailed by the retrieved context."
+                ],
+                "correctIndex": 3,
+                "explanation": "Faithfulness / groundedness measures whether every claim in the generated answer is supported by the passages the model was given; it is the standard LLM-evaluation metric for hallucination in RAG and is available as a built-in LLM-as-judge metric in `mlflow.evaluate`. Latency p95 tells you nothing about correctness. Perplexity is a language-modelling metric on held-out text and does not use the retrieved context. Retriever recall@k evaluates the retriever, not the generator — even with perfect retrieval a model can still hallucinate around the passage."
+              }
+            ]
+          },
+          "title": "Part 3 — Lightning Round"
+        },
+        {
+          "id": "c3-boss",
+          "type": "subboss",
+          "title": "Boss: Part 3",
+          "questionIds": [
+            "databricks-genai-assoc-011",
+            "databricks-genai-assoc-009",
+            "databricks-genai-assoc-010",
+            "databricks-genai-assoc-012"
+          ]
+        },
+        {
+          "id": "c3-chest",
+          "type": "chest",
+          "title": "Treasure Chest",
+          "rewardXp": 30,
+          "cosmeticKey": "chapter-3"
+        }
+      ]
+    }
+  ],
+  "finalBoss": {
+    "id": "final-boss",
+    "type": "finalboss",
+    "title": "Final Exam: Databricks Certified Generative AI Engineer Associate",
+    "questionCount": 15,
+    "timeMinutes": 23
+  },
+  "meta": {
+    "generatedAt": "2026-09-01T18:13:35.331Z",
+    "totalNodes": 16,
+    "totalQuestions": 12,
+    "nodeTypes": [
+      "concept",
+      "quiz",
+      "minigame",
+      "subboss",
+      "finalboss"
+    ]
+  }
+}
