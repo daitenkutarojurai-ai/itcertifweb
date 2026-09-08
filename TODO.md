@@ -41,11 +41,66 @@ two commits below landed:
   unreachable from `/news/`. Fix: added the feed entry (category `cloud`,
   dated 2026-08-31, CTA pack `oci-architect-associate`).
 
+### DG-2 — Same shape, 4 commits stuck ✅ FIXED 2026-09-06
+
+Logged retroactively (commit `2adcf4d`) — the incident was fixed but never
+recorded here, which is why the pattern looked like a one-off instead of a
+recurrence. Red from run 994 (2026-09-02) to run 997; the site sat frozen at
+`917ed81` while four pushes landed:
+
+- `gcp-genai-leader` — bank on disk, absent from `data/index.json`.
+- `github-advanced-security` — registered but `gen-paths` never re-run.
+- `news/isaca-cisa-2026` — in the feed but missing from `sitemap.xml`.
+
+Also caught: the CISA hardening commit rewrote the bank without regenerating
+`data/paths/cisa.json`, so the path served pre-hardening option text.
+
+### DG-3 — Recurrence, 3 commits stuck ✅ FIXED 2026-09-08
+
+Red again **the day after DG-2 was fixed**. Runs 999–1001 all failed
+(2026-09-07), so certquests.com stayed frozen at `2adcf4d` while three
+pushes landed. Three gaps, all the familiar shape:
+
+- `comptia-project-plus` — bank registered in `data/index.json` but
+  `gen-paths` never re-run, so it had neither a learning path nor a
+  `_skipped.json` entry. Fix: re-ran the generator → 16-node / 3-chapter
+  path (12 questions, exactly at the `MIN` threshold of 12).
+- `news/docker-dca-2026` — page on disk but absent from `data/news.json`,
+  so it was unreachable from `/news/`. Fix: feed entry added (category
+  `devops`, dated 2026-09-07, CTA pack `docker-dca`).
+- `news/docker-dca-2026` — also missing its `sitemap.xml` URL.
+
+Also caught, exactly as with `cisa.json` in DG-2: the `az-801` distractor
+hardening (`9849d9f`) rewrote the bank without regenerating
+`data/paths/az-801.json`, so the path was serving pre-hardening option
+text. Regenerating it was a 142-line real diff. **This is now a confirmed
+pattern — a `hardening(<pack>)` commit must re-run `gen-paths` too**, not
+just pack-addition commits. `audit-content` does *not* catch it.
+
 **Rule for future runs:** adding a pack means re-running `npm run gen-paths`;
-adding a `news/` page means adding its `data/news.json` entry — in the same
-commit. `npm test` + `npm run audit-content` must both be green *locally*
-before pushing; a green local audit is the only evidence the work will
-actually reach certquests.com.
+*hardening* a pack means re-running it too; adding a `news/` page means
+adding its `data/news.json` entry **and** its `sitemap.xml` URL — all in the
+same commit. `npm test` + `npm run audit-content` must both be green
+*locally* before pushing; a green local audit is the only evidence the work
+will actually reach certquests.com.
+
+### DG-4 — Add a guard so this stops recurring ⬜ OPEN (needs owner sign-off)
+
+Three incidents in eight days, each one a scheduled agent pushing content
+without running the audit. Documentation clearly is not closing the loop.
+Candidate guards, cheapest first — each changes shared tooling, so this
+wants a human call rather than an autonomous run:
+
+1. Make `npm test` run `audit-content` too (via a `pretest`/`posttest`
+   hook). Agents already run `npm test`; CI behaviour is unchanged since
+   it runs both anyway. Downside: overloads the meaning of "test".
+2. A checked-in `pre-push` hook plus `core.hooksPath` wired up by a
+   SessionStart hook in `.claude/settings.json`.
+3. Extend `audit-content` to flag a path file older than its question
+   bank (`mtime`/content hash), which would have caught the stale
+   `cisa.json` and `az-801.json` that the audit missed both times.
+
+Option 3 is the one that catches a class of bug nothing currently catches.
 
 ---
 
