@@ -1,0 +1,203 @@
+{
+  "meta": {
+    "id": "snowpro-adv-data-engineer",
+    "name": "Snowflake SnowPro Advanced: Data Engineer (DEA-C02)",
+    "vendor": "Snowflake",
+    "version": "1.0.0",
+    "question_count": 10,
+    "last_updated": "2026-09-09",
+    "notes": "Initial release: 10 questions covering the DEA-C02 blueprint — Data Movement, Performance Optimization, Storage & Data Protection, Security, and Data Transformation."
+  },
+  "questions": [
+    {
+      "id": "snowpro-adv-de-001",
+      "question": "You need to build a low-latency change-data-capture pipeline that lets a downstream task consume only the rows that have been inserted, updated, or deleted in a source table since the last consumption. Which Snowflake object should you create on the source table?",
+      "options": [
+        "A materialized view that projects the source table, refreshed by Snowflake's background service",
+        "A stream, which records the DML change offset against the source table and advances when consumed by a DML statement",
+        "A dynamic table with a TARGET_LAG of 1 minute pointing at the source table",
+        "An external table over the underlying micro-partitions of the source table"
+      ],
+      "correct": 1,
+      "explanation": "A Snowflake stream records CDC-style row-level changes (metadata columns METADATA$ACTION, METADATA$ISUPDATE, METADATA$ROW_ID) between two transactional offsets on the source object; the offset advances only when the stream is consumed inside a DML statement (typically driven by a task), which is exactly what a low-latency CDC pipeline needs. Materialized views eagerly maintain a query result and do not expose row-level change deltas. Dynamic tables materialize a query with declarative freshness (TARGET_LAG) but they are the *consumer* pattern, not a change-set object you read incrementally. External tables map to files in a stage — they do not track DML change offsets on a Snowflake-managed table.",
+      "tags": [
+        "streams",
+        "cdc",
+        "data-movement",
+        "snowpro-adv-data-engineer"
+      ],
+      "difficulty": "medium"
+    },
+    {
+      "id": "snowpro-adv-de-002",
+      "question": "A team is landing hundreds of small JSON files per minute into an external S3 stage and wants them loaded continuously into a Snowflake table with the lowest possible latency and no warehouse to manage. Which loading mechanism fits best?",
+      "options": [
+        "A scheduled task running COPY INTO every minute on a dedicated XS warehouse",
+        "A Snowpipe Streaming client that writes rows directly via the SDK, bypassing files entirely",
+        "Snowpipe with auto-ingest, triggered by S3 event notifications on the stage",
+        "A serverless dynamic table with TARGET_LAG = '1 minute' pointing at the external stage"
+      ],
+      "correct": 2,
+      "explanation": "Snowpipe with auto-ingest is designed for continuous file-based ingestion from cloud storage: an SQS/SNS notification fires on each new object in the stage, and Snowflake's serverless pipe loads it in seconds without a user-managed warehouse — the exact fit for many small files landing on S3. A scheduled COPY on an XS warehouse adds warehouse start-up latency and cost and does not scale down to zero between batches. Snowpipe Streaming is for row-level API ingestion, not for files that already exist in a stage. Dynamic tables cannot target an external stage as their base object — they materialize the result of a SQL query over Snowflake tables.",
+      "tags": [
+        "snowpipe",
+        "ingestion",
+        "data-movement",
+        "snowpro-adv-data-engineer"
+      ],
+      "difficulty": "medium"
+    },
+    {
+      "id": "snowpro-adv-de-003",
+      "question": "During a COPY INTO load from an external stage a subset of rows fails to parse. You must load every valid row from every file and get one row per rejected record written to a rejection table, without aborting any file. Which COPY option combination achieves this?",
+      "options": [
+        "ON_ERROR = CONTINUE together with VALIDATION_MODE = RETURN_ALL_ERRORS captured into a rejection table",
+        "ON_ERROR = ABORT_STATEMENT with a preceding VALIDATE(...) call so the failed rows are written to the target",
+        "ON_ERROR = SKIP_FILE_5% so a file is only skipped when more than 5% of its rows fail",
+        "FORCE = TRUE so previously loaded files are re-scanned and all bad rows land in the target"
+      ],
+      "correct": 0,
+      "explanation": "Setting ON_ERROR = CONTINUE tells COPY to load every valid row and keep going past parse errors instead of aborting the file or the statement, and running the same COPY with VALIDATION_MODE = RETURN_ALL_ERRORS (or querying the VALIDATE table function afterward) returns one row per rejected record — those rows can be captured into a rejection table for triage. ABORT_STATEMENT would fail the whole load on the first bad row, defeating the requirement. SKIP_FILE_5% would still drop entire files whose error rate exceeds the threshold, losing valid rows in those files. FORCE only re-loads files that Snowflake would otherwise skip because they were seen before; it does nothing about parse errors.",
+      "tags": [
+        "copy-into",
+        "error-handling",
+        "data-movement",
+        "snowpro-adv-data-engineer"
+      ],
+      "difficulty": "medium"
+    },
+    {
+      "id": "snowpro-adv-de-004",
+      "question": "A 4 TB fact table is filtered almost exclusively on EVENT_DATE and loaded in chronological order. Query Profile shows most queries scan only a small fraction of the table's micro-partitions. Which Snowflake property is doing the pruning here?",
+      "options": [
+        "A B-tree index automatically maintained on EVENT_DATE by the storage layer",
+        "The result cache, which returns previously computed rows for repeated date filters",
+        "Search Optimization Service acting on the EVENT_DATE column",
+        "Micro-partition metadata (min/max per column) that lets the optimizer skip partitions whose EVENT_DATE range cannot match the filter"
+      ],
+      "correct": 3,
+      "explanation": "Every Snowflake micro-partition stores column-level metadata including min and max values; the optimizer uses this metadata for static partition pruning, so filters on a naturally clustered column like EVENT_DATE only touch the partitions whose min/max range overlaps the predicate. Snowflake does not maintain user-visible B-tree indexes. The result cache returns whole prior query results only when nothing about the underlying data has changed and the query text matches — it does not explain per-partition pruning within a fresh scan. Search Optimization Service accelerates point look-ups on high-cardinality columns and is not required (nor typical) for range filters on a date that already correlates with load order.",
+      "tags": [
+        "micro-partitions",
+        "pruning",
+        "performance",
+        "snowpro-adv-data-engineer"
+      ],
+      "difficulty": "medium"
+    },
+    {
+      "id": "snowpro-adv-de-005",
+      "question": "Analysts frequently query a 20 TB table by CUSTOMER_ID, but the table is naturally loaded in EVENT_TIME order and pruning on CUSTOMER_ID is poor. You want the optimizer to prune far better on CUSTOMER_ID over time without rewriting queries or maintaining a manual sort. Which Snowflake feature should you enable?",
+      "options": [
+        "Enable the result cache for the warehouse so CUSTOMER_ID queries are served from cache",
+        "Define an automatic clustering key on CUSTOMER_ID so Snowflake's background service progressively re-clusters the table",
+        "Convert the table to an external table backed by Parquet partitioned by CUSTOMER_ID",
+        "Create a materialized view keyed on EVENT_TIME so the base table can be dropped"
+      ],
+      "correct": 1,
+      "explanation": "Adding a clustering key on CUSTOMER_ID lets Snowflake's automatic clustering service co-locate rows with the same CUSTOMER_ID into overlapping micro-partitions in the background, so per-partition min/max metadata prunes those look-ups sharply — with no query rewrites or manual sorting. The result cache only helps identical repeat queries against unchanged data; it does not improve first-execution pruning. Converting to an external table moves the data out of Snowflake-managed storage and typically loses the pruning quality that micro-partitions provide. A materialized view on EVENT_TIME does not help queries that filter on CUSTOMER_ID, and dropping the base table would break every other workload.",
+      "tags": [
+        "clustering",
+        "performance",
+        "snowpro-adv-data-engineer"
+      ],
+      "difficulty": "medium"
+    },
+    {
+      "id": "snowpro-adv-de-006",
+      "question": "An engineer accidentally ran TRUNCATE on a production table 30 minutes ago. The table's DATA_RETENTION_TIME_IN_DAYS is 3. Which single command restores the table to the state it had immediately before the TRUNCATE?",
+      "options": [
+        "UNDROP TABLE sales, which reverses the most recent DDL against the table",
+        "CALL SYSTEM$RESTORE_TABLE('sales'), which pulls the pre-TRUNCATE version from Fail-safe",
+        "CREATE OR REPLACE TABLE sales AS SELECT * FROM sales AT (OFFSET => -60*35), using Time Travel to a point before the TRUNCATE",
+        "ALTER TABLE sales SET DATA_RETENTION_TIME_IN_DAYS = 7 to extend history and automatically recover the rows"
+      ],
+      "correct": 2,
+      "explanation": "Time Travel keeps the table's prior versions for its retention period, so you can rebuild the table with CREATE OR REPLACE TABLE ... AS SELECT * FROM sales AT (OFFSET => -N) or AT (TIMESTAMP => ...) pointing at any moment before the TRUNCATE — a single-statement recovery well within the 3-day window. UNDROP recovers a dropped table, not the rows removed by TRUNCATE. Fail-safe is a 7-day disaster-recovery reserve accessible only by Snowflake support after retention expires; there is no user-callable SYSTEM$RESTORE_TABLE for it. Extending retention going forward does not resurrect data that is still available under the current retention; you still need an explicit Time Travel query to bring it back.",
+      "tags": [
+        "time-travel",
+        "storage",
+        "data-protection",
+        "snowpro-adv-data-engineer"
+      ],
+      "difficulty": "medium"
+    },
+    {
+      "id": "snowpro-adv-de-007",
+      "question": "A CUSTOMER table contains an EMAIL column. Analysts in the ANALYST role must see EMAIL redacted to '***MASKED***', while members of the PII_READER role must see the raw value. Which Snowflake feature enforces this policy centrally on the column?",
+      "options": [
+        "A dynamic data masking policy on CUSTOMER.EMAIL that returns the raw value when CURRENT_ROLE() IN ('PII_READER') and the masked literal otherwise",
+        "A secure view over CUSTOMER that omits the EMAIL column, granted only to PII_READER",
+        "A row access policy on CUSTOMER that filters out rows for the ANALYST role",
+        "Column-level encryption applied by the ANALYST role via CLIENT-side keys"
+      ],
+      "correct": 0,
+      "explanation": "Dynamic data masking is Snowflake's column-level, role-aware redaction: the policy body runs at query time and can branch on CURRENT_ROLE()/IS_ROLE_IN_SESSION to return the raw value for PII_READER and a masked literal for ANALYST, and the policy is attached once to the column so every access path (base table, views, joins) is protected. A secure view that omits EMAIL would hide the column from ANALYST but forces you to maintain a parallel object and does not selectively redact values by role. A row access policy filters *rows*, not column values — ANALYST would lose whole rows rather than see a masked EMAIL. Snowflake automatically encrypts data at rest; that has no relationship to role-based value redaction at query time.",
+      "tags": [
+        "masking",
+        "security",
+        "rbac",
+        "snowpro-adv-data-engineer"
+      ],
+      "difficulty": "medium"
+    },
+    {
+      "id": "snowpro-adv-de-008",
+      "question": "A VARIANT column EVENT holds nested JSON of the shape {\"user\":{\"id\":42}, \"items\":[{\"sku\":\"A\",\"qty\":2},{\"sku\":\"B\",\"qty\":1}]}. You need one row per line item that also carries the parent user.id. Which SQL pattern is correct?",
+      "options": [
+        "SELECT EVENT:user.id, EVENT:items[0]:sku, EVENT:items[0]:qty FROM raw_events;",
+        "SELECT EVENT:user.id, ARRAY_AGG(items:sku), ARRAY_AGG(items:qty) FROM raw_events GROUP BY 1;",
+        "SELECT EVENT:user.id, TO_ARRAY(EVENT:items):sku, TO_ARRAY(EVENT:items):qty FROM raw_events;",
+        "SELECT EVENT:user.id AS user_id, f.value:sku::string AS sku, f.value:qty::int AS qty FROM raw_events, LATERAL FLATTEN(input => EVENT:items) f;"
+      ],
+      "correct": 3,
+      "explanation": "LATERAL FLATTEN pivots each element of the items array into its own row, and the f.value:… accessor pulls the child fields on that per-item row, with the outer EVENT:user.id repeated on each — exactly one row per line item carrying the parent user id. Selecting EVENT:items[0]:sku only reads the first array element and drops the rest. GROUP BY with ARRAY_AGG collapses back to one row per user rather than expanding to one row per item. TO_ARRAY(EVENT:items):sku is not a valid path expression — you cannot subscript an entire array with a key to project a column of child values; you have to flatten first.",
+      "tags": [
+        "semi-structured",
+        "flatten",
+        "variant",
+        "transformation",
+        "snowpro-adv-data-engineer"
+      ],
+      "difficulty": "medium"
+    },
+    {
+      "id": "snowpro-adv-de-009",
+      "question": "You have three tasks that must run as a chain: STAGE_LOAD → TRANSFORM → PUBLISH. Each downstream task should start only after the previous one finishes successfully, and you want a single scheduled entry point. How should you wire them?",
+      "options": [
+        "Give all three tasks the same CRON schedule and have each one query the last successful run of its predecessor in its SQL body",
+        "Schedule STAGE_LOAD with a CRON expression; create TRANSFORM with AFTER STAGE_LOAD and PUBLISH with AFTER TRANSFORM, then RESUME the root",
+        "Schedule PUBLISH with a CRON expression and set STAGE_LOAD and TRANSFORM as its predecessors via AFTER PUBLISH",
+        "Wrap all three SQL statements inside one stored procedure and schedule a single task that CALLs it"
+      ],
+      "correct": 1,
+      "explanation": "A Snowflake task DAG is built by giving the root task a schedule (CRON or interval) and each child task the AFTER <parent> clause; children run only when their parents finish successfully, and the DAG advances as one unit. Cloning the CRON to all three and self-checking predecessor state races against overlapping schedules and duplicates work. AFTER points at *predecessors*, not successors, so 'AFTER PUBLISH' on STAGE_LOAD would invert the intended order. Wrapping everything in one stored procedure loses the per-step observability that task history gives you (individual timings, failures, retries per step) and is the anti-pattern Snowflake explicitly discourages when task graphs exist.",
+      "tags": [
+        "tasks",
+        "orchestration",
+        "data-movement",
+        "snowpro-adv-data-engineer"
+      ],
+      "difficulty": "medium"
+    },
+    {
+      "id": "snowpro-adv-de-010",
+      "question": "A recurring dashboard query re-runs the same aggregation over an append-only fact table dozens of times per hour from many users. Warehouse costs are climbing. Which change reduces compute cost the most while keeping results correct?",
+      "options": [
+        "Resize the warehouse from S to L so each query finishes faster and consumes fewer credits overall",
+        "Set AUTO_SUSPEND to 0 seconds so the warehouse never idles between queries",
+        "Create a materialized view of the aggregation; the query planner will rewrite matching queries to read the maintained result",
+        "Wrap the query in a UDTF so each caller reuses the compiled plan across sessions"
+      ],
+      "correct": 2,
+      "explanation": "A materialized view maintains the aggregation incrementally as new rows are appended; the optimizer then transparently rewrites qualifying queries to hit the view, so each dashboard call becomes a small look-up instead of a full aggregate scan — the largest structural credit saving here. Doubling warehouse size does not halve credits per query (larger warehouses burn credits at higher rates) and does nothing about the redundant recomputation. AUTO_SUSPEND = 0 keeps the warehouse running continuously and burns credits between queries, raising cost. A UDTF does not share results or a maintained aggregate across sessions; it only encapsulates the same computation and pays it again on every call.",
+      "tags": [
+        "materialized-view",
+        "performance",
+        "cost",
+        "snowpro-adv-data-engineer"
+      ],
+      "difficulty": "medium"
+    }
+  ]
+}
