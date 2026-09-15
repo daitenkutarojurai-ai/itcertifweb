@@ -84,10 +84,47 @@ same commit. `npm test` + `npm run audit-content` must both be green
 *locally* before pushing; a green local audit is the only evidence the work
 will actually reach certquests.com.
 
+### DG-5 — Fourth recurrence, 3 commits stuck ✅ FIXED 2026-09-14 (logged 2026-09-15)
+
+Logged retroactively, same reason DG-2 was: the incident was repaired but
+never recorded, so the pattern would otherwise look like it had stopped.
+Runs 1011–1013 all failed on 2026-09-14 and the site sat frozen at
+`6a5b435` while three pushes landed. The repair (`a3ef26a`, run 1014) was
+made by tooling — `scripts/local-wiring-runner.sh` — not by the agent that
+broke it, which is the new and more worrying part: the loop now closes
+*after* the fact, automatically, so a red gate no longer even produces a
+visible incident. Three gaps, all the familiar shape:
+
+- `oracle-1z0-829` — bank registered in `data/index.json` but `gen-paths`
+  never re-run, so it had neither a learning path nor a `_skipped.json`
+  entry. The pack has 11 questions, one under the `MIN` of 12, so the
+  correct outcome was the `_skipped` entry it eventually got — the pack
+  ships as practice-only with no path.
+- `aws-aif-c01` — the distractor-hardening commit rewrote the bank without
+  regenerating `data/paths/aws-aif-c01.json`, so the path served
+  pre-hardening option text (24-line real diff). **This is the fourth time
+  this exact pattern has landed**: `cisa` (DG-2), `az-801` (DG-3),
+  `ai-102` (fixed in run 1009), now `aws-aif-c01`. `audit-content` still
+  does not catch it.
+- `news/nist-csf-2-security-certifications-2026` — in `data/news.json`
+  but missing its `sitemap.xml` URL.
+
+Also worth noting: the automated repair refreshed `generatedAt` across
+~126 otherwise byte-identical path files. The DG-3-era fix deliberately
+reverted exactly that churn; the runner does not, so every automatic
+repair carries ~126 files of noise into the history.
+
+**This is the strongest evidence yet for DG-4 option 3.** A staleness check
+comparing each path file against its question bank would have caught the
+`aws-aif-c01` half of this incident, and would have caught `cisa`,
+`az-801` and `ai-102` before them — four for four on the one failure mode
+the audit is blind to.
+
 ### DG-4 — Add a guard so this stops recurring ⬜ OPEN (needs owner sign-off)
 
-Three incidents in eight days, each one a scheduled agent pushing content
-without running the audit. Documentation clearly is not closing the loop.
+Four incidents in fourteen days (DG-1, DG-2, DG-3, DG-5), each one a
+scheduled agent pushing content without running the audit. Documentation
+clearly is not closing the loop.
 Candidate guards, cheapest first — each changes shared tooling, so this
 wants a human call rather than an autonomous run:
 
@@ -98,9 +135,11 @@ wants a human call rather than an autonomous run:
    SessionStart hook in `.claude/settings.json`.
 3. Extend `audit-content` to flag a path file older than its question
    bank (`mtime`/content hash), which would have caught the stale
-   `cisa.json` and `az-801.json` that the audit missed both times.
+   `cisa.json`, `az-801.json`, `ai-102.json` and `aws-aif-c01.json` that
+   the audit missed all four times.
 
-Option 3 is the one that catches a class of bug nothing currently catches.
+Option 3 is the one that catches a class of bug nothing currently catches,
+and it is now 4-for-4 on real incidents — see DG-5.
 
 ---
 
