@@ -110,6 +110,12 @@
 .scenario-walkthrough-head { font-family: var(--font-mono); font-size: 11px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: #f97316; margin: 0 0 8px; }
 .scenario-walkthrough strong { color: #fdba74; }
 .scenario-walkthrough code { font-family: var(--font-mono); font-size: 0.88em; padding: 1px 5px; background: rgba(255,255,255,0.05); border-radius: 4px; color: #fed7aa; }
+.lesson-intro { margin: 6px 0 14px; font-size: 15px; line-height: 1.7; color: var(--text-secondary); }
+.lesson-intro strong { color: var(--text); }
+.lesson-intro code { font-family: var(--font-mono); font-size: 0.9em; padding: 1px 5px; background: rgba(255,255,255,0.05); border-radius: 4px; }
+.lesson-takeaway { margin: 14px 0 0; padding: 12px 16px; background: rgba(16, 185, 129, 0.06); border-left: 3px solid #34d399; border-radius: 8px; font-size: 14px; line-height: 1.65; color: var(--text-secondary); }
+.lesson-takeaway strong { color: #6ee7b7; }
+.lesson-takeaway code { font-family: var(--font-mono); font-size: 0.9em; padding: 1px 5px; background: rgba(255,255,255,0.05); border-radius: 4px; color: #a7f3d0; }
 </style>
 </head>
 <body>
@@ -178,6 +184,9 @@
               <span class="lesson-number">1.1</span>
               <span class="lesson-title">FortiGate Platform Overview</span>
             </div>
+            <p class="lesson-intro">
+              Every NSE4 platform question is really one of two decisions: <strong>which deployment mode does this site need</strong>, and <strong>will the traffic actually hit the ASIC</strong>. The feature list matters far less than knowing that NAT/Route is a routed hop while Transparent is a bridge you can insert without renumbering anything, and that the moment you attach inspection to a session, the NP fast path stops being part of the story.
+            </p>
             <h4>Key Concepts</h4>
             <ul class="lesson-concepts">
               <li><strong>ASIC-based architecture:</strong> FortiGate appliances leverage Fortinet's custom SPU (Security Processing Unit) chips, including the NP (Network Processor) for hardware-accelerated packet forwarding and the CP (Content Processor) for offloading IPS, encryption, and content inspection tasks, delivering significantly higher throughput than software-only firewalls.</li>
@@ -189,6 +198,13 @@
             <div class="study-note">
               <strong>Exam tip:</strong> Understand the difference between NP and CP processors and which traffic types each accelerates. Know that NAT/Route mode is the default and when to choose Transparent mode (e.g., inserting a FortiGate without changing the existing network topology).
             </div>
+            <div class="scenario-walkthrough">
+              <p class="scenario-walkthrough-head">&#x1F4BB; Concrete example &mdash; the FG-60F that halved its throughput the day IPS was enabled</p>
+              <p><strong>Ticket:</strong> A branch FG-60F benchmarked at near line rate during acceptance testing. A week after the security team attached an IPS profile to the outbound policy, users report slow transfers and the dashboard shows CPU pinned at 80% &mdash; with no change in traffic volume.</p>
+              <p><strong>Walk:</strong> <strong>1)</strong> Nothing is broken: acceptance testing measured <strong>plain forwarding</strong>, which the <strong>NP</strong> offloads in hardware, and the new profile moved those sessions onto the CPU/CP path. <strong>2)</strong> Confirm it rather than assume it &mdash; <code>diagnose sys session list</code> on an affected flow shows the session no longer carrying an offload state, because a session handed to IPS or a proxy cannot be NP-offloaded end to end. <strong>3)</strong> The fix is scoping, not disabling: inspect what deserves inspection. Keep IPS on the policies carrying user web and server traffic, and let bulk, already-encrypted, internal backup traffic match a separate policy with no profile so it stays on the fast path.</p>
+              <p><strong>Verify:</strong> Re-run the transfer and watch <code>get system performance status</code>: CPU drops back and the inspected policies still log UTM events. The datasheet number you were benchmarking against was the <em>firewall</em> throughput figure &mdash; the IPS and "threat protection" figures on the same datasheet are several times lower, and those are the ones that apply now.</p>
+            </div>
+            <div class="lesson-takeaway"><strong>Key takeaway:</strong> NAT/Route is the default L3 gateway mode; Transparent is the L2 bridge you choose when the requirement says "without changing the existing addressing". NP offload accelerates forwarding, CP accelerates crypto and content work &mdash; but a session under IPS or proxy inspection leaves the pure NP fast path, which is why firewall throughput and threat-protection throughput are different numbers on the same box.</div>
           </div>
 
           <!-- Lesson 1.2 -->
@@ -197,6 +213,9 @@
               <span class="lesson-number">1.2</span>
               <span class="lesson-title">Initial Configuration</span>
             </div>
+            <p class="lesson-intro">
+              Initial configuration is where most real FortiGates get locked, bricked or silently unlicensed. The exam frames it as a hardening checklist, but the two items that actually bite are <strong>trusted hosts</strong> (an allow-list that will happily exclude you) and the <strong>firmware upgrade path</strong> (which is not optional and not always a single hop).
+            </p>
             <h4>Key Concepts</h4>
             <ul class="lesson-concepts">
               <li><strong>Administrative access and profiles:</strong> FortiGate supports multiple admin accounts with role-based access profiles (super_admin, prof_admin, custom profiles). Access can be restricted by trusted hosts, and two-factor authentication via FortiToken can be enforced for administrative logins via GUI (HTTPS) or CLI (SSH/console).</li>
@@ -248,6 +267,13 @@
 
           <div class="module-intro">
             Firewall policies are the heart of the FortiGate. Each policy matches on <strong>source / destination / service / schedule / users</strong>, applies an <strong>action</strong> (Accept / Deny / IPsec / SSL VPN), and chains <strong>security profiles</strong> for deep inspection. Order matters — policies are evaluated top-down and the first match wins, so the implicit deny at the bottom never fires when a broader rule sits above it.
+            <div class="scenario-walkthrough">
+              <p class="scenario-walkthrough-head">&#x1F4BB; Concrete example &mdash; a trusted-host entry that locks the admin out of a live firewall</p>
+              <p><strong>Ticket:</strong> You harden a new FG-100F by restricting the <code>admin</code> account to your laptop only: <code>trusthost1 10.20.5.34/32</code>. It works. Next morning the laptop has pulled a new DHCP lease, 10.20.5.61, and the GUI now times out from every machine in the building. No one can log in.</p>
+              <p><strong>Walk:</strong> <strong>1)</strong> Understand what happened: trusted hosts are evaluated per admin account against the <em>source IP</em> of the management connection. A /32 pinned to a DHCP address is a time bomb, and there is no second account &mdash; the recovery path is physical. <strong>2)</strong> Console in (RJ-45/USB console, 9600 8N1) &mdash; console access is never filtered by trusted hosts. <strong>3)</strong> Widen the entry to the management network rather than a host: <code>config system admin</code> &rarr; <code>edit admin</code> &rarr; <code>set trusthost1 10.20.5.0 255.255.255.0</code> &rarr; <code>end</code>. <strong>4)</strong> Then fix the real gap &mdash; create a second admin account with its own trusted hosts, so the next mistake costs a login instead of a site visit.</p>
+              <p><strong>Verify:</strong> From a host inside 10.20.5.0/24 the GUI answers again; from anywhere else it does not respond at all (a trusted-host mismatch drops the connection rather than returning a login failure, which is itself the diagnostic tell). Back the config up &mdash; <code>System &rarr; Configuration &rarr; Backup</code> &mdash; before touching firmware, and check the release-notes upgrade path: FortiOS will not always let you jump straight from 6.4 to 7.2, and the dual firmware partitions are what let you boot back if it does go wrong.</p>
+            </div>
+            <div class="lesson-takeaway"><strong>Key takeaway:</strong> Trusted hosts filter management access by source IP per admin account &mdash; scope them to a management <em>subnet</em>, keep a second admin account, and remember the console is the unfilterable way back in. Before any firmware change: back up the config and follow the documented upgrade path, because the supported path is version-to-version, not latest-and-hope.</div>
           </div>
 
 
@@ -257,6 +283,9 @@
               <span class="lesson-number">2.1</span>
               <span class="lesson-title">Policy Types &amp; Matching</span>
             </div>
+            <p class="lesson-intro">
+              A firewall policy is an <strong>AND</strong> across every field &mdash; interface pair, source, destination, service, schedule, user &mdash; and the table is an <strong>ordered first-match</strong> list. Almost every "but the rule is right there" ticket comes from one of those two facts: one field silently fails to match, or a broader policy above it already answered. Knowing which object types match dynamically is what separates the two cases.
+            </p>
             <h4>Key Concepts</h4>
             <ul class="lesson-concepts">
               <li><strong>Firewall policy components:</strong> Each policy is defined by incoming interface, outgoing interface, source address/user/group, destination address, schedule, and service. Traffic must match all criteria in a single policy to be permitted; if no policy matches, the implicit deny rule at the bottom of the policy list drops the traffic silently.</li>
@@ -267,6 +296,13 @@
             <div class="study-note">
               <strong>Exam tip:</strong> The implicit deny policy at the end of the policy list has logging disabled by default. For troubleshooting, enable logging on the implicit deny to see what traffic is being dropped. Remember that policies are matched top-down and the first match wins.
             </div>
+            <div class="scenario-walkthrough">
+              <p class="scenario-walkthrough-head">&#x1F4BB; Concrete example &mdash; the FQDN address object that works for half the users</p>
+              <p><strong>Ticket:</strong> Finance needs access to a SaaS portal. You create an FQDN address object for <code>portal.vendor.example</code>, reference it as the destination in a narrow allow policy, and it works from your test PC. Finance reports it works "sometimes" &mdash; and for some users, never.</p>
+              <p><strong>Walk:</strong> <strong>1)</strong> An <strong>FQDN object resolves on the FortiGate</strong>, using the FortiGate's own DNS, and caches the answer for the record TTL. The SaaS is behind a CDN handing out different addresses per client and per region, so the address your firewall learned is frequently not the address the client connected to. <strong>2)</strong> Confirm the shape of the failure before changing anything: the denied sessions land on the implicit deny, which <em>does not log by default</em> &mdash; turn on violation-traffic logging and the drops appear, all to addresses your object never resolved. <strong>3)</strong> Replace the FQDN object with the <strong>ISDB</strong> (Internet Service Database) entry for that service where one exists: it carries the vendor's full published ranges and is updated by FortiGuard instead of by one DNS answer. If there is no ISDB entry, an address group of the vendor's documented prefixes beats a single FQDN.</p>
+              <p><strong>Verify:</strong> Every finance user reaches the portal, and the implicit-deny log stops filling with that destination. Re-check the other three match fields while you are there: a <strong>schedule</strong> still in the old time zone and a custom <strong>service</strong> pinned to the wrong port produce exactly the same "the policy exists but nothing matches" symptom.</p>
+            </div>
+            <div class="lesson-takeaway"><strong>Key takeaway:</strong> Traffic must satisfy <em>every</em> field of one policy, and evaluation stops at the first match. FQDN objects resolve from the FortiGate's own DNS with TTL caching, so they are a poor fit for CDN-fronted services &mdash; use ISDB objects for well-known cloud services. The implicit deny does not log by default; enable violation logging before you conclude the traffic never arrived.</div>
           </div>
 
           <!-- Lesson 2.2 -->
@@ -275,6 +311,9 @@
               <span class="lesson-number">2.2</span>
               <span class="lesson-title">Policy Actions &amp; Inspection</span>
             </div>
+            <p class="lesson-intro">
+              Accept is not inspection. A policy with <code>ACCEPT</code> and no profiles attached is a routing rule with logging &mdash; the antivirus, IPS and web-filter engines only run on the policies you explicitly bolt them to. The second decision is <strong>flow vs proxy</strong> mode, and it changes more than throughput: it changes what the engine can see and what the user is shown when something is blocked.
+            </p>
             <h4>Key Concepts</h4>
             <ul class="lesson-concepts">
               <li><strong>Accept action with security profiles:</strong> When a policy action is set to ACCEPT, traffic is forwarded and can optionally be inspected by attaching security profiles (antivirus, web filter, IPS, application control, DNS filter, etc.). Without security profiles, accepted traffic passes through without deep inspection.</li>
@@ -285,6 +324,13 @@
             <div class="study-note">
               <strong>Exam tip:</strong> Know the trade-offs between flow-based and proxy-based inspection. Flow-based is faster and the default for most deployments, while proxy-based offers deeper inspection at the cost of performance. Security profiles have no effect unless explicitly attached to a policy.
             </div>
+            <div class="scenario-walkthrough">
+              <p class="scenario-walkthrough-head">&#x1F4BB; Concrete example &mdash; a blocked download that looks like a network outage</p>
+              <p><strong>Ticket:</strong> Helpdesk escalates: "the file-share site just times out, there is no block page, so it must be the ISP." The security team insists antivirus is working. Both are right.</p>
+              <p><strong>Walk:</strong> <strong>1)</strong> Check the UTM logs first &mdash; the AV engine <em>did</em> fire and blocked the file. What the user did not get was an explanation. <strong>2)</strong> That is the flow-vs-proxy difference: <strong>flow-based</strong> inspection scans the stream as it passes and, when it has to stop a transfer mid-flight, the connection dies in a way browsers render as a timeout or reset. <strong>Proxy-based</strong> inspection buffers and reconstructs the object first, so it can cleanly return a <strong>replacement message</strong> &mdash; the branded "blocked by your administrator" page. <strong>3)</strong> There is a detection difference too, and it points the same way: only proxy mode extracts archives, so a zipped sample that flow mode streams past gets caught once the file is reassembled. <strong>4)</strong> Switch the inspection mode to proxy on <em>that</em> policy &mdash; the user-facing web and mail paths &mdash; and leave high-volume internal traffic in flow mode.</p>
+              <p><strong>Verify:</strong> Repeat the download: the browser now shows the FortiGuard replacement page naming the detection, the UTM log entry carries the same policy ID, and support stops receiving "the internet is broken" tickets for blocked content. Bundle the profiles you just settled on into a <strong>security profile group</strong> so the next policy inherits the same posture instead of drifting.</p>
+            </div>
+            <div class="lesson-takeaway"><strong>Key takeaway:</strong> Security profiles do nothing until attached to a policy. Flow-based inspection is faster and the sensible default for bulk traffic; proxy-based buffers the whole object, which is what makes archive extraction, sandbox submission and user-visible replacement pages possible. "No block page, just a timeout" is a classic flow-mode symptom, not a network fault.</div>
           </div>
 
           <!-- Lesson 2.3 -->
@@ -293,6 +339,9 @@
               <span class="lesson-number">2.3</span>
               <span class="lesson-title">Policy Ordering &amp; Best Practices</span>
             </div>
+            <p class="lesson-intro">
+              Order is policy logic. Because evaluation is top-down and stops at the first match, a rule can be perfectly written, enabled, and completely dead &mdash; <strong>shadowed</strong> by something broader above it. The exam tests this as theory; in practice you find it with two things: the hit counter and the policy lookup tool. A policy with zero hits is either unused or unreachable, and those are very different problems.
+            </p>
             <h4>Key Concepts</h4>
             <ul class="lesson-concepts">
               <li><strong>Top-down processing order:</strong> Policies are evaluated sequentially from top to bottom. More specific rules must be placed above more general rules to prevent the general rule from matching first. Moving a policy to the wrong position can inadvertently open or block access to services.</li>
@@ -344,6 +393,13 @@
 
           <div class="module-intro">
             NAT splits cleanly into <strong>Source NAT</strong> (translate the source on the way out — internal to internet, IP-pool or interface-IP-overload) and <strong>Destination NAT</strong> (translate the destination on the way in — VIPs publish an internal service on a public IP). Central NAT decouples NAT from policy; per-policy NAT is the default and easier to read.
+            <div class="scenario-walkthrough">
+              <p class="scenario-walkthrough-head">&#x1F4BB; Concrete example &mdash; a contractor block rule that has never once fired</p>
+              <p><strong>Ticket:</strong> After an audit finding, you add a policy blocking peer-to-peer and remote-desktop services for the contractor VLAN, and put it at the bottom of the table where new rules go. A month later the audit re-tests and contractors are still using both.</p>
+              <p><strong>Walk:</strong> <strong>1)</strong> Look at the <strong>hit count</strong> on the new policy: zero. Not "rarely used" &mdash; never reached. <strong>2)</strong> Scan upward for the culprit: a broad "corporate LAN &rarr; WAN, service ALL, ACCEPT" rule sits above it, and the contractor VLAN is inside the supernet that rule uses as its source. First match wins, so evaluation never gets as far as your block. <strong>3)</strong> Prove it instead of guessing &mdash; the policy lookup tool (GUI <code>Policy &amp; Objects &rarr; Policy Lookup</code>, or the CLI <code>diagnose firewall iprope lookup</code>) takes an interface pair, source, destination, protocol and port and tells you the exact policy ID that flow will hit. It returns the broad rule's ID. <strong>4)</strong> Move the specific rule above the general one. The policy <strong>ID never changes</strong> when you reorder &mdash; only its sequence position does &mdash; so your logs, reports and audit references stay valid.</p>
+              <p><strong>Verify:</strong> Re-run the lookup with the same parameters: it now returns the block policy's ID, its hit counter starts climbing, and the deny entries appear in the traffic log. Make the zero-hit sweep routine &mdash; it finds both shadowed rules like this one and stale rules that should be deleted.</p>
+            </div>
+            <div class="lesson-takeaway"><strong>Key takeaway:</strong> Specific above general, always: first match wins, so a broader rule above yours makes it unreachable no matter how correct it is. Policy IDs are immutable and survive reordering (sequence numbers do not), and a zero hit count means "investigate" &mdash; use the policy lookup tool to find which rule is actually catching the flow.</div>
           </div>
 
 
@@ -353,6 +409,9 @@
               <span class="lesson-number">3.1</span>
               <span class="lesson-title">Source NAT</span>
             </div>
+            <p class="lesson-intro">
+              Source NAT is chosen by what the <em>far end</em> needs to see, not by what is convenient locally. Overload (PAT) behind the outgoing interface address is right for ordinary internet traffic and wrong the moment a partner allow-lists you, an application needs a stable source, or a regulator wants a session traced back to one internal host. The four IP pool types exist to answer those cases.
+            </p>
             <h4>Key Concepts</h4>
             <ul class="lesson-concepts">
               <li><strong>Overload IP pool (PAT):</strong> The default source NAT method translates multiple internal addresses to a single external IP using port address translation. FortiGate dynamically assigns source ports from a pool, allowing thousands of concurrent sessions to share one public IP. This is the most common NAT method for internet-bound traffic.</li>
@@ -364,6 +423,13 @@
             <div class="study-note">
               <strong>Exam tip:</strong> Know the four IP pool types and when to use each. Overload is the default; one-to-one preserves source ports; fixed port range provides deterministic mappings; port block allocation adds traceability. Central SNAT is configured under Policy &amp; Objects &gt; Central SNAT.
             </div>
+            <div class="scenario-walkthrough">
+              <p class="scenario-walkthrough-head">&#x1F4BB; Concrete example &mdash; a partner SFTP that allow-lists one IP while you have two WAN links</p>
+              <p><strong>Ticket:</strong> A payments partner allow-lists your primary WAN address, 203.0.113.10. Nightly SFTP uploads succeed for weeks, then start failing intermittently &mdash; always with a connection refused at their end, never a local error. Your site gained a second WAN link and SD-WAN load balancing a fortnight ago.</p>
+              <p><strong>Walk:</strong> <strong>1)</strong> The general outbound policy NATs to <strong>the outgoing interface address</strong>, so whichever WAN link SD-WAN picks decides the source IP. Half the uploads now leave as 198.51.100.10 and the partner drops them. <strong>2)</strong> Do not solve this by pinning all traffic to one link &mdash; that throws away the second circuit. Solve it for that one flow. <strong>3)</strong> Create a <strong>one-to-one IP pool</strong> holding 203.0.113.10 (one-to-one maps the internal host to a dedicated external address and preserves the source port, rather than overloading many hosts onto one address). <strong>4)</strong> Add a narrow policy &mdash; source = the SFTP server object, destination = the partner's address, service = SSH/SFTP, NAT = that IP pool &mdash; and place it <strong>above</strong> the general outbound rule, or first-match sends it straight back down the old path.</p>
+              <p><strong>Verify:</strong> <code>Log &amp; Report &rarr; Forward Traffic</code> shows the upload session with the translated source reading 203.0.113.10 on every run, and the partner's failures stop. For the wider audit question &mdash; "which internal host was behind this public IP and port at 02:14?" &mdash; overload PAT makes that hard, which is exactly what <strong>fixed port range</strong> and <strong>port block allocation</strong> pools are for: deterministic, traceable mappings per internal host.</p>
+            </div>
+            <div class="lesson-takeaway"><strong>Key takeaway:</strong> Match the SNAT method to the requirement: overload/PAT for general internet, one-to-one when the far end needs a consistent source address, fixed port range or port block allocation when sessions must be traceable back to one internal host. A NAT policy only applies if it is reached &mdash; put the specific NAT rule above the general one. Central SNAT is the alternative when NAT decisions need to live independently of the policy table.</div>
           </div>
 
           <!-- Lesson 3.2 -->
@@ -372,6 +438,9 @@
               <span class="lesson-number">3.2</span>
               <span class="lesson-title">Destination NAT</span>
             </div>
+            <p class="lesson-intro">
+              The single fact that explains most DNAT tickets: <strong>the destination is translated before the policy is evaluated</strong>. That is why the policy must name the VIP object, never the real internal IP &mdash; by the time matching happens, the packet is already addressed to the server. The same ordering explains why internal users often cannot reach a service that the whole internet can.
+            </p>
             <h4>Key Concepts</h4>
             <ul class="lesson-concepts">
               <li><strong>Virtual IPs (VIPs):</strong> A VIP maps an external IP address (and optionally a port) to an internal server's IP address. When traffic arrives at the FortiGate destined for the VIP's external IP, DNAT translates the destination to the mapped internal address before the firewall policy is evaluated. VIPs must be referenced in a firewall policy to allow the traffic.</li>
@@ -423,6 +492,13 @@
 
           <div class="module-intro">
             Auth on FortiGate runs locally (built-in user db) or remote (<strong>LDAP, RADIUS, TACACS+, FSSO</strong>). Users get identified per session through a captive portal, transparent FSSO (Single Sign-On with AD), or explicit cert auth. Once identified, policies can match on <strong>user/group</strong> — turning a flat IP-based firewall into an identity-aware policy engine.
+            <div class="scenario-walkthrough">
+              <p class="scenario-walkthrough-head">&#x1F4BB; Concrete example &mdash; the published web server that everyone can reach except the staff inside</p>
+              <p><strong>Ticket:</strong> A VIP publishes an internal web server on the WAN address and external customers reach it fine. Staff on the LAN, following the same public hostname as everyone else, get a timeout &mdash; and the marketing site's own embedded links are broken for internal users only.</p>
+              <p><strong>Walk:</strong> <strong>1)</strong> Internal DNS resolves the public hostname to the <strong>public</strong> IP, so an internal client sends traffic destined for the WAN address <em>into</em> the FortiGate from the LAN side. This is <strong>hairpin NAT</strong> (NAT loopback), and nothing about the existing WAN &rarr; DMZ policy covers it: that policy matches an incoming interface of port1. <strong>2)</strong> Add a second policy for the internal path &mdash; incoming interface LAN, outgoing interface DMZ, destination = the <strong>same VIP object</strong>, service HTTPS, ACCEPT &mdash; and <strong>enable NAT</strong> on it. The SNAT is not optional here: without it the server replies directly to the client's real LAN address, the client sees a reply from an IP it never contacted, and the handshake never completes. <strong>3)</strong> The tidier alternative, where you control the internal resolver, is <strong>split-brain DNS</strong>: hand internal clients the private address and let them skip the firewall entirely.</p>
+              <p><strong>Verify:</strong> <code>curl -v https://www.example.com</code> from a LAN client completes, and the traffic log shows the session matching the new LAN &rarr; DMZ policy with both the destination translated to the server and the source translated to the FortiGate. Remember the shape of the original mistake too: if you had written the policy destination as the server's real internal IP instead of the VIP, it would never have matched at all.</p>
+            </div>
+            <div class="lesson-takeaway"><strong>Key takeaway:</strong> DNAT happens before policy lookup, so firewall policies must reference the <strong>VIP object</strong> as the destination &mdash; a VIP alone opens nothing. Internal users reaching a published service by its public name need a hairpin policy with NAT enabled, or split-brain DNS. Port forwarding narrows a VIP to one port pair; without it, all ports forward.</div>
           </div>
 
 
@@ -432,6 +508,9 @@
               <span class="lesson-number">4.1</span>
               <span class="lesson-title">Local &amp; Remote Authentication</span>
             </div>
+            <p class="lesson-intro">
+              Choosing an authentication source is really choosing <strong>where identity already lives</strong> and <strong>what you need back from the server</strong>. LDAP validates a credential and tells you group membership; RADIUS adds authorization attributes and accounting and carries the challenge that makes token-based 2FA work; TACACS+ encrypts the whole payload and separates authorization per command. Local users are for guests and break-glass, not for staff.
+            </p>
             <h4>Key Concepts</h4>
             <ul class="lesson-concepts">
               <li><strong>Local user accounts:</strong> FortiGate can store user credentials locally with passwords hashed in the device configuration. Local users are suitable for small deployments or guest access but do not scale well for enterprise environments. Each local user can optionally be assigned a FortiToken for two-factor authentication.</li>
@@ -442,6 +521,13 @@
             <div class="study-note">
               <strong>Exam tip:</strong> Understand the difference between RADIUS (encrypts only the password, uses UDP) and TACACS+ (encrypts the entire packet, uses TCP). Know that LDAP is used for credential validation while RADIUS/TACACS+ can also pass authorization attributes back to the FortiGate.
             </div>
+            <div class="scenario-walkthrough">
+              <p class="scenario-walkthrough-head">&#x1F4BB; Concrete example &mdash; an LDAP group that authenticates users but matches no policy</p>
+              <p><strong>Ticket:</strong> You add an Active Directory LDAP server and a remote user group mapped to <code>CN=VPN-Users</code>. Test users authenticate successfully &mdash; the login is accepted &mdash; but the identity-based policy never matches and they get no access. Other users in the same OU work.</p>
+              <p><strong>Walk:</strong> <strong>1)</strong> Separate the two halves: authentication (does the password check out?) and group lookup (is this user in the group the policy names?). The first is clearly fine. <strong>2)</strong> Test them together from the CLI with <code>diagnose test authserver ldap &lt;server&gt; &lt;user&gt; &lt;password&gt;</code>, which returns both the auth result and the group memberships the FortiGate actually sees. The failing users come back authenticated, with <code>VPN-Users</code> absent. <strong>3)</strong> The cause is <strong>nested groups</strong>: those users are members of <code>CN=Branch-Staff</code>, which is itself a member of <code>VPN-Users</code>. A plain member lookup does not walk the chain. <strong>4)</strong> Fix it in the LDAP server object &mdash; either point the group match at the nested structure AD exposes for recursive membership, or flatten the membership so the users are direct members. While you are in there, check the <strong>bind type</strong> and <strong>base DN</strong>: a regular bind with too narrow a base DN produces the same empty-group result.</p>
+              <p><strong>Verify:</strong> Re-run <code>diagnose test authserver ldap</code>: the group now appears in the returned list, and the policy matches on the next login. Move the server to <strong>LDAPS on 636</strong> if it is still on 389 &mdash; a simple bind on 389 sends the credential in the clear &mdash; and add FortiToken 2FA for anything reachable from outside.</p>
+            </div>
+            <div class="lesson-takeaway"><strong>Key takeaway:</strong> LDAP checks credentials and returns group membership; RADIUS returns authorization attributes and supports challenge-based 2FA (UDP, password encrypted only); TACACS+ encrypts the entire packet over TCP and splits authentication, authorization and accounting. When a user authenticates but no identity policy matches, the failure is group lookup, not the password &mdash; prove it with <code>diagnose test authserver ldap</code>.</div>
           </div>
 
           <!-- Lesson 4.2 -->
@@ -450,6 +536,9 @@
               <span class="lesson-number">4.2</span>
               <span class="lesson-title">Authentication Policies &amp; Methods</span>
             </div>
+            <p class="lesson-intro">
+              The real distinction is <strong>active vs passive</strong>: active authentication interrupts the user with a captive portal, passive authentication (FSSO) learns the identity from a domain logon event they already completed. FSSO is the better experience and the bigger troubleshooting surface, because it depends on something happening off-box &mdash; a logon the collector agent has to witness and map to an IP.
+            </p>
             <h4>Key Concepts</h4>
             <ul class="lesson-concepts">
               <li><strong>Active authentication (captive portal):</strong> When a user's traffic matches a policy requiring authentication, the FortiGate redirects the user to a captive portal login page. The user must enter credentials before the firewall permits traffic. Active authentication supports local, LDAP, and RADIUS authentication and can be customized with branded portal pages.</li>
@@ -501,6 +590,13 @@
 
           <div class="module-intro">
             SSL VPN gives remote users tunnel-mode (full L3 like IPsec, requires FortiClient) or <strong>web-mode</strong> (bookmarks in the browser, no client install — but limited to web/RDP/SSH bookmarks). Pick by what the user must do once inside: full network access → tunnel; specific apps → web. Authentication piggybacks on the same LDAP/RADIUS stack as policies.
+            <div class="scenario-walkthrough">
+              <p class="scenario-walkthrough-head">&#x1F4BB; Concrete example &mdash; the FSSO user who still gets prompted after a clean domain logon</p>
+              <p><strong>Ticket:</strong> FSSO is deployed and works for most staff. One team &mdash; all on a shared Remote Desktop host &mdash; keeps hitting the captive portal, and when one of them authenticates, a colleague on the same server briefly inherits their access.</p>
+              <p><strong>Walk:</strong> <strong>1)</strong> Check what the FortiGate believes: <code>diagnose debug authd fsso list</code> shows the current user-to-IP mappings. The RDS host appears once, with a single user bound to the whole server address. <strong>2)</strong> That is the entire problem. FSSO maps <strong>one user to one IP</strong>, and on a terminal server every session shares that IP &mdash; so the mapping is a coin flip and the access bleeds between users. <strong>3)</strong> The answer is the <strong>Terminal Server agent</strong>, which allocates each session its own source port range and reports user-to-IP-plus-port, giving the FortiGate a per-session identity. Deploy it on the RDS host and register it with the collector agent. <strong>4)</strong> For the ordinary desktops, remember why FSSO can miss a user at all: the collector learns from domain controller security logs, so a user who logged on <em>before</em> the collector started, or who authenticated against a DC the collector does not poll, has no mapping &mdash; which is exactly when the captive portal should catch them as the fallback.</p>
+              <p><strong>Verify:</strong> <code>diagnose debug authd fsso list</code> now shows distinct entries for the RDS sessions, and each user gets only their own policy set. Tighten the rest while you are here: set sane idle and hard <strong>authentication timeouts</strong>, and add an <strong>exempt</strong> entry so machine traffic such as Windows Update is never waiting behind a login prompt that no human will ever see.</p>
+            </div>
+            <div class="lesson-takeaway"><strong>Key takeaway:</strong> Active authentication (captive portal) prompts; passive authentication (FSSO/RSSO) reuses an existing domain logon. FSSO learns mappings from DC security logs via DC agent, polling, or collector agent modes &mdash; and maps user to IP, which breaks on shared-IP terminal servers unless you add the TS agent. <code>diagnose debug authd fsso list</code> is the first command; exempt machine traffic from authentication.</div>
           </div>
 
 
@@ -510,6 +606,9 @@
               <span class="lesson-number">5.1</span>
               <span class="lesson-title">SSL VPN Modes</span>
             </div>
+            <p class="lesson-intro">
+              Pick the SSL VPN mode by answering one question: <strong>what must the user actually do once they are inside?</strong> A handful of published applications is web mode &mdash; clientless, nothing installed, safe on a device you do not manage. Anything that needs a real network adapter (thick clients, SMB shares, tooling that opens its own sockets) is tunnel mode. Realms are what let one FortiGate serve both populations without one portal becoming the lowest common denominator.
+            </p>
             <h4>Key Concepts</h4>
             <ul class="lesson-concepts">
               <li><strong>Web mode:</strong> SSL VPN web mode provides clientless remote access through a web browser. Users authenticate via the SSL VPN portal and access internal resources (HTTP/HTTPS, RDP, SSH, SMB, FTP, VNC) through application bookmarks rendered in the browser. No client software installation is required, making it ideal for unmanaged devices and contractors.</li>
@@ -520,6 +619,13 @@
             <div class="study-note">
               <strong>Exam tip:</strong> Web mode is clientless but limited to specific protocols through the portal; tunnel mode requires FortiClient but provides full Layer 3 network access. Know that tunnel mode uses a virtual adapter (ssl.root) on the FortiGate and requires a firewall policy from ssl.root to the internal interface.
             </div>
+            <div class="scenario-walkthrough">
+              <p class="scenario-walkthrough-head">&#x1F4BB; Concrete example &mdash; contractors and employees who need very different doors on the same IP</p>
+              <p><strong>Ticket:</strong> The company hires a contractor team for a six-month project. They need one internal ticketing web app and nothing else, on their own unmanaged laptops. Employees already use the existing full-access tunnel portal. The quick answer &mdash; add the contractors to the existing group &mdash; would hand them a routed path into the corporate LAN.</p>
+              <p><strong>Walk:</strong> <strong>1)</strong> Give them a separate door, not a separate box. Create a portal with <strong>web mode only</strong>, tunnel mode disabled, carrying a single HTTPS bookmark to the ticketing app. <strong>2)</strong> Expose it as its own <strong>realm</strong> so the URL path itself distinguishes the two populations (<code>https://vpn.example.com/contractors</code>) while both share one public IP and listening port. <strong>3)</strong> Map the contractor group to the contractor portal in the authentication/portal mapping &mdash; the mapping, not the login page, is what decides which portal a user lands in. <strong>4)</strong> Write the firewall policy from <code>ssl.root</code> to the app server only, sourced on the contractor group. Web mode still needs a policy; "clientless" limits the protocols, not the need for a rule.</p>
+              <p><strong>Verify:</strong> A contractor logging in at the realm URL sees one bookmark and can reach one host; the same account at the employee realm is rejected. An employee is unaffected. Because nothing was installed on the contractor machines, offboarding is deleting the group membership &mdash; there is no client left behind holding a configuration profile.</p>
+            </div>
+            <div class="lesson-takeaway"><strong>Key takeaway:</strong> Web mode is clientless through a browser portal and limited to published bookmarks (HTTP/HTTPS, RDP, SSH, SMB, FTP, VNC); tunnel mode needs FortiClient and gives full Layer 3 access via a virtual adapter and an IP from the pool. Realms host multiple portals on one IP, each with its own groups and bookmarks. Either mode still requires a firewall policy from <code>ssl.root</code> to the internal interface.</div>
           </div>
 
           <!-- Lesson 5.2 -->
@@ -528,6 +634,9 @@
               <span class="lesson-number">5.2</span>
               <span class="lesson-title">SSL VPN Configuration</span>
             </div>
+            <p class="lesson-intro">
+              Two things account for most SSL VPN tickets, and neither is the VPN settings page. The first is the <strong>missing policy from <code>ssl.root</code></strong> &mdash; the tunnel comes up and nothing works. The second is routing: split tunnelling means the client decides locally what goes down the tunnel, and a client whose home network overlaps yours will make that decision against you.
+            </p>
             <h4>Key Concepts</h4>
             <ul class="lesson-concepts">
               <li><strong>Portal design and tunnel settings:</strong> SSL VPN configuration involves defining the listening interface, port (default 443), server certificate, and authentication method. Portal settings control whether tunnel mode, web mode, or both are enabled, along with the IP pool range for tunnel-mode clients and DNS server assignments.</li>
@@ -579,6 +688,13 @@
 
           <div class="module-intro">
             IPsec is the site-to-site workhorse: <strong>IKE</strong> negotiates the SAs in two phases, <strong>ESP</strong> carries the encrypted payload. Phase 1 establishes the secure channel (main vs aggressive mode), Phase 2 sets up the actual data SAs (proxy IDs / selectors). NSE4 tests the <strong>dial-up</strong> shape too — branches with dynamic IPs initiating to a static HQ.
+            <div class="scenario-walkthrough">
+              <p class="scenario-walkthrough-head">&#x1F4BB; Concrete example &mdash; a tunnel that connects but cannot reach the subnet it was built for</p>
+              <p><strong>Ticket:</strong> A remote user connects successfully &mdash; FortiClient shows the tunnel up and an assigned IP &mdash; but cannot reach the 192.168.1.0/24 server subnet. Everyone else is fine. The user is working from a home router that also uses 192.168.1.0/24.</p>
+              <p><strong>Walk:</strong> <strong>1)</strong> Rule out the usual suspect first: <code>diagnose vpn ssl list</code> confirms the session exists and the <code>ssl.root</code> &rarr; LAN policy is present and matching for other users, so this is not the classic missing-policy case. <strong>2)</strong> The collision is on the client. With split tunnelling, the FortiGate pushes routes for the corporate subnets and the client routes everything else locally &mdash; but the laptop already has a directly-connected route for 192.168.1.0/24 to its own Wi-Fi. A connected interface route wins over a pushed route, so the traffic never enters the tunnel. <strong>3)</strong> There is no client-side fix worth deploying at scale. The durable answers are: re-address the corporate subnet off the RFC1918 ranges that consumer routers ship with (192.168.0.0/24 and 192.168.1.0/24), or switch that portal to <strong>full tunnel</strong> so the default route moves into the VPN. <strong>4)</strong> Full tunnel also buys you inspection of the user's internet traffic at HQ &mdash; at the cost of hairpinning all of it through the WAN link.</p>
+              <p><strong>Verify:</strong> After the corporate subnet is renumbered (or full tunnel enabled), <code>route print</code> on the client shows the corporate prefix pointing at the virtual adapter, and internal hosts answer. Two things to keep in place regardless of mode: <strong>multi-factor authentication</strong> on every SSL VPN login, and a <strong>host check</strong> so an unpatched or AV-less machine lands in a restricted portal rather than on the LAN.</p>
+            </div>
+            <div class="lesson-takeaway"><strong>Key takeaway:</strong> The two classic SSL VPN faults: no firewall policy from <code>ssl.root</code> to the internal interface (tunnel up, nothing reachable), and a client subnet that overlaps the corporate one under split tunnelling (the local connected route wins). Split tunnel saves bandwidth and loses visibility; full tunnel is the reverse. <code>diagnose vpn ssl list</code> shows the live sessions.</div>
           </div>
 
 
@@ -588,6 +704,9 @@
               <span class="lesson-number">6.1</span>
               <span class="lesson-title">IPsec Fundamentals</span>
             </div>
+            <p class="lesson-intro">
+              IPsec is two negotiations, and knowing which one failed halves the troubleshooting. <strong>Phase 1</strong> authenticates the peers and builds the IKE SA; <strong>Phase 2</strong> uses that channel to agree the data SAs and, critically, the <strong>traffic selectors</strong>. "Phase 1 up, phase 2 down" and "nothing comes up at all" are different bugs with different causes, and the IKE debug tells you which you have within seconds.
+            </p>
             <h4>Key Concepts</h4>
             <ul class="lesson-concepts">
               <li><strong>IKEv1 vs IKEv2:</strong> Internet Key Exchange version 1 uses either Main Mode (6 messages for identity protection) or Aggressive Mode (3 messages, faster but less secure) for Phase 1 negotiation. IKEv2 simplifies the exchange to 4 messages, supports MOBIKE for seamless roaming, built-in NAT traversal, and is more resilient to denial-of-service attacks. FortiGate supports both versions.</li>
@@ -599,6 +718,13 @@
             <div class="study-note">
               <strong>Exam tip:</strong> Know the message exchange counts: IKEv1 Main Mode = 6 messages, Aggressive Mode = 3 messages, IKEv2 = 4 messages (IKE_SA_INIT + IKE_AUTH). Understand that PFS in Phase 2 generates new keys independent of Phase 1, providing stronger security at a slight performance cost.
             </div>
+            <div class="scenario-walkthrough">
+              <p class="scenario-walkthrough-head">&#x1F4BB; Concrete example &mdash; a tunnel that authenticates and then dies at phase 2</p>
+              <p><strong>Ticket:</strong> A new tunnel to a partner's non-Fortinet firewall shows the IKE gateway established, then never passes traffic. The partner insists their side is configured "exactly as agreed". The IPsec monitor shows the phase 1 up and no phase 2 selectors.</p>
+              <p><strong>Walk:</strong> <strong>1)</strong> Run the one command that matters: <code>diagnose debug application ike -1</code> with <code>diagnose debug enable</code>, then bounce the tunnel. <strong>2)</strong> Read the failure text rather than guessing &mdash; a proposal problem reports no matching SA proposal, and it names the phase, so you immediately know phase 1 succeeded and phase 2 did not. <strong>3)</strong> The mismatch is <strong>PFS</strong>: your phase 2 has Perfect Forward Secrecy on with DH group 14, theirs has PFS off. PFS is negotiated in phase 2 and generates fresh keying material independent of phase 1, so it must match exactly on both ends &mdash; and it is easy to miss because phase 1 already worked. <strong>4)</strong> Agree one setting and apply it on both sides. If the debug had instead shown mismatched selectors, the fix would be the other phase 2 classic: <strong>proxy IDs</strong>, where one peer proposes the specific subnets and the other proposes 0.0.0.0/0 &mdash; the tunnel comes up and drops traffic that falls outside the agreed selector.</p>
+              <p><strong>Verify:</strong> <code>diagnose vpn tunnel list</code> shows a phase 2 SA with incrementing encryption and decryption counters in both directions &mdash; counters moving one way only is its own diagnosis, pointing at the return path or a missing mirror policy. Turn the debug back off with <code>diagnose debug disable</code>; an IKE debug left running on a busy device is a real load.</p>
+            </div>
+            <div class="lesson-takeaway"><strong>Key takeaway:</strong> Phase 1 authenticates the peers and negotiates the IKE SA (IKEv1 main mode = 6 messages, aggressive = 3; IKEv2 = 4); phase 2 negotiates the data SAs, PFS and traffic selectors. Mismatched PFS or proxy IDs fail in phase 2 only &mdash; a working phase 1 proves nothing about phase 2. ESP (IP protocol 50) carries the encrypted payload and NAT-T wraps it in UDP 4500 when a NAT device sits in the path.</div>
           </div>
 
           <!-- Lesson 6.2 -->
@@ -607,6 +733,9 @@
               <span class="lesson-number">6.2</span>
               <span class="lesson-title">Site-to-Site VPN</span>
             </div>
+            <p class="lesson-intro">
+              Route-based is the default answer and worth understanding as a routing decision, not a VPN one: the tunnel becomes a <strong>virtual interface</strong> in the routing table, so everything you know about routes, metrics, failover and dynamic protocols applies. That is the strength &mdash; and the trap, because a tunnel that goes down leaves a route behind that other routes have to be prepared for.
+            </p>
             <h4>Key Concepts</h4>
             <ul class="lesson-concepts">
               <li><strong>Route-based vs policy-based VPN:</strong> Route-based VPNs create a virtual IPsec interface and use static routes or dynamic routing protocols to direct traffic into the tunnel, offering greater flexibility for complex topologies. Policy-based VPNs define the tunnel within the firewall policy itself and do not create a virtual interface, making them simpler but less flexible. Route-based is the recommended approach in most scenarios.</li>
@@ -617,6 +746,13 @@
             <div class="study-note">
               <strong>Exam tip:</strong> Route-based VPN creates a virtual interface (e.g., vpn_phase1_name) that appears in the routing table and can participate in dynamic routing. Policy-based VPN does not create an interface and encrypts traffic based solely on the policy match. Always prefer route-based for production deployments.
             </div>
+            <div class="scenario-walkthrough">
+              <p class="scenario-walkthrough-head">&#x1F4BB; Concrete example &mdash; a tunnel failover that sends branch traffic out to the internet in clear</p>
+              <p><strong>Ticket:</strong> A branch has a primary IPsec tunnel to HQ and a backup tunnel over a second circuit. During a planned failover test, internal 10.0.0.0/8 traffic does not switch to the backup &mdash; it leaves via the branch's default route toward the internet, where it is dropped by the upstream ISP. The traffic was meant to be encrypted.</p>
+              <p><strong>Walk:</strong> <strong>1)</strong> The static route pointing 10.0.0.0/8 at the primary tunnel interface is withdrawn when the tunnel drops, which is correct behaviour. With that route gone, the next best match for 10.0.0.0/8 is the <strong>default route</strong>. <strong>2)</strong> Two things are missing. Add a route for 10.0.0.0/8 over the <strong>backup tunnel interface</strong> with a higher distance, so it only installs when the primary route is gone. <strong>3)</strong> Add a <strong>blackhole route</strong> for 10.0.0.0/8 with a distance higher still. Now, if both tunnels are down, internal traffic is discarded locally instead of following the default route out of the building &mdash; the difference between an outage and a data leak. <strong>4)</strong> Make failure detection active: enable <strong>DPD</strong> (dead peer detection) so the tunnel is declared down promptly rather than staying nominally up with a dead peer behind it.</p>
+              <p><strong>Verify:</strong> Re-run the test: <code>get router info routing-table all</code> shows the 10.0.0.0/8 route move to the backup interface within the DPD interval, traffic keeps flowing encrypted, and with both tunnels administratively down it hits the blackhole and stops. A policy-based VPN could not have been built this way &mdash; with no virtual interface there is nothing to route over, which is the practical reason route-based is the production default.</p>
+            </div>
+            <div class="lesson-takeaway"><strong>Key takeaway:</strong> Route-based VPN creates a virtual interface that participates in routing, so failover is ordinary route preference &mdash; back up the tunnel route with a higher-distance alternative <em>and</em> a blackhole route, or traffic silently falls through to the default route. DPD detects a dead peer and triggers the switch. Policy-based VPN creates no interface and cannot do this; ADVPN builds spoke-to-spoke shortcuts on demand in a hub-and-spoke design.</div>
           </div>
 
           <!-- Lesson 6.3 -->
@@ -625,6 +761,9 @@
               <span class="lesson-number">6.3</span>
               <span class="lesson-title">Dial-up VPN &amp; Troubleshooting</span>
             </div>
+            <p class="lesson-intro">
+              Dial-up inverts the usual assumption: the remote peer's IP is unknown, so it cannot be the thing that identifies them. Everything about dial-up configuration follows from that one constraint &mdash; how the FortiGate picks which phase 1 a connection belongs to, why aggressive mode exists, and why <strong>peer IDs</strong> or certificates stop being optional the moment you have a second dial-up peer.
+            </p>
             <h4>Key Concepts</h4>
             <ul class="lesson-concepts">
               <li><strong>Dial-up IPsec VPN:</strong> Dial-up VPN allows remote clients (FortiClient, third-party IPsec clients) to connect to the FortiGate without requiring a static IP address. The FortiGate Phase 1 configuration uses "Dialup User" as the remote gateway type, and mode-config assigns virtual IP addresses, DNS servers, and split-tunnel routes to connecting clients.</li>
@@ -676,6 +815,13 @@
 
           <div class="module-intro">
             Security profiles are where FortiGate stops being a router. Bundle them onto a policy: <strong>Antivirus</strong> (flow vs proxy mode), <strong>IPS</strong> (signatures + anomaly), <strong>Web Filter</strong> (FortiGuard categories + URL filter), <strong>Application Control</strong> (signature-matched app IDs), <strong>DNS Filter</strong> (block at name resolution). Each profile attaches independently — combine to taste.
+            <div class="scenario-walkthrough">
+              <p class="scenario-walkthrough-head">&#x1F4BB; Concrete example &mdash; two dynamic-IP branches where only one tunnel ever comes up</p>
+              <p><strong>Ticket:</strong> HQ terminates dial-up tunnels from branches on consumer broadband. Branch A works. You add Branch B with its own phase 1 and its own pre-shared key, and now the two fight: whichever connects first works and the other fails authentication, apparently at random.</p>
+              <p><strong>Walk:</strong> <strong>1)</strong> Ask what HQ has to work with at the moment a connection arrives. The source IP is dynamic and useless as a selector, so the FortiGate walks its dial-up phase 1 entries looking for a match &mdash; and with nothing else to distinguish them, it can settle on the wrong one, whose PSK then does not verify. <strong>2)</strong> Give each peer an identity. In <strong>aggressive mode</strong>, the initiator sends its <strong>peer ID</strong> (local ID) in the first exchange, early enough for the responder to select the right phase 1 and therefore the right key. Set a distinct local ID on each branch and the matching peer ID on the corresponding HQ phase 1. <strong>3)</strong> Understand the trade you just made: aggressive mode completes in three messages and sends identity in the clear, where main mode's six messages protect it &mdash; but main mode needs a fixed IP to identify the peer, which is precisely what you do not have. <strong>4)</strong> The better long-term answer for a growing estate is <strong>certificates</strong>: the peer is identified by its certificate subject, which scales past the point where per-branch pre-shared keys become unmanageable.</p>
+              <p><strong>Verify:</strong> <code>diagnose vpn ike gateway list</code> shows both gateways up with distinct peer identities, and both survive a simultaneous restart. If a branch still fails, go back to <code>diagnose debug application ike -1</code> and read the phase it names &mdash; on dial-up the three recurring causes are peer-ID mismatch, PSK mismatch, and a NAT device in front of the branch that requires NAT-T (UDP 4500) to be permitted end to end.</p>
+            </div>
+            <div class="lesson-takeaway"><strong>Key takeaway:</strong> Dial-up peers have no fixed IP, so identity comes from a peer/local ID or a certificate &mdash; which is why aggressive mode (identity in the first exchange, sent in the clear) is used where main mode cannot be. Mode-config hands the client its virtual IP, DNS and split-tunnel routes. Start every dial-up investigation with <code>diagnose debug application ike -1</code> and let the error name the phase.</div>
           </div>
 
 
@@ -685,6 +831,9 @@
               <span class="lesson-number">7.1</span>
               <span class="lesson-title">Antivirus &amp; IPS</span>
             </div>
+            <p class="lesson-intro">
+              Antivirus and IPS fail in opposite directions, and the exam leans on both. AV fails <strong>open</strong> when the engine cannot see inside what it is scanning &mdash; an archive in flow mode, a file past the oversize limit, a protocol on a port the profile does not inspect. IPS fails <strong>closed</strong>, blocking legitimate traffic that resembles an exploit. Knowing which way each one breaks tells you where to look.
+            </p>
             <h4>Key Concepts</h4>
             <ul class="lesson-concepts">
               <li><strong>Flow-based antivirus scanning:</strong> In flow-based mode, the FortiGate inspects file content as it streams through the device using pattern matching against the FortiGuard antivirus signature database. This approach offers high performance and low latency but cannot reconstruct files for full emulation. It detects malware signatures, grayware, and known malicious file hashes in real time.</li>
@@ -695,6 +844,13 @@
             <div class="study-note">
               <strong>Exam tip:</strong> Flow-based AV is faster but cannot extract archives or submit files to a sandbox. Proxy-based AV provides deeper analysis at the cost of latency. IPS signatures with action set to "default" will use the vendor-recommended action (monitor or block) for each signature.
             </div>
+            <div class="scenario-walkthrough">
+              <p class="scenario-walkthrough-head">&#x1F4BB; Concrete example &mdash; an IPS signature that takes a production application offline</p>
+              <p><strong>Ticket:</strong> Ten minutes after IPS is enabled on the server policy, an internal line-of-business application stops working for everyone. The instinct in the room is to remove the IPS profile and investigate later.</p>
+              <p><strong>Walk:</strong> <strong>1)</strong> Do not disable IPS estate-wide to fix one application &mdash; you would trade a single broken app for an unprotected network. Find the signature first. <strong>2)</strong> <code>Log &amp; Report &rarr; Intrusion Prevention</code>, filtered to the application server, names the exact signature, its severity, and the policy ID that triggered it. It is a high-severity signature for an exploit against a product you do not run, matching a pattern this app's own protocol happens to produce &mdash; a textbook false positive. <strong>3)</strong> Narrow the exception to the smallest thing that works. Best: an <strong>exempt</strong> entry for that signature scoped to the application server's source/destination, so the signature stays active everywhere else. Acceptable while you confirm: set that single signature's action to <strong>monitor</strong>. Never: strip the profile from the policy. <strong>4)</strong> Note what the signature action <em>default</em> means for the rest &mdash; each signature uses the vendor-recommended action, which is why a freshly enabled profile can block without you choosing to block anything.</p>
+              <p><strong>Verify:</strong> The application recovers, the IPS log keeps recording the pattern for the exempted pair without acting on it, and every other signature is untouched. Apply the same "narrow the exception" reflex to AV: if a large legitimate file trips the oversize limit, adjust that limit in <strong>protocol options</strong> for that policy rather than turning scanning off &mdash; and remember to add any non-standard ports there, or the traffic passes uninspected without ever appearing as a block.</p>
+            </div>
+            <div class="lesson-takeaway"><strong>Key takeaway:</strong> IPS false positives are fixed by exempting the one signature for the affected hosts (or setting it to monitor), never by removing the profile; signature action "default" uses the vendor-recommended action. Flow-based AV cannot extract archives or submit to a sandbox &mdash; proxy-based can. Protocol options decide which protocols and ports get inspected and how oversized files are handled.</div>
           </div>
 
           <!-- Lesson 7.2 -->
@@ -703,6 +859,9 @@
               <span class="lesson-number">7.2</span>
               <span class="lesson-title">Web Filtering</span>
             </div>
+            <p class="lesson-intro">
+              Web filtering is a precedence question. FortiGuard categories are the broad policy; the <strong>local URL filter</strong> is the exception mechanism, and it is evaluated <strong>before</strong> the category rating, which is what makes targeted allow and block entries possible at all. Most "my exception did not work" tickets are not precedence problems &mdash; they are pattern-matching problems.
+            </p>
             <h4>Key Concepts</h4>
             <ul class="lesson-concepts">
               <li><strong>FortiGuard category-based filtering:</strong> FortiGuard maintains a cloud-based URL database with over 80 categories (social networking, gambling, malware, phishing, adult content, etc.). The FortiGate queries FortiGuard in real time to classify URLs and enforces allow, block, monitor, warn, or authenticate actions per category. Category ratings can be overridden locally.</li>
@@ -713,6 +872,13 @@
             <div class="study-note">
               <strong>Exam tip:</strong> FortiGuard web filter requires an active subscription license and DNS connectivity for category lookups. The local URL filter is checked before the FortiGuard category rating, so explicit allow/block entries always take priority. Know the difference between "warn" (user can proceed after acknowledgment) and "block" (access denied).
             </div>
+            <div class="scenario-walkthrough">
+              <p class="scenario-walkthrough-head">&#x1F4BB; Concrete example &mdash; a wildcard exception that quietly matches nothing</p>
+              <p><strong>Ticket:</strong> Marketing needs one social platform that the Social Networking category blocks. You add a URL filter allow entry for <code>*.facebook.com</code>, type Wildcard, action Allow. The block page still appears when users go to <code>facebook.com</code>.</p>
+              <p><strong>Walk:</strong> <strong>1)</strong> Precedence is not the issue: the URL filter is consulted before the FortiGuard category rating, so a matching allow entry would win. The entry is simply not matching. <strong>2)</strong> <code>*.facebook.com</code> matches subdomains &mdash; <code>www.facebook.com</code>, <code>static.facebook.com</code> &mdash; and not the bare apex <code>facebook.com</code> that users type. Add both the apex and the wildcard, or use a pattern that covers both. <strong>3)</strong> Scope the exception rather than granting it globally: put the allow entry in a web filter profile attached only to the marketing policy, so the category block stays in force for everyone else. <strong>4)</strong> If the requirement is "access, but not all day", reach for a <strong>quota</strong> instead of an allow &mdash; a per-category time or volume allowance per user, blocking on exhaustion until the period resets.</p>
+              <p><strong>Verify:</strong> A marketing user reaches the site by both names; a user outside that policy still gets the block page. Two related behaviours worth getting right at the same time: <strong>warn</strong> lets a user proceed after acknowledging a notice while <strong>block</strong> does not, and category lookups need an active FortiGuard subscription plus working DNS &mdash; when FortiGuard is unreachable, check the profile's behaviour for unrated traffic before assuming the filter is simply off.</p>
+            </div>
+            <div class="lesson-takeaway"><strong>Key takeaway:</strong> The local URL filter is evaluated before the FortiGuard category rating, so explicit allow/block entries override categories &mdash; but <code>*.domain.com</code> does not match the bare apex, which is why most exceptions "fail". Scope exceptions to a profile on one policy; use quotas for time-limited access; "warn" is bypassable by the user and "block" is not.</div>
           </div>
 
           <!-- Lesson 7.3 -->
@@ -721,6 +887,9 @@
               <span class="lesson-number">7.3</span>
               <span class="lesson-title">Application Control &amp; DNS Filtering</span>
             </div>
+            <p class="lesson-intro">
+              Application control and DNS filtering exist because ports stopped meaning anything. Both identify traffic by what it <em>is</em> rather than where it is going &mdash; but they see different parts of the connection, and that difference decides which one can stop a given application. App control needs payload visibility to be precise; DNS filtering works before any encrypted session exists at all.
+            </p>
             <h4>Key Concepts</h4>
             <ul class="lesson-concepts">
               <li><strong>Application signatures and categories:</strong> FortiGate application control uses deep packet inspection to identify over 4,000 applications regardless of port, protocol, or encryption. Applications are organized into categories (collaboration, cloud IT, social media, P2P, video/audio, VPN, etc.) with actions of allow, monitor, block, or traffic shape. Signature updates are delivered via FortiGuard.</li>
@@ -772,6 +941,13 @@
 
           <div class="module-intro">
             TLS hides what your other profiles want to scan. Two inspection modes: <strong>Certificate Inspection</strong> (read the SNI/cert only — light, no MITM, can't see payload) vs <strong>Deep Inspection</strong> (full MITM — re-sign every cert with the FortiGate CA so endpoints must trust it). Deep is required for AV / IPS on HTTPS traffic; cert-only is enough for URL filtering.
+            <div class="scenario-walkthrough">
+              <p class="scenario-walkthrough-head">&#x1F4BB; Concrete example &mdash; a tunnelling app that survives every port-based block</p>
+              <p><strong>Ticket:</strong> A consumer VPN app is being used to bypass web filtering. It runs entirely over TCP 443, so it is indistinguishable from HTTPS to any port-based rule, and blocking the published server IPs achieves nothing because the list changes daily.</p>
+              <p><strong>Walk:</strong> <strong>1)</strong> Enable <strong>application control</strong> and block the relevant Proxy/VPN category. It helps, but not completely &mdash; without decryption, app control can only identify the session from the certificate CN or the <strong>SNI</strong> in the Client Hello, and an app that omits or randomises those slips past. <strong>2)</strong> Add <strong>SSL deep inspection</strong> on that policy so the engine sees the payload and can match the application signature properly rather than guessing from the handshake. <strong>3)</strong> Add a <strong>DNS filter</strong> as the cheap outer layer: it blocks resolution of the app's domains before any TLS session is negotiated, needs no decryption at all, and costs almost nothing in CPU. <strong>4)</strong> Close the last gap with an <strong>ISDB</strong> destination object where one exists for the service, so the FortiGuard-maintained ranges do the work instead of a hand-kept IP list you would have to update daily.</p>
+              <p><strong>Verify:</strong> The application stops connecting, and the app-control and DNS-filter logs show the attempts with the matched signature and domains. The layering is the point: DNS filtering catches the lookup, app control with deep inspection catches a hard-coded IP that skipped DNS, and the ISDB object catches the rest &mdash; no single layer covers all three paths.</p>
+            </div>
+            <div class="lesson-takeaway"><strong>Key takeaway:</strong> Application control identifies apps by signature regardless of port; without SSL deep inspection it can only go on certificate CN/SNI, which is far less reliable for encrypted apps. DNS filtering blocks at resolution, before any encrypted session forms, so it works without decryption. ISDB objects give policies the FortiGuard-maintained IP ranges for well-known cloud services.</div>
           </div>
 
 
@@ -781,6 +957,9 @@
               <span class="lesson-number">8.1</span>
               <span class="lesson-title">Certificate Inspection vs Deep Inspection</span>
             </div>
+            <p class="lesson-intro">
+              Deep inspection is a deliberate man-in-the-middle, and every consequence follows from that. It is the only way AV, IPS and DLP see inside HTTPS &mdash; and it requires that every endpoint trust the FortiGate CA, and it will break any application that deliberately refuses to trust a substituted certificate. Certificate inspection is the lighter option that reads the SNI and certificate metadata without decrypting, which is enough for category filtering and nothing more.
+            </p>
             <h4>Key Concepts</h4>
             <ul class="lesson-concepts">
               <li><strong>Certificate inspection mode:</strong> In certificate inspection mode the FortiGate examines only the server certificate metadata (Common Name, Subject Alternative Name, issuer, validity) and the SNI in the TLS Client Hello, without decrypting the session payload. This allows URL filtering and application identification based on the domain name while preserving end-to-end encryption. It generates no certificate warnings on client browsers.</li>
@@ -791,6 +970,13 @@
             <div class="study-note">
               <strong>Exam tip:</strong> Certificate inspection does not generate browser warnings but only sees certificate-level information. Deep inspection sees the full payload but requires CA certificate trust. Applications using certificate pinning (e.g., banking apps, Microsoft updates) will fail under deep inspection and must be exempted.
             </div>
+            <div class="scenario-walkthrough">
+              <p class="scenario-walkthrough-head">&#x1F4BB; Concrete example &mdash; the banking portal and the update client that break the day deep inspection goes live</p>
+              <p><strong>Ticket:</strong> Deep inspection is rolled out with the CA certificate pushed by GPO, and browsing works cleanly. Two things break immediately: finance cannot reach the corporate banking portal from the managed browser, and Windows Update starts failing on every machine &mdash; with errors that do not look like certificate warnings.</p>
+              <p><strong>Walk:</strong> <strong>1)</strong> This is not a trust-distribution failure; the GPO worked, which is why ordinary sites are fine. It is <strong>certificate pinning</strong>: these clients ship with the expected certificate or issuer baked in and reject the FortiGate's re-signed certificate by design. No amount of CA distribution fixes that &mdash; a pinned client is supposed to refuse. <strong>2)</strong> The tell is the error style: a pinned app fails with a generic connection or update error rather than a browser trust prompt, which is why these get misfiled as network faults. <strong>3)</strong> Add <strong>exemptions</strong> to the SSL inspection profile for the affected destinations &mdash; by FQDN, address, or whole category, and start from the FortiGuard recommended exemption list, which already covers the common pinned and sensitive services. <strong>4)</strong> Exempt the finance and health categories as policy, not just as a fix: it avoids decrypting genuinely sensitive personal traffic, which is a privacy and often a legal position as much as a technical one.</p>
+              <p><strong>Verify:</strong> Banking and Windows Update work again, general browsing is still decrypted and inspected, and the exempted destinations appear in the logs as bypassed rather than blocked. For anything you only need to <em>categorise</em> &mdash; not scan &mdash; certificate inspection remains the right tool: no decryption, no CA requirement, no pinning breakage, and no visibility beyond the domain.</p>
+            </div>
+            <div class="lesson-takeaway"><strong>Key takeaway:</strong> Certificate inspection reads only SNI and certificate metadata &mdash; enough for URL/category filtering, with no decryption and no browser warnings. Deep inspection decrypts and re-signs, so it needs the FortiGate CA in every endpoint trust store and will break certificate-pinned apps (banking, updaters) regardless of that trust. Exempt pinned and sensitive destinations by FQDN, address or category.</div>
           </div>
 
           <!-- Lesson 8.2 -->
@@ -799,6 +985,9 @@
               <span class="lesson-number">8.2</span>
               <span class="lesson-title">SSL Inspection Profiles</span>
             </div>
+            <p class="lesson-intro">
+              Outbound and inbound inspection look similar and rest on opposite foundations. <strong>Outbound</strong> protects your users and works by the FortiGate re-signing with <em>its own</em> CA. <strong>Inbound</strong> protects your servers and only works if you give the FortiGate the <em>server's real certificate and private key</em>. Getting that distinction backwards is the fastest way to a profile that inspects nothing.
+            </p>
             <h4>Key Concepts</h4>
             <ul class="lesson-concepts">
               <li><strong>Outbound SSL inspection (protecting clients):</strong> Outbound deep inspection protects internal users browsing the internet. The FortiGate intercepts the client's TLS handshake, establishes its own session with the destination server, and presents a re-signed certificate to the client. This profile is applied to policies where internal users access external HTTPS resources.</li>
@@ -850,6 +1039,13 @@
 
           <div class="module-intro">
             Logging answers <em>"what just happened and why"</em>. FortiGate writes to local memory/disk by default; production sends to <strong>FortiAnalyzer</strong> (long-term analytics + reports) or syslog. <strong>FortiView</strong> is the real-time dashboard layered on top — top sources, top destinations, top apps, top threats — pivotable into the matching policy or session.
+            <div class="scenario-walkthrough">
+              <p class="scenario-walkthrough-head">&#x1F4BB; Concrete example &mdash; a published web server that IPS never actually protected</p>
+              <p><strong>Ticket:</strong> A public HTTPS application sits behind a VIP with IPS and a web application profile attached. After an incident, the logs show the attack traffic reaching the server with no IPS detections at all. The profiles were enabled the whole time.</p>
+              <p><strong>Walk:</strong> <strong>1)</strong> The traffic is TLS-encrypted to the server, and the policy carried the standard <strong>outbound</strong> deep-inspection profile &mdash; which re-signs with the FortiGate CA for clients that trust it. Internet clients do not trust it, and the profile was never the right tool for traffic arriving at your own server. The engines saw an opaque stream and matched nothing. <strong>2)</strong> Build an <strong>inbound</strong> (protecting SSL server) inspection profile instead: import the server's real certificate <em>and private key</em> into the FortiGate and reference it, so the device can terminate the session legitimately, inspect the cleartext, and forward to the server. <strong>3)</strong> Attach that profile to the VIP policy alongside IPS. <strong>4)</strong> Plan for the cost &mdash; deep inspection is the most CPU-expensive thing on the box. Check whether the model's <strong>CP</strong> processor is offloading the crypto and watch CPU and concurrent session counts under real load before declaring it done.</p>
+              <p><strong>Verify:</strong> Replay a benign test against a known signature: the IPS log now records the detection on inbound sessions, and the certificate presented to external clients is still the real one, so nothing changes for them. Set the profile's handling of <strong>invalid certificates</strong> deliberately while you are here &mdash; expired, self-signed, revoked or untrusted-CA server certificates can be blocked, allowed with a warning page, or allowed silently, and the default is rarely the one you would choose on purpose.</p>
+            </div>
+            <div class="lesson-takeaway"><strong>Key takeaway:</strong> Outbound inspection protects clients and uses the FortiGate CA; inbound inspection protects servers and requires the server's certificate <em>and private key</em> on the FortiGate. Security profiles cannot inspect what they cannot decrypt &mdash; an outbound profile on inbound server traffic silently inspects nothing. Deep inspection is CPU-heavy; CP ASICs offload it, and certificate-validation handling (expired, revoked, self-signed) is a choice you should make explicitly.</div>
           </div>
 
 
@@ -859,6 +1055,9 @@
               <span class="lesson-number">9.1</span>
               <span class="lesson-title">Log Types &amp; Destinations</span>
             </div>
+            <p class="lesson-intro">
+              Logging decisions are storage decisions. The FortiGate will happily generate more logs than it can keep, and the moment you need history is the moment you discover how little of it survived. The exam wants the destinations and severity scale; the job wants you to know that memory logging dies at reboot and local disk rotates far sooner than anyone expects.
+            </p>
             <h4>Key Concepts</h4>
             <ul class="lesson-concepts">
               <li><strong>Traffic logs:</strong> Traffic logs record every session that passes through the FortiGate, including source/destination IP, port, protocol, policy ID, bytes sent/received, duration, and NAT information. Traffic logs can be generated at session start, session end, or both. They are essential for forensic analysis, compliance auditing, and bandwidth monitoring.</li>
@@ -870,6 +1069,13 @@
             <div class="study-note">
               <strong>Exam tip:</strong> Memory logging is volatile and lost on reboot; disk logging persists but has limited capacity. FortiAnalyzer is Fortinet's recommended solution for long-term log storage and reporting. Know the three main log types (traffic, event, security) and which activities generate each type.
             </div>
+            <div class="scenario-walkthrough">
+              <p class="scenario-walkthrough-head">&#x1F4BB; Concrete example &mdash; an investigation that runs out of history after three days</p>
+              <p><strong>Ticket:</strong> Security asks for the traffic history around an incident six weeks ago. The FortiGate is logging to local disk and the oldest entry available is four days old. Nothing was misconfigured; nothing was deleted.</p>
+              <p><strong>Walk:</strong> <strong>1)</strong> Disk capacity is finite and logs rotate oldest-first. Find what is consuming it: a policy with <strong>Log Allowed Traffic &rarr; All Sessions</strong> on a high-volume internal path &mdash; enabled for a troubleshooting session months ago and never turned back off &mdash; is generating an entry per session and crowding out everything else. <strong>2)</strong> Set that policy back to logging security events only, or to session end rather than every session, keeping full logging on the paths that actually warrant it. <strong>3)</strong> Apply severity thresholds per destination so each one keeps what it is for: everything of consequence to the central collector, warnings and above locally, debug only while you are actively watching. <strong>4)</strong> Fix the real gap &mdash; long-term retention does not belong on the firewall. Forward to <strong>FortiAnalyzer</strong> (or a syslog/SIEM target) where six weeks is routine and the reporting lives. Local disk then becomes the short buffer it should always have been.</p>
+              <p><strong>Verify:</strong> A week later, disk history covers a useful window again and the collector holds the full record. Know what each destination costs you: <strong>memory</strong> logging is fast and volatile &mdash; a reboot erases it &mdash; <strong>disk</strong> persists but rotates and wears, and only an external collector gives retention and cross-device correlation. Enable log rate limiting so a single noisy event cannot flood the buffer.</p>
+            </div>
+            <div class="lesson-takeaway"><strong>Key takeaway:</strong> Three log types: traffic (sessions), event (system and admin activity), security/UTM (profile detections). Memory logging is volatile, disk is limited and rotates, FortiAnalyzer/syslog is the answer for retention and reporting. Severity runs emergency through debug &mdash; filter per destination, and audit "All Sessions" logging left on after troubleshooting, which is the usual reason history disappears.</div>
           </div>
 
           <!-- Lesson 9.2 -->
@@ -878,6 +1084,9 @@
               <span class="lesson-number">9.2</span>
               <span class="lesson-title">FortiView &amp; Alert Management</span>
             </div>
+            <p class="lesson-intro">
+              FortiView is the same log data pivoted for a human: start at a top-talker, drill to the policy, drill to the session. It answers "what is going on right now" far faster than log search &mdash; and it can only show what was logged, which is why it is blank on a device logging to memory only. Automation stitches are the step beyond watching: a trigger wired to an action so the response happens without you.
+            </p>
             <h4>Key Concepts</h4>
             <ul class="lesson-concepts">
               <li><strong>FortiView real-time monitoring:</strong> FortiView is the FortiGate's built-in traffic analytics dashboard that provides real-time and historical views of top sources, destinations, applications, threats, web sites, and cloud applications. FortiView uses drill-down navigation, allowing administrators to click from a high-level summary down to individual session details and log entries.</li>
@@ -929,6 +1138,13 @@
 
           <div class="module-intro">
             HA pairs (or clusters up to 4) protect against single-FortiGate failure. <strong>Active-Passive</strong> (one box forwards, others stand by — simpler) vs <strong>Active-Active</strong> (load balanced — only for stateful sessions Fortinet supports). HA uses dedicated <strong>heartbeat</strong> links + virtual MAC addresses so the upstream/downstream switches see a stable next-hop even after failover.
+            <div class="scenario-walkthrough">
+              <p class="scenario-walkthrough-head">&#x1F4BB; Concrete example &mdash; a malware detection that sat unnoticed on a dashboard all weekend</p>
+              <p><strong>Ticket:</strong> A high-severity antivirus detection on a workstation is recorded on Friday evening. It is spotted on Monday morning in FortiView, by which point the host has been talking to the same destination all weekend. Nobody was watching the dashboard, which is the actual failure.</p>
+              <p><strong>Walk:</strong> <strong>1)</strong> Use FortiView to scope it first &mdash; start from Top Sources, drill into the host, then into the matching policy and the individual sessions to establish what it reached and when. That drill path is the tool's purpose, and it beats reconstructing the same picture from log search. <strong>2)</strong> Then fix the notification gap. Configure <strong>alert email</strong> (SMTP server plus recipients) filtered to critical and high severity so detections of this class reach a human out of hours instead of waiting on a dashboard. <strong>3)</strong> Automate the containment with an <strong>automation stitch</strong> under Security Fabric &rarr; Automation: trigger on a high-severity AV or IPS event, action to quarantine the source host via the Fabric and send a webhook to the on-call channel. The response now happens in seconds, at 3am, unattended. <strong>4)</strong> Add <strong>SNMP</strong> traps for the infrastructure-level events the NMS should own &mdash; interface down, tunnel state change, high CPU &mdash; using v3, since v1/v2c send community strings in the clear.</p>
+              <p><strong>Verify:</strong> Fire a harmless test that matches the trigger: the stitch runs, the webhook posts, the host is quarantined, and the action is recorded in the event log. Confirm FortiView has history to work with at all &mdash; it needs disk or FortiAnalyzer logging; with memory-only logging the historical views are empty exactly when you need them.</p>
+            </div>
+            <div class="lesson-takeaway"><strong>Key takeaway:</strong> FortiView pivots logged data from summary to session and needs disk or FortiAnalyzer logging to show history. Alert email covers notification; automation stitches (Security Fabric &rarr; Automation) pair a trigger with an action &mdash; quarantine, webhook, CLI script &mdash; for unattended response. SNMP v3 authenticates and encrypts; v1/v2c send community strings in clear text.</div>
           </div>
 
 
@@ -938,6 +1154,9 @@
               <span class="lesson-number">10.1</span>
               <span class="lesson-title">HA Modes</span>
             </div>
+            <p class="lesson-intro">
+              HA protects against a dead box, not against a dropped session &mdash; those are two separate features. Active-passive is the default for good reasons: simpler, predictable, and it covers the failure everyone actually has. Active-active adds throughput and complexity, and not every traffic type load-balances. <strong>Session pickup</strong> is the setting that decides whether users notice the failover at all.
+            </p>
             <h4>Key Concepts</h4>
             <ul class="lesson-concepts">
               <li><strong>Active-passive HA:</strong> In active-passive mode, one FortiGate processes all traffic (the primary) while the other unit (the subordinate) stands by in a hot-standby state. If the primary fails, the subordinate takes over within sub-second to a few seconds, assuming the primary's IP and MAC addresses. This mode provides straightforward redundancy with no load distribution.</li>
@@ -948,6 +1167,13 @@
             <div class="study-note">
               <strong>Exam tip:</strong> Active-passive is simpler and recommended for most deployments. Active-active provides higher throughput but only the primary handles certain traffic types (e.g., proxy-based inspection). Session pickup is critical for seamless failover but consumes additional bandwidth on the heartbeat link. Both HA peers must run the same firmware version and have matching licenses.
             </div>
+            <div class="scenario-walkthrough">
+              <p class="scenario-walkthrough-head">&#x1F4BB; Concrete example &mdash; a failover users called an outage, on a cluster that worked perfectly</p>
+              <p><strong>Ticket:</strong> A planned failover test is declared a success: the secondary takes over in about a second and browsing is unaffected. Meanwhile the database team reports dropped connections, and a large file transfer restarted from zero. The cluster did exactly what it was configured to do.</p>
+              <p><strong>Walk:</strong> <strong>1)</strong> Failover moved the traffic; it did not move the <strong>sessions</strong>. Without session pickup, the new primary has an empty session table, so every established flow is unknown and gets dropped. <strong>2)</strong> Short-lived HTTPS connections hide this completely &mdash; the browser opens new ones and nobody notices &mdash; while long-lived TCP sessions (database connections, SSH, SFTP, large transfers) die visibly. That asymmetry is why the test "passed". <strong>3)</strong> Enable <strong>session pickup</strong> so the session table is synchronised between cluster members and established flows survive the takeover. <strong>4)</strong> Budget for it: synchronisation is continuous traffic on the heartbeat link, which is an argument for two dedicated heartbeat interfaces rather than one shared with anything else.</p>
+              <p><strong>Verify:</strong> Repeat the test with a long-running SSH session and a transfer in flight: both survive, and <code>diagnose sys ha status</code> shows the roles swapped cleanly. Be precise about what HA does and does not cover &mdash; FGCP synchronises configuration and (with pickup) sessions, but both members must run the same firmware and hold matching licences, and in active-active mode some inspection work stays on the primary rather than being shared.</p>
+            </div>
+            <div class="lesson-takeaway"><strong>Key takeaway:</strong> Active-passive: one unit forwards, the other is hot standby &mdash; simplest and the usual choice. Active-active: both forward, but not all traffic types load-balance and the primary keeps management and some inspection. FGCP handles heartbeat, config sync and failover. Session pickup must be enabled explicitly, or established sessions drop on failover &mdash; short-lived connections mask it, long-lived ones expose it.</div>
           </div>
 
           <!-- Lesson 10.2 -->
@@ -956,6 +1182,9 @@
               <span class="lesson-number">10.2</span>
               <span class="lesson-title">HA Configuration</span>
             </div>
+            <p class="lesson-intro">
+              An HA cluster forms only when the members agree on more than you would expect, and the failure mode is silence: two devices that simply refuse to become one, with little in the GUI to say why. The prerequisites are the exam's favourite gotcha &mdash; matching model, firmware and licensing, a shared group name and password, and heartbeat interfaces that are genuinely dedicated.
+            </p>
             <h4>Key Concepts</h4>
             <ul class="lesson-concepts">
               <li><strong>Heartbeat interfaces:</strong> At least one dedicated interface must be configured for HA heartbeat communication, carrying FGCP hello packets, configuration synchronization, and session table updates. For redundancy, two heartbeat interfaces should be configured on separate physical links. Heartbeat traffic is encrypted using a group password to prevent unauthorized devices from joining the cluster.</li>
@@ -986,6 +1215,13 @@
           <div class="module-quiz">
             <div class="module-quiz-text"><strong>⚡ Mini-quiz</strong> — Drill A-P vs A-A trade-offs, cluster prerequisites, heartbeat isolation, and split-brain prevention.</div>
             <a href="/train.html?pack=nse4&amp;mode=study" class="module-quiz-cta">Quick quiz →</a>
+            <div class="scenario-walkthrough">
+              <p class="scenario-walkthrough-head">&#x1F4BB; Concrete example &mdash; two identical units that will not form a cluster</p>
+              <p><strong>Ticket:</strong> Two FG-100F units, same model, same configuration typed in twice, heartbeat cables in place. Each insists it is the primary of a one-member cluster. The GUI reports nothing useful on either.</p>
+              <p><strong>Walk:</strong> <strong>1)</strong> Compare what the units think they are running: <code>get system status</code> on both shows different firmware builds &mdash; one shipped from stock with an older FortiOS. FGCP will not merge members on mismatched firmware, so each forms its own cluster of one. Upgrade the older unit to match exactly. <strong>2)</strong> Re-check the identity fields, which must be identical on both: <strong>group name</strong>, <strong>group ID</strong> and the HA <strong>password</strong>, since the password is what authenticates a member into the cluster. <strong>3)</strong> Verify the heartbeat: <code>hbdev</code> must name the dedicated interfaces on both units, and those interfaces must be physically connected to each other rather than through the production switch, where a VLAN mistake can isolate them. <strong>4)</strong> Set <strong>priority</strong> deliberately &mdash; higher wins &mdash; and understand the election order behind it: override setting, then priority, then the number of monitored interfaces that are up, then HA uptime, then serial number as the final tiebreak.</p>
+              <p><strong>Verify:</strong> <code>diagnose sys ha status</code> shows one primary and one subordinate with a synchronised configuration; <code>diagnose sys ha checksum show</code> matches on both, which is the definitive proof the config is in sync rather than merely similar. From the primary, <code>execute ha manage</code> reaches the subordinate's CLI. Configure <strong>monitored interfaces</strong> so a dead WAN port lowers that unit's effective priority and triggers failover &mdash; a cluster that only fails over when a whole box dies misses the more common failure &mdash; and when it is time to patch, upgrade in HA: the subordinate first, then a single failover, then the former primary.</p>
+            </div>
+            <div class="lesson-takeaway"><strong>Key takeaway:</strong> Cluster prerequisites are strict: same model, same firmware, matching licences, identical group name/ID and HA password, and dedicated heartbeat interfaces (two, for redundancy, never on the production network). Election order: override, priority, monitored interfaces up, HA uptime, serial number. <code>diagnose sys ha status</code> and <code>checksum show</code> confirm health; <code>execute ha manage</code> reaches the subordinate; monitored interfaces are what make a link failure trigger failover.</div>
           </div>
         </div>
       </details>

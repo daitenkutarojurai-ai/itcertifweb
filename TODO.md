@@ -209,12 +209,11 @@ the newer markup:
   security+, az-104, az-305, az-500, gcp-pca, gcp-pde, docker-dca,
   terraform-associate, ccnp-security, rhcsa, ms-900, sc-900,
   comptia-linux, comptia-a-plus.
-- **Still pending (4)** — old `.module-block` markup, takeaways and
+- **Still pending (3)** — old `.module-block` markup, takeaways and
   mini-quiz only at *module* level, no per-lesson intro/example:
-  1. `fortinet-nse4` (23 lessons) ← next
-  2. `az-900-fundamentals` (19 lessons)
-  3. `comptia-pentest-plus` (19 lessons)
-  4. `gcp-ace` (17 lessons)
+  1. `az-900-fundamentals` (19 lessons) ← next
+  2. `comptia-pentest-plus` (19 lessons)
+  3. `gcp-ace` (19 lessons)
 - Reference implementation to copy the shape from: `aws-saa-c03`.
 - Note their existing prose is technically sound — what it lacks is the
   per-lesson framing and worked examples, not accuracy. Rework, don't
@@ -279,6 +278,61 @@ the `details.module-block` accordion layout untouched:
   ampersands introduced, `npm test` 265/265, `audit-content` green, and
   rendered headless at 360 × 800 / 768 × 1024 / 1440 × 900 with no
   horizontal overflow and no JS errors.
+
+**✅ `fortinet-nse4` DONE 2026-09-15** — all 23 lessons across the 10
+modules got the deep-lesson pass in place, leaving the
+`details.module-block` accordion layout untouched:
+
+- `.lesson-intro` on every lesson — one paragraph naming the *decision*
+  the lesson turns on rather than restating the bullets below it
+  (NAT/Route vs Transparent and whether the session still hits the ASIC;
+  a policy is an AND across every field of an ordered first-match list;
+  SNAT is chosen by what the far end needs to see; DNAT is translated
+  *before* the policy is evaluated; AV fails open where IPS fails
+  closed; deep inspection is a deliberate MITM and every consequence
+  follows from that).
+- A **"💻 Concrete example"** worked scenario on every lesson, each one
+  a real failure walked Ticket → Walk → Verify with the commands: an
+  FG-60F whose throughput halves once IPS moves sessions off the NP fast
+  path, a `/32` trusted-host entry that locks the admin out when DHCP
+  renews, an FQDN object that only works for half the users behind a
+  CDN, a block that renders as a timeout because flow mode cannot serve
+  a replacement page, a contractor rule shadowed by a broad allow above
+  it (zero hit count), a partner allow-list broken by SD-WAN picking the
+  second WAN, the published server everyone can reach *except* staff
+  inside (hairpin NAT), an LDAP nested group that authenticates but
+  matches no policy, FSSO on a terminal server mapping one user per IP,
+  a split-tunnel client whose home LAN is also 192.168.1.0/24, a phase 2
+  that fails on mismatched PFS, a tunnel failover that leaks internal
+  traffic out of the default route for want of a blackhole, two dial-up
+  branches that need peer IDs, an IPS false positive fixed by exempting
+  one signature instead of the profile, a `*.domain.com` wildcard that
+  never matches the apex, an app tunnelled over 443, cert-pinned banking
+  and Windows Update breaking under deep inspection, an outbound
+  inspection profile that silently inspects nothing on inbound server
+  traffic, disk history that runs out after three days, a weekend
+  detection nobody saw, a "successful" failover that dropped every
+  long-lived session, and two identical FG-100Fs that will not cluster
+  on mismatched firmware.
+- `.lesson-takeaway` on every lesson — the one-or-two-sentence rule to
+  carry into the exam.
+- Deliberately kept distinct from the 10 pre-existing **module-level**
+  "🛡 Scenario" walkthroughs: those are happy-path configuration
+  sequences (factory setup, outbound policy, DNAT publish, captive
+  portal, SSL-VPN web mode, site-to-site IPsec, AV + Web Filter, cert
+  inspection, traffic-log triage, A-P HA), so every per-lesson example
+  was written to a different scenario — mostly the failure that the
+  module-level happy path does not cover.
+- Two new inline CSS rules only (`.lesson-intro`, `.lesson-takeaway`),
+  matching the green palette the page already uses for
+  `.module-takeaways` — no shared CSS touched, so no repo-wide `?v=`
+  cache bump was needed.
+- Verified: 23/23 lessons carry intro + example + takeaway, HTML tag
+  balance clean (div/p/ul/li/details all matched, 254/254 divs), no
+  unescaped ampersands introduced, `npm test` 265/265,
+  `audit-content` green, and rendered headless at 360 × 800 /
+  768 × 1024 / 1440 × 900 with every accordion forced open — 0px
+  horizontal overflow at all three and no JS errors from the page.
 
 ### UX-7 — Career-finder quiz ✅ DONE 2026-05-20
 
