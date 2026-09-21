@@ -1,0 +1,212 @@
+{
+  "meta": {
+    "id": "comptia-datasys-plus",
+    "name": "CompTIA DataSys+ (DS0-001)",
+    "vendor": "CompTIA",
+    "version": "1.0.0",
+    "question_count": 10,
+    "last_updated": "2026-09-21",
+    "notes": "Initial seed pack covering the DS0-001 domains: databases and database fundamentals, deployment, management and maintenance, security, business continuity, and troubleshooting. Complements comptia-data-plus (DA0-001) which focuses on data analytics."
+  },
+  "questions": [
+    {
+      "id": "datasys-001",
+      "question": "You are designing a schema for a bank ledger where every debit must have a matching credit and no transaction can commit unless both rows write successfully. Which database property guarantees this all-or-nothing behavior?",
+      "options": [
+        "Consistency (data always satisfies defined integrity constraints)",
+        "Durability (committed data survives a crash of the DBMS)",
+        "Isolation (concurrent transactions do not see each other's uncommitted work)",
+        "Atomicity (a transaction either fully commits or fully rolls back)"
+      ],
+      "correct": 3,
+      "explanation": "Atomicity is the ACID property that treats every transaction as an indivisible unit — if any statement inside the transaction fails, the entire transaction rolls back, so a partial debit-without-credit can never persist. Consistency guarantees that a transaction moves the database from one valid state to another (constraints, triggers, foreign keys are honored), but does not on its own force an all-or-nothing outcome. Durability ensures that once a transaction commits, its writes survive power loss or crash, but says nothing about partial commits. Isolation controls what concurrent transactions can observe of each other's in-flight work; it does not roll back a failed statement inside a single transaction.",
+      "tags": [
+        "acid",
+        "transactions",
+        "comptia-datasys-plus"
+      ],
+      "difficulty": "easy",
+      "_normalized": true
+    },
+    {
+      "id": "datasys-002",
+      "question": "A relational table stores customer orders with the columns order_id (PK), customer_id, customer_name, customer_email, product_id, product_name, and quantity. Which normal-form violation should the DBA correct first, and how?",
+      "options": [
+        "It violates 2NF/3NF; move customer_name/customer_email into a Customers table and product_name into a Products table, referenced by foreign keys",
+        "It violates 1NF; split multi-valued cells into separate rows",
+        "It violates BCNF only; add a composite key on (order_id, product_id)",
+        "It violates 4NF; store customer and product data in a JSON column"
+      ],
+      "correct": 0,
+      "explanation": "Non-key attributes customer_name/customer_email depend on customer_id (a non-key column) and product_name depends on product_id — transitive dependencies that violate 3NF (and 2NF once you consider the composite lookup pattern). The fix is to promote Customers and Products to their own tables and reference them by foreign key from Orders, eliminating update anomalies. 1NF is not violated because each cell already holds a single atomic value. BCNF is a stricter form of 3NF and adding a composite primary key does not remove the transitive dependency. 4NF concerns multi-valued dependencies, and stuffing the data into a JSON blob would actually reduce, not increase, normalization.",
+      "tags": [
+        "normalization",
+        "3nf",
+        "schema-design",
+        "comptia-datasys-plus"
+      ],
+      "difficulty": "medium",
+      "_normalized": true
+    },
+    {
+      "id": "datasys-003",
+      "question": "A reporting query filters a 200-million-row orders table by exact match on order_uuid and returns roughly one row. Reads currently do a full table scan. Which index type should the DBA add?",
+      "options": [
+        "A bitmap index on order_uuid (efficient for low-cardinality columns)",
+        "A full-text index on order_uuid (needed for equality search on strings)",
+        "A B-tree index on order_uuid (standard for high-cardinality equality and range lookups)",
+        "A clustered columnstore index on the entire table (compresses all columns for analytics)"
+      ],
+      "correct": 2,
+      "explanation": "A B-tree index gives O(log n) lookups on high-cardinality columns and is the standard choice for equality and range predicates on a unique identifier like a UUID — the scan collapses to a handful of index pages. Bitmap indexes are designed for low-cardinality columns (gender, status flags) and become huge and slow on unique IDs. Full-text indexes serve token/word search inside long text, not equality on identifiers. A columnstore index optimizes aggregate scans across few columns of many rows for analytics, which is the opposite of a one-row point lookup.",
+      "tags": [
+        "indexes",
+        "b-tree",
+        "query-performance",
+        "comptia-datasys-plus"
+      ],
+      "difficulty": "medium",
+      "_normalized": true
+    },
+    {
+      "id": "datasys-004",
+      "question": "A production database is on a full-recovery backup schedule: full backup Sunday 02:00, differential backup nightly at 02:00, transaction-log backup every 15 minutes. The server crashes Wednesday at 14:37 and must be restored to the point of failure. Which restore sequence is correct?",
+      "options": [
+        "Sunday full → Tuesday differential → Wednesday differential → all log backups after the Wednesday differential up to 14:37",
+        "Every nightly differential from Monday through Wednesday, then the most recent transaction log",
+        "Sunday full → every transaction log since Sunday, skipping the differentials",
+        "The most recent transaction-log backup only, then replay the redo log"
+      ],
+      "correct": 0,
+      "explanation": "With a full + differential + log strategy, recovery restores the last full backup, then only the MOST RECENT differential (each differential is cumulative since the last full, so earlier ones are redundant), then every transaction log taken after that differential up to the target point in time. Restoring every differential from Monday through Wednesday wastes work and can fail because a newer differential already includes the earlier data. Skipping differentials and replaying every log since Sunday works in theory but is dramatically slower and defeats the reason differentials exist. Replaying only the last log leaves the database missing every change made before that 15-minute window.",
+      "tags": [
+        "backup",
+        "recovery",
+        "point-in-time",
+        "comptia-datasys-plus"
+      ],
+      "difficulty": "hard",
+      "_normalized": true
+    },
+    {
+      "id": "datasys-005",
+      "question": "A DBA must ensure that customer PII columns are unreadable on the physical disk and in database backup files even if the storage media is stolen, while remaining transparent to application code. Which control fits best?",
+      "options": [
+        "Column-level application encryption performed in the client before insertion",
+        "Row-level security policies (RLS) that restrict which users can SELECT the columns",
+        "Dynamic data masking of the columns for non-admin roles",
+        "Transparent Data Encryption (TDE) on the database files and backups"
+      ],
+      "correct": 3,
+      "explanation": "Transparent Data Encryption (TDE) encrypts the data files, log files, and backups at rest using a database-managed key, so stolen disks or backup tapes reveal only ciphertext, while queries running through the DBMS see plaintext with no application changes. Column-level application encryption also protects the data but requires changing every client that reads or writes those columns, which the question rules out. Row-level security controls WHICH rows a session may see; it does not encrypt the underlying file. Dynamic data masking replaces column values in query results for lower-privileged users, but leaves the on-disk data in plaintext, so a stolen backup is fully exposed.",
+      "tags": [
+        "encryption",
+        "tde",
+        "data-at-rest",
+        "comptia-datasys-plus"
+      ],
+      "difficulty": "medium",
+      "_normalized": true
+    },
+    {
+      "id": "datasys-006",
+      "question": "An application built for a single reporting analyst suddenly needs to scale to thousands of concurrent web sessions. Reads dominate; write volume is unchanged. Which architectural change delivers the biggest read throughput improvement with the least disruption?",
+      "options": [
+        "Vertical scaling — move the primary to a larger CPU/RAM instance",
+        "Enable synchronous multi-primary replication so every node accepts writes",
+        "Add one or more read replicas and route SELECT traffic to them via a connection router",
+        "Switch from a relational engine to a key-value store to eliminate joins"
+      ],
+      "correct": 2,
+      "explanation": "Read replicas are the canonical horizontal-scale answer for read-heavy workloads: the primary continues to serve writes while asynchronous replicas absorb SELECT traffic behind a router or DNS alias, requiring no schema change and no application rewrite. Vertical scaling helps to a point but hits a hardware ceiling and does nothing to spread connections. Multi-primary synchronous replication multiplies write coordination cost and conflict risk without helping a workload whose bottleneck is read fan-out. Rewriting to a key-value store discards joins and referential integrity — a massive migration for a problem replication already solves.",
+      "tags": [
+        "replication",
+        "read-replicas",
+        "high-availability",
+        "comptia-datasys-plus"
+      ],
+      "difficulty": "medium",
+      "_normalized": true
+    },
+    {
+      "id": "datasys-007",
+      "question": "A junior DBA runs `GRANT ALL PRIVILEGES ON hr.* TO app_user@'%'` so the ordering app can query the employees table. What is the primary security issue with this statement?",
+      "options": [
+        "It uses a wildcard host, but privileges on hr.* are otherwise fine because the app needs the data",
+        "It violates least privilege — app_user gains INSERT/UPDATE/DELETE/DROP on every object in hr, including tables unrelated to ordering",
+        "GRANT ALL is inherently deprecated; the DBA should use GRANT USAGE instead",
+        "The statement is missing a REQUIRE SSL clause, which is the only real risk"
+      ],
+      "correct": 1,
+      "explanation": "Least privilege demands granting only the specific privileges the workload needs on the specific objects it touches — here, likely `SELECT ON hr.employees` (and perhaps a few named tables). `GRANT ALL PRIVILEGES ON hr.*` hands the account rights to insert, update, delete, drop, alter and change permissions on every table, view, and routine in the schema, which is a large blast radius if the credentials leak. The wildcard host is a hardening concern but secondary to the over-broad privilege grant. GRANT ALL is not deprecated (and GRANT USAGE would grant essentially nothing, so the app would break). Missing TLS is a transport-security issue that does not neutralize an account already over-privileged at the SQL layer.",
+      "tags": [
+        "access-control",
+        "least-privilege",
+        "grant",
+        "comptia-datasys-plus"
+      ],
+      "difficulty": "easy",
+      "_normalized": true
+    },
+    {
+      "id": "datasys-008",
+      "question": "Two concurrent transactions on the same table produce non-repeatable reads: T1 reads a row, T2 updates and commits that row, then T1 reads it again and sees a different value. What is the minimum isolation level T1 must run at to prevent this while still allowing T2's insert of new rows to appear on later scans?",
+      "options": [
+        "READ UNCOMMITTED (permits dirty reads)",
+        "READ COMMITTED (blocks dirty reads only)",
+        "SERIALIZABLE (blocks dirty, non-repeatable, and phantom reads)",
+        "REPEATABLE READ (blocks dirty and non-repeatable reads; phantom rows may still appear)"
+      ],
+      "correct": 3,
+      "explanation": "REPEATABLE READ is defined precisely to eliminate non-repeatable reads: any row T1 reads is protected from update by other transactions until T1 completes, so the second read returns the same value. It still permits phantom reads — new rows matching T1's WHERE clause inserted by T2 CAN appear on a later scan — which is exactly what the question asks for. READ UNCOMMITTED allows dirty reads (uncommitted data) and does not solve the problem. READ COMMITTED blocks dirty reads only; between statements a committed update by T2 will still be visible, so non-repeatable reads persist. SERIALIZABLE would work but is stricter than required — it also blocks the phantom inserts the question wants to allow.",
+      "tags": [
+        "isolation-levels",
+        "concurrency",
+        "repeatable-read",
+        "comptia-datasys-plus"
+      ],
+      "difficulty": "hard",
+      "_normalized": true
+    },
+    {
+      "id": "datasys-009",
+      "question": "After a fresh index was added, a critical SELECT is still slow. The DBA needs to see WHY the optimizer picks the scan it does — join order, index chosen, estimated vs actual row counts. Which tool answers this most directly?",
+      "options": [
+        "The slow-query log (records queries above a duration threshold)",
+        "The query execution plan (EXPLAIN / EXPLAIN ANALYZE output)",
+        "The transaction log (sequence of committed row-level changes)",
+        "The database audit log (records who ran which statement)"
+      ],
+      "correct": 1,
+      "explanation": "EXPLAIN (or EXPLAIN ANALYZE, depending on the engine) surfaces the plan the optimizer produces: which join algorithm, which index or scan, estimated vs actual row counts, and per-operator cost. That is precisely the information needed to understand why an added index is being ignored or a scan chosen. The slow-query log tells you WHICH queries are slow but not WHY. The transaction log records committed row changes for recovery and replication, not query plans. The audit log records the identity and text of executed statements for compliance, not their internal execution strategy.",
+      "tags": [
+        "query-performance",
+        "explain-plan",
+        "troubleshooting",
+        "comptia-datasys-plus"
+      ],
+      "difficulty": "easy",
+      "_normalized": true
+    },
+    {
+      "id": "datasys-010",
+      "question": "A business impact analysis sets RPO = 5 minutes and RTO = 30 minutes for the primary OLTP database. Which disaster-recovery design meets both targets?",
+      "options": [
+        "Nightly full backups shipped offsite; restore to a warm standby on failure",
+        "Weekly full backup plus daily differentials; keep the media in a fireproof safe",
+        "Asynchronous streaming replication with continuous log shipping to a hot standby that can be promoted within minutes",
+        "Cold spare hardware in a second data center, restored from tape on demand"
+      ],
+      "correct": 2,
+      "explanation": "RPO of 5 minutes means at most 5 minutes of committed data may be lost, and RTO of 30 minutes means the service must be back within 30 minutes. Streaming replication with continuous log shipping to a hot standby keeps the replica within seconds of the primary (satisfying the RPO) and allows a scripted promotion in a few minutes (satisfying the RTO). Nightly full backups lose up to 24 hours of data — a 288x RPO miss. Weekly full plus daily differentials is worse still and adds long restore time. A cold spare restored from tape typically takes hours to bring online and has the RPO of whenever the last tape was written, blowing both targets.",
+      "tags": [
+        "disaster-recovery",
+        "rpo-rto",
+        "replication",
+        "comptia-datasys-plus"
+      ],
+      "difficulty": "medium",
+      "_normalized": true
+    }
+  ]
+}
