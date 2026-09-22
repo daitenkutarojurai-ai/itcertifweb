@@ -242,21 +242,86 @@ is why the item kept getting skipped).** The tell is which markup
 generation a page uses, since the deep-lesson rework always came with
 the newer markup:
 
-- **Reworked (23)** — carry the deep shape: per-lesson `.lesson-block`
-  with `.lesson-intro` · `.lesson-bullets` · "Concrete example" ·
-  `.lesson-takeaway` · `.lesson-quiz`. All AWS, all Kubernetes, ccna,
-  security+, az-104, az-305, az-500, gcp-pca, gcp-pde, docker-dca,
-  terraform-associate, ccnp-security, rhcsa, ms-900, sc-900,
-  comptia-linux, comptia-a-plus.
-- **Still pending (3)** — old `.module-block` markup, takeaways and
+- **Reworked (25)** — carry the deep shape: a per-lesson intro, a
+  "Concrete example" worked scenario and a `.lesson-takeaway` on every
+  lesson. All AWS, all Kubernetes, ccna, security+, az-104, az-305,
+  az-500, gcp-pca, gcp-pde, docker-dca, terraform-associate,
+  ccnp-security, rhcsa, comptia-linux, comptia-a-plus, fortinet-nse4,
+  az-900-fundamentals.
+- **Still pending (4)** — old `.module-block` markup, takeaways and
   mini-quiz only at *module* level, no per-lesson intro/example:
-  1. `az-900-fundamentals` (19 lessons) ← next
-  2. `comptia-pentest-plus` (19 lessons)
-  3. `gcp-ace` (19 lessons)
+  1. `comptia-pentest-plus` (19 lessons) ← next
+  2. `gcp-ace` (19 lessons)
+  3. `sc-900` (21 lessons)
+  4. `ms-900` (18 lessons)
+- **Correction (2026-09-22):** the 2026-08-11 list credited `ms-900` and
+  `sc-900` as reworked; neither carries a per-lesson intro, example or
+  takeaway, so both are moved back to pending. Counted by markup:
+  `grep -c 'lesson-intro' learning/<id>/index.html` returns 0 for all
+  four pages above and a non-zero count for every reworked one.
 - Reference implementation to copy the shape from: `aws-saa-c03`.
 - Note their existing prose is technically sound — what it lacks is the
   per-lesson framing and worked examples, not accuracy. Rework, don't
   rewrite from scratch.
+
+**✅ `az-900-fundamentals` DONE 2026-09-22** — all 19 lessons across the
+6 modules got the deep-lesson pass in place, leaving the
+`details.module-block` accordion layout untouched:
+
+- `.lesson-intro` on every lesson — one paragraph naming the *decision*
+  the lesson turns on rather than restating the bullets below it (the
+  responsibility line slides with the service model; an SLA number is
+  earned by the deployment shape, not granted by Azure; the deployment
+  model follows the constraint, not a security ranking; availability
+  set vs zone vs region pair each survive a different size of failure;
+  a resource group is a delete boundary, not a folder; ARM is the one
+  door every tool goes through; NSG rules are a sorted list where the
+  first match wins; a tier is chosen by read frequency; Cosmos vs SQL
+  is decided by data shape; Entra ID is not AD DS; the policy *is* its
+  effect; Contributor and Owner differ by exactly one capability;
+  right-size before you commit; a CLI acts on whichever subscription it
+  has selected; metrics say whether, logs say why).
+- A **"💻 Concrete example"** worked scenario on every lesson, each one
+  a real failure walked Situation → Walk → Verify: an IaaS VM
+  cryptomined through an RDP rule left open (and why Azure was not
+  breached), a service promised at four nines that measured 99.6% on a
+  single VM, an insurer that could not move its policy database out of
+  the country, three VMs in one availability set taken down by one
+  datacenter, a cleanup that deleted a shared VNet with its resource
+  group, a 02:00 portal hotfix reverted by the next pipeline run, a
+  20-minute nightly job paying for a VM 24/7, an allow rule at priority
+  200 shadowed by a deny at 100, month-end reports filed to Archive and
+  unreadable for hours, a reporting store on Cosmos DB with a
+  request-unit bill to match, a lift-and-shift VM that cannot domain-
+  join to Entra ID, one phished laptop with a flat VNet in front of it,
+  a connection string committed to a public repo, an allowed-locations
+  policy assigned as Audit that allowed fourteen resources into East
+  US, a Contributor who can build anything and grant nothing, a 3-year
+  reservation bought before right-sizing, a script that built a test
+  environment in the production subscription, a 4-second page whose VM
+  metrics were all green, and four VMs rebooted overnight by planned
+  host maintenance.
+- `.lesson-takeaway` on every lesson — the one-or-two-sentence rule to
+  carry into the exam.
+- Deliberately kept distinct from the 6 pre-existing **module-level**
+  "☁ Scenario" walkthroughs (picking a service model for Microsoft 365,
+  designing a hierarchy for three teams, choosing App Service for a
+  Django migration, Conditional Access MFA by location, a CanNotDelete
+  lock on production, and triaging a $3,000 bill spike) — every
+  per-lesson example was written to a different scenario, so lesson 5.2
+  covers the Contributor/Owner split rather than locks and lesson 5.3
+  covers reservation ordering rather than bill triage.
+- Two new inline CSS rules only (`.lesson-intro`, `.lesson-takeaway`),
+  matching the blue/green palette the page already uses for
+  `.module-intro` and `.module-takeaways` — no shared CSS touched, so no
+  repo-wide `?v=` cache bump was needed.
+- Verified: 19/19 lessons carry intro + example + takeaway, HTML tag
+  balance clean (164/164 divs, 125/125 p, 6/6 details), no new
+  unescaped ampersands (4 pre-existing lines, unchanged), the page's
+  JSON-LD still parses, `npm test` 265/265, `audit-content` green, and
+  rendered headless at 360 × 800 / 768 × 1024 / 1440 × 900 with every
+  accordion forced open — 0px horizontal overflow at all three and no
+  JS errors from the page.
 
 **✅ `comptia-linux` DONE 2026-08-18** — all 37 lessons across the 7
 modules got the deep-lesson pass, in place, without changing the
