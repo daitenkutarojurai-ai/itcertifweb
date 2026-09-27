@@ -58,7 +58,14 @@ const report = (label, items) => {
   // KNOWN_UNREGISTERED holds superseded banks intentionally kept on disk but no
   // longer surfaced — each MUST carry a reason so the exemption stays auditable.
   const KNOWN_UNREGISTERED = {
-    'ccnp-encor.json': 'superseded 50q placeholder for ENCOR 350-401; ccnp.json (101q) is now the live bank — safe to delete',
+    // NOT safe to delete — see docs/audits/ultra-audit-2026-09-27.md. 39 of its 40
+    // questions have no text match in ccnp.json, and it covers 21 tags the live bank
+    // does not (mpls-ldp, ospf-lsa-types, ise, trustsec-sgt, umbrella, stealthwatch,
+    // yang-suite, …). It must be MERGED into ccnp.json (renumbering ids, which collide
+    // at ccnp-001…040), not dropped. Until then it also keeps generating a duplicate
+    // 20-node path at data/paths/ccnp-encor.json from this stale v1.0.5 bank, while the
+    // quiz serves ccnp.json (v1.3.3, 101q) for that same pack id.
+    'ccnp-encor.json': 'superseded ENCOR 350-401 bank; holds 39 questions absent from the live ccnp.json — MERGE, do not delete',
   };
   const registered = new Set(packs.map(p => p.file.replace('free/', '')));
   const unregistered = fs.readdirSync(r('data/free'))
