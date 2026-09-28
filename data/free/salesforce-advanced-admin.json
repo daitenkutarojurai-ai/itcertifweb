@@ -1,0 +1,241 @@
+{
+  "meta": {
+    "id": "salesforce-advanced-admin",
+    "name": "Salesforce Certified Advanced Administrator (ADX-211)",
+    "vendor": "Salesforce",
+    "version": "1.0.0",
+    "question_count": 12,
+    "last_updated": "2026-09-28",
+    "notes": "Initial Salesforce Advanced Administrator (ADX-211/CRT-211) pack — covers advanced sharing (manual sharing, criteria-based sharing rules, account teams), Territory Management 2.0, Flow vs Approval Process orchestration, Custom Report Types + joined/matrix report formats, Enhanced Formulas & CROSS OBJECT references, License types (Salesforce vs Platform vs Chatter Free), Change Sets vs unlocked packages vs SFDX deploy, Duplicate & Matching Rules, Field History Tracking limits, Data Loader batch tuning, Delegated Administration. Balanced answer key across 4 positions."
+  },
+  "questions": [
+    {
+      "id": "sfaa-001",
+      "question": "An account's Org-Wide Default for Opportunity is Private. A sales manager needs one-off visibility to a single Opportunity for a partner user, without granting broader access or changing the OWD. Which mechanism is the correct choice?",
+      "options": [
+        "Add the partner user to the Opportunity's account team with Read access",
+        "Create a criteria-based sharing rule that matches only that Opportunity's ID",
+        "Use manual sharing on the Opportunity record to grant Read access to the partner user",
+        "Grant the partner user the 'View All Data' system permission via a permission set"
+      ],
+      "correct": 2,
+      "explanation": "Manual sharing is designed for exactly this case: a one-off, record-scoped grant that does not alter the OWD or affect other records. Account teams grant access to related opportunities but require configuring the account team and are not a one-off record grant. A criteria-based sharing rule keyed on a single record ID is an anti-pattern — sharing rules are for reusable criteria that produce sets of records and add administrative overhead. 'View All Data' grants access to every record of every object and violates the principle of least privilege.",
+      "tags": [
+        "salesforce",
+        "advanced-admin",
+        "sharing",
+        "manual-sharing"
+      ],
+      "difficulty": "intermediate"
+    },
+    {
+      "id": "sfaa-002",
+      "question": "You need users to see a Case field only when the Case is in status 'Escalated' AND the user's profile is 'Support Manager'. The field must be hidden otherwise. What is the least-privileged, most maintainable configuration?",
+      "options": [
+        "Use Field-Level Security on the profile to hide it, then a Dynamic Form component with a visibility rule based on Status",
+        "Remove the field from every page layout and use a Visualforce override to render it conditionally",
+        "Create a duplicate field and use a workflow to copy the value only for Support Managers",
+        "Grant 'Modify All Data' to Support Managers so the field is always visible for them"
+      ],
+      "correct": 0,
+      "explanation": "Dynamic Forms let you place fields on a Lightning record page with per-field visibility rules driven by record values or user context, and FLS still controls who can see the field at the object level — combined, they satisfy both conditions declaratively. A Visualforce override adds unnecessary code and maintenance. Duplicating fields and copying values with a workflow is a data-model smell and does not restrict visibility. 'Modify All Data' is a broad system permission that grants full access to every object and violates least privilege.",
+      "tags": [
+        "salesforce",
+        "advanced-admin",
+        "dynamic-forms",
+        "fls"
+      ],
+      "difficulty": "intermediate"
+    },
+    {
+      "id": "sfaa-003",
+      "question": "A record-triggered flow on Opportunity calls an Apex-invocable action, and an Approval Process on the same Opportunity submits automatically on create. Users report that Approval submission sometimes fires before the flow finishes updating a required field, causing the approval to reject. What is the correct architectural fix?",
+      "options": [
+        "Move the Approval Process into a scheduled path on the same record-triggered flow after the field update runs",
+        "Increase the Apex CPU governor limit for the flow",
+        "Convert the flow to a screen flow so the user commits the change manually",
+        "Disable the Approval Process and use a Process Builder instead"
+      ],
+      "correct": 0,
+      "explanation": "Consolidating orchestration in one record-triggered flow with a scheduled path (or subsequent Run Asynchronously path) lets the required field update commit first, then the flow itself invokes the 'Submit for Approval' Core Action — guaranteeing order. Governor limits are per-transaction and unrelated to ordering. A screen flow requires user interaction and does not solve automated ordering. Process Builder is deprecated on new orgs and would recreate the same ordering problem while adding a slower automation engine.",
+      "tags": [
+        "salesforce",
+        "advanced-admin",
+        "flow",
+        "approval-process"
+      ],
+      "difficulty": "advanced"
+    },
+    {
+      "id": "sfaa-004",
+      "question": "A regional VP needs a single report that lists Opportunities by Owner with a second block showing that owner's Cases grouped by Status. Which report format supports this in a single report?",
+      "options": [
+        "Matrix report on Opportunity",
+        "Summary report on Opportunity with a bucket field",
+        "Joined report with two blocks that share the Owner",
+        "Tabular report on Opportunity with cross-filters"
+      ],
+      "correct": 2,
+      "explanation": "A Joined report is the only standard report format that displays multiple report blocks — each based on a different report type — side by side and can be grouped by a common field such as Owner. A Matrix report has row and column groupings on a single report type. A Summary report groups a single report type; a bucket field only categorises values, it does not add a second block. Tabular reports cannot be grouped at all, and cross-filters restrict rows rather than adding a second block of data.",
+      "tags": [
+        "salesforce",
+        "advanced-admin",
+        "reports",
+        "joined-report"
+      ],
+      "difficulty": "intermediate"
+    },
+    {
+      "id": "sfaa-005",
+      "question": "The org uses Territory Management 2.0. An account is assigned to two territories, and each territory has its own Opportunity Access setting: 'Read Only' and 'Read/Write'. What effective Opportunity access does a user in both territories receive on that account's opportunities?",
+      "options": [
+        "Read/Write — the most permissive setting wins",
+        "Read Only — the most restrictive setting always wins",
+        "No access — conflicting territory settings block access",
+        "The user must be manually re-assigned; overlap is undefined"
+      ],
+      "correct": 0,
+      "explanation": "Territory Management 2.0 sharing is additive: when a user gains access to the same record through multiple territories (or through territories plus other sharing sources), the effective access is the greatest privilege granted. Sharing in Salesforce is generally additive, not restrictive, and OWD is the floor. There is no 'block on conflict' rule. Manual reassignment is not required because the two territory grants coexist and simply combine.",
+      "tags": [
+        "salesforce",
+        "advanced-admin",
+        "territory-management",
+        "sharing"
+      ],
+      "difficulty": "advanced"
+    },
+    {
+      "id": "sfaa-006",
+      "question": "You must load 4 million Contact records nightly with strict cutover windows. Which Data Loader configuration is the recommended starting point to minimise load time and row-lock errors?",
+      "options": [
+        "Serial mode with the default batch size of 200",
+        "Parallel (Bulk API) mode with batch size 200 and enable 'Insert Null Values'",
+        "Parallel (Bulk API 2.0) mode, let the platform size batches, and pre-sort the file by the parent-record lookup",
+        "Use the Data Import Wizard so validation rules can catch bad rows before insert"
+      ],
+      "correct": 2,
+      "explanation": "Bulk API 2.0 auto-chunks the file server-side and dispatches work in parallel; sorting the input by the parent lookup (e.g., AccountId for Contacts) keeps rows for the same parent inside the same batch, which prevents the parent-record row-lock contention that shows up as UNABLE_TO_LOCK_ROW. Serial mode with 200-row batches is slow and only warranted after lock errors force it. Legacy Bulk API with batch size 200 is not the right starting size for millions of rows and 'Insert Null Values' is unrelated to throughput. The Data Import Wizard tops out at 50,000 records and cannot load 4 million.",
+      "tags": [
+        "salesforce",
+        "advanced-admin",
+        "data-loader",
+        "bulk-api"
+      ],
+      "difficulty": "advanced"
+    },
+    {
+      "id": "sfaa-007",
+      "question": "A CFO must approve any Opportunity over $1M and must delegate approval to a controller while on leave. The controller has a Salesforce Platform license only. Which configuration works?",
+      "options": [
+        "Set the CFO's Delegated Approver to the controller — Platform licenses can approve any object",
+        "Set the CFO's Delegated Approver to the controller — this works because Opportunity approval is a standard object approval and Platform licenses cannot approve it, so add a permission set with 'Approve Opportunities'",
+        "Have the CFO reassign every pending approval manually before leaving; delegation does not exist in Salesforce",
+        "Set the CFO's Delegated Approver to the controller — but this will not work because Salesforce Platform licenses do not grant access to standard CRM objects like Opportunity"
+      ],
+      "correct": 3,
+      "explanation": "Salesforce Platform user licenses do not grant access to standard sales-cloud objects such as Opportunity — the controller cannot see the record and therefore cannot approve it, regardless of the Delegated Approver setting. There is no permission set that grants access to a standard object excluded from a user's base license. Delegated Approver is a real feature, so manual reassignment is not required. The correct organisational fix is to move the controller to a Sales Cloud license (or route approvals to someone who already has one).",
+      "tags": [
+        "salesforce",
+        "advanced-admin",
+        "licenses",
+        "approvals"
+      ],
+      "difficulty": "advanced"
+    },
+    {
+      "id": "sfaa-008",
+      "question": "A managed package update from AppExchange failed in the sandbox with a test-coverage error. The vendor says the coverage requirement only applies to unmanaged code. What is the correct explanation?",
+      "options": [
+        "Salesforce enforces 75% coverage across ALL Apex in the org when deploying to production; sandboxes only warn",
+        "Sandboxes never run tests during package install; the error is a UI bug",
+        "Managed packages require 90% coverage, which is stricter than unmanaged",
+        "Managed-package Apex is pre-tested by the vendor and excluded from the 75% org-wide coverage requirement; only unmanaged Apex counts toward that threshold"
+      ],
+      "correct": 3,
+      "explanation": "Managed-package Apex is compiled and tested by the vendor before AppExchange release; it is not included in the subscriber org's 75%-coverage calculation and its test failures do not block deploys of unrelated unmanaged code. The 75% rule targets Apex owned by the org (unmanaged code and non-namespaced classes). Sandboxes do run tests when required. There is no 90% requirement for managed-package installation.",
+      "tags": [
+        "salesforce",
+        "advanced-admin",
+        "deployment",
+        "managed-packages"
+      ],
+      "difficulty": "intermediate"
+    },
+    {
+      "id": "sfaa-009",
+      "question": "Duplicate Rules must ALLOW users to save a duplicate Contact with an alert, but BLOCK duplicates on Account. What is the minimum configuration?",
+      "options": [
+        "One shared Matching Rule and one Duplicate Rule that toggles per-object behaviour with a formula",
+        "Two Matching Rules (one per object) and two Duplicate Rules — the Contact rule set to 'Allow' + Alert, the Account rule set to 'Block'",
+        "A single Duplicate Job that runs nightly and merges duplicates",
+        "A validation rule on both objects that checks ISCHANGED() against a duplicate flag"
+      ],
+      "correct": 1,
+      "explanation": "Duplicate Rules are per-object and reference a per-object Matching Rule; the action ('Allow' with Alert vs 'Block') is set on the Duplicate Rule itself, so the requirement needs one Matching Rule and one Duplicate Rule per object with the appropriate action. A single Duplicate Rule cannot span two objects or switch action by formula. Duplicate Jobs identify duplicates for cleanup but do not enforce save-time behaviour. Validation rules do not evaluate cross-record duplication.",
+      "tags": [
+        "salesforce",
+        "advanced-admin",
+        "duplicate-rules",
+        "matching-rules"
+      ],
+      "difficulty": "intermediate"
+    },
+    {
+      "id": "sfaa-010",
+      "question": "Field History Tracking is enabled on the Opportunity 'Amount' field, but auditors need to keep the full change history for 10 years. Which platform feature meets that retention requirement?",
+      "options": [
+        "Field History Tracking, which retains changes for 10 years by default",
+        "Setup Audit Trail, which retains all field changes for 20 years",
+        "Change Data Capture, which persists field history in the org's event log forever",
+        "Field Audit Trail, an add-on that retains up to 10 years across up to 60 fields per object and 18 months of standard tracking"
+      ],
+      "correct": 3,
+      "explanation": "Field Audit Trail is a paid add-on built on Big Objects that lets an org retain field-history records for up to 10 years (with up to 60 tracked fields per object) — the correct answer for a 10-year audit requirement. Standard Field History Tracking only keeps entries for 18 months. Setup Audit Trail records org-configuration changes (not field-value changes) for the last 6 months in the UI and up to 180 days for download. Change Data Capture publishes change events for near-real-time integration and does not itself provide long-term retention.",
+      "tags": [
+        "salesforce",
+        "advanced-admin",
+        "field-audit-trail",
+        "compliance"
+      ],
+      "difficulty": "intermediate"
+    },
+    {
+      "id": "sfaa-011",
+      "question": "A power-user needs to manage user creation and password resets for the 'EMEA Sales' role branch only, without System Administrator profile. What is the correct answer?",
+      "options": [
+        "Grant the 'Manage Users' permission on a permission set — restrictions can be added later",
+        "Create a Delegated Administration group that specifies which profiles the user can manage and which custom objects they can administer",
+        "Assign the Modify All Data permission and rely on the role hierarchy to limit scope",
+        "Ask the user to raise a case with Salesforce Support each time"
+      ],
+      "correct": 1,
+      "explanation": "Delegated Administration is the exact feature for this scenario: an admin defines a Delegated Group, lists the profiles those delegated admins can assign, and optionally lists custom objects they can administer — without giving them the System Administrator profile or 'Manage Users'. Granting 'Manage Users' directly has no built-in scope restriction. 'Modify All Data' grants full data access and is not scoped by role hierarchy. Routing every user creation to Support is not a scalable answer.",
+      "tags": [
+        "salesforce",
+        "advanced-admin",
+        "delegated-administration",
+        "least-privilege"
+      ],
+      "difficulty": "intermediate"
+    },
+    {
+      "id": "sfaa-012",
+      "question": "A CROSS OBJECT formula field on Opportunity references Account.Parent.Parent.Name. Which platform limit is most likely to affect this design as the org grows?",
+      "options": [
+        "Formula fields cannot use CROSS OBJECT references at all",
+        "You can traverse up to 10 relationship levels in a single formula and up to 15 unique relationships per object across all formulas",
+        "Only workflow rules — not formula fields — can traverse parent relationships",
+        "Traversal is unlimited; there is no platform ceiling"
+      ],
+      "correct": 1,
+      "explanation": "A single formula can traverse up to 10 relationship levels, and there is an object-wide cap of 15 unique relationships referenced across all formula fields on that object — long chains like Account.Parent.Parent.Name count toward both. Formulas absolutely support CROSS OBJECT references (that is the feature's name). Workflow rules can traverse relationships but so can formulas. Traversal is not unlimited — the ceilings above are documented governor limits.",
+      "tags": [
+        "salesforce",
+        "advanced-admin",
+        "formulas",
+        "cross-object"
+      ],
+      "difficulty": "advanced"
+    }
+  ]
+}
