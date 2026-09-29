@@ -120,11 +120,42 @@ comparing each path file against its question bank would have caught the
 `az-801` and `ai-102` before them — four for four on the one failure mode
 the audit is blind to.
 
+### DG-6 — Fifth recurrence, 3 commits stuck ✅ FIXED 2026-09-29
+
+`npm run audit-content` was red on a clean `main` checkout, so nothing had
+shipped since `f6dd570` (2026-09-27). Three commits from 2026-09-28 sat
+pushed-but-undeployed: `704fb5d`, `8a116a6`, `5a4b93c`. Three gaps, all
+familiar shapes:
+
+- `salesforce-advanced-admin` — bank registered in `data/index.json` but
+  `gen-paths` never re-run, so it had neither a learning path nor a
+  `_skipped.json` entry. At 12 questions it clears `MIN`, so the correct
+  outcome was a real path: 16 nodes, 3 chapters.
+- `news/comptia-datasys-plus-ds0-001-2026` — page on disk but absent from
+  both `data/news.json` and `sitemap.xml`.
+- `ai-900` — **the stale-path pattern again.** The distractor-hardening
+  commit `5a4b93c` rewrote the bank without regenerating
+  `data/paths/ai-900.json`, so the path served pre-hardening option text
+  and stale `correctIndex` values (20-line real diff, plus a match-pair
+  entry the bank had gained). `audit-content` did not flag it — it
+  surfaced only as a side effect of re-running `gen-paths` for the
+  Salesforce gap.
+
+The ~127 files of `generatedAt`-only churn that `gen-paths` produces were
+reverted by hand, per the DG-3-era convention, so the commit carries only
+the four files that actually changed.
+
+**DG-4 option 3 is now 5-for-5.** The stale-path failure mode has landed as
+`cisa` (DG-2), `az-801` (DG-3), `ai-102` (run 1009), `aws-aif-c01` (DG-5)
+and now `ai-900` — every single time invisible to the audit, caught only by
+luck or by a full regeneration done for some other reason. Five incidents,
+one unimplemented guard that would have caught all five.
+
 ### DG-4 — Add a guard so this stops recurring ⬜ OPEN (needs owner sign-off)
 
-Four incidents in fourteen days (DG-1, DG-2, DG-3, DG-5), each one a
-scheduled agent pushing content without running the audit. Documentation
-clearly is not closing the loop.
+Five incidents in twenty-nine days (DG-1, DG-2, DG-3, DG-5, DG-6), each
+one a scheduled agent pushing content without running the audit.
+Documentation clearly is not closing the loop.
 Candidate guards, cheapest first — each changes shared tooling, so this
 wants a human call rather than an autonomous run:
 
@@ -139,7 +170,7 @@ wants a human call rather than an autonomous run:
    the audit missed all four times.
 
 Option 3 is the one that catches a class of bug nothing currently catches,
-and it is now 4-for-4 on real incidents — see DG-5.
+and it is now 5-for-5 on real incidents — see DG-5 and DG-6.
 
 ---
 
