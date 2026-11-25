@@ -30,11 +30,12 @@ jobs:
       - name: Content audit (packs / careers / news / learning / sitemap / banks)
         run: npm run audit-content
 
-  deploy:
+  # Upload and deploy live in separate jobs: since 2026-11 the artifact list
+  # API lags a freshly finalized upload, and deploy-pages running in the same
+  # job ~0.4s later found 0 artifacts (runs 45670987263, 45671751624). The job
+  # boundary gives the artifact time to become visible.
+  build:
     needs: verify
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -54,6 +55,14 @@ jobs:
           path: '.'
           # v4+ drops dotfiles by default; keep .nojekyll etc. as v3 shipped them.
           include-hidden-files: true
+
+  deploy:
+    needs: build
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    steps:
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v5
