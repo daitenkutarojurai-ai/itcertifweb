@@ -47,6 +47,8 @@ const failures = [];
 for (const file of walk(ROOT)) {
   const rel = path.relative(ROOT, file);
   const html = fs.readFileSync(file, 'utf8');
+  // Meta-refresh redirect stubs (consolidated duplicates) render no layout.
+  if (/<meta http-equiv="refresh"/i.test(html)) continue;
   const issues = [];
 
   // 1. viewport

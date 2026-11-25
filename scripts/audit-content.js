@@ -20,6 +20,11 @@ const dirsWithIndex = base =>
   fs.existsSync(r(base))
     ? fs.readdirSync(r(base)).filter(d => fs.existsSync(r(`${base}/${d}/index.html`)))
     : [];
+// A consolidated duplicate kept only as a meta-refresh redirect (GitHub Pages
+// ignores _redirects). It must NOT be in the news feed or sitemap — listing a
+// redirecting URL there sends Google a conflicting canonical signal.
+const isRedirectStub = rel =>
+  /<meta http-equiv="refresh"/i.test(read(`${rel}/index.html`));
 
 const problems = [];
 const report = (label, items) => {
@@ -133,8 +138,10 @@ const report = (label, items) => {
 {
   const feed = JSON.parse(read('data/news.json'));
   const have = new Set(feed.articles.map(a => a.url.replace(/^\/news\//, '').replace(/\/$/, '')));
-  const gap = dirsWithIndex('news').filter(d => !have.has(d));
+  const gap = dirsWithIndex('news').filter(d => !have.has(d) && !isRedirectStub(`news/${d}`));
   report('news/ pages not present in data/news.json feed', gap);
+  const stubsInFeed = dirsWithIndex('news').filter(d => have.has(d) && isRedirectStub(`news/${d}`));
+  report('Redirect-stub news pages still listed in data/news.json', stubsInFeed);
 }
 
 // 3b. every brand with available packs has a brand page + a hub link
@@ -163,18 +170,23 @@ const report = (label, items) => {
 {
   const sitemap = read('sitemap.xml');
   const SKIP = new Set(['node_modules', 'test', 'scripts', 'src', 'functions', '.git', 'data', '.github']);
-  const gap = [];
+  const gap = [], stubsInSitemap = [];
   const walk = dir => {
     for (const e of fs.readdirSync(r(dir), { withFileTypes: true })) {
       if (!e.isDirectory()) continue;
       const rel = dir === '.' ? e.name : `${dir}/${e.name}`;
       if (SKIP.has(e.name) || e.name.startsWith('.')) continue;
-      if (fs.existsSync(r(`${rel}/index.html`)) && !sitemap.includes(`/${rel}/`)) gap.push(rel);
+      if (fs.existsSync(r(`${rel}/index.html`))) {
+        const listed = sitemap.includes(`/${rel}/</loc>`);
+        if (isRedirectStub(rel)) { if (listed) stubsInSitemap.push(rel); }
+        else if (!sitemap.includes(`/${rel}/`)) gap.push(rel);
+      }
       walk(rel);
     }
   };
   walk('.');
   report('Pages missing from sitemap.xml', gap);
+  report('Redirect-stub pages still listed in sitemap.xml', stubsInSitemap);
 }
 
 if (problems.length) {
