@@ -9,6 +9,10 @@
  * `compare/<slug>/index.html`. Also rebuilds `compare/index.html`
  * listing every page (legacy alternative pages + new comparisons).
  *
+ * Pages are English (lang="en"): the site's search audience is global
+ * English (US/IN/UK/CA lead GSC impressions). The FR/BE/LU salary pages
+ * under /salaire/ stay French; the table links to them for the FR median.
+ *
  * Run: `node scripts/gen-compare-pages.js` (or `npm run gen-compare`).
  */
 
@@ -47,7 +51,7 @@ function esc(s) {
     .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
 }
-function fmtMoney(n) { return typeof n === 'number' ? `${(n / 1000).toFixed(0)}k€` : '—'; }
+function fmtMoney(n) { return typeof n === 'number' ? `€${(n / 1000).toFixed(0)}k` : '—'; }
 
 const HEADER = `  <header class="web-header">
     <a href="/" class="web-header-logo">
@@ -104,6 +108,12 @@ const SHARED_STYLE = `<style>
 .cmp-table th .vendor { display:block; font-size:10px; opacity:.7; margin-top:2px; }
 .cmp-table .row-label { font-family:'JetBrains Mono',monospace; font-size:11px; color:#7c90ae; text-transform:uppercase; letter-spacing:.1em; width:120px; }
 .cmp-table .accent { font-family:'Space Grotesk',sans-serif; font-weight:700; font-size:18px; color:#fbbf24; }
+.cmp-table-wrap { overflow-x:auto; -webkit-overflow-scrolling:touch; }
+@media (max-width:640px) {
+  .cmp-section { padding:18px 14px 14px; }
+  .cmp-table th, .cmp-table td { padding:10px 8px; }
+  .cmp-table .row-label { width:auto; }
+}
 .cmp-cert-color { display:inline-block; width:10px; height:10px; border-radius:2px; margin-right:6px; vertical-align:middle; }
 
 .proncon { display:grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap:14px; }
@@ -136,23 +146,23 @@ function renderTable(certs) {
   }
 
   const meta = certs.map(c => certPacks[c.id] || {});
-  return `<table class="cmp-table">
+  return `<div class="cmp-table-wrap"><table class="cmp-table">
     <thead><tr><th></th>${headers}</tr></thead>
     <tbody>
-      ${row('Code examen', certs.map(c => `<code>${esc(c.examCode)}</code>`))}
-      ${row('Prix examen', certs.map(c => c.examFeeUsd ? `${c.examFeeUsd}$` : '—'))}
-      ${row('Heures d’étude', meta.map(m => m.est_hours ? `~${m.est_hours}h` : '—'))}
-      ${row('Questions banque CertQuests', meta.map(m => m.question_count ? `<a href="/train.html?pack=${esc(m.id)}" style="color:#60a5fa">${m.question_count} Q →</a>` : '—'))}
-      ${row('Salaire médian senior FR', certs.map(c => {
+      ${row('Exam code', certs.map(c => `<code>${esc(c.examCode)}</code>`))}
+      ${row('Exam fee', certs.map(c => c.examFeeUsd ? `$${c.examFeeUsd}` : '—'))}
+      ${row('Study hours', meta.map(m => m.est_hours ? `~${m.est_hours}h` : '—'))}
+      ${row('Free practice questions', meta.map(m => m.question_count ? `<a href="/train.html?pack=${esc(m.id)}" style="color:#60a5fa">${m.question_count} Q →</a>` : '—'))}
+      ${row('Senior median salary (France)', certs.map(c => {
         const m = salaryMedianFor(c.salaryAlias);
-        return m ? `<span class="accent">${fmtMoney(m)}</span> <a href="/salaire/${esc(c.salaryAlias)}/france/" style="color:#60a5fa;font-size:12px">détails  →</a>` : '<span style="color:#506885">—</span>';
+        return m ? `<span class="accent">${fmtMoney(m)}</span> <a href="/salaire/${esc(c.salaryAlias)}/france/" style="color:#60a5fa;font-size:12px">details →</a>` : '<span style="color:#506885">—</span>';
       }))}
-      ${row('Difficulté', certs.map(c => {
+      ${row('Difficulty', certs.map(c => {
         const m = certPacks[c.id] || {};
         return m.difficulty ? esc(m.difficulty) : '—';
       }))}
     </tbody>
-  </table>`;
+  </table></div>`;
 }
 
 function renderProsCons(certs) {
@@ -183,7 +193,7 @@ function renderCtas(certs) {
   return certs.map(c => {
     const m = certPacks[c.id] || {};
     if (!m.id) return '';
-    return `<a href="/train.html?pack=${esc(m.id)}" style="background:${esc(c.color)}">⚡ S'entraîner ${esc(c.examCode)}</a>`;
+    return `<a href="/train.html?pack=${esc(m.id)}" style="background:${esc(c.color)}">⚡ Practice ${esc(c.examCode)} free</a>`;
   }).join('');
 }
 
@@ -211,7 +221,7 @@ function jsonLd(d) {
         '@id': url + '#breadcrumbs',
         'itemListElement': [
           { '@type': 'ListItem', 'position': 1, 'name': 'Home', 'item': 'https://certquests.com/' },
-          { '@type': 'ListItem', 'position': 2, 'name': 'Comparateur', 'item': 'https://certquests.com/compare/' },
+          { '@type': 'ListItem', 'position': 2, 'name': 'Compare', 'item': 'https://certquests.com/compare/' },
           { '@type': 'ListItem', 'position': 3, 'name': d.title, 'item': url }
         ]
       }
@@ -232,13 +242,13 @@ function capDesc(s, max = 160) {
 function renderPage(d) {
   const ld = jsonLd(d);
   return `<!DOCTYPE html>
-<html lang="fr">
+<html lang="en">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
   <meta name="theme-color" content="#06080f" />
   <title>${esc(capDesc(d.title, 50))} · CertQuests</title>
-  <meta name="description" content="${esc(capDesc(`${d.title.replace(/[\s?!.]+$/, '')}. ${d.tldr} Comparatif 2026 : prix, salaires, difficulté, profils gagnants.`))}" />
+  <meta name="description" content="${esc(capDesc(`${d.tldr} 2026 comparison: exam cost, study hours, difficulty, verdict by profile.`))}" />
   <meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large" />
   <link rel="canonical" href="https://certquests.com/compare/${esc(d.slug)}/" />
   <meta property="og:type" content="article" />
@@ -246,7 +256,7 @@ function renderPage(d) {
   <meta property="og:title" content="${esc(d.title)} — CertQuests" />
   <meta property="og:description" content="${esc(d.tldr)}" />
   <meta property="og:site_name" content="CertQuests" />
-  <meta property="og:locale" content="fr_FR" />
+  <meta property="og:locale" content="en_US" />
   <meta property="og:image" content="https://certquests.com/src/assets/og/og-default.png?v=1" />
   <meta property="og:image:width" content="1200" />
   <meta property="og:image:height" content="630" />
@@ -270,40 +280,40 @@ ${HEADER}
 
 <main class="cmp-page" id="main-content">
   <nav class="breadcrumb" aria-label="Breadcrumb">
-    <a href="/">Home</a><span>/</span><a href="/compare/">Comparateur</a><span>/</span>${esc(d.title)}
+    <a href="/">Home</a><span>/</span><a href="/compare/">Compare</a><span>/</span>${esc(d.title)}
   </nav>
 
   <section class="cmp-hero">
-    <span class="eyebrow">⚖️ Comparateur</span>
+    <span class="eyebrow">⚖️ Cert comparison</span>
     <h1>${esc(d.title)} <br><span class="grad">${esc(d.subtitle)}</span></h1>
-    <p class="lede">Comparatif clair, sans bullshit — décide en 5 minutes laquelle correspond à ton profil.</p>
+    <p class="lede">A straight, no-fluff comparison — decide in 5 minutes which one fits your profile.</p>
     <div class="cmp-meta">
-      <span class="pill fresh">Révisé ${esc(d.lastReviewed)}</span>
+      <span class="pill fresh">Reviewed ${esc(d.lastReviewed)}</span>
       <span class="pill">${d.certs.length} certifications</span>
-      <span class="pill">${d.verdicts.length} profils analysés</span>
+      <span class="pill">${d.verdicts.length} profiles analyzed</span>
     </div>
   </section>
 
   <div class="cmp-tldr"><strong>TL;DR</strong>${esc(d.tldr)}</div>
 
   <section class="cmp-section">
-    <h2>Comparatif rapide</h2>
+    <h2>Quick comparison</h2>
     ${renderTable(d.certs)}
   </section>
 
   <section class="cmp-section">
-    <h2>Pour qui chacune ?</h2>
+    <h2>Who is each one for?</h2>
     <div class="proncon">${renderProsCons(d.certs)}</div>
   </section>
 
   <section class="cmp-section">
-    <h2>Le verdict, par profil</h2>
-    <p style="color:#a8b6d1;font-size:14px;line-height:1.5;margin:0 0 14px">Pas un palmarès — chaque profil a une cert qui colle mieux. Trouve le tien.</p>
+    <h2>The verdict, by profile</h2>
+    <p style="color:#a8b6d1;font-size:14px;line-height:1.5;margin:0 0 14px">Not a ranking — each profile has a cert that fits it better. Find yours.</p>
     <div class="verdicts">${renderVerdicts(d)}</div>
   </section>
 
   <section class="cmp-section">
-    <h2>Démarre avec celle que tu as choisie</h2>
+    <h2>Start practicing the one you picked</h2>
     <div class="cta-row">${renderCtas(d.certs)}</div>
   </section>
 </main>
@@ -322,7 +332,7 @@ function renderIndex(comparisons, legacyPages) {
     <div class="cmp-card-eyebrow">⚖️ ${d.certs.length}-way comparison</div>
     <div class="cmp-card-title">${esc(d.title)}</div>
     <div class="cmp-card-sub">${esc(d.subtitle)}</div>
-    <div class="cmp-card-meta">Révisé ${esc(d.lastReviewed)} · ${d.verdicts.length} profils</div>
+    <div class="cmp-card-meta">Reviewed ${esc(d.lastReviewed)} · ${d.verdicts.length} profiles</div>
   </a>`).join('');
 
   const legacy = legacyPages.map(slug => `<a class="cmp-card cmp-card--legacy" href="/compare/${esc(slug)}/">
@@ -331,27 +341,27 @@ function renderIndex(comparisons, legacyPages) {
   </a>`).join('');
 
   return `<!DOCTYPE html>
-<html lang="fr">
+<html lang="en">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
   <meta name="theme-color" content="#06080f" />
-  <title>Comparateur de certifications IT — CertQuests</title>
-  <meta name="description" content="Comparatifs sans bullshit : AWS vs Azure vs GCP, CCNA vs Network+, CISSP vs Security+. Verdict par profil, sources citées." />
+  <title>IT Certification Comparisons (2026): Which Cert to Pick? — CertQuests</title>
+  <meta name="description" content="No-fluff IT certification comparisons for 2026: AWS vs Azure vs GCP, CCNA vs Network+, CISSP vs Security+, CKA vs CKAD. Cost, difficulty, verdict by profile." />
   <meta name="robots" content="index, follow" />
   <link rel="canonical" href="https://certquests.com/compare/" />
   <meta property="og:type" content="website" />
   <meta property="og:url" content="https://certquests.com/compare/" />
-  <meta property="og:title" content="Comparateur de certifications IT — CertQuests" />
-  <meta property="og:description" content="Comparatifs sans bullshit : AWS vs Azure vs GCP, CCNA vs Network+, CISSP vs Security+. Verdict par profil, sources citées." />
+  <meta property="og:title" content="IT Certification Comparisons (2026) — CertQuests" />
+  <meta property="og:description" content="No-fluff IT certification comparisons for 2026: AWS vs Azure vs GCP, CCNA vs Network+, CISSP vs Security+, CKA vs CKAD. Cost, difficulty, verdict by profile." />
   <meta property="og:image" content="https://certquests.com/src/assets/og/og-default.png?v=1" />
   <meta property="og:image:width" content="1200" />
   <meta property="og:image:height" content="630" />
   <meta property="og:image:type" content="image/png" />
   <meta name="twitter:image" content="https://certquests.com/src/assets/og/og-default.png?v=1" />
   <meta name="twitter:card" content="summary_large_image" />
-  <meta name="twitter:title" content="Comparateur de certifications IT — CertQuests" />
-  <meta name="twitter:description" content="Comparatifs sans bullshit : AWS vs Azure vs GCP, CCNA vs Network+, CISSP vs Security+. Verdict par profil, sources citées." />
+  <meta name="twitter:title" content="IT Certification Comparisons (2026) — CertQuests" />
+  <meta name="twitter:description" content="No-fluff IT certification comparisons for 2026: AWS vs Azure vs GCP, CCNA vs Network+, CISSP vs Security+, CKA vs CKAD. Cost, difficulty, verdict by profile." />
   <link rel="manifest" href="/manifest.json" />
   <link rel="icon" href="/favicon.ico?v=4" sizes="any" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -376,21 +386,21 @@ ${HEADER}
 
 <main class="cmp-page" id="main-content">
   <nav class="breadcrumb" aria-label="Breadcrumb">
-    <a href="/">Home</a><span>/</span>Comparateur
+    <a href="/">Home</a><span>/</span>Compare
   </nav>
   <section class="cmp-hero">
-    <span class="eyebrow">⚖️ Comparateur</span>
-    <h1>Quelle cert <span class="grad">choisir en 2026 ?</span></h1>
-    <p class="lede">Comparatifs honnêtes par profil — pas un palmarès. AWS vs Azure, CCNA vs Network+, CISSP vs Security+, etc.</p>
+    <span class="eyebrow">⚖️ Cert comparisons</span>
+    <h1>Which cert <span class="grad">should you take in 2026?</span></h1>
+    <p class="lede">Honest, profile-by-profile comparisons — not rankings. AWS vs Azure, CCNA vs Network+, CISSP vs Security+, CKA vs CKAD and more, plus free alternatives to paid exam-prep sites.</p>
   </section>
 
   <section class="cmp-section">
-    <h2>Comparatifs cert vs cert</h2>
+    <h2>Cert vs cert</h2>
     <div class="cmp-grid">${items}</div>
   </section>
 
   ${legacyPages.length ? `<section class="cmp-section">
-    <h2>Alternatives à des outils payants</h2>
+    <h2>Free alternatives to exam-prep sites</h2>
     <div class="cmp-grid">${legacy}</div>
   </section>` : ''}
 </main>

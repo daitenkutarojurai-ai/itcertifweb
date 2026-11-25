@@ -6,7 +6,7 @@ Each `<slug>.json` file under `data/comparisons/` follows this shape:
 {
   "slug":         "aws-saa-vs-az-104-vs-gcp-ace",  // URL slug
   "title":        "AWS SAA vs Azure 104 vs GCP ACE",
-  "subtitle":    "Laquelle choisir en 2026 selon ton profil",
+  "subtitle":    "Which one to pick in 2026, based on your profile",
   "lastReviewed":"2026-05",                         // YYYY-MM
 
   // 2-3 certs being compared. `id` must match `data/index.json` packs.
@@ -21,9 +21,9 @@ Each `<slug>.json` file under `data/comparisons/` follows this shape:
       "examFeeUsd": 150,
       "color":     "#FF9900",
       "salaryAlias":"aws-saa",
-      "pros": [ "Marché le plus mature en France", … ],
-      "cons": [ "Examen très technique pour un débutant", … ],
-      "bestFor": "AWS-shops, conseil, freelance cloud."
+      "pros": [ "The largest cloud job market", … ],
+      "cons": [ "A technical exam — not for a complete beginner", … ],
+      "bestFor": "AWS shops, consulting, cloud freelancing."
     }
     /* … 1-2 more entries … */
   ],
@@ -32,18 +32,24 @@ Each `<slug>.json` file under `data/comparisons/` follows this shape:
   // profile, this cert wins". `winner` is the cert.id. Order matters —
   // most-common profiles first.
   "verdicts": [
-    { "profile": "Tu travailles déjà dans une shop AWS.",
+    { "profile": "You already work at an AWS shop.",
       "winner":  "aws-saa-c03",
-      "why":    "L'écosystème, le support et les opportunités de mobilité interne sont là." },
+      "why":    "The ecosystem, support and internal mobility opportunities are already there." },
     /* … */
   ],
 
-  "tldr":  "Une phrase qui répond à la question si on n'a que 5 secondes."
+  "tldr":  "One sentence that answers the question if the reader only has 5 seconds."
 }
 ```
 
 ## Editorial rules
 
+0. **Write in English.** The pages render with `lang="en"` for a global
+   English search audience (US/IN/UK/CA lead Search Console impressions).
+   French copy here shipped 19 pages that earned zero impressions until they
+   were translated (2026-11). Salary figures may stay in € when they cite the
+   FR/BE/LU market — label the market explicitly ("€65k in France").
+   Keep `title` ≤ 50 chars: it becomes the `<title>` (+ " · CertQuests").
 1. **`certs[].id` must exist** in `data/index.json`. The generator pulls
    question_count + est_hours from there; failing the lookup throws.
 2. **Verdicts are evidence-based**. Cite the rationale in `why`. No
