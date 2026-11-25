@@ -1,0 +1,55 @@
+# One post a week on the "CertsQuests" Facebook page and Instagram @certquets.
+# Content (practice question or salary check) comes from data/ — see scripts/social-weekly.cjs.
+name: social-weekly
+
+on:
+  schedule:
+    # Thursday 16:30 UTC.
+    - cron: "30 16 * * 4"
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "Generate image and caption without publishing"
+        type: boolean
+        default: true
+      week:
+        description: "Force an ISO week (empty = current week)"
+        type: string
+        default: ""
+
+concurrency:
+  group: social-weekly
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  post:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - name: Fonts and sharp
+        run: |
+          sudo apt-get install -y -qq fonts-dejavu-core
+          npm install --no-save --no-package-lock sharp@0.35
+      - name: Generate and publish
+        env:
+          FB_ACCESS_TOKEN: ${{ secrets.FB_ACCESS_TOKEN }}
+          FB_PAGE_ID: ${{ secrets.FB_PAGE_ID }}
+          IG_USER_ID: ${{ secrets.IG_USER_ID }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+        run: >
+          node scripts/social-weekly.cjs
+          ${{ inputs.dry_run && '--dry-run' || '' }}
+          ${{ inputs.week != '' && inputs.week && format('--week {0}', inputs.week) || '' }}
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: social-post
+          path: social-out/
+          if-no-files-found: ignore
