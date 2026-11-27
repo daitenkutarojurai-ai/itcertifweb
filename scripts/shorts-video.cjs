@@ -496,7 +496,8 @@ function quizVideo(pack, q) {
     frame,
     sfx,
     caption: captionBlock({
-      title: `Can you pass this ${sh} question? 🧠 ${tagOf(sh)}`,
+      // No hashtag in the title: Studio's hashtag autocomplete rewrote "#APlus" as "#aplustv" (2026-11-27).
+      title: `Can you pass this ${sh} question? 🧠`,
       hook: `Can you pass this ${pack.name} question? Comment your answer before the reveal!`,
       body: [q.question, "", ...q.options.map((o, k) => `${L[k]}) ${o}`), "", `Practice ${pack.question_count} free ${sh} questions with explanations.`],
       link,
