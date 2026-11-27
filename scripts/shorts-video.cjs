@@ -1199,6 +1199,8 @@ async function flowClips(scenes) {
   if (!take) return null;
   const heardRaw = await wordTimes(take.pcm);
   if (!heardRaw || !heardRaw.length) return null;
+  // What the voice actually said, as Whisper heard it: a spelled-out acronym shows up as "V-L-A-N" here.
+  console.log(`  heard: ${heardRaw.map((w) => w.word).join(" ").slice(0, 600)}`);
   const norm = (w) => String(w).toLowerCase().replace(/[^a-z0-9]/g, "");
   const script = [];
   texts.forEach((t, i) => t.split(/\s+/).map(norm).filter(Boolean).forEach((tok) => script.push({ tok, scene: i })));

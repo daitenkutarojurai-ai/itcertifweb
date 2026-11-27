@@ -95,16 +95,32 @@ const clip = (buf) => {
 /** Google Cloud Text-to-Speech (secret GOOGLE_TTS_API_KEY, voice GOOGLE_TTS_VOICE). */
 // Chirp 3 HD voices (project "certquests", key created 2026-11-27, restricted to the TTS API). speakingRate works
 // on them: the same sentence ran 7.0 s at 1.0 and 5.7 s at 1.15; ~1.08 lands near the owner's ~160 words/min.
+// Acronyms said as words, not spelled (owner, 2026-11-27: the Google voices said "V. L. A. N."). X-SAMPA, matched
+// case-insensitively; Chirp 3 HD refused IPA for these phrases but accepts X-SAMPA. English voices only.
+const PRONUNCIATIONS = [
+  ["vlans", "vi:l{nz"],
+  ["vlan", "vi:l{n"],
+  ["lan", "l{n"],
+  ["wan", "w{n"],
+  ["siem", "sIm"],
+];
+// The same words respelled for OpenAI, which has no pronunciation dictionary.
+const respell = (t) =>
+  t.replace(/\bVLANs\b/g, "vee-lans").replace(/\bVLAN\b/g, "vee-lan").replace(/\bSIEMs\b/g, "sims").replace(/\bSIEM\b/g, "sim");
+
 async function googleTts(text) {
   const key = process.env.GOOGLE_TTS_API_KEY;
   if (!key) return null;
   const name = process.env.GOOGLE_TTS_VOICE || "en-US-Chirp3-HD-Charon";
   const speakingRate = Number(process.env.GOOGLE_TTS_RATE || 1.08);
+  const custom = name.startsWith("en-") && name.includes("Chirp3-HD")
+    ? { customPronunciations: { pronunciations: PRONUNCIATIONS.map(([phrase, x]) => ({ phrase, phoneticEncoding: "PHONETIC_ENCODING_X_SAMPA", pronunciation: x })) } }
+    : {};
   const res = await fetch(`https://texttospeech.googleapis.com/v1/text:synthesize?key=${key}`, {
     method: "POST",
     headers: { "content-type": "application/json" },
     body: JSON.stringify({
-      input: { text },
+      input: { text, ...custom },
       voice: { languageCode: name.slice(0, 5), name },
       audioConfig: { audioEncoding: "LINEAR16", sampleRateHertz: SR, speakingRate },
     }),
@@ -157,7 +173,7 @@ async function openaiTts(text, opts = {}) {
       const res = await fetch("https://api.openai.com/v1/audio/speech", {
         method: "POST",
         headers: { Authorization: `Bearer ${key}`, "content-type": "application/json" },
-        body: JSON.stringify({ ...t, input: text, response_format: "wav" }),
+        body: JSON.stringify({ ...t, input: respell(text), response_format: "wav" }),
       });
       if (res.ok) return { ...clip(Buffer.from(await res.arrayBuffer())), model: `${t.model}/${t.voice}@${t.speed}` };
       console.warn(`TTS ${t.model}: ${res.status} ${(await res.text()).slice(0, 160)}`);
