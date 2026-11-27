@@ -250,6 +250,8 @@ const chips = (cx, y, items, color = C.sky) => {
     return out;
   }).join("");
 };
+// "A+" → "#APlus", "Network+" → "#NetworkPlus": a bare strip turned "A+" into "#A".
+const tagOf = (s) => "#" + String(s).replace(/\+/g, "Plus").replace(/[^A-Za-z0-9]/g, "");
 const legend = (s, y = 1408, op = 1) => text(540, y, s, { size: 22, weight: 500, anchor: "middle", fill: C.dim, opacity: op });
 
 const DEFS = `<defs>
@@ -494,11 +496,11 @@ function quizVideo(pack, q) {
     frame,
     sfx,
     caption: captionBlock({
-      title: `Can you pass this ${sh} question? 🧠 #${sh.replace(/[^A-Za-z0-9]/g, "")}`,
+      title: `Can you pass this ${sh} question? 🧠 ${tagOf(sh)}`,
       hook: `Can you pass this ${pack.name} question? Comment your answer before the reveal!`,
       body: [q.question, "", ...q.options.map((o, k) => `${L[k]}) ${o}`), "", `Practice ${pack.question_count} free ${sh} questions with explanations.`],
       link,
-      tags: [`#${sh.replace(/[^A-Za-z0-9]/g, "")}`, `#${pack.brand.replace(/[^A-Za-z0-9]/g, "")}`, "#examprep", "#quiz"],
+      tags: [tagOf(sh), `#${pack.brand.replace(/[^A-Za-z0-9]/g, "")}`, "#examprep", "#quiz"],
     }),
   };
 }
@@ -1022,7 +1024,7 @@ function duelVideo(cmp) {
         `TL;DR: ${cmp.tldr}`,
       ],
       link,
-      tags: [`#${sa.replace(/[^A-Za-z0-9]/g, "")}`, `#${sb.replace(/[^A-Za-z0-9]/g, "")}`, "#certification", "#careeradvice"],
+      tags: [tagOf(sa), tagOf(sb), "#certification", "#careeradvice"],
     }),
   };
 }
