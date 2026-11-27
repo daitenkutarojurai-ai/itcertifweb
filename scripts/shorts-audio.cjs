@@ -93,23 +93,27 @@ const clip = (buf) => {
 };
 
 /** Google Cloud Text-to-Speech (secret GOOGLE_TTS_API_KEY, voice GOOGLE_TTS_VOICE). */
+// Chirp 3 HD voices (project "certquests", key created 2026-11-27, restricted to the TTS API). speakingRate works
+// on them: the same sentence ran 7.0 s at 1.0 and 5.7 s at 1.15; ~1.08 lands near the owner's ~160 words/min.
 async function googleTts(text) {
   const key = process.env.GOOGLE_TTS_API_KEY;
   if (!key) return null;
+  const name = process.env.GOOGLE_TTS_VOICE || "en-US-Chirp3-HD-Charon";
+  const speakingRate = Number(process.env.GOOGLE_TTS_RATE || 1.08);
   const res = await fetch(`https://texttospeech.googleapis.com/v1/text:synthesize?key=${key}`, {
     method: "POST",
     headers: { "content-type": "application/json" },
     body: JSON.stringify({
       input: { text },
-      voice: { languageCode: "en-US", name: process.env.GOOGLE_TTS_VOICE || "en-US-Neural2-J" },
-      audioConfig: { audioEncoding: "LINEAR16", sampleRateHertz: SR, speakingRate: 1.15 },
+      voice: { languageCode: name.slice(0, 5), name },
+      audioConfig: { audioEncoding: "LINEAR16", sampleRateHertz: SR, speakingRate },
     }),
   });
   if (!res.ok) {
     console.warn(`TTS Google: ${res.status} ${(await res.text()).slice(0, 160)}`);
     return null;
   }
-  return clip(Buffer.from((await res.json()).audioContent, "base64"));
+  return { ...clip(Buffer.from((await res.json()).audioContent, "base64")), model: `google/${name}@${speakingRate}` };
 }
 
 /** Azure Speech (secrets AZURE_SPEECH_KEY + AZURE_SPEECH_REGION, voice AZURE_SPEECH_VOICE). */
@@ -164,8 +168,12 @@ async function openaiTts(text, opts = {}) {
   return null;
 }
 
+// The provider is chosen explicitly (SHORTS_TTS_PROVIDER = openai | google | azure, default openai): a key alone
+// must not switch the voice of live posts to one the owner hasn't heard. OpenAI's TTS shuts down on 2027-01-06.
+const PROVIDER = process.env.SHORTS_TTS_PROVIDER || "openai";
 async function tts(text, opts = {}) {
-  for (const f of [googleTts, azureTts, openaiTts]) {
+  const chain = PROVIDER === "google" ? [googleTts, openaiTts] : PROVIDER === "azure" ? [azureTts, openaiTts] : [openaiTts];
+  for (const f of chain) {
     try {
       const c = await f(text, opts);
       if (c) return c;
