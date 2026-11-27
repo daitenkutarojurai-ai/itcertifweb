@@ -25,7 +25,7 @@ const fs = require("fs");
 const path = require("path");
 const { spawn } = require("child_process");
 const sharp = require("sharp");
-const { SR, tts, music, tick, chime, writeWav } = require("./shorts-audio.cjs");
+const { SR, tts, wordTimes, music, tick, chime, writeWav } = require("./shorts-audio.cjs");
 
 const ROOT = process.cwd();
 const SITE = "https://certquests.com";
@@ -153,16 +153,17 @@ const estimate = (s) => Math.max(1, spoken(s).length / 17);
 // Pace (owner feedback 2026-11-27: "dynamic pace would be better"): sentences follow each other with a short
 // breath, and a scene's `min` (time for its animation) is scaled down; `fixed` scenes (the quiz timer) keep theirs.
 const MIN_SCALE = 0.65;
-function timeline(scenes, dur) {
+function timeline(scenes, dur, gapless = false) {
   const start = [];
   const end = [];
   const voice = [];
   let t = 0;
   scenes.forEach((s, i) => {
-    const lead = i === 0 ? 0.15 : 0.06;
+    // A one-take narration already carries its own breaths between sentences: no added gap.
+    const lead = gapless ? 0 : i === 0 ? 0.15 : 0.06;
     start.push(t);
     voice.push(t + lead);
-    t += Math.max((s.min || 0) * (s.fixed ? 1 : MIN_SCALE), lead + dur[i] + 0.12);
+    t += Math.max((s.min || 0) * (s.fixed ? 1 : MIN_SCALE), lead + dur[i] + (gapless ? 0 : 0.12));
     end.push(t);
   });
   return { start, end, voice, dur, total: t + 0.5 };
@@ -1183,9 +1184,69 @@ async function urlOk(url) {
   }
 }
 
+// One-take narration (SHORTS_TTS_MODE=flow): the whole script is voiced in a single call, so intonation flows
+// from sentence to sentence instead of restarting each time (owner: "still a bit robotic", 2026-11-27). Whisper
+// word timestamps locate each scene's first word; the take is cut midway through the pause before it, so no word
+// is touched and nothing is stretched. Returns null (→ sentence-by-sentence) when the alignment is not trusted.
+const FLOW = (process.env.SHORTS_TTS_MODE || "sentence") === "flow";
+async function flowClips(scenes) {
+  const texts = scenes.map((s) => {
+    const t = spoken(s.say || s.sub);
+    return /[.!?]$/.test(t) ? t : `${t}.`;
+  });
+  const take = await tts(texts.join(" "), { natural: true });
+  if (!take) return null;
+  const heardRaw = await wordTimes(take.pcm);
+  if (!heardRaw || !heardRaw.length) return null;
+  const norm = (w) => String(w).toLowerCase().replace(/[^a-z0-9]/g, "");
+  const script = [];
+  texts.forEach((t, i) => t.split(/\s+/).map(norm).filter(Boolean).forEach((tok) => script.push({ tok, scene: i })));
+  const heard = heardRaw.map((w) => ({ tok: norm(w.word), start: w.start, end: w.end })).filter((w) => w.tok);
+  // Word-level edit-distance alignment, then backtrack: script word → heard word (match or substitution).
+  const n = script.length;
+  const m = heard.length;
+  const D = Array.from({ length: n + 1 }, (_, i) => Int32Array.from({ length: m + 1 }, (_, j) => (i === 0 ? j : j === 0 ? i : 0)));
+  for (let i = 1; i <= n; i++)
+    for (let j = 1; j <= m; j++)
+      D[i][j] = Math.min(D[i - 1][j] + 1, D[i][j - 1] + 1, D[i - 1][j - 1] + (script[i - 1].tok === heard[j - 1].tok ? 0 : 1));
+  const map = new Array(n).fill(-1);
+  let matches = 0;
+  for (let i = n, j = m; i > 0 && j > 0; ) {
+    const same = script[i - 1].tok === heard[j - 1].tok;
+    if (D[i][j] === D[i - 1][j - 1] + (same ? 0 : 1)) {
+      map[i - 1] = j - 1;
+      if (same) matches++;
+      i--;
+      j--;
+    } else if (D[i][j] === D[i - 1][j] + 1) i--;
+    else j--;
+  }
+  if (matches / n < 0.75) {
+    console.warn(`  one-take alignment too weak (${matches}/${n} words): sentence by sentence instead`);
+    return null;
+  }
+  // Scene k starts at its first aligned word; cut midway between the previous word's end and that start.
+  const firstIdx = scenes.map((_, k) => script.findIndex((w, i) => w.scene === k && map[i] >= 0));
+  if (firstIdx.some((i) => i < 0)) return null;
+  const cuts = [0];
+  for (let k = 1; k < scenes.length; k++) {
+    const h = map[firstIdx[k]];
+    const prevEnd = h > 0 ? heard[h - 1].end : heard[h].start;
+    cuts.push(Math.round(((prevEnd + heard[h].start) / 2) * SR));
+  }
+  cuts.push(take.pcm.length);
+  for (let k = 1; k < cuts.length; k++) if (cuts[k] <= cuts[k - 1]) return null;
+  return scenes.map((_, k) => {
+    const pcm = take.pcm.subarray(cuts[k], cuts[k + 1]);
+    return { pcm, seconds: pcm.length / SR, model: `${take.model} one-take` };
+  });
+}
+
 async function render(v, stills) {
-  const clips = [];
-  for (const s of v.scenes) clips.push(stills ? null : await tts(spoken(s.say || s.sub)));
+  let clips = [];
+  const flow = !stills && FLOW ? await flowClips(v.scenes) : null;
+  if (flow) clips = flow;
+  else for (const s of v.scenes) clips.push(stills ? null : await tts(spoken(s.say || s.sub)));
   const hasVoice = clips.every(Boolean);
   if (!stills && !hasVoice) {
     if (args.includes("--require-voice")) throw new Error(`${v.file}: no voice (TTS key missing or TTS failed)`);
@@ -1195,10 +1256,10 @@ async function render(v, stills) {
   if (hasVoice) {
     // Speech rate, so pace changes are measured rather than guessed (each clip keeps ~0.37 s of edge margin).
     const words = v.scenes.reduce((n, s) => n + spoken(s.say || s.sub).split(/\s+/).filter(Boolean).length, 0);
-    const secs = dur.reduce((a, b) => a + b, 0) - 0.37 * dur.length;
+    const secs = dur.reduce((a, b) => a + b, 0) - (flow ? 0 : 0.37 * dur.length);
     console.log(`  voice: ${words} words in ${secs.toFixed(1)} s = ${Math.round((words / secs) * 60)} words/min (${clips[0].model || "?"})`);
   }
-  const tl = timeline(v.scenes, dur);
+  const tl = timeline(v.scenes, dur, !!flow);
   const chunks = subtitleChunks(v.scenes, tl);
   // Punch-in: every new scene starts 3 % zoomed and settles in 0.22 s, a cut feel without a hard cut.
   const punch = (t) => {

@@ -11,13 +11,20 @@
 const fs = require("fs");
 
 const SR = 24000;
-// gpt-4o-mini-tts has no speed setting: the pace comes from these instructions. The first batch read too slowly
-// (owner feedback 2026-11-27), hence the explicit fast tempo; the render log prints words per minute to check it.
+// The first batch read too slowly (owner feedback 2026-11-27): the pace now comes from the API's speed setting
+// (SPEED, below; instructions alone barely moved it). Owner on the 1.25 test: "dynamic is very good now but
+// still a bit robotic". NATURAL_INSTRUCTIONS go with the one-take narration (SHORTS_TTS_MODE=flow).
 const VOICE_INSTRUCTIONS =
   "Native American English tech creator narrating a fast-paced YouTube Short. Speak FAST: a quick, punchy " +
   "tempo of about 190 words per minute, energetic and confident, with only tiny pauses at full stops and none " +
   "inside sentences. Never drawl or stretch words. Crisp articulation, upbeat, no theatrical emphasis. " +
   "Read letter-spaced acronyms letter by letter, quickly.";
+const NATURAL_INSTRUCTIONS =
+  "A friendly American tech YouTuber talking straight to one viewer, recording in one relaxed take. " +
+  "Conversational and genuinely interested in the story: natural pitch movement, light emphasis on the key word " +
+  "of each sentence, a smile in the voice, short natural breaths between sentences, sentences that flow into " +
+  "each other rather than restarting. Brisk and lively, never flat, never announcer-like. " +
+  "Read letter-spaced acronyms letter by letter.";
 
 function parseWav(buf) {
   let off = 12;
@@ -131,12 +138,12 @@ async function azureTts(text) {
 // (the provider's rate control, not a post-hoc time-stretch) does the rest. OPENAI_TTS_SPEED / OPENAI_TTS_MODEL
 // override for tests.
 const SPEED = Number(process.env.OPENAI_TTS_SPEED || 1.25);
-async function openaiTts(text) {
+async function openaiTts(text, opts = {}) {
   const key = process.env.OPENAI_API_KEY;
   if (!key) return null;
   const voice = process.env.OPENAI_TTS_VOICE || "ash";
   const tries = [
-    { model: process.env.OPENAI_TTS_MODEL || "gpt-4o-mini-tts", voice, instructions: VOICE_INSTRUCTIONS, speed: SPEED },
+    { model: process.env.OPENAI_TTS_MODEL || "gpt-4o-mini-tts", voice, instructions: opts.natural ? NATURAL_INSTRUCTIONS : VOICE_INSTRUCTIONS, speed: SPEED },
     { model: "tts-1-hd", voice, speed: SPEED },
   ];
   for (const t of tries) {
@@ -156,16 +163,34 @@ async function openaiTts(text) {
   return null;
 }
 
-async function tts(text) {
+async function tts(text, opts = {}) {
   for (const f of [googleTts, azureTts, openaiTts]) {
     try {
-      const c = await f(text);
+      const c = await f(text, opts);
       if (c) return c;
     } catch (e) {
       console.warn(`TTS: ${String(e).slice(0, 160)}`);
     }
   }
   return null;
+}
+
+/** Word timestamps of a clip (OpenAI whisper-1, verbose_json), used to cut a one-take narration into scenes. */
+async function wordTimes(pcm) {
+  const key = process.env.OPENAI_API_KEY;
+  if (!key) return null;
+  const fd = new FormData();
+  fd.append("file", new Blob([wavBuffer(pcm)], { type: "audio/wav" }), "voice.wav");
+  fd.append("model", "whisper-1");
+  fd.append("language", "en");
+  fd.append("response_format", "verbose_json");
+  fd.append("timestamp_granularities[]", "word");
+  const res = await fetch("https://api.openai.com/v1/audio/transcriptions", { method: "POST", headers: { Authorization: `Bearer ${key}` }, body: fd });
+  if (!res.ok) {
+    console.warn(`transcription: ${res.status} ${(await res.text()).slice(0, 160)}`);
+    return null;
+  }
+  return (await res.json()).words || null;
 }
 
 // ─── Background music ──────────────────────────────────────────────────────
@@ -252,6 +277,10 @@ function chime() {
 }
 
 function writeWav(file, pcm) {
+  fs.writeFileSync(file, wavBuffer(pcm));
+}
+
+function wavBuffer(pcm) {
   const h = Buffer.alloc(44);
   h.write("RIFF", 0);
   h.writeUInt32LE(36 + pcm.length * 2, 4);
@@ -266,7 +295,7 @@ function writeWav(file, pcm) {
   h.writeUInt16LE(16, 34);
   h.write("data", 36);
   h.writeUInt32LE(pcm.length * 2, 40);
-  fs.writeFileSync(file, Buffer.concat([h, Buffer.from(pcm.buffer, pcm.byteOffset, pcm.byteLength)]));
+  return Buffer.concat([h, Buffer.from(pcm.buffer, pcm.byteOffset, pcm.byteLength)]);
 }
 
-module.exports = { SR, tts, music, tick, chime, writeWav };
+module.exports = { SR, tts, wordTimes, music, tick, chime, writeWav };
