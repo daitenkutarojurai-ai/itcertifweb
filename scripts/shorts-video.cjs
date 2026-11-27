@@ -148,21 +148,24 @@ function spoken(s) {
 // ─── Scenes, timing, subtitles ────────────────────────────────────────────────
 // A scene = one sentence: `sub` is shown, `say` (or sub) is read. noSub hides the burned subtitle when the
 // same text is already big on screen (the .srt keeps it).
-const estimate = (s) => Math.max(1.2, spoken(s).length / 15);
+const estimate = (s) => Math.max(1, spoken(s).length / 17);
 
+// Pace (owner feedback 2026-11-27: "dynamic pace would be better"): sentences follow each other with a short
+// breath, and a scene's `min` (time for its animation) is scaled down; `fixed` scenes (the quiz timer) keep theirs.
+const MIN_SCALE = 0.65;
 function timeline(scenes, dur) {
   const start = [];
   const end = [];
   const voice = [];
   let t = 0;
   scenes.forEach((s, i) => {
-    const lead = i === 0 ? 0.3 : 0.15;
+    const lead = i === 0 ? 0.15 : 0.06;
     start.push(t);
     voice.push(t + lead);
-    t += Math.max(s.min || 0, lead + dur[i] + 0.25);
+    t += Math.max((s.min || 0) * (s.fixed ? 1 : MIN_SCALE), lead + dur[i] + 0.12);
     end.push(t);
   });
-  return { start, end, voice, dur, total: t + 0.6 };
+  return { start, end, voice, dur, total: t + 0.5 };
 }
 
 function subtitleChunks(scenes, tl) {
@@ -172,7 +175,8 @@ function subtitleChunks(scenes, tl) {
     const groups = [];
     let cur = [];
     for (const w of words) {
-      if ([...cur, w].join(" ").length > 56 && cur.length) {
+      // Short chunks (a few words) flip faster and read at a glance: the "dynamic" caption style.
+      if ([...cur, w].join(" ").length > 34 && cur.length) {
         groups.push(cur);
         cur = [];
       }
@@ -180,13 +184,13 @@ function subtitleChunks(scenes, tl) {
     }
     if (cur.length) groups.push(cur);
     // No orphan word: a short tail joins the previous chunk.
-    if (groups.length > 1 && groups[groups.length - 1].join(" ").length < 18) groups[groups.length - 2].push(...groups.pop());
+    if (groups.length > 1 && groups[groups.length - 1].join(" ").length < 12) groups[groups.length - 2].push(...groups.pop());
     const total = groups.reduce((n, g) => n + g.join(" ").length, 0) || 1;
     let t = tl.voice[i];
     for (const g of groups) {
       const d = (g.join(" ").length / total) * tl.dur[i];
       let best = [g.join(" ")];
-      if (g.join(" ").length > 30) {
+      if (g.join(" ").length > 24) {
         let bestDiff = Infinity;
         for (let k = 1; k < g.length; k++) {
           const a = g.slice(0, k).join(" ");
@@ -205,15 +209,18 @@ function subtitleChunks(scenes, tl) {
 }
 
 function subtitleSvg(chunks, t) {
-  const c = chunks.find((x) => t >= x.from && t < x.to + 0.12);
+  const c = chunks.find((x) => t >= x.from && t < x.to + 0.08);
   if (!c || c.hidden) return "";
-  const size = Math.min(44, ...c.lines.map((l) => fitFont(l, 940, 44, 0.55)));
-  const width = Math.min(1000, Math.max(...c.lines.map((l) => l.length)) * size * 0.56 + 64);
-  const lineH = size * 1.22;
-  const top = 1450;
+  const size = Math.min(54, ...c.lines.map((l) => fitFont(l, 940, 54, 0.56)));
+  const width = Math.min(1000, Math.max(...c.lines.map((l) => l.length)) * size * 0.57 + 64);
+  const lineH = size * 1.2;
+  const top = 1440;
   const height = c.lines.length * lineH + 30;
-  return `<rect x="${(540 - width / 2).toFixed(0)}" y="${top}" width="${width.toFixed(0)}" height="${height.toFixed(0)}" rx="22" fill="#000" fill-opacity="0.66"/>` +
-    c.lines.map((l, k) => text(540, Math.round(top + 15 + size + k * lineH - size * 0.18), l, { size, weight: 800, anchor: "middle" })).join("");
+  // Each chunk pops in (scale 0.9 → 1 in 0.12 s).
+  const pop = (0.9 + 0.1 * ease((t - c.from) / 0.12)).toFixed(3);
+  const cy = top + height / 2;
+  return `<g transform="translate(540 ${cy}) scale(${pop}) translate(-540 ${-cy})"><rect x="${(540 - width / 2).toFixed(0)}" y="${top}" width="${width.toFixed(0)}" height="${height.toFixed(0)}" rx="24" fill="#000" fill-opacity="0.7"/>` +
+    c.lines.map((l, k) => text(540, Math.round(top + 15 + size + k * lineH - size * 0.18), l, { size, weight: 800, anchor: "middle" })).join("") + `</g>`;
 }
 
 const srtTime = (s) => {
@@ -379,7 +386,7 @@ function quizVideo(pack, q) {
     { sub: `Can you pass this ${sh} question? You've got five seconds.`, min: 3.2 },
     { sub: q.question, noSub: true, min: 2.4 },
     { sub: q.options.map((o, k) => `${L[k]}: ${o}`).join("  "), say: q.options.map((o, k) => `${L[k]}: ${o}.`).join(" "), noSub: true, min: 3 },
-    { sub: "Lock in your answer!", min: 5.8 },
+    { sub: "Lock in your answer!", min: 5.8, fixed: true },
     { sub: `The answer is ${L[q.correct]}: ${q.options[q.correct]}`, noSub: true, min: 2.6 },
     { sub: expl, noSub: true, min: 3 },
     { sub: `Got it right? Comment your score. Then practice ${pack.question_count} free ${sh} questions on certquests.com.`, min: 3.4 },
@@ -413,7 +420,7 @@ function quizVideo(pack, q) {
     const T = tl.start;
     let s = chrome(`QUIZ · ${sh}`, C.gold);
     // Hook: visible from the first frame (thumbnail), pops in, leaves when the question arrives.
-    const hookOut = prog(t, T[1] - 0.1, T[1] + 0.35);
+    const hookOut = prog(t, T[1] - 0.1, T[1] + 0.26);
     const pop = 0.9 + 0.1 * ease(t / 0.3);
     s += group(1 - hookOut,
       text(540, 640, "CAN YOU PASS", { size: 96, weight: 900, anchor: "middle", fill: C.gold }) +
@@ -423,9 +430,9 @@ function quizVideo(pack, q) {
       text(540, 1112, "5s", { size: 96, weight: 900, anchor: "middle" }),
       `translate(540 860) scale(${pop.toFixed(3)}) translate(-540 -860)`);
 
-    const qIn = prog(t, T[1] - 0.15, T[1] + 0.35);
-    const toExpl = prog(t, T[5] - 0.1, T[5] + 0.45);
-    const end = prog(t, T[6] - 0.1, T[6] + 0.45);
+    const qIn = prog(t, T[1] - 0.15, T[1] + 0.26);
+    const toExpl = prog(t, T[5] - 0.1, T[5] + 0.3);
+    const end = prog(t, T[6] - 0.1, T[6] + 0.3);
     // Question card.
     s += group(qIn * (1 - toExpl),
       card(60, qTop, 960, qH, { stroke: "url(#brand)", sw: 3 }) +
@@ -451,9 +458,9 @@ function quizVideo(pack, q) {
     }
 
     // Options.
-    const reveal = prog(t, T[4] - 0.05, T[4] + 0.35);
+    const reveal = prog(t, T[4] - 0.05, T[4] + 0.26);
     for (let k = 0; k < 4; k++) {
-      const inP = prog(t, T[2] - 0.1 + k * 0.22, T[2] + 0.3 + k * 0.22);
+      const inP = prog(t, T[2] - 0.1 + k * 0.14, T[2] + 0.22 + k * 0.14);
       if (inP <= 0) continue;
       const correct = k === q.correct;
       const op = correct ? 1 : lerp(1, 0.28, reveal) * (1 - toExpl);
@@ -557,7 +564,7 @@ function bundleDiagram(d, t, T0) {
   let state = -1;
   d.steps.forEach((_, i) => { if (t >= T0[i] - 0.05) state = i; });
   const st = state >= 0 ? d.steps[state].state : "idle";
-  const fresh = state >= 0 ? prog(t, T0[state], T0[state] + 0.45) : 0;
+  const fresh = state >= 0 ? prog(t, T0[state], T0[state] + 0.3) : 0;
   let s = "";
   for (const [x, name] of [[ax, d.nodes[0]], [bx, d.nodes[1]]]) {
     s += card(x, top, aw, h, { rx: 26, fill: C.card2, stroke: "#475569", sw: 3 });
@@ -622,7 +629,7 @@ function bundleDiagram(d, t, T0) {
 function pointsDiagram(d, t, T0, endT) {
   let s = "";
   d.steps.forEach((st, i) => {
-    const p = prog(t, T0[i] - 0.05, T0[i] + 0.4);
+    const p = prog(t, T0[i] - 0.05, T0[i] + 0.28);
     if (p <= 0) return;
     const y = 480 + i * 228;
     const current = t < (T0[i + 1] ?? endT);
@@ -656,7 +663,7 @@ function conceptVideo(c) {
     const diagEnd = T[2 + n];
     let s = chrome("EXPLAINED", C.sky);
     // Term: big in the hook, then a header.
-    const head = prog(t, T[1] - 0.2, T[1] + 0.4);
+    const head = prog(t, T[1] - 0.2, T[1] + 0.28);
     const pop = 0.88 + 0.12 * ease(t / 0.35);
     const ty = lerp(760, 345, head);
     const tsz = lerp(fitFont(c.term, 920, 200, 0.62), fitFont(c.term, 900, 96, 0.62), head);
@@ -666,7 +673,7 @@ function conceptVideo(c) {
       group(1 - head, text(540, ty + 150, c.kicker, { size: 30, weight: 600, anchor: "middle", fill: C.muted })) +
       `</g>`;
     // Definition card.
-    const defIn = prog(t, T[1], T[1] + 0.4);
+    const defIn = prog(t, T[1], T[1] + 0.28);
     const defOut = prog(t, T[2] - 0.1, T[2] + 0.3);
     const dh = 90 + df.lines.length * df.size * 1.3;
     const dTop = 860 - dh / 2;
@@ -675,8 +682,8 @@ function conceptVideo(c) {
       lines(540, dTop + 60 + df.size * 0.8, df.lines, { size: df.size, weight: 700, anchor: "middle" }, 1.3),
       `translate(0 ${f1((1 - defIn) * 40)})`);
     // Diagram.
-    const tip = prog(t, diagEnd - 0.1, diagEnd + 0.4);
-    const end = prog(t, T[3 + n] - 0.1, T[3 + n] + 0.4);
+    const tip = prog(t, diagEnd - 0.1, diagEnd + 0.28);
+    const end = prog(t, T[3 + n] - 0.1, T[3 + n] + 0.28);
     if (t >= T[2] - 0.2) {
       const kind = c.diagram.kind;
       const body = kind === "sequence" ? seqDiagram(c.diagram, t, T0, diagEnd) : kind === "bundle" ? bundleDiagram(c.diagram, t, T0) : pointsDiagram(c.diagram, t, T0, diagEnd);
@@ -746,11 +753,11 @@ function topVideo(tp) {
       lines(540, 780 - bigH / 2 + big.size + 40, big.lines, { size: big.size, weight: 900, anchor: "middle" }, 1.12),
       `translate(540 860) scale(${pop.toFixed(3)}) translate(-540 -860)`);
     s += group(head, lines(540, 300 + small.size * 0.4, small.lines, { size: small.size, weight: 800, anchor: "middle" }, 1.15));
-    const overlay = Math.max(tp.warning ? prog(t, T[iWarn] - 0.1, T[iWarn] + 0.35) : 0, prog(t, T[iOutro] - 0.1, T[iOutro] + 0.35));
-    const end = prog(t, T[iEnd] - 0.1, T[iEnd] + 0.4);
+    const overlay = Math.max(tp.warning ? prog(t, T[iWarn] - 0.1, T[iWarn] + 0.26) : 0, prog(t, T[iOutro] - 0.1, T[iOutro] + 0.26));
+    const end = prog(t, T[iEnd] - 0.1, T[iEnd] + 0.28);
     tp.items.forEach((it, i) => {
       const r = rankOf(i);
-      const p = prog(t, T[1 + i] - 0.05, T[1 + i] + 0.4);
+      const p = prog(t, T[1 + i] - 0.05, T[1 + i] + 0.28);
       if (p <= 0) return;
       const y = rowTop(r);
       const current = t < T[2 + i] || i === N - 1 && t < T[iOutro];
@@ -759,7 +766,7 @@ function topVideo(tp) {
       g += `<circle cx="128" cy="${y + 92}" r="46" fill="${r === 1 ? "url(#heat)" : "url(#brand)"}"/>` + text(128, y + 110, String(r), { size: 50, weight: 900, anchor: "middle" });
       g += text(200, y + 66, it.name, { size: fitFont(it.name, hasVal ? 520 : 780, 50, 0.6), weight: 900 });
       if (hasVal) {
-        const vp = prog(t, T[1 + i] + 0.1, T[1 + i] + 1.0);
+        const vp = prog(t, T[1 + i] + 0.05, T[1 + i] + 0.7);
         g += text(990, y + 66, `${(it.value * vp).toFixed(1)}${unit}`, { size: 48, weight: 900, anchor: "end", fill: C.gold });
         g += `<rect x="200" y="${y + 84}" width="790" height="14" rx="7" fill="#1E293B"/><rect x="200" y="${y + 84}" width="${f1(790 * (it.value / max) * vp)}" height="14" rx="7" fill="url(#brand)"/>`;
       } else if (it.tag) {
@@ -770,19 +777,19 @@ function topVideo(tp) {
       s += group(p * lerp(1, 0.25, overlay) * (1 - end * 0.85), g, `translate(${f1((1 - p) * 140)} 0)`);
     });
     if (tp.warning) {
-      const w = prog(t, T[iWarn] - 0.1, T[iWarn] + 0.35) * (1 - prog(t, T[iOutro] - 0.1, T[iOutro] + 0.3));
+      const w = prog(t, T[iWarn] - 0.1, T[iWarn] + 0.26) * (1 - prog(t, T[iOutro] - 0.1, T[iOutro] + 0.3));
       const wf = fitWrap(tp.warning, 820, 46, 4, 0.55);
       s += group(w,
         card(60, 700, 960, 200 + wf.lines.length * wf.size * 1.3, { stroke: C.red, sw: 4, fillOpacity: 0.97 }) +
         `<path d="M540 730 l40 70 h-80 z" fill="none" stroke="${C.red}" stroke-width="7" stroke-linejoin="round"/>` + text(540, 790, "!", { size: 40, weight: 900, anchor: "middle", fill: C.red }) +
         lines(540, 850 + wf.size * 0.5, wf.lines, { size: wf.size, weight: 800, anchor: "middle" }, 1.3));
     }
-    const o = prog(t, T[iOutro] - 0.1, T[iOutro] + 0.35) * (1 - end);
+    const o = prog(t, T[iOutro] - 0.1, T[iOutro] + 0.26) * (1 - end);
     const of = fitWrap(tp.outro, 820, 50, 4, 0.55);
     s += group(o,
       card(60, 760, 960, 160 + of.lines.length * of.size * 1.3, { stroke: "url(#brand)", sw: 4, fillOpacity: 0.97 }) +
       lines(540, 840 + of.size * 0.5, of.lines, { size: of.size, weight: 800, anchor: "middle" }, 1.3));
-    if (tp.source) s += legend(tp.source, 1408, Math.max(o, prog(t, T[1], T[1] + 0.4) * (1 - end)));
+    if (tp.source) s += legend(tp.source, 1408, Math.max(o, prog(t, T[1], T[1] + 0.28) * (1 - end)));
     s += endCard("Follow for more", CTA_SUB(cert), "certquests.com", end);
     return s;
   };
@@ -845,9 +852,9 @@ function incidentVideo(inc) {
     s += group(head,
       text(60, 316, inc.date, { size: 32, weight: 800, family: MONO, fill: C.red }) +
       lines(60, 372, small.lines, { size: small.size, weight: 800 }, 1.18));
-    const impact = prog(t, T[iImpact] - 0.1, T[iImpact] + 0.35);
-    const lesson = prog(t, T[iLesson] - 0.1, T[iLesson] + 0.35);
-    const end = prog(t, T[iEnd] - 0.1, T[iEnd] + 0.4);
+    const impact = prog(t, T[iImpact] - 0.1, T[iImpact] + 0.26);
+    const lesson = prog(t, T[iLesson] - 0.1, T[iLesson] + 0.26);
+    const end = prog(t, T[iEnd] - 0.1, T[iEnd] + 0.28);
     const dim = lerp(1, 0.07, Math.max(impact, lesson));
     // Timeline.
     const yB = (i) => 500 + i * 300;
@@ -858,7 +865,7 @@ function incidentVideo(inc) {
       s += group(dim * (1 - end), `<line x1="96" y1="${yB(0) + 14}" x2="96" y2="${f1(yEnd)}" stroke="${C.red}" stroke-opacity="0.5" stroke-width="4"/>`);
     }
     inc.beats.forEach((b, i) => {
-      const p = prog(t, T[1 + i] - 0.05, T[1 + i] + 0.4);
+      const p = prog(t, T[1 + i] - 0.05, T[1 + i] + 0.28);
       if (p <= 0) return;
       const y = yB(i);
       const current = t < T[2 + i];
@@ -868,7 +875,7 @@ function incidentVideo(inc) {
       s += group(p * dim * (1 - end), g, `translate(${f1((1 - p) * 80)} 0)`);
     });
     // Impact counter.
-    const cnt = prog(t, T[iImpact] + 0.1, T[iImpact] + 1.5);
+    const cnt = prog(t, T[iImpact] + 0.05, T[iImpact] + 1.0);
     const dec = inc.impact.decimals ?? (inc.impact.value % 1 ? 1 : 0);
     const num = `${(inc.impact.value * cnt).toLocaleString("en-US", { minimumFractionDigits: dec, maximumFractionDigits: dec })}${inc.impact.suffix}`;
     s += group(impact * (1 - lesson),
@@ -884,7 +891,7 @@ function incidentVideo(inc) {
       lines(540, 960 - lh / 2 + 120 + lf.size * 0.6, lf.lines, { size: lf.size, weight: 800, anchor: "middle" }, 1.3) +
       chips(540, 960 + lh / 2 - 84, inc.certs.map(shortOf), C.sky),
       `translate(0 ${f1((1 - lesson) * 40)})`);
-    s += legend(inc.source, 1408, Math.min(1, prog(t, T[1], T[1] + 0.4)) * (1 - end));
+    s += legend(inc.source, 1408, Math.min(1, prog(t, T[1], T[1] + 0.28)) * (1 - end));
     s += endCard(isStory ? "Read the full story" : "Follow for more incident files", isStory ? "Timeline, root cause and what it means for your exam." : CTA_SUB(cert), "certquests.com", end);
     return s;
   };
@@ -936,10 +943,10 @@ function duelVideo(cmp) {
     const iT = off + verdicts.length;
     const iEnd = iT + 1;
     let s = chrome("CERT DUEL", C.violet);
-    const head = prog(t, T[1] - 0.25, T[1] + 0.35);
+    const head = prog(t, T[1] - 0.25, T[1] + 0.26);
     const slideA = prog(t, 0, 0.5);
     const slideB = prog(t, 0.1, 0.6);
-    const end = prog(t, T[iEnd] - 0.1, T[iEnd] + 0.4);
+    const end = prog(t, T[iEnd] - 0.1, T[iEnd] + 0.28);
     // Cert cards: big in the hook, header afterwards.
     const ch = lerp(560, 200, head);
     const cy = lerp(520, 276, head);
@@ -980,7 +987,7 @@ function duelVideo(cmp) {
     if (hasHours) s += row(2, 660, "Study time", pa.est_hours, pb.est_hours, (v) => `~${v} h`, false);
     // Verdicts: one card at a time.
     verdicts.forEach((v, i) => {
-      const a = prog(t, T[off + i] - 0.05, T[off + i] + 0.35);
+      const a = prog(t, T[off + i] - 0.05, T[off + i] + 0.26);
       const b = prog(t, (T[off + i + 1] ?? T[iT]) - 0.1, (T[off + i + 1] ?? T[iT]) + 0.2);
       const op = a * (1 - b);
       if (op <= 0) return;
@@ -997,12 +1004,12 @@ function duelVideo(cmp) {
       g += `<path d="M${v.winner === A.id ? 250 : 830} ${y - 14} l-22 30 h44 z" fill="${col}"/>`;
       s += group(op, g, `translate(0 ${f1((1 - a) * 40)})`);
     });
-    const tp = prog(t, T[iT] - 0.1, T[iT] + 0.35);
+    const tp = prog(t, T[iT] - 0.1, T[iT] + 0.26);
     s += group(tp * (1 - end * 0.9),
       card(60, 760, 960, 150 + tl.lines.length * tl.size * 1.3, { stroke: "url(#brand)", sw: 4, fillOpacity: 0.97 }) +
       label(100, 822, "TL;DR", C.gold, 26) +
       lines(100, 880 + tl.size * 0.5, tl.lines, { size: tl.size, weight: 800 }, 1.3));
-    s += legend(`Exam fees in USD · CertQuests comparison, reviewed ${cmp.lastReviewed}`, 1408, prog(t, T[1], T[1] + 0.4) * (1 - end));
+    s += legend(`Exam fees in USD · CertQuests comparison, reviewed ${cmp.lastReviewed}`, 1408, prog(t, T[1], T[1] + 0.28) * (1 - end));
     s += endCard("Full comparison", "Fees, study time, salaries and which one to take first.", "certquests.com", end);
     return s;
   };
@@ -1056,10 +1063,10 @@ function newsVideo(nw) {
       lines(540, 790 - bigH / 2 + big.size, big.lines, { size: big.size, weight: 900, anchor: "middle" }, 1.12),
       `translate(540 860) scale(${pop.toFixed(3)}) translate(-540 -860)`);
     s += group(head, text(60, 312, nw.date, { size: 30, weight: 800, family: MONO, fill: C.sky }) + lines(60, 366, small.lines, { size: small.size, weight: 800 }, 1.18));
-    const take = prog(t, T[iTake] - 0.1, T[iTake] + 0.35);
-    const end = prog(t, T[iEnd] - 0.1, T[iEnd] + 0.4);
+    const take = prog(t, T[iTake] - 0.1, T[iTake] + 0.26);
+    const end = prog(t, T[iEnd] - 0.1, T[iEnd] + 0.28);
     nw.facts.forEach((f, i) => {
-      const p = prog(t, T[1 + i] - 0.05, T[1 + i] + 0.4);
+      const p = prog(t, T[1 + i] - 0.05, T[1 + i] + 0.28);
       if (p <= 0) return;
       const y = 490 + i * 300;
       const current = t < T[2 + i];
@@ -1075,7 +1082,7 @@ function newsVideo(nw) {
       label(540, 960 - th / 2 + 66, "What it means", C.gold, 28, "middle") +
       lines(540, 960 - th / 2 + 120 + tk.size * 0.6, tk.lines, { size: tk.size, weight: 800, anchor: "middle" }, 1.3),
       `translate(0 ${f1((1 - take) * 40)})`);
-    s += legend(nw.source, 1408, prog(t, T[1], T[1] + 0.4) * (1 - end));
+    s += legend(nw.source, 1408, prog(t, T[1], T[1] + 0.28) * (1 - end));
     s += endCard("Follow for tech news, explained", "What matters for your IT career, in under a minute.", "certquests.com", end);
     return s;
   };
@@ -1185,9 +1192,25 @@ async function render(v, stills) {
     console.warn(`${v.file}: no voice (no TTS key or TTS failed): music only`);
   }
   const dur = v.scenes.map((s, i) => (hasVoice ? clips[i].seconds : estimate(s.say || s.sub)));
+  if (hasVoice) {
+    // Speech rate, so pace changes are measured rather than guessed (each clip keeps ~0.37 s of edge margin).
+    const words = v.scenes.reduce((n, s) => n + spoken(s.say || s.sub).split(/\s+/).filter(Boolean).length, 0);
+    const secs = dur.reduce((a, b) => a + b, 0) - 0.37 * dur.length;
+    console.log(`  voice: ${words} words in ${secs.toFixed(1)} s = ${Math.round((words / secs) * 60)} words/min`);
+  }
   const tl = timeline(v.scenes, dur);
   const chunks = subtitleChunks(v.scenes, tl);
-  const frameAt = (t) => v.frame(t, tl) + subtitleSvg(chunks, t);
+  // Punch-in: every new scene starts 3 % zoomed and settles in 0.22 s, a cut feel without a hard cut.
+  const punch = (t) => {
+    const s = tl.start.filter((x, i) => i > 0 && x <= t).at(-1);
+    const k = s === undefined ? 1 : clamp01((t - s) / 0.22);
+    return 1 + 0.03 * (1 - k) * (1 - k);
+  };
+  const frameAt = (t) => {
+    const z = punch(t);
+    const body = v.frame(t, tl);
+    return (z > 1.0005 ? `<g transform="translate(540 960) scale(${z.toFixed(4)}) translate(-540 -960)">${body}</g>` : body) + subtitleSvg(chunks, t);
+  };
   if (stills) {
     const times = [1.5, ...tl.start.slice(1).map((s, i) => Math.min(tl.end[i + 1] - 0.05, s + 1.3)), tl.total - 0.5];
     for (const tt of times) fs.writeFileSync(path.join(OUT, `${v.file}-t${tt.toFixed(1).padStart(4, "0")}.jpg`), await renderFrame(frameAt(tt)));

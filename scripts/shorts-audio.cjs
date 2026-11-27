@@ -11,9 +11,13 @@
 const fs = require("fs");
 
 const SR = 24000;
+// gpt-4o-mini-tts has no speed setting: the pace comes from these instructions. The first batch read too slowly
+// (owner feedback 2026-11-27), hence the explicit fast tempo; the render log prints words per minute to check it.
 const VOICE_INSTRUCTIONS =
-  "Native American English tech explainer for a short vertical video. Confident, warm and upbeat, " +
-  "brisk but unhurried, crisp articulation, no theatrical emphasis. Read letter-spaced acronyms letter by letter.";
+  "Native American English tech creator narrating a fast-paced YouTube Short. Speak FAST: a quick, punchy " +
+  "tempo of about 190 words per minute, energetic and confident, with only tiny pauses at full stops and none " +
+  "inside sentences. Never drawl or stretch words. Crisp articulation, upbeat, no theatrical emphasis. " +
+  "Read letter-spaced acronyms letter by letter, quickly.";
 
 function parseWav(buf) {
   let off = 12;
@@ -91,7 +95,7 @@ async function googleTts(text) {
     body: JSON.stringify({
       input: { text },
       voice: { languageCode: "en-US", name: process.env.GOOGLE_TTS_VOICE || "en-US-Neural2-J" },
-      audioConfig: { audioEncoding: "LINEAR16", sampleRateHertz: SR, speakingRate: 1.06 },
+      audioConfig: { audioEncoding: "LINEAR16", sampleRateHertz: SR, speakingRate: 1.15 },
     }),
   });
   if (!res.ok) {
@@ -114,7 +118,7 @@ async function azureTts(text) {
       "Content-Type": "application/ssml+xml",
       "X-Microsoft-OutputFormat": "riff-24khz-16bit-mono-pcm",
     },
-    body: `<speak version="1.0" xml:lang="en-US"><voice name="${process.env.AZURE_SPEECH_VOICE || "en-US-AndrewNeural"}"><prosody rate="+6%">${xml}</prosody></voice></speak>`,
+    body: `<speak version="1.0" xml:lang="en-US"><voice name="${process.env.AZURE_SPEECH_VOICE || "en-US-AndrewNeural"}"><prosody rate="+15%">${xml}</prosody></voice></speak>`,
   });
   if (!res.ok) {
     console.warn(`TTS Azure: ${res.status} ${(await res.text()).slice(0, 160)}`);
@@ -128,7 +132,7 @@ async function openaiTts(text) {
   if (!key) return null;
   const tries = [
     { model: "gpt-4o-mini-tts", voice: process.env.OPENAI_TTS_VOICE || "ash", instructions: VOICE_INSTRUCTIONS },
-    { model: "tts-1-hd", voice: "onyx", speed: 1.05 },
+    { model: "tts-1-hd", voice: "onyx", speed: 1.15 },
   ];
   for (const t of tries) {
     for (let attempt = 0; attempt < 2; attempt++) {
@@ -159,7 +163,7 @@ async function tts(text) {
 }
 
 // ─── Background music ──────────────────────────────────────────────────────
-// 100 bpm, i–VI–III–VII in A minor (one bar per chord): soft pad, plucked bass, arpeggio, light beat.
+// 116 bpm, i–VI–III–VII in A minor (one bar per chord): soft pad, plucked bass, arpeggio, light beat.
 const CHORDS = [
   { bass: 55.0, tones: [220.0, 261.63, 329.63] }, // A minor
   { bass: 87.31, tones: [174.61, 220.0, 261.63] }, // F
@@ -170,7 +174,7 @@ const CHORDS = [
 function music(seconds, seed = 7) {
   const n = Math.ceil(seconds * SR);
   const out = new Float32Array(n);
-  const beat = 60 / 100;
+  const beat = 60 / 116;
   const bar = beat * 4;
   let rnd = seed >>> 0;
   const noise = () => ((rnd = (rnd * 1664525 + 1013904223) >>> 0) / 4294967296) * 2 - 1;
