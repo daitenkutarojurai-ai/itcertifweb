@@ -1,7 +1,7 @@
 /**
  * Sound for the vertical shorts (scripts/shorts-video.cjs):
- *   - English voice-over: Google Cloud TTS or Azure Speech when their keys exist, else OpenAI
- *     (gpt-4o-mini-tts, fallback tts-1-hd) with OPENAI_API_KEY (a GitHub secret: voices are made in CI);
+ *   - English voice-over: Google Cloud TTS or Azure Speech when their keys exist, else OpenAI (voice "verse",
+ *     speed 1.25, gpt-4o-mini-tts, fallback tts-1-hd) with OPENAI_API_KEY (a GitHub secret: voices are made in CI);
  *   - background music synthesized here note by note: no third-party track, no rights to manage.
  * Everything is 16-bit mono PCM at 24 kHz (the WAV format the OpenAI API returns), mixed later by ffmpeg.
  *
@@ -141,10 +141,11 @@ const SPEED = Number(process.env.OPENAI_TTS_SPEED || 1.25);
 async function openaiTts(text, opts = {}) {
   const key = process.env.OPENAI_API_KEY;
   if (!key) return null;
-  const voice = process.env.OPENAI_TTS_VOICE || "ash";
+  // "verse" (owner's pick of three samples, 2026-11-27) exists only on gpt-4o-mini-tts; the tts-1-hd fallback uses ash.
+  const voice = process.env.OPENAI_TTS_VOICE || "verse";
   const tries = [
     { model: process.env.OPENAI_TTS_MODEL || "gpt-4o-mini-tts", voice, instructions: opts.natural ? NATURAL_INSTRUCTIONS : VOICE_INSTRUCTIONS, speed: SPEED },
-    { model: "tts-1-hd", voice, speed: SPEED },
+    { model: "tts-1-hd", voice: ["verse", "ballad"].includes(voice) ? "ash" : voice, speed: SPEED },
   ];
   for (const t of tries) {
     if (t.model.startsWith("tts-1")) delete t.instructions;

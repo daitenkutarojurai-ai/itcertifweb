@@ -1188,7 +1188,8 @@ async function urlOk(url) {
 // from sentence to sentence instead of restarting each time (owner: "still a bit robotic", 2026-11-27). Whisper
 // word timestamps locate each scene's first word; the take is cut midway through the pause before it, so no word
 // is touched and nothing is stretched. Returns null (→ sentence-by-sentence) when the alignment is not trusted.
-const FLOW = (process.env.SHORTS_TTS_MODE || "sentence") === "flow";
+// Default since 2026-11-27: the owner compared three samples and picked this one (verse voice, one take).
+const FLOW = (process.env.SHORTS_TTS_MODE || "flow") === "flow";
 async function flowClips(scenes) {
   const texts = scenes.map((s) => {
     const t = spoken(s.say || s.sub);
