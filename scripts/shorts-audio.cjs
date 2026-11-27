@@ -1,7 +1,7 @@
 /**
  * Sound for the vertical shorts (scripts/shorts-video.cjs):
- *   - English voice-over: Google Cloud TTS or Azure Speech when their keys exist, else OpenAI (voice "verse",
- *     speed 1.25, gpt-4o-mini-tts, fallback tts-1-hd) with OPENAI_API_KEY (a GitHub secret: voices are made in CI);
+ *   - English voice-over: Google Cloud TTS, Chirp 3 HD voice "Aoede" at speed 1.08 (GOOGLE_TTS_API_KEY), with
+ *     OpenAI (verse, gpt-4o-mini-tts) as fallback until 2027-01-06; keys are GitHub secrets, voices are made in CI;
  *   - background music synthesized here note by note: no third-party track, no rights to manage.
  * Everything is 16-bit mono PCM at 24 kHz (the WAV format the OpenAI API returns), mixed later by ffmpeg.
  *
@@ -111,7 +111,8 @@ const respell = (t) =>
 async function googleTts(text) {
   const key = process.env.GOOGLE_TTS_API_KEY;
   if (!key) return null;
-  const name = process.env.GOOGLE_TTS_VOICE || "en-US-Chirp3-HD-Charon";
+  // Aoede: the owner's pick on 2026-11-27 ("Aoede voice is perfect now"), ~153 words/min at 1.08.
+  const name = process.env.GOOGLE_TTS_VOICE || "en-US-Chirp3-HD-Aoede";
   const speakingRate = Number(process.env.GOOGLE_TTS_RATE || 1.08);
   const custom = name.startsWith("en-") && name.includes("Chirp3-HD")
     ? { customPronunciations: { pronunciations: PRONUNCIATIONS.map(([phrase, x]) => ({ phrase, phoneticEncoding: "PHONETIC_ENCODING_X_SAMPA", pronunciation: x })) } }
@@ -184,9 +185,10 @@ async function openaiTts(text, opts = {}) {
   return null;
 }
 
-// The provider is chosen explicitly (SHORTS_TTS_PROVIDER = openai | google | azure, default openai): a key alone
-// must not switch the voice of live posts to one the owner hasn't heard. OpenAI's TTS shuts down on 2027-01-06.
-const PROVIDER = process.env.SHORTS_TTS_PROVIDER || "openai";
+// The provider is chosen explicitly (SHORTS_TTS_PROVIDER = google | openai | azure): a key alone must not switch
+// the voice of live posts to one the owner hasn't heard. Google (Aoede) is the owner's choice since 2026-11-27;
+// OpenAI stays as fallback until its TTS shuts down on 2027-01-06.
+const PROVIDER = process.env.SHORTS_TTS_PROVIDER || "google";
 async function tts(text, opts = {}) {
   const chain = PROVIDER === "google" ? [googleTts, openaiTts] : PROVIDER === "azure" ? [azureTts, openaiTts] : [openaiTts];
   for (const f of chain) {
