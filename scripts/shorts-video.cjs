@@ -63,15 +63,19 @@ const QUIZ_PACKS = [
 ];
 // Two-cert comparisons, most useful first; the rest follow alphabetically.
 const DUEL_ORDER = [
-  "ccna-vs-comptia-network-plus", "cissp-vs-comptia-security-plus", "cka-vs-ckad", "az-104-vs-az-204",
+  "ccna-vs-comptia-network-plus", "cissp-vs-comptia-security-plus", "cka-vs-ckad",
   "comptia-security-plus-vs-comptia-cysa", "az-500-vs-sc-200", "cism-vs-cissp", "az-104-vs-aws-saa-c03",
   "rhcsa-vs-comptia-linux", "gcp-ace-vs-aws-saa-c03", "cka-vs-cks", "terraform-003-vs-az-400",
 ];
 
+// Comparisons with a retired exam stay out of the rotation (no retirement flag in index.json yet):
+// AZ-204 retired 2026-07-31 (site news), SOA-C02 on 2025-09-29 (replaced by SOA-C03).
+const DUEL_SKIP = ["az-104-vs-az-204", "aws-soa-c02-vs-aws-saa-c03"];
+
 function duels() {
   const dir = path.join(ROOT, "data", "comparisons");
   const all = fs.readdirSync(dir).filter((f) => f.endsWith(".json")).map((f) => JSON.parse(fs.readFileSync(path.join(dir, f), "utf8")));
-  const ok = all.filter((c) => c.certs?.length === 2 && c.certs.every((x) => PACKS.has(x.id)) && c.verdicts?.length);
+  const ok = all.filter((c) => c.certs?.length === 2 && c.certs.every((x) => PACKS.has(x.id)) && c.verdicts?.length && !DUEL_SKIP.includes(c.slug));
   const rank = (s) => (DUEL_ORDER.includes(s) ? DUEL_ORDER.indexOf(s) : 100);
   return ok.sort((a, b) => rank(a.slug) - rank(b.slug) || a.slug.localeCompare(b.slug));
 }
@@ -863,7 +867,7 @@ function incidentVideo(inc) {
     // Impact counter.
     const cnt = prog(t, T[iImpact] + 0.1, T[iImpact] + 1.5);
     const dec = inc.impact.decimals ?? (inc.impact.value % 1 ? 1 : 0);
-    const num = `${(inc.impact.value * cnt).toFixed(dec)}${inc.impact.suffix}`;
+    const num = `${(inc.impact.value * cnt).toLocaleString("en-US", { minimumFractionDigits: dec, maximumFractionDigits: dec })}${inc.impact.suffix}`;
     s += group(impact * (1 - lesson),
       card(60, 700, 960, 380, { stroke: C.red, sw: 4, fillOpacity: 0.97 }) +
       text(540, 900, num, { size: fitFont(num, 900, 230, 0.62), weight: 900, anchor: "middle", fill: "url(#alarm)" }) +
