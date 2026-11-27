@@ -1,0 +1,68 @@
+# Batch render of the shorts calendar (scripts/shorts-video.cjs) with voice-over, music and subtitles: the MP4s,
+# their .srt and captions go to the "shorts" artifact. Used to schedule YouTube Shorts (and TikTok) ahead;
+# Facebook and Instagram are published by shorts-publish. Monday: the week's 4 slots. By hand: any period.
+name: shorts-weekly
+
+on:
+  schedule:
+    - cron: "0 6 * * 1"
+  workflow_dispatch:
+    inputs:
+      from:
+        description: "First day YYYY-MM-DD (empty = today)"
+        type: string
+        default: ""
+      count:
+        description: "Number of slots to render"
+        type: string
+        default: "4"
+      pick:
+        description: "Instead of the calendar: format:id list (e.g. concept:lacp,quiz:az-900)"
+        type: string
+        default: ""
+
+concurrency:
+  group: shorts-weekly
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  render:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+
+      - name: ffmpeg, fonts and sharp
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq ffmpeg fonts-dejavu-core
+          sudo apt-get install -y -qq fonts-inter fonts-jetbrains-mono || echo "optional fonts unavailable, DejaVu fallback"
+          npm install --no-save --no-package-lock sharp@0.35
+
+      - name: Render
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          FROM: ${{ inputs.from }}
+          COUNT: ${{ inputs.count }}
+          PICK: ${{ inputs.pick }}
+        run: |
+          if [ -n "$PICK" ]; then
+            node scripts/shorts-video.cjs --out shorts-out --require-voice --pick "$PICK"
+          else
+            [ -z "$FROM" ] && FROM=$(date -u +%F)
+            [ -z "$COUNT" ] && COUNT=4
+            node scripts/shorts-video.cjs --out shorts-out --require-voice --from "$FROM" --count "$COUNT"
+          fi
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: shorts
+          path: shorts-out/
+          retention-days: 30
