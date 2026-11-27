@@ -127,21 +127,27 @@ async function azureTts(text) {
   return clip(Buffer.from(await res.arrayBuffer()));
 }
 
+// The instructions alone left the voice at ~135 words/min (batch of 2026-11-27): the API's own `speed` setting
+// (the provider's rate control, not a post-hoc time-stretch) does the rest. OPENAI_TTS_SPEED / OPENAI_TTS_MODEL
+// override for tests.
+const SPEED = Number(process.env.OPENAI_TTS_SPEED || 1.25);
 async function openaiTts(text) {
   const key = process.env.OPENAI_API_KEY;
   if (!key) return null;
+  const voice = process.env.OPENAI_TTS_VOICE || "ash";
   const tries = [
-    { model: "gpt-4o-mini-tts", voice: process.env.OPENAI_TTS_VOICE || "ash", instructions: VOICE_INSTRUCTIONS },
-    { model: "tts-1-hd", voice: "onyx", speed: 1.15 },
+    { model: process.env.OPENAI_TTS_MODEL || "gpt-4o-mini-tts", voice, instructions: VOICE_INSTRUCTIONS, speed: SPEED },
+    { model: "tts-1-hd", voice, speed: SPEED },
   ];
   for (const t of tries) {
+    if (t.model.startsWith("tts-1")) delete t.instructions;
     for (let attempt = 0; attempt < 2; attempt++) {
       const res = await fetch("https://api.openai.com/v1/audio/speech", {
         method: "POST",
         headers: { Authorization: `Bearer ${key}`, "content-type": "application/json" },
         body: JSON.stringify({ ...t, input: text, response_format: "wav" }),
       });
-      if (res.ok) return clip(Buffer.from(await res.arrayBuffer()));
+      if (res.ok) return { ...clip(Buffer.from(await res.arrayBuffer())), model: `${t.model}/${t.voice}@${t.speed}` };
       console.warn(`TTS ${t.model}: ${res.status} ${(await res.text()).slice(0, 160)}`);
       if (res.status < 500 && res.status !== 429) break;
       await new Promise((r) => setTimeout(r, 3000));

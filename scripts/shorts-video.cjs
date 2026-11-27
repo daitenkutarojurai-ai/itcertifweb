@@ -1196,7 +1196,7 @@ async function render(v, stills) {
     // Speech rate, so pace changes are measured rather than guessed (each clip keeps ~0.37 s of edge margin).
     const words = v.scenes.reduce((n, s) => n + spoken(s.say || s.sub).split(/\s+/).filter(Boolean).length, 0);
     const secs = dur.reduce((a, b) => a + b, 0) - 0.37 * dur.length;
-    console.log(`  voice: ${words} words in ${secs.toFixed(1)} s = ${Math.round((words / secs) * 60)} words/min`);
+    console.log(`  voice: ${words} words in ${secs.toFixed(1)} s = ${Math.round((words / secs) * 60)} words/min (${clips[0].model || "?"})`);
   }
   const tl = timeline(v.scenes, dur);
   const chunks = subtitleChunks(v.scenes, tl);
